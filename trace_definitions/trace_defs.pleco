@@ -1,0 +1,465 @@
+/*
+ * Copyright (c) 2012-2013, ETH Zurich.
+ * All rights reserved.
+ *
+ * This file is distributed under the terms in the attached LICENSE file.
+ * If you do not find this file, copies can be found by writing to:
+ * ETH Zurich D-INFK, Universitaetstrasse 6, CH-8092 Zurich. Attn: Systems Group.
+*/
+/*
+ * \brief Subsystem and Event definitions of the tracing framework.
+ *
+ * Events do always belong to their subsystem. Make sure that you only
+ * call trace_event() with matching subsystems, in order to be able to
+ * make reasonable use of Aquarium 2.
+ *
+ * Note: If you don't specify a verbose description of the event, the
+ * description will default to the name of the event.
+ *
+ * Example:
+ *
+ * The subystem:
+ *
+ * subsystem mysubsystem {
+ * 		event myevent "",
+ * }
+ *
+ * will be compiled into the following two C macros:
+ *
+ * #define TRACE_SUBSYSTEM_MYSUBSYSTEM 1
+ * #define TRACE_EVENT_MYSUBSYSTEM_MYEVENT 1
+ *
+ * The pattern is that every subsystem is mapped to the concatentation of
+ * TRACE_SUBSYSTEM_ and its name in uppercase, and each event is mapped to
+ * the concatenation of TRACE_EVENT_ and the subsystem name in upper case,
+ * followed by a _ and the name of the event.
+ *
+*/
+
+subsystem kernel {
+
+    // Do not change CSWITCH name without changing Aquarium EventFactory.java!
+	event CSWITCH 				"Context Switch",
+	event BZERO 				"Buffer zeroing",
+	event TIMER 				"",
+	event TIMER_SYNC 			"",
+
+	event SCHED_MAKE_RUNNABLE 	"",
+	event SCHED_REMOVE			"",
+	event SCHED_YIELD 			"",
+	event SCHED_SCHEDULE 		"",
+	event SCHED_CURRENT 		"",
+
+    event CORE_START_REQUEST      "Requested start of a new core.",
+    event CORE_START_REQUEST_DONE "Request is sent, waiting for core to come up.",
+    event CORE_START_REQUEST_ACK  "Core is online.",
+
+    /* Syscalls */
+    event SC_PRINT            "Syscall PRINT",
+    event SC_DISP_SETUP       "Syscall DISPATCHER ",
+    event SC_DISP_PROPS       "Syscall DISPATCHER_PROPS",
+    event SC_RETYPE           "Syscall RETYPE",
+    event SC_CREATE           "Syscall CREATE",
+    event SC_COPY_OR_MINT     "Syscall COPY_OR_MINT",
+    event SC_CTE_FOR_CAP      "Syscall CTE_FOR_CAP",
+    event SC_MAP              "Syscall MAP",
+    event SC_UNMAP            "Syscall UNMAP",
+    event SC_DELETE           "Syscall DELETE",
+    event SC_REVOKE           "Syscall REVOKE",
+    event SC_MONITOR_REGISTER "Syscall MONITOR_REGISTER",
+    event SC_IDENTIFY_CAP     "Syscall IDENTIFY_CAP",
+    event SC_NULLIFY_CAP      "Syscall NULLIFY_CAP",
+    event SC_DOMAIN_ID        "Syscall DOMAIN_ID",
+    event SC_YIELD            "Syscall YIELD",
+    event SC_SUSPEND          "Syscall SUSPEND",
+    event SC_IDCAP_IDENTIFY   "Syscall IDCAP_IDENTIFY",
+    event SC_SPAWN_CORE       "Syscall SPAWN_CORE",
+
+    event CAP_LOOKUP_SLOT          "Cap Slot lookup",
+    event CAP_LOOKUP_CAP           "Cap Lookup",
+    event CAP_CREATE_FROM_EXISTING "Cap Create from existing",
+    event CAP_CREATE_NEW           "Cap Create new",
+    event CAP_RETYPE               "Cap Retype",
+};
+
+// We make a different kernel subsys for capops tracing, so we can choose to
+// not see the regular kernel events.
+subsystem kernel_capops {
+    event DELETE_ENTER		"Entering caps_delete()",
+    event DELETE_DONE		"Exiting caps_delete()",
+    event TRY_DELETE		"Entering caps_try_delete()",
+    event CLEANUP_COPY		"Entering cleanup_copy()",
+    event CLEANUP_LAST		"Entering cleanup_last()",
+    event CREATE_RAM		"cleanup_last: creating RAM cap in provided slot",
+    event CREATE_RAM_LMP	"cleanup_last: putting RAM cap in monitorEP",
+    event UNMAP_CAPABILITY	"Entering unmap_capability()",
+    event MDB_REMOVE		"Calling mdb_remove()",
+    event HAS_COPIES		"Calling has_copies()",
+
+    event RETYPE_ENTER		"Entering caps_retype()",
+    event RETYPE_IS_RETYPEABLE	"Checking retypeability",
+    event RETYPE_IS_RETYPEABLE_DONE	"Checking retypeability done",
+    event RETYPE_RANGE_CHECK	"Checking retypeability with range query",
+    event RETYPE_RANGE_CHECK_DONE	"Range query done",
+    event RETYPE_CREATE_CAPS	"Create new capabilities",
+    event RETYPE_CREATE_CAPS_DONE	"Create new capabilities done",
+    event RETYPE_MDB_INSERT	"Calling mdb_insert() for new capabilities",
+    event RETYPE_MDB_INSERT_DONE	"mdb_insert() for new capabilities done",
+    event RETYPE_DONE		"Exiting caps_retype()",
+
+    event ZERO_OBJECTS		"Zeroing capabilities",
+    event ZERO_OBJECTS_DONE	"Zeroing capabilities done",
+};
+
+subsystem threads {
+
+    event BARRIER_ENTER 			"",
+    event BARRIER_LEAVE 			"",
+
+    event MUTEX_LOCK_ENTER 			"",
+    event MUTEX_LOCK_LEAVE 			"",
+    event MUTEX_LOCK_NESTED_ENTER 	"",
+    event MUTEX_LOCK_NESTED_LEAVE 	"",
+    event MUTEX_TRYLOCK 			"",
+    event MUTEX_UNLOCK 				"",
+
+    event COND_WAIT_ENTER			"",
+    event COND_WAIT_LEAVE 			"",
+    event COND_SIGNAL 				"",
+    event COND_BROADCAST 			"",
+
+    event SEM_WAIT_ENTER 			"",
+    event SEM_WAIT_LEAVE 			"",
+    event SEM_TRYWAIT 				"",
+    event SEM_POST                              "",
+    event SYS_YIELD                             "Calling sys_yield for co-op scheduling",
+    event C_DISP_SAVE                           "calling disp_save",
+};
+
+subsystem memserv {
+
+    event ALLOC "",
+
+	event PERCORE_INIT				"",
+	event PERCORE_ALLOC 			"",
+	event PERCORE_ALLOC_COMPLETE 	"",
+};
+
+subsystem memtest {
+
+	event START					"",
+	event STOP 					"",
+	event STARTED 				"",
+	event WAIT 					"",
+	event RUN 					"",
+	event DONE 					"",
+	event ALLOC 				"",
+	event MASTER 				"",
+	event WORKER 				"",
+
+};
+
+
+subsystem monitor {
+    event SPAN0					"",
+    event SPAN1					"",
+    event SPAN						"",
+    event PCREQ					"",
+    event PCREP					"",
+    event PCREQ_INTER				"",
+    event PCREPLY_INTER			"",
+    event URPC_BLOCK				"",
+    event URPC_UNBLOCK				"",
+    event POLLING					"",
+    event BIND_MONITOR_REPLY "Bind monitor reply",
+    event BIND_MONITOR_REQUEST "Request to setup connection with new monitor",
+    event BOOT_CORE_REQUEST "Received request from (user -> monitor) [in monitor].",
+    event BOOT_INITIALIZE_REQUEST "Monitor got boot initialize request",
+    event INVOKE_SPAWN "Monitor requests boot-up from kernel (monitor -> kernel).",
+};
+
+subsystem capops {
+    event START                        	"Start capops tracing",
+    event STOP                        	"Stop capops tracing",
+
+    event DELETE_CALL_RX		"Directly call result RX handler",
+    event DELETE_DONE			"Exit point for distributed delete",
+    event DELETE_DO_WORK		"Initiate delete work",
+    event DELETE_ENTER			"Entry point to distributed delete",
+    event DELETE_FIND_CORE_CONT		"Callback from find_core broadcast",
+    event DELETE_FIND_NEW_OWNER		"Do broadcast to find new owner",
+    event DELETE_LAST			"Delete last copy",
+    event DELETE_LOCK			"Delete needs agreement/serialzation",
+    event DELETE_MOVE_RESULT_CONT	"Callback from capops_move() call",
+    event DELETE_QUEUE_FIN		"Cap is in delete queue, wait for done",
+    event DELETE_QUEUE_RETRY		"Cap is locked, queue for retry",
+    event DELETE_REMOTE_ENQ		"Enqueue remote deletes for non-moveable",
+    event DELETE_REMOTE_RX		"RX handler for remote delete",
+    event DELETE_REMOTE_RESULT_RX	"RX handler for remote delete result",
+    event USER_DELETE_CALL		"Before call to cap_delete() in user code",
+    event USER_DELETE_RESP		"After call to cap_delete() in user code",
+    event USER_DELETE_RPC		"Libbf RPC call to monitor",
+    event USER_DELETE_RPC_DONE		"Libbf RPC call to monitor done",
+    event MONITOR_DELETE_ENTER		"Entering monitor delete code",
+    event MONITOR_DELETE_REPLY		"Exiting monitor delete code",
+
+    event USER_REVOKE_CALL		"Before call to cap_revoke() in user code",
+    event USER_REVOKE_RESP		"After call to cap_revoke() in user code",
+    event USER_REVOKE_RPC		"Libbf RPC call to monitor",
+    event USER_REVOKE_RPC_DONE		"Libbf RPC call to monitor done",
+    event MONITOR_REVOKE_ENTER		"Entering monitor revoke code",
+    event MONITOR_REVOKE_REPLY		"Exiting monitor revoke code",
+    event REVOKE_START			"Starting revocation",
+    event REVOKE_RETRIEVE		"Revoke: getting ownership",
+    event REVOKE_RETRIEVE_RX		"Revoke: got ownership",
+    event REVOKE_NO_REMOTE		"Revoke w/o remote operations",
+    event REVOKE_LOCAL			"Revoke owned cap",
+    event REVOKE_DO_MARK		"Revoke: start mark phase",
+    event REVOKE_MARK_SEND		"Revoke: send mark msg",
+    event REVOKE_READY_RX		"Revoke: node reply in mark phase",
+    event REVOKE_DO_COMMIT		"Revoke: start commit phase",
+    event REVOKE_COMMIT_SEND		"Revoke: send commit msg",
+    event REVOKE_DONE_RX		"Revoke: node reply in commit phase",
+    event REVOKE_MASTER_STEPS_FIN	"Revoke: master node steps done",
+    event REVOKE_RESULT_RX		"Revoke: operation done",
+    event REVOKE_CALL_RESULT		"Revoke: calling result handler",
+
+    event REVOKE_MARK_RX		"Revoke slave: mark request RX",
+    event REVOKE_READY_SEND		"Revoke slave: mark done",
+    event REVOKE_COMMIT_RX		"Revoke slave: commit request RX",
+    event REVOKE_SLAVE_STEPS_FIN	"Revoke slave: node steps done",
+
+    event DELSTEPS_TRIGGER		"Trigger delete stepping",
+    event DELSTEPS_PAUSE		"Pause delete stepping",
+    event DELSTEPS_RESUME		"Resume delete stepping",
+    event DELSTEPS_STEP			"Execute a delete step",
+    event DELSTEPS_STEP_DONE		"Execution of a delete step done",
+    event DELSTEPS_CLEAR		"Execute a clear step",
+
+    event USER_RETYPE_CALL		"Before call to cap_retype() in user code",
+    event USER_RETYPE_RESP		"After call to cap_retype() in user code",
+    event USER_RETYPE_RPC		"Libbf RPC call to monitor",
+    event USER_RETYPE_RPC_DONE		"Libbf RPC call to monitor done",
+    event MONITOR_RETYPE_ENTER		"Entering monitor revoke code",
+    event MONITOR_RETYPE_REPLY		"Exiting monitor revoke code",
+    event RETYPE_START			"Starting retype",
+    event RETYPE_REQUEST_ENQ		"Retype: enqueue request to owner",
+    event RETYPE_REQUEST_SEND		"Retype: send request to owner",
+    event RETYPE_REQUEST_RX		"Retype: request RX on owner",
+    event RETYPE_CHECK_ENQ		"Retype: enqueue global check",
+    event CAPSEND_CHECK_RETYPEABLE	"Retype: do broadcast",
+    event CAPSEND_CHECK_RETYPEABLE_RX	"Retype: non-owner check RX",
+    event CAPSEND_CHECK_RETYPEABLE_RESULT_RX	"Retype: node reply",
+    event RETYPE_CHECK_RETYPEABLE_RX	"Retype: broadcast reply",
+    event RETYPE_CHECK_RX		"Retype: merge node replies",
+    event RETYPE_RESPONSE_RX		"Retype: original node got check reply",
+    event MONITOR_RETYPE_CREATE_CAPS	"Retype: monitor_create_caps()",
+    event MONITOR_RETYPE_CREATE_CAPS_DONE	"Retype: monitor_create_caps() done",
+    event RETYPE_CALL_RESULT		"Retype: calling result handler",
+
+    event RETYPE_LOCAL_CHECK_RX		"Retype: check continuation (local path)",
+    event RETYPE_RESULT_RX		"Retype: handle error result (?)",
+
+    event RETYPE_RESULT_ENQ		"Retype: enqueue check result",
+    event RETYPE_RESULT_SEND		"Retype: send check result",
+
+    event RETYPE_DEL_TMPCAP		"Retype: delete temporary copy",
+    event RETYPE_DEL_TMPCAP_DONE	"Retype: delete temporary copy done",
+};
+
+subsystem chips {
+
+ event LISTENCB					"",
+
+};
+
+subsystem bflib {
+
+	// XXX: Empty subsystems are not allowed
+	event dummy				"",
+
+};
+
+
+subsystem tweed {
+
+ event START				"",
+ event END					"",
+ event STEAL				"",
+ event STEAL_END			"",
+ event WAIT					"",
+ event WAIT_END				"",
+ event LOCKING				"",
+ event LOCKING_END			"",
+
+};
+
+subsystem route {
+
+ event BCAST_WITH_CCAST_SEND		"",
+ event BCAST_WITH_CCAST				"",
+ event RECV_BCAST_WITH_CCAST		"",
+ event RECV_CCAST					"",
+ event BENCH_START					"",
+ event BENCH_STOP					"",
+ event SEND_PING					"",
+ event SEND_PONG					"",
+ event RECV_PING					"",
+ event RECV_PONG					"",
+ event POLL							"",
+
+};
+
+// Generic Benchmarking events
+subsystem bench {
+
+ event START                "Start the benchmark/tracing",
+ event STOP                 "End of the benchmark/tracing",
+
+ event ROUND_START          "",
+ event ROUND_END            "",
+
+ event PCBENCH				"",
+ event RXPING				"",
+ event RXPONG				"",
+
+
+};
+
+subsystem bomp {
+
+ event START				"",
+ event STOP					"",
+ event ITER					"",
+
+};
+
+subsystem barriers {
+
+ event START				"",
+ event STOP					"",
+ event BARRIER_WAIT			"",
+ event CENTRAL_REQ			"",
+ event CENTRAL_REP			"",
+ event TREE_REQ				"",
+ event TREE_REP				"",
+ event DIST					"",
+ event SEND					"",
+ event POLL1				"",
+ event POLL2				"",
+ event HEAP_REQ				"",
+ event HEAP_REP				"",
+ event SEQ_BCAST_REQ		"",
+ event SEQ_BCAST_RECV		"",
+ event TREE_BCAST_REQ		"",
+ event TREE_BCAST_RECV		"",
+
+};
+
+/* Following constans are used for profiling modified stack */
+subsystem nnet {
+
+ event START               "",
+ event STOP                "",
+ event RXESVAPPFDONE       "Ethersrv app filtered",
+
+ event RXDRVSEE            "Driver saw pkg (RX)",
+ event RXESVSEE            "Ethersrv saw pkg",
+ event RXESVFRGDONE        "Ethersrv checked frag",
+ event LWIPTX              "LWIP idc_send_packet_to_network_driver",
+ event SCHED_REMOVE        "Process marked non-runnable",
+ event IRQ                 "interrupt in kernelspace",
+ event UIRQ                "interrupt in kernelspace for userspace",
+ event NO_S                "e1000 packet send",
+ event NI_I                "e1000 interrupt arrived",
+
+ event YIELD               "process yielded",
+
+ event LWIPPBF2            "LWIP pbuf freed",
+ event LWIPPBA2            "LWIP pbuf Allocated",
+
+ event NI_PKT_CPY          "Queue manager packet copy",
+event DRV_POLL             "e1000 polling",
+ event DRV_SEE             "handled packet",
+ event DRVTXDONE           "TX buffer reclamation",
+ event DRVRX               "checking for new packets",
+ event WEBEVENTLOOP        "Webserver event loop",
+
+
+ event RXESVAPPCSTART      "Ethersrv app c2u started",
+ event RXESVCOPIED         "Ethersrv copied pkg",
+ event RXESVSPPDONE        "Ethersrv spp produce done",
+ event RXESVAPPNOTIF       "Ethersrv app notify",
+ event RXLWIINCOM          "LWIP handle_incoming_",
+ event RXLWIRECH           "LWIP call rec_handler",
+ event RXAPPRCV            "APP received",
+ event LWIPRX              "LWIP handle incoming",
+
+ event TXAPPSNT            "APP sent",
+ event TXLWISEE            "LWIP idc_send_packet",
+ event TXLWIBFFENCE        "LWIP before mfence",
+ event TXLWIAFFENCE        "LWIP after mfence",
+ event TXLWIFLUSHED        "LWIP payload flushed",
+ event TXLWIBDESC          "LWIP bufferdesc fetched",
+ event TXLWISPPSND         "LWIP spp produced",
+ event TXLWISPPIDX         "LWIP update spp index",
+ event TXLWITXWORK         "LWIP pending TX work",
+ event TXLWINOTIF          "LWIP notify driver",
+ event TXESVNOTIF          "Ethersrv notify recieved",
+ event TXESVSPOW           "Ethersrv send_pkt_on_w..",
+ event TXESVSSPOW          "Ethersrv send_sng_pkt..",
+ event TXDRVADD            "Driver add pkg (TX)",
+ event TXDRVSEE            "Driver saw pkg done (TX)",
+ event TX_TCP_WRITE        "tcp_write done",
+ event TX_TCP_OUTPUT       "tcp_output done",
+ event TX_TCP_RECV         "tcp_recved done",
+ event TX_TCP_FREE         "tx pbuf freed",
+ event TX_MEMP             "tx pbuf memp start",
+ event TX_MEMP_D           "tx pbuf memp done",
+
+
+
+};
+
+
+
+subsystem multihop {
+
+ event BENCH_START    		 "",
+ event BENCH_STOP    		 "",
+ event MESSAGE_SEND  		 "",
+ event MESSAGE_RECEIVE		 "",
+
+};
+
+
+/* The example subsystem is used to demonstrate how the tracing framework
+ * works. It is used by the program in "examples/xmpl-trace". */
+subsystem xmpl {
+
+	event START				"",
+	event STOP				"",
+	event EV1				"",
+	event EV2				"",
+
+};
+
+subsystem acpi {
+    event APIC_ADDED     "ACPI added fact about new core to SKB",
+};
+
+// Use to trace the core booting system
+subsystem cores {
+    event USER_REQUEST     "Kaluga requests boot-up of new CPU user -> monitor.",
+    event ALL_UP           "Everything has booted",
+    event BOOT_INITIALIZE_USER "User sends boot initialize to monitor",
+};
+
+// Trace events for libbf memory subsystem and adjacent stuff
+subsystem memory {
+    event DETADDR           "pmap->f.determine_addr()",
+    event DO_MAP            "pmap: do_map()",
+    event UNMAP             "pmap->f.unmap()",
+    event MODIFY            "pmap->f.modify_flags()",
+    event LOOKUP            "pmap->f.lookup()",
+};

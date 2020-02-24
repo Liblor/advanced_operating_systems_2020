@@ -1,0 +1,308 @@
+--------------------------------------------------------------------------
+-- Copyright (c) 2007-2016, ETH Zurich.
+-- Copyright (c) 2015-2016, Hewlett Packard Enterprise Development LP.
+-- All rights reserved.
+--
+-- This file is distributed under the terms in the attached LICENSE file.
+-- If you do not find this file, copies can be found by writing to:
+-- ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich.
+-- Attn: Systems Group.
+--
+-- Hakefile for Barrelfish CPU drivers
+--
+--------------------------------------------------------------------------
+
+--
+-- Missing from this new Hakefile is the rule to build kernel debug
+-- symbols, since this requires some thinking about naming
+-- conventions.  Here is the rule we need:
+--
+--                Rule ( [ Str "OBJDUMP=objdump",
+--                         In SrcTree "src" "/tools/gen-gdbscript.sh",
+--                         In SrcTree "src" "/tools/debug.gdb.in",
+--                         In BuildTree arch "../sbin/cpu",
+--                         Str ">", Out arch "/debug.gdb"
+--                        ] )
+
+let
+  scheduler = case Config.scheduler of
+      Config.RR   -> "schedule_rr.c"
+      Config.RBED -> "schedule_rbed.c"
+  common_c = [ "gdb_stub.c",
+               "capabilities.c",
+               "cap_delete.c",
+               "dispatch.c",
+               scheduler,
+               "kcb.c",
+               "logging.c",
+               "memset.c",
+               "memmove.c",
+               "monitor.c",
+               "paging_generic.c",
+               "printf.c",
+               "startup.c",
+               "stdlib.c",
+               "string.c",
+               "sys_debug.c",
+               "syscall.c",
+               "wakeup.c",
+               "useraccess.c",
+               "coreboot.c",
+               "systime.c" ]
+             ++ (if Config.microbenchmarks then ["microbenchmarks.c"] else [])
+             ++ (if Config.oneshot_timer then ["timer.c"] else [])
+  common_libs = [ "getopt", "mdb_kernel" ]
+  boot_c = [ "memset.c",
+             "printf.c",
+             "stdlib.c",
+             "string.c" ]
+
+  link_cpudriver arg = linkKernel opts name objs libs "cpu"
+    where
+      opts = kernelOptions $ head $ Args.architectures arg
+      suffix = if "cpu" == Args.target arg
+             then ""
+             else "_" ++ (Args.target arg)
+      name = "cpu" ++ suffix
+      objs = [ objectFilePath opts f
+             | f <- (Args.assemblyFiles arg) ++ (Args.cFiles arg) ++ common_c ]
+      libs = (Args.addLibraries arg) ++ common_libs
+
+  link_bootdriver arg = linkKernel opts name objs libs "boot"
+    where
+      opts = kernelOptions $ head $ Args.architectures arg
+      name = "boot_" ++ Args.target arg
+      objs = [ objectFilePath opts f
+             | f <- (Args.assemblyFiles arg) ++ (Args.cFiles arg) ]
+      libs = (Args.addLibraries arg) ++ common_libs
+
+  cpudrivers arglist =
+    let
+      cafiles = Data.List.nub $ concat [ [ [ arch, cfile ]
+                                         | arch <- Args.architectures arg,
+                                           cfile <- common_c ++ (Args.cFiles arg) ]
+                                       | arg <- arglist ]
+      safiles = Data.List.nub $ concat [ [ [ arch, sfile ]
+                                         | arch <- Args.architectures arg,
+                                           sfile <- Args.assemblyFiles arg ]
+                                       | arg <- arglist ]
+      mafiles = Data.List.nub $ concat [ [ [ arch, mfile ]
+                                         | arch <- Args.architectures arg,
+                                           mfile <- Args.mackerelDevices arg ]
+                                       | arg <- arglist ]
+    in
+     ( [ compileCFile (kernelOptions a) f | [a,f] <- cafiles ]
+       ++
+       [ assembleSFile (kernelOptions a) f | [a,f] <- safiles ]
+       ++
+       [ mackerelDependencies (kernelOptions a) f [ c | [a,c] <- cafiles]
+       | [a,f] <- mafiles ]
+       ++
+       [ if Args.driverType arg == "boot"
+            then link_bootdriver arg
+            else link_cpudriver arg | arg <- arglist ]
+     )
+
+in cpudrivers [
+  --
+  -- ARMv8 Generic boot driver
+  --
+  bootDriver {
+    target = "armv8_generic",
+    architectures = [ "armv8" ],
+    assemblyFiles = [  "arch/armv8/boot/boot_entry.S" ],
+    cFiles = [  "arch/armv8/boot/boot_generic.c" ],
+    mackerelDevices = [ "armv8" ]
+  },
+
+  --
+  -- ARM Virtual Machine Cortex-A57 ARMv8-A, (FVP)
+  --
+  cpuDriver {
+    target = "a57_fvp",
+    architectures = [ "armv8" ],
+    assemblyFiles = [
+        "arch/armv8/sysreg.S",
+        "arch/armv8/exceptions.S",
+        "arch/armv8/smc_hvc.S"
+    ],
+    cFiles = [
+        "arch/arm/misc.c",
+        "arch/arm/pl011.c",
+        "arch/arm/kputchar.c",
+        "arch/arm/gdb_arch.c",
+        "arch/armv8/plat_arm_vm.c",
+        "arch/armv8/plat_arm_vm_consts.c",
+        "arch/armv8/init.c",
+        "arch/armv8/gdb_arch.c",
+        -----
+        "arch/armv8/kernel_multiboot2.c",
+        "arch/armv8/dispatch.c",
+        "arch/armv8/exec.c",
+        "arch/armv8/exn.c",
+        "arch/armv8/psci.c",
+        "arch/armv8/paging.c",
+        "arch/armv8/startup_arch.c",
+        "arch/armv8/syscall.c",
+        "arch/armv8/timers.c",
+        "arch/arm/debug.c",
+        "arch/arm/gic_v3.c",
+        "arch/arm/irq.c"
+    ],
+    mackerelDevices = [
+        "arm",
+        "armv8",
+        "armv8/armv8_cache_ctrl",
+        "arm_icp_pit",
+        "gic_v3_dist",
+        "gic_v3_redist",
+        "pl011_uart"
+    ],
+    addLibraries = [
+        "elf",
+        "cpio"
+    ]
+  },
+  
+  --
+  -- ARM Virtual Machine Cortex-A57 ARMv8-A, (qemu)
+  --
+  cpuDriver {
+    target = "a57_qemu",
+    architectures = [ "armv8" ],
+    assemblyFiles = [
+        "arch/armv8/sysreg.S",
+        "arch/armv8/exceptions.S",
+        "arch/armv8/smc_hvc.S"
+    ],
+    cFiles = [
+        "arch/arm/misc.c",
+        "arch/arm/pl011.c",
+        "arch/arm/kputchar.c",
+        "arch/arm/gdb_arch.c",
+        "arch/armv8/plat_qemu.c",
+        "arch/armv8/init.c",
+        "arch/armv8/gdb_arch.c",
+        -----
+        "arch/armv8/kernel_multiboot2.c",
+        "arch/armv8/dispatch.c",
+        "arch/armv8/exec.c",
+        "arch/armv8/exn.c",
+        "arch/armv8/psci.c",
+        "arch/armv8/paging.c",
+        "arch/armv8/startup_arch.c",
+        "arch/armv8/syscall.c",
+        "arch/armv8/timers.c",
+        "arch/arm/debug.c",
+        "arch/arm/gic_v3.c",
+        "arch/arm/irq.c"
+    ],
+    mackerelDevices = [
+        "arm",
+        "armv8",
+        "armv8/armv8_cache_ctrl",
+        "arm_icp_pit",
+        "gic_v3_dist",
+        "gic_v3_redist",
+        "pl011_uart"
+    ],
+    addLibraries = [
+        "elf",
+        "cpio"
+    ]
+  },
+  
+  --
+  -- Raspberry Pi quad Cortex-A53
+  --
+  cpuDriver {
+    target = "a53_rpi3",
+    architectures = [ "armv8" ],
+    assemblyFiles = [
+        "arch/armv8/sysreg.S",
+        "arch/armv8/exceptions.S",
+        "arch/armv8/smc_hvc.S"
+    ],
+    cFiles = [
+        "arch/arm/misc.c",
+        "arch/arm/rpi3_miniuart.c",
+        "arch/arm/kputchar.c",
+        "arch/arm/gdb_arch.c",
+        "arch/armv8/plat_rpi3.c",
+        "arch/armv8/init.c",
+        "arch/armv8/gdb_arch.c",
+        -----
+        "arch/armv8/kernel_multiboot2.c",
+        "arch/armv8/dispatch.c",
+        "arch/armv8/exec.c",
+        "arch/armv8/exn.c",
+        "arch/armv8/psci.c",
+        "arch/armv8/paging.c",
+        "arch/armv8/startup_arch.c",
+        "arch/armv8/syscall.c",
+        "arch/armv8/timers.c",
+        "arch/arm/debug.c",
+        "arch/arm/irq.c"
+    ],
+    mackerelDevices = [
+        "arm",
+        "armv8",
+        "armv8/armv8_cache_ctrl",
+        "arm_icp_pit",
+        "gic_v3_dist",
+        "gic_v3_redist",
+        "rpi3_miniuart"
+    ],
+    addLibraries = [
+        "elf",
+        "cpio"
+    ]
+  },
+  --
+  -- i.MX8XQPX
+  --
+  cpuDriver {
+    target = "imx8x",
+    architectures = [ "armv8" ],
+    assemblyFiles = [
+        "arch/armv8/sysreg.S",
+        "arch/armv8/exceptions.S",
+        "arch/armv8/smc_hvc.S"
+    ],
+    cFiles = [
+        "arch/arm/misc.c",
+        "arch/arm/lpuart.c",
+        "arch/arm/kputchar.c",
+        "arch/arm/gdb_arch.c",
+        "arch/armv8/plat_imx8x.c",
+        "arch/armv8/init.c",
+        "arch/armv8/gdb_arch.c",
+        -----
+        "arch/armv8/kernel_multiboot2.c",
+        "arch/armv8/dispatch.c",
+        "arch/armv8/exec.c",
+        "arch/armv8/exn.c",
+        "arch/armv8/psci.c",
+        "arch/armv8/paging.c",
+        "arch/armv8/startup_arch.c",
+        "arch/armv8/syscall.c",
+        "arch/armv8/timers.c",
+        "arch/arm/debug.c",
+        "arch/arm/gic_v3.c",
+        "arch/arm/irq.c"
+    ],
+    mackerelDevices = [
+        "arm",
+        "armv8",
+        "armv8/armv8_cache_ctrl",
+        "arm_icp_pit",
+        "gic_v3_dist",
+        "gic_v3_redist",
+        "lpuart"
+    ],
+    addLibraries = [
+        "elf",
+        "cpio"
+    ]
+  }
+]

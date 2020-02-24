@@ -1,0 +1,11 @@
+#
+# This script is used to describe the commands to start at
+# boot-time and the arguments they should receive.
+#
+bootdriver /armv8/sbin/boot_armv8_generic
+cpudriver /armv8/sbin/cpu_a57_qemu loglevel=3 serial=0x9000000 logmask=128
+
+# Domains spawned by init
+modulenounzip /armv8/sbin/init
+
+# End of file, this needs to have a certain length...

@@ -1,0 +1,138 @@
+--------------------------------------------------------------------------
+-- Copyright (c) 2015-2016, 2019 ETH Zurich.
+-- All rights reserved.
+--
+-- This file is distributed under the terms in the attached LICENSE file.
+-- If you do not find this file, copies can be found by writing to:
+-- ETH Zurich D-INFK, Universitaetstrasse 6, CH-8092 Zurich. Attn: Systems Group.
+--
+-- Hakefile for /platforms/
+--
+--------------------------------------------------------------------------
+
+let 
+    -- Default list of modules to build/install
+    modules_common = [ "/sbin/" ++ f | f <- [ "init"
+      ] ]
+  in
+  [
+    --
+    -- Rules to build assorted platforms
+    --
+    platform "ARMV8_Basic" [ "armv8" ]
+    [ ("armv8", f) | f <- modules_common ]
+    "Basic ARMv8 build",
+
+    platform "FVP" [ "armv8" ]
+    (
+      [ ("armv8", "/sbin/cpu_a57_fvp"), ("armv8", "/sbin/boot_armv8_generic")  ]
+      ++
+      [ ("armv8", f) | f <- modules_common ]
+    )
+    "ARM Virtual Machine Board with ARM Cortex A57 processors in Fixed Virtual Platform.",
+
+    platform "ARM_FastModels_Base_A57" [ "armv8" ]
+    [ ("root", "/armv8_a57_fvp_base_image") ]
+    "ARM FastModels Base Board with A57 processors.",
+
+    platform "QEMU" [ "armv8" ]
+    (
+      [ ("armv8", "/sbin/cpu_a57_qemu"), ("armv8", "/sbin/boot_armv8_generic")  ]
+      ++
+      [ ("armv8", f) | f <- modules_common ]
+    )
+    "ARM Virtual Machine Board with ARM Cortex A57 processors in QEMU",
+
+    platform "QEMU_U-Boot" [ "armv8" ]
+    [ ("root", "/armv8_a57_qemu_image.efi") ]
+    "ARM Virtual Machine Board with ARM Cortex A57 processors in QEMU",
+
+    platform "RaspberryPi3" [ "armv8" ]
+    [ ("root", "/armv8_rpi3_image.efi") ]
+    "Raspberry Pi 3 quad ARM Cortex A53",
+
+    platform "imx8x" [ "armv8" ]
+    [ ("root", "/armv8_imx8x_image.efi") ]
+    "NXP iMX8QXP",
+    --
+    -- Rules to build assorted boot images
+    --
+    armv8Image "armv8_a57_qemu" "armv8_a57_qemu" "armv8_generic" "a57_qemu" [] modules_common,
+
+    armv8Image "armv8_rpi3" "armv8_rpi3" "armv8_generic" "a53_rpi3" [] modules_common,
+
+    armv8Image "armv8_imx8x" "armv8_imx8x" "armv8_generic" "imx8x" [] modules_common,
+
+    armv8EFIImage "armv8_a57_fvp_base" "armv8_a57_fvp_base" "armv8_generic" "a57_fvp" [] modules_common,
+
+    armv8EFIImage "armv8_a57_qemu" "armv8_a57_qemu" "armv8_generic" "a57_qemu" [] modules_common,
+
+    --
+    -- Booting: various targets for booting Barrelfish under different circumstances
+    --
+
+    -- Copy menu.list files across
+    Rules [ copyFile SrcTree "root" ("/hake/menu.lst." ++ p)
+                     "root" ("/platforms/arm/menu.lst." ++ p)
+            | p <- [ "armv8_a57v",
+                     "armv8_a57_qemu",
+                     "armv8_a57_fvp_base",
+                     "armv8_a57v_1",
+                     "armv8_a57_fvp_1",
+                     "armv8_imx8x",
+                     "armv8_rpi3" ]],
+
+    boot "qemu_a57" [ "armv8" ]
+    [
+      In SrcTree "tools" "/tools/qemu-wrapper.sh",
+      Str "--image", In BuildTree "root" "/armv8_a57_qemu_image",
+      Str "--arch", Str "armv8",
+      Str "--bios", In SrcTree "tools" "/tools/hagfish/QEMU_EFI.fd"
+    ]
+    "Boot QEMU in 64-bit ARM mode emulating a ARM Virtual Machine using UEFI",
+
+    boot "qemu_a57_debug" [ "armv8" ] 
+    [
+      In SrcTree "tools" "/tools/qemu-wrapper.sh",
+      Str "--image", In BuildTree "root" "/armv8_a57_qemu_image",
+      Str "--arch", Str "armv8",
+      Str "--bios", In SrcTree "tools" "/tools/hagfish/QEMU_EFI.fd",
+      Str "--debug", In SrcTree "tools" "/tools/debug.armv8.gdb"
+    ]
+    "Boot QEMU in 64-bit ARM mode emulating a ARM Virtual Machine using UEFI with debugging enabled",
+
+    boot "qemu_a57_uboot" [ "armv8" ] 
+    [
+      Str "MEMORY=3G",
+      In SrcTree "tools" "/tools/qemu-wrapper.sh",
+      Str "--image", In BuildTree "root" "/armv8_a57_qemu_image.efi",
+      Str "--arch", Str "armv8",
+      Str "--uboot-img", In SrcTree "tools" "/tools/qemu-armv8-uboot.bin"
+    ]
+    "Boot QEMU in 64-bit ARM mode emulating a ARM Virtual Machine using U-Boot",
+
+    boot_fastmodels "ARM_FastModels_Base_A57x1" [ "armv8" ] 
+      "armv8_a57_fvp_base_image"
+      "ARM_FastModels/ARMv8_Base_A57x1/ARMv8_Base_A57x1"
+      fvp_simargs
+      "Boot on a ARM FastModels Base A57x1 Platform",
+
+    boot_fastmodels_lisa "ARM_FastModels_Barebones" [ "armv8" ] 
+      "armv8_a57_fvp_base_image"
+      "barebones"
+      barebones_simargs
+      "Boot on a ARM FastModels based on Sven's Barebones",
+
+    boot_fastmodels "ARM_FastModels_Base_A57x4" [ "armv8" ] 
+      "armv8_a57_fvp_base_image"
+      "ARM_FastModels/ARMv8_Base_A57x4"
+      fvp_simargs
+      "Boot on a ARM FastModels Base A57x4 Platform",
+
+    boot "usbboot_imx8x" [ "armv8" ] [
+      In SrcTree "tools" "/tools/imx8x/bf-boot.sh",
+      Str "--bf",
+      In BuildTree "root" "/armv8_imx8x_image.efi"
+    ]
+    "Boot Barrelfish on a Colibri board, over a local USB cable"
+ ]

@@ -1,0 +1,8 @@
+let
+    jobs "armv8" = [
+         testJob "test-aos-m1" "AOS Milestone 1 Tests" $
+             scalebench ["aos_test"] ["colibri_local"]
+        ]
+    jobs _  = []
+in
+    concat $ map jobs Config.architectures

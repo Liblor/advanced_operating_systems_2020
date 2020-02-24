@@ -1,0 +1,842 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Copyright (c) 2018, ETH Zurich.
+% All rights reserved.
+%
+% This file is distributed under the terms in the attached LICENSE file.
+% If you do not find this file, copies can be found by writing to:
+% ETH Zurich D-INFK, Universitaetstr 6, CH-8092 Zurich. Attn: Systems Group.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\providecommand{\pgfsyspdfmark}[3]{}
+
+\documentclass[a4paper,11pt,twoside]{report}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{bftn}
+\usepackage{calc}
+\usepackage{verbatim}
+\usepackage{xspace}
+\usepackage{pifont}
+\usepackage{pxfonts}
+\usepackage{textcomp}
+\usepackage[xindy,nowarn]{glossaries}
+
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage{todonotes}
+\usepackage{hyperref}
+
+\title{Sockeye in Barrelfish}
+\author{Barrelfish project}
+% \date{\today}   % Uncomment (if needed) - date is automatic
+\tnnumber{025}
+\tnkey{Sockeye}
+
+
+\lstdefinelanguage{Sockeye}{
+    morekeywords={import, as, module, input, output, type, const,
+      memory, intr, power, clock,
+      instance, of, forall, in,
+      accepts, maps, converts, overlays, instantiates, binds,
+      to, at, bits},
+    sensitive=true,
+    morecomment=[l]{//},
+    morecomment=[s]{/*}{*/},
+    morestring=[b]",
+}
+
+\newacronym{ast}{AST}{abstract syntax tree}
+\newacronym{dsl}{DSL}{domain specific language}
+\newacronym{hdn}{HDN}{hardware decoding net}
+\newacronym{skb}{SKB}{System Knowledge Base}
+\newacronym[longplural={systems on a chip}]{soc}{SoC}{system on a chip}
+
+\makeglossaries
+
+\presetkeys{todonotes}{inline}{}
+
+\begin{document}
+\maketitle      % Uncomment for final draft
+
+\begin{versionhistory}
+\vhEntry{0.1}{15.06.2017}{DS}{Initial Version}
+\vhEntry{0.2}{03.08.2017}{DS}{Describe Modularity Features}
+\vhEntry{0.3}{09.02.2018}{DS}{Sockeye 2.0}
+\end{versionhistory}
+
+% \intro{Abstract}    % Insert abstract here
+% \intro{Acknowledgements}  % Uncomment (if needed) for acknowledgements
+\tableofcontents    % Uncomment (if needed) for final draft
+% \listoffigures    % Uncomment (if needed) for final draft
+% \listoftables     % Uncomment (if needed) for final draft
+\cleardoublepage
+\setcounter{secnumdepth}{2}
+
+\newcommand{\fnname}[1]{\textit{\texttt{#1}}}%
+\newcommand{\datatype}[1]{\textit{\texttt{#1}}}%
+\newcommand{\varname}[1]{\texttt{#1}}%
+\newcommand{\keywname}[1]{\textbf{\texttt{#1}}}%
+\newcommand{\pathname}[1]{\texttt{#1}}%
+\newcommand{\tabindent}{\hspace*{3ex}}%
+\newcommand{\Sockeye}{\lstinline[language=Sockeye]}
+\newcommand{\Prolog}{\lstinline[language=Prolog]}
+\newcommand{\ccode}{\lstinline[language=C]}
+
+\lstset{
+  basicstyle=\ttfamily \small,
+  keywordstyle=\bfseries,
+  flexiblecolumns=false,
+  basewidth={0.5em,0.45em},
+  boxpos=t,
+  captionpos=b,
+  frame=single,
+  breaklines=true,
+  postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}
+}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Introduction and Usage}
+\label{chap:introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\emph{Sockeye}\footnote{Sockeye salmon (Oncorhynchus nerka), also called red salmon, kokanee salmon, or blueback salmon, is an anadromous species of salmon found in the Northern Pacific Ocean and rivers discharging into it. This species is a Pacific salmon that is primarily red in hue during spawning. They can grow up to 84 cm in length and weigh 2.3 to 7 kg. 
+Source: \href{https://en.wikipedia.org/wiki/Sockeye_salmon}{Wikipedia}}
+is a declarative \gls{dsl} to describe \glspl{soc}
+
+Achermann~et~al. propose a formal model to describe hardware as a directed graph~\cite{achermann:mars17}.
+For the rest of this technote we'll call such a graph a \gls{hdn}.
+The model captures the complex interactions within an between address translation hardware and the interrupt system.
+There is also work being done to extend the model to include clock distribution and power management.
+
+Each node in the graph can accept a set of addresses and translate another (not necessarily disjunct) set of addresses (when describing interrupt routes they accept or translate interrupt vectors).
+While the nodes are modeled explicitly, the edges are implicitly given by the translation sets of the nodes.
+
+Starting at a specific node, addresses can be resolved by following the appropriate edges in the \gls{hdn}.
+When a node translates an address, resolution is continued at the referenced node.
+When a node accepts an address, resolution terminates
+
+Sockeye uses \glspl{hdn} as its underlying model.
+If offers language features to efficiently describe real hardware.
+
+We currently envision two main use cases for Sockeye:
+\begin{itemize}
+  \item Generate Isabell/HOL code from Sockeye specifications to be able to formally reason about the described hardware.
+  \item Generate Prolog files that can be loaded into Barrelfish's \gls{skb} for the system to be able to reason about the hardware it's running on.
+\end{itemize}
+
+The Sockeye compiler is written in Haskell using the Parsec parsing library.
+The source code for the compiler can be found in \pathname{SOURCE/tools/sockeye}.
+\todo{DS: The code for the old version is in the subdirectory \pathname{v1}.
+To not break building the tree \pathname{BUILD/tools/bin/sockeye} is compiled from the old code.
+The new code is compiled to \pathname{BUILD/tools/bin/sockeye2}.}
+
+
+\clearpage
+\section{Command Line Options}
+
+\begin{verbatim}
+$ sockeye [options] file
+\end{verbatim}
+
+
+The available options are:
+\begin{description}
+\item[-P] Generate a Prolog file that can be loaded into the \gls{skb} (default).
+\item[-I] Generate Isabelle/HOL code to formally reason about hardware.
+\item[-i] Add a directory to the search path where Sockeye looks for imports.
+\item[-o] \varname{filename} The path to the output file (required)
+\item[-d] \varname{filename} The path to the dependency output file (optional)
+\item[-h] show usage information
+\end{description}
+
+The backend (capital letter options) specified last takes precedence.
+\todo{DS: The backends are not yet implemented in the new compiler version.
+For debugging purposes there are command line options to dump various internal data structures.
+Use -h for more info.}
+
+Multiple directories can be added by giving the \texttt{-i} options multiple times.
+Sockeye will first look for files in the current directory and then check the given directories in the order they were given.
+
+When invoked with the \texttt{-d} option, the compiler will generate a dependency file for GNU make to be able to track changes in imported files.
+
+The Sockeye file to compile is given via the \texttt{file} parameter.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Language Constructs \& Syntax}
+\label{chap:syntax}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+This chapter describes the language constructs in Sockeye and their syntax.
+
+Most of the examples are taken from the Texas Instruments OMAP44xx SoC as used on the PandaboardES\footnote{The technical reference manual can be found \href{http://www.ti.com/lit/ug/swpu235ab/swpu235ab.pdf}{here}.}.
+
+\section{Natural Numbers}
+Sockeye supports addition, subtraction and multiplication of natural numbers.
+Additionally natural numbers can be interpreted as bit arrays and can then be \emph{sliced} (selecting a contiguous range of bits of a number's binary representation) and \emph{concatenated}.
+\begin{example}
+  /* Slicing: */
+  4[0] = 0
+  4[1] = 0
+  4[2] = 14
+  5[1 to 2] = 0b10 = 2
+
+  /* Concatenation: */
+  8 ++ 0xF[1 to 2] = 0b100011 = 35
+\end{example}
+
+The concatenation operator is left associative and the right hand side has to be a slice expression for the concatenation to be defined (the number of bits the left hand side has to be shifted has to be known). The operator precedence for the standard operations is as expected, slicing has higher precedence than the standard operations and concatenation has lower precedence.
+
+Sockeye also has syntax to describe contiguous ranges of natural numbers:
+\begin{example}
+  /* Singleton range */
+  42
+
+  /* Base and limit */
+  0 to 8 // 0 up to and including 8
+  5 to 11
+
+  /* Base base and a number of variable bits */
+  (0 bits 2) // 0 up to and excluding 2^4
+
+  /* The variable bits have to be 0 in the base */
+  (0x100 bits 8) // OK
+  (0x110 bits 8) // Error
+\end{example}
+
+A (possibly sparse) set of natural numbers can be expressed as a comma-separated list of contiguous ranges.
+\begin{example}
+  /* These are equivalent */
+  (0 bits 2, 5 to 7, 11)
+  (0, 1, 2, 3, 5, 6, 7, 11)
+\end{example}
+
+\section{Addresses}
+\todo{DS: Do we call them addresses, although might be interrupt vectors, clock signals etc?}
+In \glspl{hdn} addresses are natural numbers.
+Sockeye models them as tuples of natural numbers.
+This allows easier modeling of cases where different parts of an address are used for different purposes.
+An example for this would e.g. be a lookup table that uses some bits as an index and prepends the rest of the incoming address with the value indexed by these bits.
+Note that this is not more powerful than the underlying model as there is a bijection between tuples of natural numbers and natural numbers (e.g. diagonalisation).
+
+Sockeye syntax not only allows to specify single addresses but address sets.
+The dimensions of an address tuple are separated by semicolons:
+\begin{example}
+  (0; 8; 15)
+  (0x0; 0x8; 0xF)
+  (0 bits 12; 0 bits 8; 0 bits 12)
+\end{example}
+
+An address set contains all addresses in the Cartesian product of its dimensions.
+
+\section{Nodes}
+Sockeye nodes closely correspond to nodes in an \gls{hdn}:
+They have a set of addresses that they accept, and a set of translations of incoming addresses to other nodes.
+In addition Sockeye nodes have an input and output \emph{domain} and \emph{type}.
+
+\paragraph{Domains}
+There are the following node domains in Sockeye:
+\begin{itemize}
+  \item \textit{memory}: Nodes in this domain are part of the memory system. 
+  \item \textit{intr}: Nodes in this domain are part of the interrupt system.
+  \item \textit{power}: Nodes in this domain are part of the power management system.
+  \item \textit{clock}: Nodes in this domain are part of the clock distribution system.
+\end{itemize}
+Standard nodes have the same input and output domain.
+Nodes with different input and output domains are called \emph{conversion nodes}.
+They offer a controlled way of crossing the boundaries between domains e.g. to model message signaled interrupts.
+\todo{DS: Do we allow all combinations of input/output domains or do we want to e.g. disallow crossing from memory to clock?}
+
+\paragraph{Types} The types in Sockeye allow to constrain the addresses.
+A type is simply an address set that the address has to be an element of.
+
+Sockeye separates the declaration of a node and its definition.
+However, to keep specifications as readable as possible, the definition should immediately follow the declaration whenever possible.
+
+\paragraph{Node Declarations} A node is declared by giving its input domain and type and optionally its output domain and type.
+
+Nodes can either be declared as single nodes or (sparse) node arrays.
+The possible array indexes are a set of natural numbers.
+\begin{example}
+  /* Declare 32bit addressed RAM node */
+  \textit{memory} (0 bits 32) SDRAM
+
+  /* If the output domain is not given it defaults to the input domain */
+  \textit{memory} (0 bits 32) \textit{memory} SDRAM // Equivalent to the above
+
+  /* 
+   * Declare the physical address space of 4 cores
+   * (Array indexes do not have to be contiguous)
+   */
+  \textit{memory} (0 bits 12; 0 bits 8; 0 bits 12) CPU_Physical[1, 3, 5, 7]
+
+  /* Declare a MSIx controller converting memory accesses to interrupts */
+  \textit{memory} (0 bits 32) \textit{intr} MSIx_CTRL
+
+  /*
+   * Give output type to limit translation range
+   * to interrupt vectors 0 ... 1023
+   */
+  \textit{memory} (0 bits 32) \textit{intr} (0 to 1023) MSIx_CTRL
+\end{example}
+
+\paragraph{Node Definitions}
+There are four types of statements to define nodes:
+\begin{itemize}
+  \item \textbf{accepts} is used to define the accepted addresses of a node
+  \item \textbf{maps} is used to define the translations done by a node
+  \item \textbf{converts} is the same as \textbf{maps} but for conversion nodes.
+  This definition statement is only allowed for conversion nodes.
+  It is also the only one allowed for conversion nodes.
+  \todo{DS: Do we need/want to allow others?}
+  \item \textbf{overlays} is used to define a default translation for a node.
+  Any address that is neither accepted nor translated explicitly is translated to the overlay node at the same address.
+\end{itemize}
+A node's definition is given by the union of all the statements about the node.
+The definition can contain multiple statements of the same type.
+The order of the statements does not matter.
+
+\paragraph{Accepts}
+Accepting addresses are defined by giving a list of semicolon-separated address sets.
+Address sets are tuples of sets of natural numbers.
+All accepted addresses have to be elements of the nodes input type.
+To accept all addresses in a dimension of the node's input type, a wildcard can be used.
+\begin{example}
+  /*
+   * SDRAM accepts all 32bit addresses
+   */
+  \textit{memory} (0 bits 32) SDRAM
+  SDRAM \textbf{accepts} [(0 bits 32)]
+
+ /* Multiple entries (equivalent to above) */
+  SDRAM \textbf{accepts} [
+    (0x00000000 bits 30);
+    (0x40000000 bits 30);
+    (0x80000000 bits 30);
+    (0xC0000000 bits 30)
+  ]
+
+/* Multiple statements (equivalent to above) */
+SDRAM \textbf{accepts} [(0x00000000 bits 31)]
+SDRAM \textbf{accepts} [(0x80000000 bits 31)]
+
+/* Wildcard (equivalent to above) */
+SDRAM \textbf{accepts} [(*)]
+\end{example}
+
+\paragraph{Maps/Converts}
+Translations are defined by giving a semicolon-separated list of origin addresses and translation targets.
+A translation targets consists of a node reference and a target address.
+The origin addresses have to be elements of the node's input type.
+The target node has to have the same input domain as the node's output domain.
+The target address has to be within the target nodes input type.
+If the node has an output type, the target address additionally needs to be within the output type.
+To translate contiguous ranges of addresses, an address set can be given instead of the origin address.
+To translate all addresses in a dimension of the node's input type, a wildcard can be used.
+\begin{example}
+\textit{memory} (0 bits 8) SCU
+\textit{memory} (0 bits 8) Global_Timer 
+\textit{memory} (0 bits 8) Private_Timers
+\textit{memory} (0 bits 8) GIC_PROC
+
+\textit{memory} (0 bits 13) PRIVATE_PERIPH
+
+/* Map single address */
+  PRIVATE_PERIPH \textbf{maps} [
+    (0x100) to GIC_PROC at (0x0)
+  ]
+
+/* Map contiguous range to single address */
+  PRIVATE_PERIPH \textbf{maps} [
+    (0x200 bits 8) to Global_Timer at (0x0)
+  ]
+
+/* Use wildcard */
+  PRIVATE_PERIPH \textbf{maps} [
+    (*) to GIC_PROC at (0x0)
+  ]
+\end{example}
+
+If some dimensions of the address set are contiguous, the target address can also be a set with these dimensions being contiguous ranges of the same cardinality.
+The number of variable dimensions in the origin target has to be the same.
+\begin{example}
+  \textit{memory} (0 bits 2; 0 bits 2) BUS_2D;
+  \textit{memory} (0 bits 2; 0 bits 2) RAM_2D;
+
+  /* The following are equivalent */
+  BUS_2D \textbf{maps} [
+    (0; 0) to RAM_2D at (0; 0);
+    (1; 1) to RAM_2D at (1; 1);
+    (2; 2) to RAM_2D at (2; 2);
+    (3; 3) to RAM_2D at (3; 3);
+  ]
+  BUS_2D \textbf{maps} [
+    (0 to 3; 0 to 3) to RAM_2D at (0 to 3; 0 to 3)
+  ]
+  BUS_2D \textbf{maps} [
+    (*; *) to RAM_2D at (*; *)
+  ]
+\end{example}
+
+When modeling conversion nodes like MSIx controllers translating from the memory domain to the interrupt domain, the data word can be modeled as an address dimension to make the translation dependent on the data.
+
+\begin{example}
+  \textit{memory} (0 bits 32; 0 bits 32) \textit{intr} (0 to 1023) MSIx_CTRL
+  \textit{intr} (0 to 1023) CPU_INTR
+
+  /* Make translation dependent on data word (2nd dimension) */
+  MSIx_CTRL converts [
+    (0x0, 0 to 1023) to CPU_INTR at (*)
+  ]
+
+\end{example}
+
+\paragraph{Overlays}
+An overlay represents a default translation target for all addresses that are neither accepted nor explicitly translated.
+Nodes can only have overlays if their output type is either unspecified or the same as the input type.
+The overlay node's input type has to be the same as the one of the node.
+\begin{example}
+/* Map everything 1:1 to the L2 bus except the private peripherals region */
+\textit{memory} (0 bits 32) L2
+
+\textit{memory} (0 bits 32) CORTEXA9_PHYS
+  CORTEXA9_PHYS \textbf{maps} [
+    (0x48240000 bits 13) to PRIVATE_PERIPH at (*)
+  ]
+
+  CORTEXA9_PHYS \textbf{overlays} L2
+\end{example}
+
+\todo{Describe properties}
+
+\section{Named Types}
+Sockeye allows to define named types (similar to typedefs in C).
+When declaring nodes, these types can then be referenced by name.
+\begin{example}
+\textbf{type} BUS_TYPE (0 bits 32)
+\textit{memory} (BUS_TYPE) L2
+\end{example}
+
+\section{Quantifiers}
+Sockeye supports quantifying definition statements over sets of natural numbers.
+Origin addresses may not contain bound variables in arithmetic expressions.
+\begin{example}
+  /* Modelling a lookup table (LUT) */
+  \textit{memory} (0 bits 32) CPU_Phys
+  \textit{memory} (0 bits 8; 0 bits 24) LUT
+  \textit{memory} (0 bits 32) BUS;
+  
+  forall a in (0 bits 32) {
+    CPU_Phys \textbf{maps} [
+      (a) to LUT at (a[24 to 31]; a[0 to 23])
+    ]
+  }
+
+  forall a in (0 bits 24) {
+    LUT \textbf{maps} [
+      (0x0000; a) to BUS at (0x1234 ++ a[0 to 24]);
+      (0x0001; a) to BUS at (0x4321 ++ a[0 to 24]);
+      /* ... */
+    ]
+  }
+\end{example}
+Declaration statements are not allowed in the body of a quantifier.
+
+\section{Modules}
+A module encapsulates a (partial) \gls{hdn}.
+In fact all \glspl{hdn} are modules in Sockeye.
+Modules can be instantiated to integrate the contained \gls{hdn} into a larger \gls{hdn}.
+To connect a module instance with its environment, a module defines its interface in the form of ports.
+There are two types of ports:
+\begin{itemize}
+  \item \textbf{Input Ports} are nodes \emph{defined} within the module that can be referenced from outside the module.
+  \item \textbf{Output Ports} are nodes \emph{declared} within the module but not \emph{defined}.
+    Nodes in the module can reference these nodes.
+    When a module is instantiated, all the output ports have to be bound to nodes with the same domains and types.
+    A module can also e parametrized.
+    All module parameters are natural numbers and a module defines the allowed range of each parameter.
+    The parameters can be used to parametrise addresses or array sizes.
+    Module instances, like nodes, can be declared as single instances or instance arrays.
+    Module instantiation and port binding statements can also be quantified over a sets.
+\end{itemize}
+
+\begin{example}
+  \textbf{module} CortexA9_Core((0 bits 32) periphbase) {
+    \textbf{output} \textit{memory} (0 bits 32) L2
+
+    \textbf{input} \textit{intr} (0 to 1023) CPU_INTR
+
+    \textit{memory} PRIVATE_PERIPH
+
+    CPU_PHYS overlays L2
+  }
+
+  \textbf{module} CortexA9_MPCore((1 to 4) num_cores) {
+    /* Declare a module instance array */
+    \textbf{instance} Core[0 to num_cores-1] of CortexA9_Core
+
+    \textit{memory} (0 bits 32) Internal_BUS
+
+    /* Instantiate the module and bind ports with quantifier */
+    forall c in (0 to num_cores-1) {
+      Core[c] \textbf{instantiates} CortexA9_Core(0x48240000)
+      Core[c] \textbf{binds} [
+        /* Format: <output port> to <declared node> */
+        L2 to Internal_BUS
+      ]
+    }
+
+    /* Or equivalently with wildcards */
+    Core[*] \textbf{instantiates} CortexA9_Core(0x48240000)
+    Core[*] \textbf{binds} [
+      /* Format: <output port> to <declared node> */
+      L2 to Internal_BUS
+    ]
+  }
+\end{example}
+
+\todo{DS: For the compiler to be able to enforce the port interface, it should be the same for all instances in an array
+This means that parameters used in array declarations must be the same for all array elements.
+We could enforce this with a check, but maybe we should bake it into the syntax and have different constructs for the tow parameter classes.}
+
+In addition to declarations, quantifiers and definitions a module body can also contain named constants.
+Constants are natural numbers and can be used wherever a natural number is expected.
+Constants must not shadow module parameters.
+\begin{example}
+  \textbf{module} CortexA9_MPCore((1 to 4) num_cores) {
+
+    /* Define constant */
+    const PERIPHBASE 0x48240000
+
+    \textbf{instance} Core[0 to num_cores-1] of CortexA9_Core
+
+    /* Use constant */
+    Core[*] \textbf{instantiates} CortexA9_Core(PERIPHBASE)
+  }
+\end{example}
+
+Declarations, definitions, quantifiers and constant definitions may appear in any order in the body of a module.
+
+\section{Sockeye Files}
+A Sockeye file consists of named type and module definitions.
+The order does not matter.
+Due to how the import system works (see Section~\ref{sec:imports}), modules and types share a namespace.
+
+\section{Import System}
+\label{sec:imports}
+The import system in Sockeye allows to split the definition of a \gls{hdn} over several files and reuse files in a library like fashion.
+A file can either be imported as a whole, meaning all modules and named types from the imported file become available inside the imported file.
+Alternatively modules and types can be selectively imported.
+With selective imports, modules and types can also be renamed to avoid name clashes.
+Imported modules and types are not re-exported.
+
+Imports have to be specified at the top of a Sockeye file.
+Imported files must have the extension \pathname{soc}.
+Imported files are resolved relative to
+\begin{enumerate}
+  \item The working directory of the compiler.
+  \item The directories given with the \verb|-i| option, in the order they were given
+\end{enumerate}
+
+\begin{example}
+/* Import all symbols defined in file cortexA9.soc */
+\textbf{import} cortexA9
+
+/* Only import symbol CortexA9_Core and CortexA9_MPCore */
+\textbf{import} cortexA9 (CortexA9_Core, CortexA9_MPCore)
+
+/* Only import symbol CortexA9_Core and rename it */
+\textbf{import} cortexA9 (CortexA9_Core as Core)
+\end{example}
+
+\section{Extended Example}
+The following is an extended example showcasing all the syntactic constructs.
+\lstinputlisting[caption={Sockeye Example},language=Sockeye]{sockeye_syntax.soc}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Lexical Conventions}
+\label{chap:lexer}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The Sockeye parser uses the following conventions:
+
+\begin{description}
+\item[Encoding] The file should be encoded using plain text.
+\item[Whitespace:]  As in C and Java, Sockeye considers sequences of
+  space, newline, tab, and carriage return characters to be
+  whitespace.  Whitespace is generally not significant. 
+
+\item[Comments:] Sockeye supports C-style comments.  Single line comments
+  start with \texttt{//} and continue until the end of the line.
+  Multiline comments are enclosed between \texttt{/*} and \texttt{*/};
+  anything in between is ignored and treated as white space.
+  Nested comments are not supported.
+
+\item[Identifiers:] Valid Sockeye identifiers are sequences of numbers
+  (0-9), letters (a-z, A-Z), the underscore character ``\texttt{\_}'' and the dash character ``\textendash''. They
+  must start with a letter.
+  \begin{align*}
+  identifier & \rightarrow letter (letter \mid digit \mid \text{\_})^{\textrm{*}} \\
+  letter & \rightarrow (\textsf{A \ldots Z} \mid  \textsf{a \ldots z})\\
+  digit & \rightarrow (\textsf{0 \ldots 9})
+    \end{align*}
+
+\item[Case sensitivity:] Sockeye is case sensitive hence identifiers \Sockeye{node1} and \Sockeye{Node2} are not the same.
+  
+\item[Integer Literals:] A Sockeye integer literal is a sequence of
+  digits, optionally preceded by a radix specifier.  As in C, decimal (base 10)
+  literals have no specifier and hexadecimal literals start with
+  \texttt{0x}.
+
+\begin{align*}
+decimal & \rightarrow (\textsf{0 \ldots 9})^{\textrm{1}}\\
+hexadecimal & \rightarrow (\textsf{0x})(\textsf{0 \ldots 9} \mid \textsf{A \ldots F} \mid \textsf{a \ldots f})^{\textrm{1}}\\
+\end{align*}
+
+\item[Reserved words:] The following are reserved words in Sockeye:
+\begin{verbatim}
+import, as, module, input, output, type, const,
+memory, intr, power, clock,
+instance, of, forall, in,
+accepts, maps, converts, overlays, instantiates, binds,
+to, at, bits
+\end{verbatim}
+
+\end{description}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Checks}
+\label{chap:checks}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The following is a list of checks the Sockeye compiler performs.
+The goal is to have modular type checking, such that modules are save to instantiate at runtime with any parameters in the corresponding range.
+However, with parametrised sets of natural numbers this needs more involved static analysis.
+It might prove easier to check some of the properties in Isabelle.
+
+\section{Uniqueness Checks}
+\paragraph{Circular Imports}
+Throws an error if there are cycles in the import graph.
+
+\paragraph{Duplicate Import}
+Throws an error two symbols with the same name are imported or two symbols are renamed to the same name while importing them.s
+
+\paragraph{No Such Export}
+Throws an error if a selective import tries to import a symbol that does not exist in the imported file.
+
+\paragraph{Import Shadowing}
+Throws an error if a type or module defined in a file has the same name as an imported symbol.
+
+\paragraph{Duplicate Module}
+Throws an error if two modules with the same name are defined in the same file.
+
+\paragraph{Duplicate Type}
+Throws an error if two types with same name are defined in the same file.
+
+\paragraph{Module/Type Clash}
+Throws an error if a type and a module defined in the same file have the same name.
+
+\paragraph{Duplicate Parameter}
+Throws an error if a module has two parameters with the same name.
+
+\paragraph{Duplicate Constant}
+Throws an error if two constants defined in the same module have the same name.
+
+\paragraph{Duplicate Variable}
+Throws an error if there are two bound variables with the same name in the same scope.
+
+\paragraph{Parameter Shadowing}
+Throws an error if a constant or bound variable has the same name as a module parameter of the module in which it is defined.
+\todo{Check only implemented for constants, not for bound variables}
+
+\paragraph{Constant Shadowing}
+Throws an error if a bound variable has the same name as a named constant.
+\todo{Not yet implemented}
+
+\paragraph{Duplicate Instance}
+Throws an error if there are two module instance declarations with the same name in the same module.
+
+\paragraph{Duplicate Node}
+Throws an error if there are two node declarations with the same name in the same module.
+
+\paragraph{Instance/Node Clash}
+Throws an error if there is an instance and a node declaration with the same name in the same module.
+\todo{Not yet implemented}
+
+\section{Integrity Checks}
+\todo{None of these checks are currently implemented}
+
+\paragraph{Undefined Type}
+Throws an error if a named type that is neither defined in the same file nor imported is referenced.
+
+\paragraph{Undefined Module}
+Throws an error if a module that is neither defined in the same file nor imported is instantiated.
+
+\paragraph{Undefined Instance Reference}
+Throws an error if an undefined instance is referenced
+Note that this only checks whether the name exists and whether an instance array is treated as a single instance or vice versa.
+It does not check whether the array index exists.
+
+\paragraph{Module Instantiation Mismatch}
+Throws an error if the instantiated module in an \textbf{instantiates} statement does not match the module of the declared instance.
+
+\paragraph{Argument Count Mismatch}
+Throws an error if a module is instantiated with the wrong number of arguments.
+
+\paragraph{Undefined Output Port}
+Throws an error if an output port being bound does not exist on the module.
+Note that this only checks whether there is an output port with the referenced name and whether a output port array is treated as a single port or vice versa.
+It does not check whether the array index exists.
+
+\paragraph{Undefined Node Reference}
+Throws an error if an \emph{internal node} is referenced that does not exist.
+Note that this only checks whether there is an internal node with the referenced name and whether a node array is treated as a single node or vice versa.
+It does not check whether the array index exists.
+
+\paragraph{Undefined Input Port}
+Throws an error if an input port is referenced that does not exist.
+Note that this only checks whether there is an input port with the referenced name and whether an input port array is treated as a single port or vice versa.
+It does not check whether the array index exists.
+
+\paragraph{Undefined Variable}
+Throws an error if a variable is referenced and there is neither a module parameter, constant or bound variable with that name.
+
+\section{Semantic Checks}
+\todo{None of these checks are currently implemented}
+
+\todo{DS: Note concerning all the checks that involve analysing sets and arithmetic expressions.
+With parametrised sets and variables in arithmetic expressions this will not be feasible exactly.
+Depending on how precise the approximation should be, it might be easier to perform the checks in Isabelle.}
+\paragraph{Argument not in Range}
+Throws an error if an argument to a module instantiation is not in the allowed range of the corresponding parameter.
+
+\paragraph{Array Index Does not Exist}
+Throws an error when an array is indexed with an index it does not contain.
+
+\paragraph{Uninstantiated Instance}
+Throws an error if a declared instance is never instantiated.
+
+\paragraph{Duplicate Instantiation}
+Throws an error if a declared instance is instantiated twice.
+
+\paragraph{Module Instantiation Loop}
+Throws an error if there is a loop in module instantiations and therefore potentially infinite nesting of \glspl{hdn}.
+\todo{Might also just be a warning}
+
+\paragraph{Unbound Output Port}
+Throws an error if an output port of a module instance is never bound.
+
+\paragraph{Duplicate Port Binding}
+Throws an error if an output port of a module instance is bound twice.
+
+\paragraph{Empty Node}
+Throws an error if a node is declared but no definition statement ever references it.
+\todo{Might also just be a warning}
+
+\paragraph{Domain Mismatch}
+Throws an error if
+\begin{itemize}
+  \item A target node's input domain in a translation does not match the output domain of the origin node.
+  \item An output ports input or output domain are different from the node it is bound to.
+  \item An overlay nodes input or output domain are different from the node.
+\end{itemize}
+
+\paragraph{Node Type Mismatch}
+Throws an error if
+\begin{itemize}
+  \item An origin address in a translation is not in the origin node's input type.
+  \item A target address in a translation is not in the origin node's output type (if given).
+  \item A target address in a translation is not in the target node's input type.
+  \item An output port is bound to a node with a different type.
+  \item An overlay node does not have the same type as the node itself.
+\end{itemize}
+
+\paragraph{Illegal Translation}
+Throws an error if a translation is specified using address sets and on of the following is violated:
+\begin{itemize}
+  \item A dimension's range is not contiguous
+  \item The number of variable dimensions in the target address does not match the number of variable dimensions in the origin address
+  \item The cardinality of corresponding variable dimensions does not match.
+\end{itemize}
+
+\paragraph{Bound Variable in Arithmetic Expression}
+Throws an error if an origin address of a translation contains an arithmetic expressions with bound variables.
+Bound variables can only occur in origin addresses if no arithmetic is done with them.
+\todo{Not yet implemented}
+
+\paragraph{Unknown Bit Width for Concatenation}
+Throws an error if the right hand side of a concatenation operator is not a slice expression and the bit width can therefore not be inferred.
+\todo{Not yet implemented}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Prolog Mapping for Sockeye}
+\label{chap:prolog}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\todo{LH: Work in progress for the new Prolog backend.}
+
+The definitions of the struct and dynamic facts (and queries, once we implement
+them) can be found in the Barrelfish SKB file \texttt{usr/skb/programs/decoding\_net2.pl}.
+
+The Sockeye compiler generates \(\text{ECL}^i\text{PS}^e\)-Prolog\footnote{\href{http://eclipseclp.org/}{http://eclipseclp.org/}} to be used within the \gls{skb}.
+
+The \textit{address domain} is represented as an atom (one of memory, intr,
+power, clock).
+
+An \textit{address} is a tuple of first, an address domain, followed by
+an integer corresponding to each address dimension.
+
+Since we allow multi dimensional and non-zero based arrays, an \textit{array
+index} is represented as a tuple of integers.
+
+\textit{Node identifiers} are represented as a list of strings and integers.
+The list of creates a hiearchical name, each module instance name will be
+prepended to the list until it ends at a local node name. In case of arrays,
+the array name is added prepended by the array index.
+
+According to the encoding of addresses, \textit{Address blocks} are tuples of
+an address domain, followed by for each dimension, a \Prolog{block} functor is
+instantiated. A \Prolog{block} functor takes two arguments, base and limit,
+restricting the corresponding address dimension.
+
+We then use these definitions to express a \gls{hdn} with the following predicates
+\begin{itemize}
+    \item \Prolog{node_translate(src_node :: node_id, src_address_block :: address_block, dest_node :: node_id, dest_address_block :: address_block)}
+    \item \Prolog{node_accepts(node :: node_id, address_block :: address_block)}
+    \item \Prolog{node_overlays(src_node :: node_id, dest_node :: node_id)}
+\end{itemize}
+
+To assert these predicates, the compiler generates a predicate for each module.
+
+The code is generated using \(\text{ECL}^i\text{PS}^e\)'s structure notation.
+This enables more readable and concise notation when accessing specific arguments of the functors.
+
+Listing~\ref{lst:prolog_example} shows the generated Prolog code for the Sockeye example in Listing~\ref{lst:sockeye_example}.
+Listing~\ref{lst:prolog_example_facts} shows the facts that are instantiated after calling
+\lstinline{add_SOCKET(["root"])}.
+
+\clearpage
+\lstinputlisting[caption={Sockeye Example},label={lst:sockeye_example},language=Sockeye]{example.soc}
+
+\clearpage
+\lstinputlisting[caption={Generated Prolog code},label={lst:prolog_example},language=Prolog]{example-out.pl}
+
+\clearpage
+\lstinputlisting[caption={Asserted Prolog facts},label={lst:prolog_example_facts},language=Prolog]{example-facts.pl}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Compiling Sockeye Files with Hake}
+\label{chap:hake}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+SoC descriptions are placed in the directory \pathname{SOURCE/socs} with the file extension \pathname{soc}.
+Each top-level Sockeye file has to be added to the list of SoCs in the Hakefile in the same directory.
+When passed a filename (without extension), the function \verb|sockeye :: String -> HRule| creates a rule to compile the file \pathname{SOURCE/socs/<filename>.soc} to \pathname{BUILD/sockeyefacts/<filename>.pl}.
+The rule will also generate \pathname{BUILD/sockeyefacts/<filename>.pl.depend} (with the \texttt{-d} option of the Sockeye compiler) and include it in the Makefile.
+This causes \texttt{make} to rebuild the file also when imported files are changed.
+To add a compiled Sockeye specification to the \gls{skb} RAM disk, the filename can be added to the \varname{sockeyeFiles} list in the \gls{skb}'s Hakefile.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliographystyle{abbrv}
+\bibliography{defs,barrelfish}
+
+\end{document}

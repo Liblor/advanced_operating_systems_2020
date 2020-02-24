@@ -1,0 +1,8 @@
+#
+# This script is used to describe the commands to start at
+# boot-time and the arguments they should receive.
+#
+bootdriver  /armv8/sbin/boot_armv8_generic
+cpudriver /armv8/sbin/cpu_imx8x
+module  /armv8/sbin/init
+

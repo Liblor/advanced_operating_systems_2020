@@ -1,0 +1,1 @@
+bootefi $loadaddr
