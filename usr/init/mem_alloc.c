@@ -30,6 +30,8 @@ errval_t aos_ram_free(struct capref cap, size_t bytes)
  * \brief Setups a local memory allocator for init to use till the memory server
  * is ready to be used. Inspects bootinfo for finding memory region.
  */
+ // BEAN : walk through all initial RAM caps as provided by CPU driver
+ // and try to add them to memory manager
 errval_t initialize_ram_alloc(void)
 {
     errval_t err;

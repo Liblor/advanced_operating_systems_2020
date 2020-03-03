@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
+
 static struct paging_state current;
 
 
@@ -288,9 +289,11 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 {
     /**
      * \brief map a user provided frame at user provided VA.
-     * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
+     * TODO(M1.2): Map a frame assuming all mappings will fit into one last level pt
      * TODO(M2): General case
      */
+
+     // BEAN read page 64 for more info
     return SYS_ERR_OK;
 }
 

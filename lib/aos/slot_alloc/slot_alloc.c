@@ -22,7 +22,6 @@
 #include <aos/caddr.h>
 #include "internal.h"
 
-
 /**
  * \brief Returns the default slot allocator for the caller
  */

@@ -250,6 +250,7 @@ static errval_t cap_revoke_remote(struct capref root, capaddr_t src, uint8_t lev
  * all be empty and lie in the same CNode. The number of objects created is
  * determined by the argument `count`.
  */
+ // BEAN : split cap into smaller chunks
 errval_t cap_retype(struct capref dest_start, struct capref src, gensize_t offset,
                     enum objtype new_type, gensize_t objsize, size_t count)
 {

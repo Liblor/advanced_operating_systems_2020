@@ -111,6 +111,17 @@ cap_mint(struct capref dest, struct capref src, uint64_t param1, uint64_t param2
  * \param attr Architecture-specific page (table) attributes
  * \param off Offset from source frame to map (must be page-aligned)
  */
+
+ // BEAN : VREGION_FLAGS_READ_WRITE
+ // allocate mapping with slot_alloc
+
+// struct capref l1_pagetable {
+//     .cnode = cnode_page,
+//     .slot = 0
+// };
+// cap to L1 page table is stored at well known location
+// create ref to that location as above
+
 static inline errval_t
 vnode_map(struct capref dest, struct capref src, capaddr_t slot,
           uint64_t attr, uint64_t off, uint64_t pte_count,
@@ -165,6 +176,7 @@ vnode_copy_remap(struct capref dest, struct capref src, capaddr_t slot,
  * \param dest    Location of destination slot, which must be empty
  * \param src     Location of source capability
  */
+ // BEAN creat copies if partially mapping large frames
 static inline errval_t cap_copy(struct capref dest, struct capref src)
 {
     errval_t err;
