@@ -115,6 +115,7 @@ errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr
  */
 errval_t paging_init(void)
 {
+    DEBUG_BEGIN;
     debug_printf("paging_init\n");
     // TODO (M2): Call paging_init_state for &current
     // TODO (M4): initialize self-paging handler
@@ -124,6 +125,7 @@ errval_t paging_init(void)
     // TIP: it might be a good idea to call paging_init_state() from here to
     // avoid code duplication.
     set_current_paging_state(&current);
+    DEBUG_END;
     return SYS_ERR_OK;
 }
 
@@ -133,7 +135,9 @@ errval_t paging_init(void)
  */
 void paging_init_onthread(struct thread *t)
 {
+    DEBUG_BEGIN;
     // TODO (M4): setup exception handler for thread `t'.
+    DEBUG_END;
 }
 
 /**
@@ -143,6 +147,7 @@ void paging_init_onthread(struct thread *t)
 errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region *pr,
                                   lvaddr_t base, size_t size, paging_flags_t flags)
 {
+    DEBUG_BEGIN;
     pr->base_addr = (lvaddr_t)base;
     pr->current_addr = pr->base_addr;
     pr->region_size = size;
@@ -150,6 +155,7 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
 
     //TODO(M2): Add the region to a datastructure and ensure paging_alloc
     //will return non-overlapping regions.
+    DEBUG_END;
     return SYS_ERR_OK;
 }
 
@@ -160,6 +166,7 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
 errval_t paging_region_init_aligned(struct paging_state *st, struct paging_region *pr,
                                     size_t size, size_t alignment, paging_flags_t flags)
 {
+    DEBUG_BEGIN;
     void *base;
     errval_t err = paging_alloc(st, &base, size, alignment);
     if (err_is_fail(err)) {
@@ -167,6 +174,7 @@ errval_t paging_region_init_aligned(struct paging_state *st, struct paging_regio
         return err_push(err, LIB_ERR_VSPACE_MMU_AWARE_INIT);
     }
 
+    DEBUG_END;
     return paging_region_init_fixed(st, pr, (lvaddr_t)base, size, flags);
 }
 
@@ -180,6 +188,8 @@ errval_t paging_region_init_aligned(struct paging_state *st, struct paging_regio
 errval_t paging_region_init(struct paging_state *st, struct paging_region *pr,
                             size_t size, paging_flags_t flags)
 {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return paging_region_init_aligned(st, pr, size, BASE_PAGE_SIZE, flags);
 }
 
@@ -239,12 +249,14 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
  */
 errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t alignment)
 {
+    DEBUG_BEGIN;
     /**
      * TODO(M2): Implement this function
      * \brief Find a bit of free virtual address space that is large enough to
      *        accomodate a buffer of size `bytes`.
      */
     *buf = NULL;
+    DEBUG_END;
     return SYS_ERR_OK;
 }
 
@@ -268,11 +280,12 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
 errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes,
                                struct capref frame, int flags, void *arg1, void *arg2)
 {
-
+    DEBUG_BEGIN;
     // TODO(M2): Implement me
     // - Call paging_alloc to get a free virtual address region of the requested size
     // - Map the user provided frame at the free virtual address
 
+    DEBUG_END;
     return LIB_ERR_NOT_IMPLEMENTED;
 
 }
@@ -280,13 +293,17 @@ errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes
 errval_t slab_refill_no_pagefault(struct slab_allocator *slabs, struct capref frame,
                                   size_t minbytes)
 {
+
+    DEBUG_BEGIN;
     // Refill the two-level slot allocator without causing a page-fault
+    DEBUG_END;
     return SYS_ERR_OK;
 }
 
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
+    DEBUG_BEGIN;
     /**
      * \brief map a user provided frame at user provided VA.
      * TODO(M1.2): Map a frame assuming all mappings will fit into one last level pt
@@ -294,6 +311,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
      */
 
      // BEAN read page 64 for more info
+     DEBUG_END;
     return SYS_ERR_OK;
 }
 
@@ -304,5 +322,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
  */
 errval_t paging_unmap(struct paging_state *st, const void *region)
 {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return SYS_ERR_OK;
 }

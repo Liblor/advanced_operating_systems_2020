@@ -71,6 +71,10 @@ void __attribute__((noreturn)) messages_handler_loop(void);
 
 typedef void *CONST_CAST;
 
+//#define AOS_DEBUG 0
+#define DEBUG_BEGIN printf("\033[0;36m%s %s\033[0m\n",  __PRETTY_FUNCTION__,  "begin")
+#define DEBUG_END   printf("\033[0;36m%s %s\033[0m\n",  __PRETTY_FUNCTION__,  "end")
+
 /* Enable solution macros */
 
 #define AOS_SOLUTION_M0
