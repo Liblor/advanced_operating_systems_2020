@@ -66,6 +66,8 @@ struct mm {
     gensize_t stats_bytes_available;
 };
 
+// slab :: simpler version of malloc, memory allocator
+
 errval_t mm_init(struct mm *mm, enum objtype objtype,
                      slab_refill_func_t slab_refill_func,
                      slot_alloc_t slot_alloc_func,

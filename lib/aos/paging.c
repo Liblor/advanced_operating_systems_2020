@@ -103,9 +103,11 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
 errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr,
                            struct capref pdir, struct slot_allocator *ca)
 {
+    DEBUG_BEGIN;
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
+    DEBUG_END;
     return SYS_ERR_OK;
 }
 
@@ -135,9 +137,7 @@ errval_t paging_init(void)
  */
 void paging_init_onthread(struct thread *t)
 {
-    DEBUG_BEGIN;
     // TODO (M4): setup exception handler for thread `t'.
-    DEBUG_END;
 }
 
 /**

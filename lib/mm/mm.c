@@ -15,33 +15,45 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
                      slot_refill_t slot_refill_func,
                      void *slot_alloc_inst)
 {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
 void mm_destroy(struct mm *mm)
 {
+    DEBUG_BEGIN;
     assert(!"NYI");
+    DEBUG_END;
 }
 
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
 {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
 
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap)
 {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap)
 {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return mm_alloc_aligned(mm, size, BASE_PAGE_SIZE, retcap);
 }
 
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size)
 {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return LIB_ERR_NOT_IMPLEMENTED;
 
 }

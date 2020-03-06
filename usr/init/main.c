@@ -25,16 +25,13 @@
 
 #include "mem_alloc.h"
 
-
-
-
 struct bootinfo *bi;
 
 coreid_t my_core_id;
 
-
 static int
 bsp_main(int argc, char *argv[]) {
+    DEBUG_BEGIN;
     errval_t err;
 
     // Grading 
@@ -70,6 +67,7 @@ bsp_main(int argc, char *argv[]) {
         }
     }
 
+    DEBUG_END;
     return EXIT_SUCCESS;
 }
 
@@ -85,8 +83,8 @@ app_main(int argc, char *argv[]) {
 
 int main(int argc, char *argv[])
 {
+    DEBUG_BEGIN;
     errval_t err;
-
 
     /* Set the core id in the disp_priv struct */
     err = invoke_kernel_get_core_id(cap_kernel, &my_core_id);
@@ -100,6 +98,7 @@ int main(int argc, char *argv[])
     printf("\n");
     fflush(stdout);
 
+    DEBUG_END;
     if(my_core_id == 0) return bsp_main(argc, argv);
     else                return app_main(argc, argv);
 }
