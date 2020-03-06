@@ -22,4 +22,4 @@ monitor:
 
 .PHONY: tags
 tags:
-	@ctags -R --languages=C --extra=+f .
+	@ctags -R --languages=C --exclude=build --extra=+f .
