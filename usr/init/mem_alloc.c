@@ -34,6 +34,7 @@ errval_t initialize_ram_alloc(void) {
     errval_t err;
 
     // Init slot allocator
+    // cnode_cap is a reference to a l2c cnode
     static struct slot_prealloc init_slot_alloc;
     struct capref cnode_cap = {
             .cnode = {

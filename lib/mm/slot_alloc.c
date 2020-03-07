@@ -34,6 +34,8 @@ errval_t slot_prealloc_refill(void *this)
         return SYS_ERR_OK;
     }
 
+    // other than current meta is still empty, we are good
+    // initially meta[1].free = 0 (slot_prealloc_init)
     if (sa->meta[refill].free == L2_CNODE_SLOTS) {
         return SYS_ERR_OK; // Nop
     }
@@ -69,6 +71,9 @@ errval_t slot_prealloc_refill(void *this)
 
     err = cnode_create_from_mem(cnode_cap, ram_cap, ObjType_L2CNode,
             &sa->meta[refill].cap.cnode, L2_CNODE_SLOTS);
+
+    // TODO: is cnode_cap same reference as meta[refill].cap ?
+
     if (err_is_fail(err)) {
         err = err_push(err, LIB_ERR_CNODE_CREATE);
         goto out;
@@ -83,6 +88,7 @@ out:
     return err;
 }
 
+// reserve slots for caller, call refill afterwards to ensure enough slots for subsequent calls
 errval_t slot_alloc_prealloc(void *inst, uint64_t nslots, struct capref *ret)
 {
     struct slot_prealloc *this = inst;

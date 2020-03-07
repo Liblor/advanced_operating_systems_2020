@@ -51,3 +51,4 @@ compile_commands.json
 /.idea/
 /CMakeLists.txt
 /cmake-build-debug/
+/build.log
