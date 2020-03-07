@@ -58,6 +58,7 @@ errval_t initialize_ram_alloc(void) {
     }
 
     // Give aos_mm a bit of memory for the initialization
+    DEBUG_PRINTF("size of mmnode: %d\n", sizeof(struct mmnode));
     static char nodebuf[sizeof(struct mmnode) * 64];
     slab_grow(&aos_mm.slabs, nodebuf, sizeof(nodebuf));
 
