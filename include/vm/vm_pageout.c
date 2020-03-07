@@ -199,7 +199,7 @@ SYSCTL_INT(_vm, OID_AUTO, max_launder,
 SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
 	CTLFLAG_RW, &vm_pageout_update_period, 0,
 	"Maximum active LRU update period");
-  
+
 SYSCTL_INT(_vm, OID_AUTO, lowmem_period, CTLFLAG_RW, &lowmem_period, 0,
 	"Low memory callback period");
 
@@ -249,7 +249,7 @@ static boolean_t vm_pageout_page_lock(vm_page_t, vm_page_t *);
  * paging queue.  In principle, this function only needs to set the flag
  * PG_MARKER.  Nonetheless, it write busies and initializes the hold count
  * to one as safety precautions.
- */ 
+ */
 static void
 vm_pageout_init_marker(vm_page_t marker, u_short queue)
 {
@@ -263,7 +263,7 @@ vm_pageout_init_marker(vm_page_t marker, u_short queue)
 
 /*
  * vm_pageout_fallback_object_lock:
- * 
+ *
  * Lock vm object currently associated with `m'. VM_OBJECT_TRYWLOCK is
  * known to have failed and page queue must be either PQ_ACTIVE or
  * PQ_INACTIVE.  To avoid lock order violation, unlock the page queue
@@ -271,7 +271,7 @@ vm_pageout_init_marker(vm_page_t marker, u_short queue)
  * changes and maintain notion of next page on page queue.  Return
  * TRUE if no changes were detected, FALSE otherwise.  vm object is
  * locked on return.
- * 
+ *
  * This function depends on both the lock portion of struct vm_object
  * and normal struct vm_page being type stable.
  */
@@ -288,7 +288,7 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 	vm_pageout_init_marker(&marker, queue);
 	pq = vm_page_pagequeue(m);
 	object = m->object;
-	
+
 	TAILQ_INSERT_AFTER(&pq->pq_pl, m, &marker, plinks.q);
 	vm_pagequeue_unlock(pq);
 	vm_page_unlock(m);
@@ -394,7 +394,7 @@ vm_pageout_cluster(vm_page_t m)
 	 * due to flushing pages out of order and not trying to
 	 * align the clusters (which leaves sporadic out-of-order
 	 * holes).  To solve this problem we do the reverse scan
-	 * first and attempt to align our cluster, then do a 
+	 * first and attempt to align our cluster, then do a
 	 * forward scan if room remains.
 	 */
 more:
@@ -431,7 +431,7 @@ more:
 		if ((pindex - (ib - 1)) % vm_pageout_page_count == 0)
 			break;
 	}
-	while (pageout_count < vm_pageout_page_count && 
+	while (pageout_count < vm_pageout_page_count &&
 	    pindex + is < object->size) {
 		if ((p = vm_page_next(ps)) == NULL || vm_page_busied(p))
 			break;
@@ -762,7 +762,7 @@ vm_pageout_clean(vm_page_t m)
 	 *
 	 * We can't wait forever for the vnode lock, we might
 	 * deadlock due to a vn_read() getting stuck in
-	 * vm_wait while holding this vnode.  We skip the 
+	 * vm_wait while holding this vnode.  We skip the
 	 * vnode if we can't get it in a reasonable amount
 	 * of time.
 	 */
@@ -819,7 +819,7 @@ vm_pageout_clean(vm_page_t m)
 	 * If a page is dirty, then it is either being washed
 	 * (but not yet cleaned) or it is still in the
 	 * laundry.  If it is still in the laundry, then we
-	 * start the cleaning operation. 
+	 * start the cleaning operation.
 	 */
 	if (vm_pageout_cluster(m) == 0)
 		error = EIO;
@@ -1064,7 +1064,7 @@ free_page:
 			 * Leave dirty pages from dead objects at the front of
 			 * the queue.  They are being paged out and freed by
 			 * the thread that destroyed the object.  They will
-			 * leave the queue shortly after the scan finishes, so 
+			 * leave the queue shortly after the scan finishes, so
 			 * they should be discounted from the inactive count.
 			 */
 			addl_page_shortage++;
@@ -1231,7 +1231,7 @@ relock_queue:
 		 * 1) The count was transitioning to zero, but we saw a non-
 		 *    zero value.  pmap_ts_referenced() will return zero
 		 *    because the page is not mapped.
-		 * 2) The count was transitioning to one, but we saw zero. 
+		 * 2) The count was transitioning to one, but we saw zero.
 		 *    This race delays the detection of a new reference.  At
 		 *    worst, we will deactivate and reactivate the page.
 		 */
@@ -1604,7 +1604,7 @@ vm_pageout_init(void)
 	/*
 	 * v_free_reserved needs to include enough for the largest
 	 * swap pager structures plus enough for any pv_entry structs
-	 * when paging. 
+	 * when paging.
 	 */
 	if (vm_cnt.v_page_count > 1024)
 		vm_cnt.v_free_min = 4 + (vm_cnt.v_page_count - 1024) / 200;

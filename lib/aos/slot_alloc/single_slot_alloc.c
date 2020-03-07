@@ -221,7 +221,7 @@ errval_t single_slot_alloc_init_raw(struct single_slot_allocator *ret,
         // check for callers that do not provide enough buffer space
         #if !defined(NDEBUG)
         //on arm, __builtin_return_address does not take arguments !=0
-        #if !defined(__arm__) && !defined(__aarch64__) 
+        #if !defined(__arm__) && !defined(__aarch64__)
         size_t buflen_proper = SINGLE_SLOT_ALLOC_BUFLEN(nslots);
         if (buflen != buflen_proper) {
             debug_printf("******* FIXME: %s buflen=%zu != buflen_proper=%zu"

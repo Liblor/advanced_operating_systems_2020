@@ -76,7 +76,7 @@ int	sched_load(void);
 int	sched_rr_interval(void);
 int	sched_runnable(void);
 
-/* 
+/*
  * Proc related scheduling hooks.
  */
 void	sched_exit(struct proc *p, struct thread *childtd);

@@ -99,7 +99,7 @@ isgraph(int c)
 	return (__sbistype(c, _CTYPE_G));
 }
 
-#undef ishexnumber 
+#undef ishexnumber
 int
 ishexnumber(int c)
 {
@@ -127,7 +127,7 @@ isnumber(int c)
 	return (__sbistype(c, _CTYPE_N));
 }
 
-#undef isphonogram	
+#undef isphonogram
 int
 isphonogram(int c)
 {

@@ -87,7 +87,7 @@ __libc_system(const char *command)
 		execl(_PATH_BSHELL, "sh", "-c", command, (char *)NULL);
 		_exit(127);
 	}
-	/* 
+	/*
 	 * If we are running means that the child has either completed
 	 * its execve, or has failed.
 	 * Block SIGINT/QUIT because sh -c handles it and wait for

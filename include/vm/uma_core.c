@@ -647,7 +647,7 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 		return;
 
 	if (zone->uz_fini)
-		for (i = 0; i < bucket->ub_cnt; i++) 
+		for (i = 0; i < bucket->ub_cnt; i++)
 			zone->uz_fini(bucket->ub_bucket[i], zone->uz_size);
 	zone->uz_release(zone->uz_arg, bucket->ub_bucket, bucket->ub_cnt);
 	bucket->ub_cnt = 0;
@@ -1155,7 +1155,7 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
 		 */
 		TAILQ_FOREACH_SAFE(p, &alloctail, listq, p_next) {
 			vm_page_unwire(p, PQ_NONE);
-			vm_page_free(p); 
+			vm_page_free(p);
 		}
 		return (NULL);
 	}
@@ -1255,7 +1255,7 @@ keg_small_init(uma_keg_t keg)
 
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 		shsize = 0;
-	else 
+	else
 		shsize = sizeof(struct uma_slab);
 
 	keg->uk_ipers = (keg->uk_slabsize - shsize) / rsize;
@@ -1581,7 +1581,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	 */
 	zone->uz_import = (uma_import)zone_import;
 	zone->uz_release = (uma_release)zone_release;
-	zone->uz_arg = zone; 
+	zone->uz_arg = zone;
 
 	if (arg->flags & UMA_ZONE_SECONDARY) {
 		KASSERT(arg->keg != NULL, ("Secondary zone on zero'd keg"));
@@ -2501,7 +2501,7 @@ zone_import(uma_zone_t zone, void **bucket, int max, int flags)
 		if ((slab = zone->uz_slab(zone, keg, flags)) == NULL)
 			break;
 		keg = slab->us_keg;
-		while (slab->us_freecount && i < max) { 
+		while (slab->us_freecount && i < max) {
 			bucket[i++] = slab_alloc_item(keg, slab);
 			if (keg->uk_free <= keg->uk_reserve)
 				break;
@@ -2860,11 +2860,11 @@ zone_release(uma_zone_t zone, void **bucket, int cnt)
 				clearfull = 1;
 			}
 
-			/* 
+			/*
 			 * We can handle one more allocation. Since we're
 			 * clearing ZFLAG_FULL, wake up all procs blocked
 			 * on pages. This should be uncommon, so keeping this
-			 * simple for now (rather than adding count of blocked 
+			 * simple for now (rather than adding count of blocked
 			 * threads etc).
 			 */
 			wakeup(keg);
@@ -3221,7 +3221,7 @@ uma_zone_exhausted(uma_zone_t zone)
 	ZONE_LOCK(zone);
 	full = (zone->uz_flags & UMA_ZFLAG_FULL);
 	ZONE_UNLOCK(zone);
-	return (full);	
+	return (full);
 }
 
 int
@@ -3571,7 +3571,7 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 		return;
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
-		if (slab == NULL) 
+		if (slab == NULL)
 			panic("uma: item %p did not belong to zone %s\n",
 			    item, zone->uz_name);
 	}
@@ -3601,7 +3601,7 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 		return;
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
-		if (slab == NULL) 
+		if (slab == NULL)
 			panic("uma: Freed item %p did not belong to zone %s\n",
 			    item, zone->uz_name);
 	}
@@ -3612,7 +3612,7 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 		panic("Invalid free of %p from zone %p(%s) slab %p(%d)\n",
 		    item, zone, zone->uz_name, slab, freei);
 
-	if (((freei * keg->uk_rsize) + slab->us_data) != item) 
+	if (((freei * keg->uk_rsize) + slab->us_data) != item)
 		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)\n",
 		    item, zone, zone->uz_name, slab, freei);
 

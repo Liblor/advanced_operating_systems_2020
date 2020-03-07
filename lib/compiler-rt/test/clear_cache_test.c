@@ -55,7 +55,7 @@ unsigned char execution_buffer[128] __attribute__((aligned(8)));
 
 int main()
 {
-    // make executable the page containing execution_buffer 
+    // make executable the page containing execution_buffer
     uintptr_t page_size = get_page_size();
     char* start = (char*)((uintptr_t)execution_buffer & (-page_size));
     char* end = (char*)((uintptr_t)(&execution_buffer[128+page_size]) & (-page_size));

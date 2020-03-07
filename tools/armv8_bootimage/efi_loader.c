@@ -195,7 +195,7 @@ print_memory_map(int update)
         else {
             description= "???";
         }
-        
+
         Print(L"%-13a %016lx %016lx %9ldkB %01x\n",
               description,
               desc->PhysicalStart,
@@ -444,7 +444,7 @@ relocate_boot_driver(struct Blob *blob_info, struct config *cfg)
     );
 
     cfg->boot_driver_entry = boot_driver + blob_info->boot_driver_entry;
-    
+
     return EFI_SUCCESS;
 }
 
@@ -499,7 +499,7 @@ relocate_cpu_driver(struct Blob *blob_info, struct config *cfg)
         cfg->cpu_driver_entry,
         cfg->cpu_driver_stack
     );
-    
+
     return EFI_SUCCESS;
 }
 
@@ -507,7 +507,7 @@ static EFI_STATUS
 relocate_modules(struct Blob *blob_info, struct config *cfg)
 {
     EFI_STATUS status;
-    
+
     /* Should be page aligend */
     ASSERT(blob_info->modules_size % BASE_PAGE_SIZE == 0);
 
@@ -610,7 +610,7 @@ create_core_data(struct config *cfg)
             sizeof(core_data->cpu_driver_cmdline) - 1
         )
     );
-    
+
     core_data->multiboot_image.base = (lpaddr_t)cfg->multiboot;
     core_data->multiboot_image.length = cfg->multiboot->total_size;
     core_data->efi_mmap = (lpaddr_t)cfg->mmap_tag;
@@ -624,7 +624,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle,
     EFI_STATUS status;
 
     InitializeLib(ImageHandle, SystemTable);
-    
+
     struct Blob *blob_info = (struct Blob *)BLOB_ADDRESS(0);
     Print(L"Blob is at: 0x%lx\n", blob_info);
     Print(L"Magic: %lx\n", blob_info->magic);

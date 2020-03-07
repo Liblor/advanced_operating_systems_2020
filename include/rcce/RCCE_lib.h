@@ -1,18 +1,18 @@
-// 
+//
 // Copyright 2010 Intel Corporation
-// 
+//
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
 //    You may obtain a copy of the License at
-// 
+//
 //        http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 //    Unless required by applicable law or agreed to in writing, software
 //    distributed under the License is distributed on an "AS IS" BASIS,
 //    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
-// 
+//
 #ifndef RCCE_LIB_H
 #define RCCE_LIB_H
 #include "RCCE.h"
@@ -57,9 +57,9 @@ typedef volatile unsigned char t_vchar;
 typedef volatile unsigned int  t_vint;
 
 typedef struct rcce_block {
-  t_vcharp space;          // pointer to space for data in block             
-  size_t free_size;        // actual free space in block (0 or whole block)  
-  struct rcce_block *next; // pointer to next block in circular linked list 
+  t_vcharp space;          // pointer to space for data in block
+  size_t free_size;        // actual free space in block (0 or whole block)
+  struct rcce_block *next; // pointer to next block in circular linked list
 } RCCE_BLOCK;
 
 #ifdef SINGLEBITFLAGS
@@ -72,7 +72,7 @@ typedef struct rcce_flag_line {
 #endif
 
 typedef struct  {
-  RCCE_BLOCK *tail;     // "last" block in linked list of blocks           
+  RCCE_BLOCK *tail;     // "last" block in linked list of blocks
 } RCCE_BLOCK_S;
 
 #ifndef GORY
@@ -80,7 +80,7 @@ typedef struct  {
   extern RCCE_FLAG    RCCE_ready_flag[RCCE_MAXNP];
   extern t_vcharp     RCCE_buff_ptr;
   extern size_t       RCCE_chunk;
-  extern t_vcharp     RCCE_flags_start; 
+  extern t_vcharp     RCCE_flags_start;
 #endif
 
 extern t_vcharp     RCCE_comm_buffer[RCCE_MAXNP];
@@ -129,7 +129,7 @@ t_vcharp RC_COMM_BUFFER_START(int);
   int      RCCE_wait_until(RCCE_FLAG, RCCE_FLAG_STATUS);
   int      RCCE_flag_alloc(RCCE_FLAG *);
   int      RCCE_flag_free(RCCE_FLAG *);
-  int      RCCE_flag_write(RCCE_FLAG *, RCCE_FLAG_STATUS, int); 
+  int      RCCE_flag_write(RCCE_FLAG *, RCCE_FLAG_STATUS, int);
   int      RCCE_flag_read(RCCE_FLAG, RCCE_FLAG_STATUS *, int);
 #endif
 

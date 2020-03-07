@@ -163,7 +163,7 @@ nl_langinfo_l(nl_item item, locale_t loc)
 		ret = (char*) __get_current_messages_locale(loc)->nostr;
 		break;
 	/*
-	 * SUSv2 special formatted currency string 
+	 * SUSv2 special formatted currency string
 	 */
 	case CRNCYSTR:
 		ret = "";

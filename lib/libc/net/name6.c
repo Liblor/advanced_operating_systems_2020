@@ -246,7 +246,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		 */
 		_close(s);
 	}
-	
+
 #ifdef INET6
 	/* special case for literal address */
 	if (inet_pton(AF_INET6, name, &addrbuf) == 1) {
@@ -277,10 +277,10 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 			return NULL;
 		}
 	}
-	
+
 	options = statp->options;
 	statp->options &= ~RES_USE_INET6;
-	
+
 	hp = gethostbyname2(name, af);
 	hp = _hpcopy(hp, errp);
 #ifdef INET6
@@ -304,10 +304,10 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		}
 	}
 #endif
-	
+
 	if (hp == NULL)
 		*errp = statp->res_h_errno;
-	
+
 	statp->options = options;
 	return _hpsort(hp, statp);
 }
@@ -318,13 +318,13 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 	struct hostent *hp;
 	res_state statp;
 	u_long options;
-	
+
 #ifdef INET6
 	struct in6_addr addrbuf;
 #else
 	struct in_addr addrbuf;
 #endif
-	
+
 	switch (af) {
 	case AF_INET:
 		if (len != sizeof(struct in_addr)) {
@@ -372,15 +372,15 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 			return NULL;
 		}
 	}
-	
+
 	options = statp->options;
 	statp->options &= ~RES_USE_INET6;
 
 	hp = gethostbyaddr(src, len, af);
 	if (hp == NULL)
 		*errp = statp->res_h_errno;
-	
-	statp->options = options;	
+
+	statp->options = options;
 	return (_hpcopy(hp, errp));
 }
 
@@ -1048,17 +1048,17 @@ comp_dst(const void *arg1, const void *arg2)
 
 	/* Rule 10: Otherwise, leave the order unchanged. */
 
-	/* 
-	 * Note that qsort is unstable; so, we can't return zero and 
+	/*
+	 * Note that qsort is unstable; so, we can't return zero and
 	 * expect the order to be unchanged.
 	 * That also means we can't depend on the current position of
 	 * dst2 being after dst1.  We must enforce the initial order
 	 * with an explicit compare on the original position.
-	 * The qsort specification requires that "When the same objects 
-	 * (consisting of width bytes, irrespective of their current 
-	 * positions in the array) are passed more than once to the 
-	 * comparison function, the results shall be consistent with one 
-	 * another."  
+	 * The qsort specification requires that "When the same objects
+	 * (consisting of width bytes, irrespective of their current
+	 * positions in the array) are passed more than once to the
+	 * comparison function, the results shall be consistent with one
+	 * another."
 	 * In other words, If A < B, then we must also return B > A.
 	 */
 	if (dst2->aio_initial_sequence < dst1->aio_initial_sequence)

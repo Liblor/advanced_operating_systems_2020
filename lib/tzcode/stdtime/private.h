@@ -299,7 +299,7 @@ const char *	scheck(const char * string, const char * format);
 char *asctime_r(struct tm const *, char *);
 char *ctime_r(time_t const *, char *);
 #endif /* HAVE_INCOMPATIBLE_CTIME_R */
-  
+
 #ifndef YEARSPERREPEAT
 #define YEARSPERREPEAT		400	/* years before a Gregorian repeat */
 #endif /* !defined YEARSPERREPEAT */

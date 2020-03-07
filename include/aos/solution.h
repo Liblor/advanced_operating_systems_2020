@@ -1,6 +1,6 @@
 /**
  * \file
- * \brief Default macros for AOS handout generation 
+ * \brief Default macros for AOS handout generation
  */
 
 /*

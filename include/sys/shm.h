@@ -120,7 +120,7 @@ struct shminfo {
 	u_long	shmall;		/* max amount of shared memory (pages) */
 };
 
-/* 
+/*
  * Add a kernel wrapper to the shmid_ds struct so that private info (like the
  * MAC label) can be added to it, without changing the user interface.
  */

@@ -208,7 +208,7 @@ void set_init_rpc(struct aos_rpc *initrpc)
 }
 
 /**
- * \brief Returns the RPC channel to init 
+ * \brief Returns the RPC channel to init
  */
 struct aos_rpc *get_init_rpc(void)
 {

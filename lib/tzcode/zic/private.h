@@ -135,7 +135,7 @@ typedef long           int_fast64_t;
 ** Workarounds for compilers/systems.
  */
 
-/* 
+/*
 ** Some time.h implementations don't declare asctime_r.
 ** Others might define it as a macro.
 ** Fix the former without affecting the latter.

@@ -110,22 +110,22 @@ typedef struct _EFI_VARIABLE_STORE {
 //
 // SizeStore()      - An optional function for non-runtime stores that can be
 //      dynamically sized.  The FW will only ever increase or decrease the store
-//      by 1 banksize at a time, and it is always adding or removing a bank from 
+//      by 1 banksize at a time, and it is always adding or removing a bank from
 //      the end of the store.
 //
 // By default the FW will update variables and storage banks in an
 // "atomic" manner by keeping 1 old copy of the data during an update,
 // and recovering appropiately if the power is lost during the middle
 // of an operation.  To do this the FW needs to have multiple banks
-// of storage dedicated to its use. If that's not possible, the driver 
-// can implement an atomic bank update function and the FW will allow 
+// of storage dedicated to its use. If that's not possible, the driver
+// can implement an atomic bank update function and the FW will allow
 // 1 bank in this case.  (It will allow any number of banks,
-// but it won't require an "extra" bank to provide its bank transaction 
+// but it won't require an "extra" bank to provide its bank transaction
 // function).
 //
-// TransactionUpdate()  - An optional function that can clear & update an 
-//      entire bank in an "atomic" fashion.  If the operation fails in the 
-//      middle the driver is responsible for having either the previous copy 
+// TransactionUpdate()  - An optional function that can clear & update an
+//      entire bank in an "atomic" fashion.  If the operation fails in the
+//      middle the driver is responsible for having either the previous copy
 //      of the bank's data or the new copy.  A copy that's partially written
 //      is not valid as internal data settings may get lost.  Supply this
 //      function only when needed.

@@ -4,7 +4,7 @@
  *
  * This file is distributed under the terms in the attached LICENSE file.
  * If you do not find this file, copies can be found by writing to:
- * ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich. 
+ * ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich.
  * Attn: Systems Group.
  */
 
@@ -164,7 +164,7 @@
 #define VMX_GUEST_PDPTE1_F 0x280C // Guest PDPTE1 (full)
 #define VMX_GUEST_PDPTE1_H 0x280D // Guest PDPTE1 (high)
 #define VMX_GUEST_PDPTE2_F 0x280E // Guest PDPTE2 (full)
-#define VMX_GUEST_PDPTE2_H 0x280F // Guest PDPTE2 (high) 
+#define VMX_GUEST_PDPTE2_H 0x280F // Guest PDPTE2 (high)
 #define VMX_GUEST_PDPTE3_F 0x2810 // Guest PDPTE3 (full)
 #define VMX_GUEST_PDPTE3_H 0x2811 // Guest PDPTE3 (high)
 
@@ -181,7 +181,7 @@
 // control fields
 #define VMX_CR0_GH_MASK 0x6000 // CR0 guest/host mask
 #define VMX_CR4_GH_MASK 0x6002 // CR4 guest/host mask
-#define VMX_CR0_RD_SHADOW 0x6004 // CR0 read shadow 
+#define VMX_CR0_RD_SHADOW 0x6004 // CR0 read shadow
 #define VMX_CR4_RD_SHADOW 0x6006 // CR4 read shadow
 #define VMX_CR3_T0 0x6008 // CR3-target value 0
 #define VMX_CR3_T1 0x600A // CR3-target value 1

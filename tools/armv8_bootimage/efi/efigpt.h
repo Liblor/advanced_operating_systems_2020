@@ -7,7 +7,7 @@ Copyright (c) 1998  Intel Corporation
 Module Name:
 
     EfiGpt.h
-    
+
 Abstract:
     Include file for EFI partitioning scheme
 
@@ -57,7 +57,7 @@ typedef struct {
 
 #define EFI_PART_TYPE_UNUSED_GUID   \
     { 0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} }
-    
+
 #define EFI_PART_TYPE_EFI_SYSTEM_PART_GUID  \
     { 0xc12a7328, 0xf81f, 0x11d2, {0xba, 0x4b, 0x00, 0xa0, 0xc9, 0x3e, 0xc9, 0x3b} }
 

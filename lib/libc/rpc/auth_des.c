@@ -2,27 +2,27 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
@@ -74,7 +74,7 @@ extern int key_encryptsession_pk(char *, netobj *, des_block *);
 extern bool_t __rpc_get_time_offset(struct timeval *, nis_server *, char *,
 	char **, char **);
 
-/* 
+/*
  * DES authenticator operations vector
  */
 static void	authdes_nextverf(AUTH *);
@@ -94,7 +94,7 @@ struct ad_private {
 	char *ad_servername; 		/* server's full name */
 	u_int ad_servernamelen;		/* length of name, rounded up */
 	u_int ad_window;	  	/* client specified window */
-	bool_t ad_dosync;		/* synchronize? */		
+	bool_t ad_dosync;		/* synchronize? */
 	struct netbuf ad_syncaddr;	/* remote host to synch with */
 	char *ad_timehost;		/* remote host to synch with */
 	struct timeval ad_timediff;	/* server's time - client's time */
@@ -111,7 +111,7 @@ struct ad_private {
 
 AUTH *authdes_pk_seccreate(const char *, netobj *, u_int, const char *,
 	const des_block *, nis_server *);
-	
+
 /*
  * documented version of authdes_seccreate
  */
@@ -256,7 +256,7 @@ failed:
 
 /*
  * 1. Next Verifier
- */	
+ */
 /*ARGSUSED*/
 static void
 authdes_nextverf(AUTH *auth __unused)
@@ -275,7 +275,7 @@ authdes_marshal(AUTH *auth, XDR *xdrs)
 	struct ad_private *ad = AUTH_PRIVATE(auth);
 	struct authdes_cred *cred = &ad->ad_cred;
 	struct authdes_verf *verf = &ad->ad_verf;
-	des_block cryptbuf[2];	
+	des_block cryptbuf[2];
 	des_block ivec;
 	int status;
 	int len;
@@ -303,12 +303,12 @@ authdes_marshal(AUTH *auth, XDR *xdrs)
 	if (ad->ad_cred.adc_namekind == ADN_FULLNAME) {
 		IXDR_PUT_U_INT32(ixdr, ad->ad_window);
 		IXDR_PUT_U_INT32(ixdr, ad->ad_window - 1);
-		ivec.key.high = ivec.key.low = 0;	
-		status = cbc_crypt((char *)&auth->ah_key, (char *)cryptbuf, 
+		ivec.key.high = ivec.key.low = 0;
+		status = cbc_crypt((char *)&auth->ah_key, (char *)cryptbuf,
 			(u_int) 2 * sizeof (des_block),
 			DES_ENCRYPT | DES_HW, (char *)&ivec);
 	} else {
-		status = ecb_crypt((char *)&auth->ah_key, (char *)cryptbuf, 
+		status = ecb_crypt((char *)&auth->ah_key, (char *)cryptbuf,
 			(u_int) sizeof (des_block),
 			DES_ENCRYPT | DES_HW);
 	}
@@ -344,7 +344,7 @@ authdes_marshal(AUTH *auth, XDR *xdrs)
 	}
 	ATTEMPT(xdr_authdes_cred(xdrs, cred));
 
-	len = (2 + 1)*BYTES_PER_XDR_UNIT; 
+	len = (2 + 1)*BYTES_PER_XDR_UNIT;
 	if ((ixdr = xdr_inline(xdrs, 2*BYTES_PER_XDR_UNIT))) {
 		IXDR_PUT_INT32(ixdr, AUTH_DES);
 		IXDR_PUT_INT32(ixdr, len);
@@ -483,7 +483,7 @@ authdes_ops(void)
 	static struct auth_ops ops;
 
 	/* VARIABLES PROTECTED BY ops_lock: ops */
- 
+
 	mutex_lock(&authdes_ops_lock);
 	if (ops.ah_nextverf == NULL) {
 		ops.ah_nextverf = authdes_nextverf;

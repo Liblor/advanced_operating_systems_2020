@@ -4,7 +4,7 @@
  * All rights reserved.
  *
  * As long as the above copyright statement and this notice remain
- * unchanged, you can do what ever you want with this file. 
+ * unchanged, you can do what ever you want with this file.
  */
 #include <sys/types.h>
 #include <sys/cdefs.h>

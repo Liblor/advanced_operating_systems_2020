@@ -277,7 +277,7 @@ vm_object_init(void)
 {
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
-	
+
 	rw_init(&kernel_object->lock, "kernel vm object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
@@ -748,7 +748,7 @@ vm_object_terminate(vm_object_t object)
 		VM_OBJECT_WLOCK(object);
 	}
 
-	KASSERT(object->ref_count == 0, 
+	KASSERT(object->ref_count == 0,
 		("vm_object_terminate: object with references, ref_count=%d",
 		object->ref_count));
 
@@ -756,7 +756,7 @@ vm_object_terminate(vm_object_t object)
 	 * Free any remaining pageable pages.  This also removes them from the
 	 * paging queues.  However, don't free wired pages, just remove them
 	 * from the object.  Rather than incrementally removing each page from
-	 * the object, the page and object are reset to any empty state. 
+	 * the object, the page and object are reset to any empty state.
 	 */
 	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
 		vm_page_assert_unbusied(p);
@@ -767,7 +767,7 @@ vm_object_terminate(vm_object_t object)
 		 * wired, then the effect of this assignment is that
 		 * vm_page_free()'s call to vm_page_remove() will return
 		 * immediately without modifying the page or the object.
-		 */ 
+		 */
 		p->object = NULL;
 		if (p->wire_count == 0) {
 			vm_page_free(p);
@@ -835,7 +835,7 @@ vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *clearobjflags)
 /*
  *	vm_object_page_clean
  *
- *	Clean all dirty pages in the specified range of object.  Leaves page 
+ *	Clean all dirty pages in the specified range of object.  Leaves page
  * 	on whatever queue it is currently on.   If NOSYNC is set then do not
  *	write out pages with VPO_NOSYNC set (originally comes from MAP_NOSYNC),
  *	leaving the object dirty.
@@ -1179,7 +1179,7 @@ shadowlookup:
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
-				 * likely to reclaim it. 
+				 * likely to reclaim it.
 				 */
 				vm_page_aflag_set(m, PGA_REFERENCED);
 			}
@@ -1201,7 +1201,7 @@ shadowlookup:
 unlock_tobject:
 		if (tobject != object)
 			VM_OBJECT_WUNLOCK(tobject);
-	}	
+	}
 	VM_OBJECT_WUNLOCK(object);
 }
 
@@ -1253,7 +1253,7 @@ vm_object_shadow(
 	 * of reference count.
 	 *
 	 * Try to optimize the result object's page color when shadowing
-	 * in order to maintain page coloring consistency in the combined 
+	 * in order to maintain page coloring consistency in the combined
 	 * shadowed object.
 	 */
 	result->backing_object = source;
@@ -1336,7 +1336,7 @@ vm_object_split(vm_map_entry_t entry)
 		vm_object_reference_locked(source);	/* for new_object */
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		VM_OBJECT_WUNLOCK(source);
-		new_object->backing_object_offset = 
+		new_object->backing_object_offset =
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
@@ -1401,7 +1401,7 @@ retry:
 	if (orig_object->type == OBJT_SWAP) {
 		/*
 		 * swap_pager_copy() can sleep, in which case the orig_object's
-		 * and new_object's locks are released and reacquired. 
+		 * and new_object's locks are released and reacquired.
 		 */
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
 		TAILQ_FOREACH(m, &new_object->memq, listq)
@@ -1764,8 +1764,8 @@ vm_object_collapse(vm_object_t object)
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
-			 * Note that the reference to 
-			 * backing_object->backing_object moves from within 
+			 * Note that the reference to
+			 * backing_object->backing_object moves from within
 			 * backing_object to within object.
 			 */
 			LIST_REMOVE(object, shadow_list);
@@ -1896,7 +1896,7 @@ again:
 
 	/*
 	 * Here, the variable "p" is either (1) the page with the least pindex
-	 * greater than or equal to the parameter "start" or (2) NULL. 
+	 * greater than or equal to the parameter "start" or (2) NULL.
 	 */
 	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
 		next = TAILQ_NEXT(p, listq);
@@ -1982,7 +1982,7 @@ vm_object_page_noreuse(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 
 	/*
 	 * Here, the variable "p" is either (1) the page with the least pindex
-	 * greater than or equal to the parameter "start" or (2) NULL. 
+	 * greater than or equal to the parameter "start" or (2) NULL.
 	 */
 	mtx = NULL;
 	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
@@ -2489,7 +2489,7 @@ DB_SHOW_COMMAND(vmochk, vm_object_check)
 				db_printf(
 			"vmochk: internal obj is not in a map: "
 			"ref: %d, size: %lu: 0x%lx, backing_object: %p\n",
-				    object->ref_count, (u_long)object->size, 
+				    object->ref_count, (u_long)object->size,
 				    (u_long)object->size,
 				    (void *)object->backing_object);
 			}
@@ -2522,7 +2522,7 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	    object->resident_page_count, object->ref_count, object->flags,
 	    object->cred ? object->cred->cr_ruid : -1, (uintmax_t)object->charge);
 	db_iprintf(" sref=%d, backing_object(%d)=(%p)+0x%jx\n",
-	    object->shadow_count, 
+	    object->shadow_count,
 	    object->backing_object ? object->backing_object->ref_count : 0,
 	    object->backing_object, (uintmax_t)object->backing_object_offset);
 
@@ -2602,7 +2602,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 					nl++;
 					rcount = 0;
 				}
-			}				
+			}
 			if (rcount &&
 				(VM_PAGE_TO_PHYS(m) == pa + rcount * PAGE_SIZE)) {
 				++rcount;

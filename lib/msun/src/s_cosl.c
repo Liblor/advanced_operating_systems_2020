@@ -90,6 +90,6 @@ cosl(long double x)
 	    hi = __kernel_sinl(hi, lo, 1);
 	    break;
 	}
-	
+
 	RETURNI(hi);
 }

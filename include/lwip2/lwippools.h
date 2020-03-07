@@ -1,6 +1,6 @@
 /**
  * \file lwippools.h
- * \brief 
+ * \brief
  */
 
 

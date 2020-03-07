@@ -153,7 +153,7 @@ _citrus_NONE_stdenc_cstomb(struct _citrus_stdenc * __restrict ce __unused,
 		s[3] = (char)(idx >> 24);
 		*nresult = 4;
 	}
-		
+
 	return (0);
 }
 

@@ -184,11 +184,11 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 		rdata += len;
 		T(addstr(" ", 1, &buf, &buflen));
 
-		    
+
 		/* Second word, optional in ISDN records. */
 		if (type == ns_t_isdn && rdata == edata)
 			break;
-		    
+
 		T(len = charstr(rdata, edata, &buf, &buflen));
 		if (len == 0)
 			goto formerr;
@@ -610,7 +610,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 			}
 			else
 				leader = " ";
-	
+
 			for (n = 0; n < len; n += 48) {
 				T(addstr(leader, strlen(leader),
 					 &buf, &buflen));
@@ -699,7 +699,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 		if (rdata >= edata) goto formerr;
 		T(addstr(" ", 1, &buf, &buflen));
 		T(addname(msg, msglen, &rdata, origin, &buf, &buflen));
-		
+
 		break;
 	    }
 
@@ -742,7 +742,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 	case ns_t_nsec3:
 	case ns_t_nsec3param: {
 		u_int t, w, l, j, k, c;
-		
+
 		len = SPRINTF((tmp, "%u ", *rdata));
 		T(addstr(tmp, len, &buf, &buflen));
 		rdata++;
@@ -890,7 +890,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 			T(addstr(str, strlen(str), &buf, &buflen));
 		} else {
 			len = b64_ntop(rdata, edata-rdata, base64_dhcid, siz);
-		
+
 			if (len < 0)
 				goto formerr;
 
@@ -919,7 +919,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 		unsigned int siz;
 		char base64_key[8192];
 		const char *leader;
-	
+
 		if (rdlen < 2)
 			goto formerr;
 
@@ -949,7 +949,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 		len = SPRINTF((tmp, "%u ", *rdata));
 		T(addstr(tmp, len, &buf, &buflen));
 		rdata++;
-		
+
 		len = SPRINTF((tmp, "%u ", *rdata));
 		T(addstr(tmp, len, &buf, &buflen));
 		rdata++;
@@ -1010,7 +1010,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 		char base64_key[NS_MD5RSA_MAX_BASE64];
 		unsigned int siz;
 		const char *leader = "\n\t\t\t\t\t";
-		
+
 		hip_len = *rdata++;
 		algorithm = *rdata++;
 		key_len = ns_get16(rdata);
@@ -1036,7 +1036,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 				goto formerr;
 
 			T(addstr(base64_key, len, &buf, &buflen));
-				
+
 			rdata += key_len;
 			while (rdata < edata) {
 				T(addstr(leader, strlen(leader), &buf, &buflen));

@@ -72,7 +72,7 @@ fgetwc(FILE *fp)
  * wide streams, this should always be fp->_mbstate.  On return, *nread
  * is set to the number of bytes read.
  */
-wint_t 
+wint_t
 __fgetwc_mbs(FILE *fp, mbstate_t *mbs, int *nread, locale_t locale)
 {
 	wchar_t wc;

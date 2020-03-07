@@ -120,7 +120,7 @@ typedef errval_t (*devq_dequeue_t)(struct devq *q, regionid_t* region_id,
                                    uint64_t* misc_flags);
 
  /**
-  * @brief Destroys the queue give as an argument, first the state of the 
+  * @brief Destroys the queue give as an argument, first the state of the
   *        library, then the queue specific part by calling a function pointer
   *
   * @param q         The device queue

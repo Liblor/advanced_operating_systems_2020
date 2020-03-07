@@ -192,7 +192,7 @@ acl_is_trivial_np(const acl_t aclp, int *trivialp)
 			*trivialp = 0;
 			return (0);
 		}
-			
+
 		/*
 		 * Calculate trivial ACL - using acl_strip_np(3) - and compare
 		 * with the original.

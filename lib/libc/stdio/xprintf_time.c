@@ -81,7 +81,7 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 		prec = 0;
 	}
 	if (pi->is_long || pi->is_long_double) {
-		if (pi->prec >= 0) 
+		if (pi->prec >= 0)
 			prec = pi->prec;
 		if (prec == 0)
 			nsec = 0;

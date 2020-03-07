@@ -724,14 +724,14 @@ errval_t frame_create(struct capref dest, size_t bytes, size_t *retbytes)
 /**
  * \brief Create a dispatcher capability and store it in the slot pointed to
  * by 'dest'
- * 
- * This function requires that dest refers to an existing but empty slot. It 
+ *
+ * This function requires that dest refers to an existing but empty slot. It
  * allocates a new RAM cap, retypes it to one of type ObjType_Dispatcher and
  * stores it at the slot pointed to by the capref struct 'dest'. The intermediate
  * ram cap is then destroyed.
  *
  * \param dest location to place new dispatcher cap
- * 
+ *
  * \return Either SYS_ERR_OK if no error occured or an error
  * indicating what went wrong otherwise.
  */

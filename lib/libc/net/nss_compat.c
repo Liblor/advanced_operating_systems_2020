@@ -125,7 +125,7 @@ __nss_compat_getgrgid_r(void *retval, void *mdata, va_list ap)
 	int		*errnop, ns_status;
 	size_t		 bufsize;
 	enum nss_status	 nss_status;
-	
+
 	fn = mdata;
 	gid = va_arg(ap, gid_t);
 	grp = va_arg(ap, struct group *);
@@ -226,7 +226,7 @@ __nss_compat_getpwuid_r(void *retval, void *mdata, va_list ap)
 	int		*errnop, ns_status;
 	size_t		 bufsize;
 	enum nss_status	 nss_status;
-	
+
 	fn = mdata;
 	uid = va_arg(ap, uid_t);
 	pwd = va_arg(ap, struct passwd *);

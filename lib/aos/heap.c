@@ -76,7 +76,7 @@ void *heap_alloc(struct heap *heap, size_t nbytes)
         if (p == heap->freep) {    /* wrapped around free list */
             /* try morecore, if we have one */
             if (heap->morecore_func == NULL
-                || (p = (union heap_header *) 
+                || (p = (union heap_header *)
                     heap->morecore_func(heap, nunits)) == NULL) {
                 return NULL;    /* none left */
             }

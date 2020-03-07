@@ -230,7 +230,7 @@ __cxa_finalize(void *dso)
 			*/
 			p->fns[n].fn_type = ATEXIT_FN_EMPTY;
 		        _MUTEX_UNLOCK(&atexit_mutex);
-		
+
 			/* Call the function of correct type. */
 			if (fn.fn_type == ATEXIT_FN_CXA)
 				fn.fn_ptr.cxa_func(fn.fn_arg);

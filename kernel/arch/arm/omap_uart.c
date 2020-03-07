@@ -1,6 +1,6 @@
 /**
  * \file
- * \brief Kernel serial driver for the OMAP44xx UARTs.  
+ * \brief Kernel serial driver for the OMAP44xx UARTs.
  */
 
 /*
@@ -180,7 +180,7 @@ static void omap_uart_hw_init(omap44xx_uart3_t *uart)
 }
 
 /**
- * \brief Prints a single character to a serial port. 
+ * \brief Prints a single character to a serial port.
  */
 void serial_putchar(unsigned port, char c)
 {
@@ -194,7 +194,7 @@ void serial_putchar(unsigned port, char c)
     omap44xx_uart3_thr_thr_wrf(uart, c);
 }
 
-/** 
+/**
  * \brief Reads a single character from the default serial port.
  */
 char serial_getchar(unsigned port)

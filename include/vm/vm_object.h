@@ -92,7 +92,7 @@
  *
  * List of locks
  *	(c)	const until freed
- *	(o)	per-object lock 
+ *	(o)	per-object lock
  *	(f)	free pages queue mutex
  *
  */

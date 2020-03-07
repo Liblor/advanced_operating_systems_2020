@@ -29,8 +29,8 @@ static struct paging_state current;
  * \brief Helper function that allocates a slot and
  *        creates a aarch64 page table capability for a certain level
  */
-static errval_t pt_alloc(struct paging_state * st, enum objtype type, 
-                         struct capref *ret) 
+static errval_t pt_alloc(struct paging_state * st, enum objtype type,
+                         struct capref *ret)
 {
     errval_t err;
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
@@ -56,7 +56,7 @@ __attribute__((unused)) static errval_t pt_alloc_l2(struct paging_state * st, st
     return pt_alloc(st, ObjType_VNode_AARCH64_l2, ret);
 }
 
-__attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, struct capref *ret) 
+__attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, struct capref *ret)
 {
     return pt_alloc(st, ObjType_VNode_AARCH64_l3, ret);
 }
@@ -67,7 +67,7 @@ __attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, st
  * TODO(M4): Improve this function.
  * \brief Initialize the paging_state struct for the paging
  *        state of the calling process.
- * 
+ *
  * \param st The struct to be initialized, must not be NULL.
  * \param start_vaddr Virtual address allocation should start at
  *        this address.
@@ -90,7 +90,7 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
  * TODO(M4): Improve this function.
  * \brief Initialize the paging_state struct for the paging state
  *        of a child process.
- * 
+ *
  * \param st The struct to be initialized, must not be NULL.
  * \param start_vaddr Virtual address allocation should start at
  *        this address.
@@ -223,11 +223,11 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
-/** 
+/**
  * TODO(M2): Implement this function.
  * \brief Find a bit of free virtual address space that is large enough to accomodate a
  *        buffer of size 'bytes'.
- * 
+ *
  * \param st A pointer to the paging state.
  * \param buf This parameter is used to return the free virtual address that was found.
  * \param bytes The number of bytes that need to be free (at the minimum) at the found
@@ -250,7 +250,7 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
 /**
  * TODO(M2): Implement this function.
  * \brief Finds a free virtual address and maps a frame at that address
- * 
+ *
  * \param st A pointer to the paging state.
  * \param buf This will parameter will be used to return the free virtual
  * address at which a new frame as been mapped.

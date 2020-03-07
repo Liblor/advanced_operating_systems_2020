@@ -43,14 +43,14 @@ struct tenaciousd_queue *tenaciousd_queue_new(struct storage_vsa *vsa,
 
 errval_t tenaciousd_queue_delete(struct tenaciousd_queue *queue);
 
-struct tenaciousd_queue_element * 
+struct tenaciousd_queue_element *
 tenaciousd_queue_element_new(struct tenaciousd_queue *queue,
                          size_t *size);
 
 errval_t tenaciousd_queue_add(struct tenaciousd_queue *log,
                                struct tenaciousd_queue_element *element);
 
-struct tenaciousd_queue_element * 
+struct tenaciousd_queue_element *
 tenaciousd_queue_remove(struct tenaciousd_queue *queue);
 
 struct tenaciousd_queue_iter tenaciousd_queue_begin(struct tenaciousd_queue *log);

@@ -208,7 +208,7 @@ erfl(long double x)
 	ax = fabsl(x);
 	if(ax < 0.84375) {
 	    if(ax < 0x1p-40L) {
-	        if(ax < 0x1p-16373L)	
+	        if(ax < 0x1p-16373L)
 		    return (8*x+efx8*x)/8;	/* avoid spurious underflow */
 		return x + efx*x;
 	    }

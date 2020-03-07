@@ -162,7 +162,7 @@ __ultoa(u_long val, char *endp, int base, const char *xdigs,
 
 /* Identical to __ultoa, but for intmax_t. */
 static char *
-__ujtoa(uintmax_t val, char *endp, int base, const char *xdigs, 
+__ujtoa(uintmax_t val, char *endp, int base, const char *xdigs,
 	int needgrp, char thousep, const char *grp)
 {
 	char *cp = endp;
@@ -325,19 +325,19 @@ __printf_render_int(struct __printf_io *io, const struct printf_info *pi, const 
 		if (sign && argp->longarg < 0) {
 			uu = (u_long)-argp->longarg;
 			ns = '-';
-		} else 
+		} else
 			uu = argp->ulongarg;
 	} else if (pi->is_short) {
 		if (sign && (short)argp->intarg < 0) {
 			uu = -(short)argp->intarg;
 			ns = '-';
-		} else 
+		} else
 			uu = (unsigned short)argp->uintarg;
 	} else if (pi->is_char) {
 		if (sign && (signed char)argp->intarg < 0) {
 			uu = -(signed char)argp->intarg;
 			ns = '-';
-		} else 
+		} else
 			uu = (unsigned char)argp->uintarg;
 	} else {
 		if (sign && argp->intarg < 0) {
@@ -366,7 +366,7 @@ __printf_render_int(struct __printf_io *io, const struct printf_info *pi, const 
 		if (pi->prec == 0 && !(pi->alt && rdx == 8))
 			p = pe;
 	} else if (pi->alt) {
-		if (rdx == 8) 
+		if (rdx == 8)
 			*--p = '0';
 		if (rdx == 16) {
 			if (pi->spec == 'x')
@@ -427,9 +427,9 @@ __printf_render_int(struct __printf_io *io, const struct printf_info *pi, const 
 		if (zext > 0)
 			ret += __printf_pad(io, zext, 1);
 	}
-	
+
 	ret += __printf_puts(io, p, pe - p);
-	if (pi->width > ret && pi->left) 
+	if (pi->width > ret && pi->left)
 		ret += __printf_pad(io, pi->width - ret, 0);
 	__printf_flush(io);
 	return (ret);

@@ -165,7 +165,7 @@ nextcomp(const char *msgverb)
 {
 	static char lmsgverb[MAX_MSGVERB], *state;
 	char *retval;
-	
+
 	if (*lmsgverb == '\0') {
 		strlcpy(lmsgverb, msgverb, sizeof(lmsgverb));
 		retval = strtok_r(lmsgverb, ":", &state);

@@ -57,7 +57,7 @@ iswctype_l(wint_t wc, wctype_t charclass, locale_t locale)
 wctype_t
 wctype_l(const char *property, locale_t locale)
 {
-	const char *propnames = 
+	const char *propnames =
 		"alnum\0"
 		"alpha\0"
 		"blank\0"

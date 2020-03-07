@@ -110,7 +110,7 @@ acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 			bzero(&acl->ats_acl.acl_entry[j],
 			    sizeof(struct acl_entry));
 			acl->ats_cur_entry = 0;
-			
+
 			/* Continue with the loop to remove all matching entries. */
 			found = 1;
 		} else

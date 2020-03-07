@@ -63,7 +63,7 @@
 #define PIC_REGISTER X10
 
 /* cpsr, x0-x30, sp, pc */
-#define NUM_REGS 98  
+#define NUM_REGS 98
 #define NUM_FPU_REGS 0
 #define ARCH_NUMREGS NUM_REGS
 

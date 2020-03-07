@@ -568,7 +568,7 @@ static void boot_generic_init(struct armv8_core_data *core_data) {
     configure_el1_traps();
 
     debug_print_string("Jumping to CPU driver\n");
-    
+
     switch(el) {
     case 3:
         configure_el3_traps();
@@ -677,7 +677,7 @@ boot_bsp_init(uint32_t magic, lpaddr_t pointer) {
 
     /* disable interrupts */
     armv8_disable_interrupts();
-    
+
     boot_generic_init(core_data);
 
     stop:

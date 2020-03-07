@@ -30,7 +30,7 @@ typedef struct _LIST_ENTRY {
     struct _LIST_ENTRY  *Blink;
 } LIST_ENTRY;
 
-#endif 
+#endif
 
 
 //
@@ -73,7 +73,7 @@ typedef struct _LIST_ENTRY {
     #define RemoveEntryList(Entry)                      \
         _RemoveEntryList(Entry);                        \
         (Entry)->Flink = (LIST_ENTRY *) BAD_POINTER;    \
-        (Entry)->Blink = (LIST_ENTRY *) BAD_POINTER; 
+        (Entry)->Blink = (LIST_ENTRY *) BAD_POINTER;
 #else
     #define RemoveEntryList(Entry)      \
         _RemoveEntryList(Entry);
@@ -159,7 +159,7 @@ typedef struct _LIST_ENTRY {
             _CR(Record, TYPE, Field)
 #else
     #define CR(Record, TYPE, Field, Signature)   \
-        _CR(Record, TYPE, Field)                           
+        _CR(Record, TYPE, Field)
 #endif
 
 

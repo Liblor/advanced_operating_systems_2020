@@ -108,7 +108,7 @@ typedef struct _LEGACY_BOOT_INTERFACE {
     UINTN                   BbsVersion;     // Currently 0x0101
     GET_DEVICE_COUNT        GetDeviceCount;
     GET_PRIORITY_AND_TABLE  GetPriorityAndTable;
-    SET_PRIORITY            SetPriority;   
+    SET_PRIORITY            SetPriority;
 } LEGACY_BOOT_INTERFACE;
 
 EFI_STATUS

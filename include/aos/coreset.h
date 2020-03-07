@@ -43,7 +43,7 @@ bool coreset_test(struct coreset *set, coreid_t id);
 errval_t coreset_get_next(struct coreset *set, coreset_token_t *token,
                           coreid_t *id);
 errval_t coreset_iterate(struct coreset *set, void *st,
-                         coreset_iterator_fn func); 
+                         coreset_iterator_fn func);
 
 errval_t coreset_to_coremask(struct coreset *set, coremask_t *mask);
 errval_t coreset_from_coremask(coremask_t mask, struct coreset **set);

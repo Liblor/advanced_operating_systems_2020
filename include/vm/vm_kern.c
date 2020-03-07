@@ -115,7 +115,7 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
  *	no initial mapping to physical memory.  Any mapping from this
  *	range to physical memory must be explicitly created prior to
  *	its use, typically with pmap_qenter().  Any attempt to create
- *	a mapping on demand through vm_fault() will result in a panic. 
+ *	a mapping on demand through vm_fault() will result in a panic.
  */
 vm_offset_t
 kva_alloc(size)
@@ -222,7 +222,7 @@ kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
 	vm_page_t end_m, m;
 	u_long npages;
 	int pflags, tries;
- 
+
 	size = round_page(size);
 	if (vmem_alloc(vmem, size, flags | M_BESTFIT, &addr))
 		return (0);
@@ -508,9 +508,9 @@ kmem_init_zero_region(void)
 /*
  * 	kmem_init:
  *
- *	Create the kernel map; insert a mapping covering kernel text, 
- *	data, bss, and all space allocated thus far (`boostrap' data).  The 
- *	new map will thus map the range between VM_MIN_KERNEL_ADDRESS and 
+ *	Create the kernel map; insert a mapping covering kernel text,
+ *	data, bss, and all space allocated thus far (`boostrap' data).  The
+ *	new map will thus map the range between VM_MIN_KERNEL_ADDRESS and
  *	`start' as allocated, and the range between `start' and `end' as free.
  */
 void
@@ -527,7 +527,7 @@ kmem_init(start, end)
 	(void) vm_map_insert(m, NULL, (vm_ooffset_t) 0,
 #ifdef __amd64__
 	    KERNBASE,
-#else		     
+#else
 	    VM_MIN_KERNEL_ADDRESS,
 #endif
 	    start, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
@@ -549,7 +549,7 @@ debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &i, 0, req);
 	if (error)
 		return (error);
-	if (i)	 
+	if (i)
 		EVENTHANDLER_INVOKE(vm_lowmem, 0);
 	return (0);
 }

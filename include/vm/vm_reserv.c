@@ -191,7 +191,7 @@ struct vm_reserv {
  * An "active" reservation is a valid reservation structure that has a non-NULL
  * "object" field and a non-zero "popcnt" field.  In other words, every active
  * reservation belongs to a particular object.  Moreover, every active
- * reservation has an entry in the containing object's list of reservations.  
+ * reservation has an entry in the containing object's list of reservations.
  */
 static vm_reserv_t vm_reserv_array;
 
@@ -508,7 +508,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	if (first + maxpages > object->size) {
 		/*
 		 * Don't allocate the last new reservation if the object is a
-		 * vnode or backed by another object that is a vnode. 
+		 * vnode or backed by another object that is a vnode.
 		 */
 		if (object->type == OBJT_VNODE ||
 		    (object->backing_object != NULL &&
@@ -667,12 +667,12 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, vm_page_t mpred)
 	}
 
 	/*
-	 * Would a new reservation extend past the end of the object? 
+	 * Would a new reservation extend past the end of the object?
 	 */
 	if (first + VM_LEVEL_0_NPAGES > object->size) {
 		/*
 		 * Don't allocate a new reservation if the object is a vnode or
-		 * backed by another object that is a vnode. 
+		 * backed by another object that is a vnode.
 		 */
 		if (object->type == OBJT_VNODE ||
 		    (object->backing_object != NULL &&
@@ -1136,7 +1136,7 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t high_water)
 	 * from "high_water" because every small page is mapped to an element
 	 * in the reservation array based on its physical address.  Thus, the
 	 * number of elements in the reservation array can be greater than the
-	 * number of superpages. 
+	 * number of superpages.
 	 */
 	size = howmany(high_water, VM_LEVEL_0_SIZE) * sizeof(struct vm_reserv);
 

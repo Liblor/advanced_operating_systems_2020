@@ -143,7 +143,7 @@ __hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
 
 	mask_nbit_l(u);
 	manh = u.bits.manh;
-	manl = u.bits.manl;	
+	manl = u.bits.manl;
 	*s0 = '1';
 	for (s = s0 + 1; s < s0 + bufsize; s++) {
 		*s = xdigs[(manh >> (MANH_SIZE - 4)) & 0xf];

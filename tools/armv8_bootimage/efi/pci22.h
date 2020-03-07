@@ -8,8 +8,8 @@ Copyright (c) 1999  Intel Corporation
 Module Name:
 
     pci22.h
-    
-Abstract:      
+
+Abstract:
     Support for PCI 2.2 standard.
 
 
@@ -57,7 +57,7 @@ typedef struct {
     UINT8       InterruptLine;
     UINT8       InterruptPin;
     UINT8       MinGnt;
-    UINT8       MaxLat;     
+    UINT8       MaxLat;
 } PCI_DEVICE_HEADER_TYPE_REGION;
 
 typedef struct {
@@ -65,7 +65,7 @@ typedef struct {
     PCI_DEVICE_HEADER_TYPE_REGION   Device;
 } PCI_TYPE00;
 
-typedef struct {              
+typedef struct {
     UINT32      Bar[2];
     UINT8       PrimaryBus;
     UINT8       SecondaryBus;
@@ -96,16 +96,16 @@ typedef struct {
 #define PCI_CLASS_ISA                   0x01
 #define PCI_CLASS_ISA_POSITIVE_DECODE   0x80
 
-#define PCI_CLASS_NETWORK               0x02 
+#define PCI_CLASS_NETWORK               0x02
 #define PCI_CLASS_ETHERNET              0x00
-        
+
 #define HEADER_TYPE_DEVICE              0x00
 #define HEADER_TYPE_PCI_TO_PCI_BRIDGE   0x01
 #define HEADER_TYPE_MULTI_FUNCTION      0x80
 #define HEADER_LAYOUT_CODE              0x7f
 
-#define IS_PCI_BRIDGE(_p) ((((_p)->Hdr.HeaderType) & HEADER_LAYOUT_CODE) == HEADER_TYPE_PCI_TO_PCI_BRIDGE)        
-#define IS_PCI_MULTI_FUNC(_p)   (((_p)->Hdr.HeaderType) & HEADER_TYPE_MULTI_FUNCTION)         
+#define IS_PCI_BRIDGE(_p) ((((_p)->Hdr.HeaderType) & HEADER_LAYOUT_CODE) == HEADER_TYPE_PCI_TO_PCI_BRIDGE)
+#define IS_PCI_MULTI_FUNC(_p)   (((_p)->Hdr.HeaderType) & HEADER_TYPE_MULTI_FUNCTION)
 
 typedef struct {
     PCI_DEVICE_INDEPENDENT_REGION   Hdr;
@@ -169,7 +169,7 @@ typedef struct {
 } EFI_PCI_EXPANSION_ROM_HEADER;
 
 typedef struct {
-    UINT32          Signature;              // "PCIR" 
+    UINT32          Signature;              // "PCIR"
     UINT16          VendorId;
     UINT16          DeviceId;
     UINT16          Reserved0;
@@ -185,9 +185,9 @@ typedef struct {
 #pragma pack()
 
 #endif
-    
 
 
 
 
-    
+
+

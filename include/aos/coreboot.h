@@ -22,8 +22,8 @@ __BEGIN_DECLS
 /**
  * \brief Boot a core
  *
- * \param mpid The ARM MPID of the core to be booted    
- * \param id    
+ * \param mpid The ARM MPID of the core to be booted
+ * \param id
  *
  */
 errval_t coreboot(coreid_t mpid,

@@ -326,7 +326,7 @@ __elf_fdnlist(int fd, struct nlist *list)
 	/* Don't process any further if object is stripped. */
 	if (symoff == 0)
 		goto done;
-		
+
 	if (lseek(fd, (off_t) symoff, SEEK_SET) == -1) {
 		nent = -1;
 		goto done;

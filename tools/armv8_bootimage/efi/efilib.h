@@ -195,7 +195,7 @@ VOID
 SetMem (
     IN VOID     *Buffer,
     IN UINTN    Size,
-    IN UINT8    Value    
+    IN UINT8    Value
     );
 
 VOID
@@ -272,7 +272,7 @@ UINTN
 strlena (
     IN CONST CHAR8    *s1
     );
-    
+
 UINTN
 strcmpa (
     IN CONST CHAR8    *s1,
@@ -296,13 +296,13 @@ Atoi (
     CONST CHAR16  *str
     );
 
-BOOLEAN 
+BOOLEAN
 MetaMatch (
     IN CHAR16   *String,
     IN CHAR16   *Pattern
     );
 
-BOOLEAN 
+BOOLEAN
 MetaiMatch (
     IN CHAR16   *String,
     IN CHAR16   *Pattern
@@ -793,7 +793,7 @@ OpenSimpleReadFile (
     IN VOID                     *SourceBuffer   OPTIONAL,
     IN UINTN                    SourceSize,
     IN OUT EFI_DEVICE_PATH      **FilePath,
-    OUT EFI_HANDLE              *DeviceHandle,    
+    OUT EFI_HANDLE              *DeviceHandle,
     OUT SIMPLE_READ_FILE        *SimpleReadHandle
     );
 
@@ -834,7 +834,7 @@ LibGetSystemConfigurationTable(
 
 BOOLEAN
 LibIsValidTextGraphics (
-    IN  CHAR16  Graphic,   
+    IN  CHAR16  Graphic,
     OUT CHAR8   *PcAnsi,    OPTIONAL
     OUT CHAR8   *Ascii      OPTIONAL
     );
@@ -875,34 +875,34 @@ InitializeGlobalIoDevice (
         IN  EFI_DEVICE_PATH             *DevicePath,
         IN  EFI_GUID                    *Protocol,
         IN  CHAR8                       *ErrorStr,
-        OUT EFI_DEVICE_IO_INTERFACE     **GlobalIoFncs 
+        OUT EFI_DEVICE_IO_INTERFACE     **GlobalIoFncs
         );
 
-UINT32 
+UINT32
 ReadPort (
-        IN  EFI_DEVICE_IO_INTERFACE     *GlobalIoFncs, 
+        IN  EFI_DEVICE_IO_INTERFACE     *GlobalIoFncs,
         IN  EFI_IO_WIDTH                Width,
         IN  UINTN                       Port
         );
 
-UINT32 
+UINT32
 WritePort (
-        IN  EFI_DEVICE_IO_INTERFACE     *GlobalIoFncs, 
+        IN  EFI_DEVICE_IO_INTERFACE     *GlobalIoFncs,
         IN  EFI_IO_WIDTH                Width,
         IN  UINTN                       Port,
         IN  UINTN                       Data
         );
 
-UINT32 
+UINT32
 ReadPciConfig (
-        IN  EFI_DEVICE_IO_INTERFACE     *GlobalIoFncs, 
+        IN  EFI_DEVICE_IO_INTERFACE     *GlobalIoFncs,
         IN  EFI_IO_WIDTH                Width,
         IN  UINTN                       Port
         );
 
-UINT32 
+UINT32
 WritePciConfig (
-        IN  EFI_DEVICE_IO_INTERFACE     *GlobalIoFncs, 
+        IN  EFI_DEVICE_IO_INTERFACE     *GlobalIoFncs,
         IN  EFI_IO_WIDTH                Width,
         IN  UINTN                       Port,
         IN  UINTN                       Data

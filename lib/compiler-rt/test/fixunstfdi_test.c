@@ -22,7 +22,7 @@
 
 // Assumption: long double is a 128 bit floating point type
 //             du_int is a 64 bit integral type
-//             value in long double is representable in du_int or is negative 
+//             value in long double is representable in du_int or is negative
 //                 (no range checking performed)
 
 COMPILER_RT_ABI du_int __fixunstfdi(long double a);

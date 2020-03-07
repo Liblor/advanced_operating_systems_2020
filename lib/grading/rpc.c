@@ -5,7 +5,7 @@
 #include <aos/sys_debug.h>
 #include <grading.h>
 
-void grading_rpc_handle_number(uintptr_t val) 
+void grading_rpc_handle_number(uintptr_t val)
 {
 }
 

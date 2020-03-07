@@ -130,12 +130,12 @@ __printf_render_str(struct __printf_io *io, const struct printf_info *pi, const 
 		if (wcp == NULL)
 			return (__printf_out(io, pi, "(null)", 6));
 		convbuf = __wcsconv(wcp, pi->prec);
-		if (convbuf == NULL) 
+		if (convbuf == NULL)
 			return (-1);
 		l = __printf_out(io, pi, convbuf, strlen(convbuf));
 		free(convbuf);
 		return (l);
-	} 
+	}
 	p = *((char **)arg[0]);
 	if (p == NULL)
 		return (__printf_out(io, pi, "(null)", 6));

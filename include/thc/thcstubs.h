@@ -64,7 +64,7 @@ struct common_binding {
 #define CHECK_FIELD(_t,_f)						\
   STATIC_ASSERT(offsetof(struct common_binding, _f)==offsetof(_t,_f) &&	\
 		sizeof(((struct common_binding*)NULL)->_f)==sizeof(((_t*)NULL)->_f), "OFFSET mismatch"); \
-  
+
 //......................................................................
 //
 // Common functions and data types used in the THC stubs.
@@ -76,9 +76,9 @@ struct common_binding {
 // underlying binding's rx_vtbl
 
 struct thc_receiver_info {
-  // AWE for the bottom-half to resume.  NULL implies that the 
-  // top-half has already been resumed (and so future 
-  // bottom-half invocations should not attempt to supply a 
+  // AWE for the bottom-half to resume.  NULL implies that the
+  // top-half has already been resumed (and so future
+  // bottom-half invocations should not attempt to supply a
   // second message to it)
   awe_t *waiter;
 
@@ -121,7 +121,7 @@ struct thc_per_binding_state_t {
   // section in the subsequent event handler has not yet run (a thread
   // can enter thc_await_send and find this flag set because an
   // earlier thc_await_send_x was canceled)
-  int send_possible_event_requested;  
+  int send_possible_event_requested;
 };
 
 // Common fields for each message on each THC binding; a head of a
@@ -131,7 +131,7 @@ struct thc_per_binding_state_t {
 //
 // num_discard counts the number of messages to discard in the bottom-half
 // before delivering any.  This is used when sequential RPC responses
-// arrive for receivers that have been canceled. 
+// arrive for receivers that have been canceled.
 
 struct thc_per_recv_t {
   struct thc_receiver_info * volatile r;
@@ -155,7 +155,7 @@ static inline struct thc_receiver_info *thc_start_bh(struct thc_per_binding_stat
                                        struct thc_per_recv_t *recv) {
   thc_lock_acquire(&thc->thc_binding_lock);
 
-  // Wait for a receiver 
+  // Wait for a receiver
   while (recv->num_discard == 0 &&
          (recv->r == NULL || recv->r->waiter == NULL)) {
     recv->num_bh++;

@@ -140,7 +140,7 @@ vm_pager_put_pages(
 static __inline boolean_t
 vm_pager_has_page(
 	vm_object_t object,
-	vm_pindex_t offset, 
+	vm_pindex_t offset,
 	int *before,
 	int *after
 ) {
@@ -150,13 +150,13 @@ vm_pager_has_page(
 	ret = (*pagertab[object->type]->pgo_haspage)
 	    (object, offset, before, after);
 	return (ret);
-} 
+}
 
-/* 
+/*
  *      vm_pager_page_unswapped
- * 
+ *
  *	Destroy swap associated with the page.
- * 
+ *
  *	The object containing the page must be locked.
  *      This function may not block.
  *

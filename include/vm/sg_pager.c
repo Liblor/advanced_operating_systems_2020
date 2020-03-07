@@ -50,7 +50,7 @@ static vm_object_t sg_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void sg_pager_dealloc(vm_object_t);
 static int sg_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
-static void sg_pager_putpages(vm_object_t, vm_page_t *, int, 
+static void sg_pager_putpages(vm_object_t, vm_page_t *, int,
 		boolean_t, int *);
 static boolean_t sg_pager_haspage(vm_object_t, vm_pindex_t, int *,
 		int *);
@@ -127,7 +127,7 @@ sg_pager_dealloc(vm_object_t object)
 		TAILQ_REMOVE(&object->un_pager.sgp.sgp_pglist, m, plinks.q);
 		vm_page_putfake(m);
 	}
-	
+
 	sg = object->handle;
 	sglist_free(sg);
 	object->handle = NULL;

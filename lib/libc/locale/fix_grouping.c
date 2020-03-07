@@ -55,7 +55,7 @@ __fix_locale_grouping_str(const char *str)
 		/* input string examples: "3;3", "3;2;-1" */
 		if (*src == ';')
 			continue;
-	
+
 		if (*src == '-' && *(src+1) == '1') {
 			*dst++ = CHAR_MAX;
 			src++;

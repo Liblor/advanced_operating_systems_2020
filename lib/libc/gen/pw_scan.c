@@ -160,13 +160,13 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 			goto fmt;
 		if (pw->pw_class[0])
 			pw->pw_fields |= _PWF_CLASS;
-		
+
 		if (!(p = strsep(&bp, ":")))		/* change */
 			goto fmt;
 		if (p[0])
 			pw->pw_fields |= _PWF_CHANGE;
 		pw->pw_change = atol(p);
-		
+
 		if (!(p = strsep(&bp, ":")))		/* expire */
 			goto fmt;
 		if (p[0])
@@ -203,7 +203,7 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 		pw->pw_fields |= _PWF_SHELL;
 
 	if ((p = strsep(&bp, ":"))) {			/* too many */
-fmt:		
+fmt:
 		if (flags & _PWSCAN_WARN)
 			warnx("corrupted entry");
 		return (0);

@@ -721,7 +721,7 @@ addrsort(char **ap, int num, res_state res)
 	p = ap;
 	for (i = 0; i < num; i++, p++) {
 	    for (j = 0 ; (unsigned)j < res->nsort; j++)
-		if (res->sort_list[j].addr.s_addr == 
+		if (res->sort_list[j].addr.s_addr ==
 		    (((struct in_addr *)(*p))->s_addr & res->sort_list[j].mask))
 			break;
 	    aval[i] = j;

@@ -59,15 +59,15 @@ int test__divtc3(long double a, long double b, long double c, long double d)
     long double _Complex r = __divtc3(a, b, c, d);
 //      printf("test__divtc3(%Lf, %Lf, %Lf, %Lf) = %Lf + I%Lf\n",
 //              a, b, c, d, creall(r), cimagl(r));
-	
+
 	long double _Complex dividend;
 	long double _Complex divisor;
-	
+
 	__real__ dividend = a;
 	__imag__ dividend = b;
 	__real__ divisor = c;
 	__imag__ divisor = d;
-	
+
     switch (classify(dividend))
     {
     case zero:
@@ -202,7 +202,7 @@ int test__divtc3(long double a, long double b, long double c, long double d)
         }
         break;
     }
-    
+
     return 0;
 }
 

@@ -10,7 +10,7 @@
 
 
 /**
- * Initialize the controller. Needs MSIx table base 
+ * Initialize the controller. Needs MSIx table base
  * and the controller name. Alternatively, it tries
  * to parse out a int_model argument.
  */

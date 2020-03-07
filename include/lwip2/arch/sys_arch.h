@@ -1,6 +1,6 @@
 /**
  * \file sys_arch.h
- * \brief 
+ * \brief
  */
 
 

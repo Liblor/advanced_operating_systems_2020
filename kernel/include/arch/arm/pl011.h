@@ -19,12 +19,12 @@
 #define PL011_MAX_PORTS 6
 
 /*
- * \briefConfigure a port.  
+ * \briefConfigure a port.
  *
  * This happens at system startup, and before the MMU is turned on.
- * The hardware is not initialized by this call. 
+ * The hardware is not initialized by this call.
  * After this, the UART is (hopefully) usable, but after the MMU is
- * enabled the OS should then call pl011_init below. 
+ * enabled the OS should then call pl011_init below.
  */
 extern void pl011_configure(unsigned port, lpaddr_t addr);
 

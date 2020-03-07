@@ -22,7 +22,7 @@
 
 struct spawninfo {
     // the next in the list of spawned domains
-    struct spawninfo *next; 
+    struct spawninfo *next;
 
     // Information about the binary
     char * binary_name;     // Name of the binary

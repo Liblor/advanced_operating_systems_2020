@@ -178,10 +178,10 @@ void 	X86EMU_halt_sys(void);
 #define DEBUG_SYSINT_F          0x000200 /* bios system interrupts. */
 #define DEBUG_TRACECALL_F       0x000400
 #define DEBUG_INSTRUMENT_F      0x000800
-#define DEBUG_MEM_TRACE_F       0x001000 
-#define DEBUG_IO_TRACE_F        0x002000 
+#define DEBUG_MEM_TRACE_F       0x001000
+#define DEBUG_IO_TRACE_F        0x002000
 #define DEBUG_TRACECALL_REGS_F  0x004000
-#define DEBUG_DECODE_NOPRINT_F  0x008000 
+#define DEBUG_DECODE_NOPRINT_F  0x008000
 #define DEBUG_EXIT              0x010000
 #define DEBUG_SYS_F             (DEBUG_SVC_F|DEBUG_FS_F|DEBUG_PROC_F)
 

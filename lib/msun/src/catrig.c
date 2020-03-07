@@ -58,7 +58,7 @@ SQRT_MIN =		0x1p-511;		/* >= sqrt(DBL_MIN) */
 static const volatile double
 pio2_lo =		6.1232339957367659e-17;	/*  0x11a62633145c07.0p-106 */
 static const volatile float
-tiny =			0x1p-100; 
+tiny =			0x1p-100;
 
 static double complex clog_for_large_values(double complex z);
 

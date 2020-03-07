@@ -21,9 +21,9 @@
 #endif
 
 
-struct bench_ctl; 
+struct bench_ctl;
 struct ip_q;
-    
+
 struct __attribute__((packed)) eth_addr {
   uint8_t addr[6];
 };
@@ -45,11 +45,11 @@ errval_t ip_destroy(struct ip_q* q);
  * @param prot         The protocol that is running on top of IP
  * @param dst_ip       Destination IP
  * @param interrupt    Interrupt handler
- * @param poll         If the queue is polled or should use interrupts             
+ * @param poll         If the queue is polled or should use interrupts
  *
  */
 errval_t ip_create(struct ip_q** q, const char* card_name, uint64_t* qid,
-                   uint8_t prot, uint32_t dst_ip, void(*interrupt)(void*), 
+                   uint8_t prot, uint32_t dst_ip, void(*interrupt)(void*),
                    bool poll);
 
 void ip_get_netfilter_ep(struct ip_q* q, struct capref* ep);

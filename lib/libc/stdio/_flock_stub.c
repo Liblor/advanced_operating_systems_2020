@@ -106,7 +106,7 @@ _ftrylockfile(FILE *fp)
 	return (ret);
 }
 
-void 
+void
 _funlockfile(FILE *fp)
 {
 	pthread_t	curthread = _pthread_self();

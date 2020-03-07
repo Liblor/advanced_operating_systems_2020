@@ -44,7 +44,7 @@ struct quick_exit_handler {
  */
 static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
 /**
- * Stack of cleanup handlers.  These will be invoked in reverse order when 
+ * Stack of cleanup handlers.  These will be invoked in reverse order when
  */
 static struct quick_exit_handler *handlers;
 
@@ -52,7 +52,7 @@ int
 at_quick_exit(void (*func)(void))
 {
 	struct quick_exit_handler *h;
-	
+
 	h = malloc(sizeof(*h));
 
 	if (NULL == h)

@@ -45,7 +45,7 @@ void debug_print_save_area(arch_registers_state_t *state)
     dpr(x28);   dpr(x29); dpr(x30);
 
     dpr(stack); dpr(pc);  dpr(spsr);
-    
+
     dprv(v[0]); dprv(v[1]); dprv(v[2]); dprv(v[3]);
     dprv(v[4]); dprv(v[5]); dprv(v[6]); dprv(v[7]);
     dprv(v[8]); dprv(v[9]); dprv(v[10]); dprv(v[11]);

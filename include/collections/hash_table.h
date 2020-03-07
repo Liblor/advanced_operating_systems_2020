@@ -17,7 +17,7 @@
 #include "collections/list.h"
 
 /*
- * a simple hash table. 
+ * a simple hash table.
  */
 
 typedef void (* collections_hash_data_free)(void *);
@@ -35,7 +35,7 @@ typedef struct	_collections_hash_table {
     // function that knows how to free inserted data resources
     collections_hash_data_free data_free;
 
-	// a pointer to keep track of 
+	// a pointer to keep track of
 	// traversing the hash table
 	int32_t		cur_bucket_num;
 } collections_hash_table;

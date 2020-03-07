@@ -16,12 +16,12 @@
 #define ZYNQ_UART_MAX_PORTS 2
 
 /*
- * \brief Configure a port.  
+ * \brief Configure a port.
  *
  * This happens at system startup, and before the MMU is turned on.
- * The hardware is not initialized by this call. 
+ * The hardware is not initialized by this call.
  * After this, the UART is (hopefully) usable, but after the MMU is
- * enabled the OS should then call zynq_uart_init below. 
+ * enabled the OS should then call zynq_uart_init below.
  */
 extern void zynq_uart_early_init(unsigned port, lpaddr_t addr);
 

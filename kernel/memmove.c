@@ -22,7 +22,7 @@ void *memmove(void *s1, const void *s2, size_t n)
 
 	if (((from ^ to) & LOWBITS) == 0) {
 	    // They have the same alignment
-	    
+
 	    // Copy bytes until aligned to a word boundary
 	    while (n != 0 && ((from & LOWBITS) != 0)) {
 		*(char *)to = *(const char *)from;

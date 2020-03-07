@@ -87,7 +87,7 @@ disp_resume_context(struct dispatcher_shared_generic *disp, uint64_t *regs)
         "ldp q4,   q5, [%[regs], #(34 * 8 +  4 * 16)]\n"
         "ldp q2,   q3, [%[regs], #(34 * 8 +  2 * 16)]\n"
         "ldp q0,   q1, [%[regs], #(34 * 8 +  0 * 16)]\n"
-        
+
         "ldp x28, x29, [%[regs], #(28 * 8)]\n"
         "ldp x26, x27, [%[regs], #(26 * 8)]\n"
         "ldp x24, x25, [%[regs], #(24 * 8)]\n"

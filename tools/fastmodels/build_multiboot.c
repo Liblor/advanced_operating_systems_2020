@@ -86,7 +86,7 @@ create_multiboot2_info(struct config *cfg, Elf *elf, size_t mmap_size) {
 
         sections->type= MULTIBOOT_TAG_TYPE_ELF_SECTIONS;
         sections->size= sizeof(struct multiboot_tag_elf_sections)
-                 + shnum * sizeof(Elf64_Shdr); 
+                 + shnum * sizeof(Elf64_Shdr);
         sections->num= shnum;
         sections->entsize= sizeof(Elf64_Shdr);
         sections->shndx= shndx;

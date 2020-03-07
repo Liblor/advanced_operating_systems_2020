@@ -25,12 +25,12 @@ extern UINTN     EFIDebug;
 
     #define DBGASSERT(a)        DbgAssert(__FILE__, __LINE__, #a)
     #define DEBUG(a)            DbgPrint a
-    
+
 #else
 
     #define DBGASSERT(a)
     #define DEBUG(a)
-    
+
 #endif
 
 #if EFI_DEBUG_CLEAR_MEMORY
@@ -59,7 +59,7 @@ extern UINTN     EFIDebug;
 #define D_NET_ULTRA   0x00008000          // SNI Driver
 #define D_TXTIN       0x00010000          // Simple Input Driver
 #define D_TXTOUT      0x00020000          // Simple Text Output Driver
-#define D_ERROR_ATA	  0x00040000		  		// ATA error messages 
+#define D_ERROR_ATA	  0x00040000		  		// ATA error messages
 #define D_ERROR       0x80000000          // Error
 
 #define D_RESERVED    0x7fffC880          // Bits not reserved above
@@ -82,9 +82,9 @@ extern UINTN     EFIDebug;
 
 #else
 
-    #define ASSERT(a)               
-    #define ASSERT_LOCKED(l)        
-    #define ASSERT_STRUCT(p,t)      
+    #define ASSERT(a)
+    #define ASSERT_LOCKED(l)
+    #define ASSERT_STRUCT(p,t)
 
 #endif
 

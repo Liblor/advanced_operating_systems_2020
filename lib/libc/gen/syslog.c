@@ -261,7 +261,7 @@ vsyslog(int pri, const char *fmt, va_list ap)
 	connectlog();
 
 	/*
-	 * If the send() fails, there are two likely scenarios: 
+	 * If the send() fails, there are two likely scenarios:
 	 *  1) syslogd was restarted
 	 *  2) /var/run/log is out of socket buffer space, which
 	 *     in most cases means local DoS.

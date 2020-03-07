@@ -98,7 +98,7 @@ cXXrtomb_l(char * __restrict s, charXX_t c, mbstate_t * __restrict ps,
 	if (err == EINVAL)
 		return (0);
 	cs->srcbuf_len = 0;
-	
+
 	/* Illegal sequence. */
 	if (dst == s) {
 		errno = EILSEQ;

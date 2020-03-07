@@ -44,13 +44,13 @@ __FBSDID("$FreeBSD$");
 #include "lmonetary.h"
 #include "lnumeric.h"
 
-/* 
+/*
  * The localeconv() function constructs a struct lconv from the current
  * monetary and numeric locales.
  *
  * Because localeconv() may be called many times (especially by library
- * routines like printf() & strtod()), the approprate members of the 
- * lconv structure are computed only when the monetary or numeric 
+ * routines like printf() & strtod()), the approprate members of the
+ * lconv structure are computed only when the monetary or numeric
  * locale has been changed.
  */
 
@@ -65,7 +65,7 @@ localeconv_l(locale_t loc)
 
     if (loc->monetary_locale_changed) {
 	/* LC_MONETARY part */
-        struct lc_monetary_T * mptr; 
+        struct lc_monetary_T * mptr;
 
 #define M_ASSIGN_STR(NAME) (ret->NAME = (char*)mptr->NAME)
 #define M_ASSIGN_CHAR(NAME) (ret->NAME = mptr->NAME[0])
@@ -97,7 +97,7 @@ localeconv_l(locale_t loc)
 
     if (loc->numeric_locale_changed) {
 	/* LC_NUMERIC part */
-        struct lc_numeric_T * nptr; 
+        struct lc_numeric_T * nptr;
 
 #define N_ASSIGN_STR(NAME) (ret->NAME = (char*)nptr->NAME)
 

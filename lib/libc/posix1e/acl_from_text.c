@@ -131,7 +131,7 @@ _posix1e_acl_entry_from_text(acl_t aclp, char *entry)
 	if (error == -1) {
 		errno = EINVAL;
 		return (-1);
-	}		
+	}
 
 	switch(t) {
 		case ACL_USER_OBJ:

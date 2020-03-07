@@ -79,7 +79,7 @@ void
 xdr_free(xdrproc_t proc, void *objp)
 {
 	XDR x;
-	
+
 	x.x_op = XDR_FREE;
 	(*proc)(&x, objp);
 }
@@ -630,10 +630,10 @@ bool_t
 xdr_union(XDR *xdrs, enum_t *dscmp, char *unp, const struct xdr_discrim *choices, xdrproc_t dfault)
 /*
  *	XDR *xdrs;
- *	enum_t *dscmp;		// enum to decide which arm to work on 
- *	char *unp;		// the union itself 
- *	const struct xdr_discrim *choices;	// [value, xdr proc] for each arm 
- *	xdrproc_t dfault;	// default xdr routine 
+ *	enum_t *dscmp;		// enum to decide which arm to work on
+ *	char *unp;		// the union itself
+ *	const struct xdr_discrim *choices;	// [value, xdr proc] for each arm
+ *	xdrproc_t dfault;	// default xdr routine
  */
 {
 	enum_t dscm;
@@ -737,8 +737,8 @@ xdr_string(XDR *xdrs, char **cpp, u_int maxsize)
 	return (FALSE);
 }
 
-/* 
- * Wrapper for xdr_string that can be called directly from 
+/*
+ * Wrapper for xdr_string that can be called directly from
  * routines like clnt_call
  */
 bool_t

@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
  * if we DB-fied the group and netgroup stuff all in one shot, but
  * for now I'm satisfied just to have something that works well
  * without requiring massive code changes.)
- * 
+ *
  * Therefore, to still permit the use of the local file and maintain
  * optimum NIS performance, we allow for the following conditions:
  *
@@ -553,9 +553,9 @@ compat_innetgr(void *retval, void *mdata, va_list ap)
 	/*
 	 * If we're in NIS-only mode, do the search using
 	 * NIS 'reverse netgroup' lookups.
-	 * 
+	 *
 	 * What happens with 'reverse netgroup' lookups:
-	 * 
+	 *
 	 * 1) try 'reverse netgroup' lookup
 	 *    1.a) if host is specified and user is null:
 	 *         look in netgroup.byhost

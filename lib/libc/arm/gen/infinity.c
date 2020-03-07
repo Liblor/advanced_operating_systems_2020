@@ -8,7 +8,7 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 
 /* bytes for +Infinity on a 387 */
-const union __infinity_un __infinity = { 
+const union __infinity_un __infinity = {
 #if BYTE_ORDER == BIG_ENDIAN
 	{ 0x7f, 0xf0, 0, 0, 0, 0, 0, 0 }
 #else

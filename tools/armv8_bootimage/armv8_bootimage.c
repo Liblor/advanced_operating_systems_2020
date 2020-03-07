@@ -590,7 +590,7 @@ int main(int argc, char *argv[])
 
     blob.multiboot = mb_base;
     blob.multiboot_size = mb_size;
-    
+
     blob.modules = modules[0].paddr;
     for (size_t i = 0; i < menu->nmodules + 2; i++) {
         blob.modules_size += modules[i].len;

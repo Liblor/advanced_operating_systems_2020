@@ -629,7 +629,7 @@ vm_page_aflag_set(vm_page_t m, uint8_t bits)
 	val <<= 24;
 #endif
 	atomic_set_32(addr, val);
-} 
+}
 
 /*
  *	vm_page_dirty:

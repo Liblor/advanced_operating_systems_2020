@@ -79,7 +79,7 @@ errval_t debug_cap_identify(struct capref cap, struct capability *ret)
         return SYS_ERR_OK;
     }
 
-    // TODO: For a generic implementation, query the monitor. See libbarrelfish.   
+    // TODO: For a generic implementation, query the monitor. See libbarrelfish.
     return err;
 }
 
@@ -281,7 +281,7 @@ int debug_print_cap(char *buf, size_t len, struct capability *cap)
     case ObjType_VNode_AARCH64_l3_Mapping:
         mappingtype = "AARCH64 l3";
         goto ObjType_Mapping;
-    
+
     case ObjType_EndPointLMP:
         return snprintf(buf, len, "EndPoint cap (disp %p offset 0x%" PRIxLVADDR ")",
                         cap->u.endpointlmp.listener, cap->u.endpointlmp.epoffset);
@@ -370,7 +370,7 @@ static void walk_cspace_l2(struct capref l2cnode){
 
     for(int i=0; i<L2_CNODE_SLOTS; i++){
         struct capref pos = {
-            .cnode = cnode, .slot = i 
+            .cnode = cnode, .slot = i
         };
 
         // Get cap data
@@ -399,10 +399,10 @@ static void walk_cspace_l2(struct capref l2cnode){
 
 /**
  * \brief Dump an arbitrary cspace, given the root
- * 
- * \bug Works correct only for own cspace. (to fix this cap_identify must 
+ *
+ * \bug Works correct only for own cspace. (to fix this cap_identify must
  * be made to work with all caps)
- * 
+ *
  */
 void debug_cspace(struct capref root)
 {
