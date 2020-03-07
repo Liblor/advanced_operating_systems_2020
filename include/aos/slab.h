@@ -23,6 +23,7 @@ __BEGIN_DECLS
 struct slab_allocator;
 struct block_head;
 
+// refill functions, requires a pointer to a slab_allocator
 typedef errval_t (*slab_refill_func_t)(struct slab_allocator *slabs);
 
 struct slab_head {
