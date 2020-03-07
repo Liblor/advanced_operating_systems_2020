@@ -33,10 +33,8 @@ static void test_free(struct mm *mm, struct capref cap)
     assert(err_is_ok(err));
 }
 
-void test_libmm(struct mm *mm)
+static void test_allocate_small(struct mm *mm)
 {
-    debug_printf("Starting test\n");
-
     struct capref caps[8];
 
     caps[0] = test_allocate(mm, PAGE_SIZE);
@@ -75,6 +73,28 @@ void test_libmm(struct mm *mm)
     test_free(mm, caps[1]);
     test_free(mm, caps[3]);
     test_free(mm, caps[7]);
+}
+
+static void test_allocate_ordered(struct mm *mm, const size_t size, const uint32_t bound, const bool reverse)
+{
+    struct capref caps[bound];
+
+    for (uint32_t i = 0; i < bound; i++)
+        caps[i] = test_allocate(mm, size);
+
+    for (uint32_t i = 0; i < bound; i++) {
+        const uint32_t idx = (reverse ? bound - 1 - i : i);
+        test_free(mm, caps[idx]);
+    }
+}
+
+void test_libmm(struct mm *mm)
+{
+    debug_printf("Starting test\n");
+
+    test_allocate_small(mm);
+    test_allocate_ordered(mm, 65536, 4 * PAGE_SIZE, false);
+    test_allocate_ordered(mm, 65536, 4 * PAGE_SIZE, true);
 
     debug_printf("Test successfully completed\n");
 }
