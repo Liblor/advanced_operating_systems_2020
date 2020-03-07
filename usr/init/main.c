@@ -21,6 +21,7 @@
 #include <aos/waitset.h>
 #include <aos/aos_rpc.h>
 #include <mm/mm.h>
+#include <mm/test.h>
 #include <grading.h>
 
 #include "mem_alloc.h"
@@ -37,26 +38,29 @@ static int
 bsp_main(int argc, char *argv[]) {
     errval_t err;
 
-    // Grading 
+    // Grading
     grading_setup_bsp_init(argc, argv);
 
     // First argument contains the bootinfo location, if it's not set
     bi = (struct bootinfo*)strtol(argv[1], NULL, 10);
     assert(bi);
 
+    //mm_test_run1(bi);
+    //return EXIT_SUCCESS;
+
     err = initialize_ram_alloc();
     if(err_is_fail(err)){
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-    // TODO: initialize mem allocator, vspace management here
-    
-    // Grading 
+    //mm_test_run2(&aos_mm);
+
+    // Grading
     grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
-    
-    // Grading 
+
+    // Grading
     grading_test_late();
 
     debug_printf("Message handler loop\n");

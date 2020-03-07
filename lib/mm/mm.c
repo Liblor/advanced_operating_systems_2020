@@ -28,6 +28,10 @@ static void print_mmnodes(struct mm *mm) {
     }
 }
 
+void mm_print_state(struct mm *mm) {
+    print_mmnodes(mm);
+}
+
 errval_t mm_init(struct mm *mm, enum objtype objtype,
                      slab_refill_func_t slab_refill_func,
                      slot_alloc_t slot_alloc_func,
@@ -44,14 +48,12 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     slab_init(&mm->slabs, blocksize, &slab_default_refill);
 
     // TODO Delete this as soon as paging works
-    printf("%d\n", sizeof(slab_buffer));
     slab_grow(&mm->slabs, slab_buffer, sizeof(slab_buffer));
 
     // TODO not sure about those
     //mm->stats_bytes_max = ;
     //mm->stats_bytes_available =;
 
-    print_mmnodes(mm);
     return SYS_ERR_OK;
 }
 
@@ -72,6 +74,9 @@ static bool mmnode_overlap(struct mmnode *n1, struct mmnode *n2)
 
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
 {
+    assert(mm != NULL);
+    assert(size > 0);
+
     struct capinfo new_capinfo = {
         .cap = cap,
         .base = base,
@@ -88,25 +93,23 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
     new_node->base = base;
     new_node->size = size;
 
-    printf("mm_add(), base=0x%x, size=%d\n", base, size);
-    // TODO Test multiple adds
     if (mm->head == NULL) {
         new_node->next = NULL;
         new_node->prev = NULL;
         mm->head = new_node;
     } else {
-        // TODO Test this
         struct mmnode *current = mm->head;
         if (mmnode_overlap(new_node, current))
-            return MM_ERR_ALREADY_PRESENT;
+            goto ERROR_OVERLAP;
 
         while (new_node->base > current->base && current->next != NULL) {
             current = current->next;
             if (mmnode_overlap(new_node, current))
-                return MM_ERR_ALREADY_PRESENT;
+                goto ERROR_OVERLAP;
         }
 
-        if (new_node->base > current->base) { // && current->next == NULL) {
+        if (new_node->base > current->base) {
+            assert(current->next == NULL);
             // Insert new_node after current, as new last element
             new_node->next = NULL;
             new_node->prev = current;
@@ -117,12 +120,17 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
             new_node->prev = current->prev;
             if (current->prev != NULL)
                 current->prev->next = new_node;
+            else
+                mm->head = new_node;
             current->prev = new_node;
         }
     }
 
-    print_mmnodes(mm);
     return SYS_ERR_OK;
+
+ERROR_OVERLAP:
+    slab_free(&mm->slabs, new_node);
+    return MM_ERR_ALREADY_PRESENT;
 }
 
 // n is the mmnode that will be split. The result will be 1, 2 or 3 new mmnodes created and n will be deleted.
@@ -136,8 +144,6 @@ static errval_t split_mmnode(struct mm *mm, struct mmnode *n, size_t size, size_
 {
     assert(n != NULL);
     assert(n->size >= size);
-    printf("split_mmnode()\n");
-    printf("Splitting mmnode %p (size=%d)\n", n, n->size);
 
     // Allocate new nodes
     struct mmnode *node_padding = NULL;
@@ -153,21 +159,25 @@ static errval_t split_mmnode(struct mm *mm, struct mmnode *n, size_t size, size_
     }
 
     struct mmnode *node_sized = (struct mmnode *) slab_alloc(&mm->slabs);
-    if (node_sized == NULL)
+    if (node_sized == NULL) {
+        slab_free(&mm->slabs, node_padding);
         return LIB_ERR_SLAB_ALLOC_FAIL;
+    }
 
     node_sized->type = NodeType_Free;
     node_sized->cap = n->cap;
     node_sized->base = n->base + padding_start;
     node_sized->size = size;
 
-    struct mmnode *node_remaining;
+    struct mmnode *node_remaining = NULL;
     size_t size_remaining = n->size - padding_start - size;
-    printf("size=%d, padding_start=%d, size_remaining=%d\n", size, padding_start, size_remaining);
     if (size_remaining > 0) {
         node_remaining = (struct mmnode *) slab_alloc(&mm->slabs);
-        if (node_remaining == NULL)
+        if (node_remaining == NULL) {
+            slab_free(&mm->slabs, node_padding);
+            slab_free(&mm->slabs, node_sized);
             return LIB_ERR_SLAB_ALLOC_FAIL;
+        }
 
         node_remaining->type = NodeType_Free;
         node_remaining->cap = n->cap;
@@ -211,7 +221,6 @@ static errval_t split_mmnode(struct mm *mm, struct mmnode *n, size_t size, size_
 
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap)
 {
-    printf("mm_alloc_aligned()\n");
     errval_t err;
     // TODO Maybe look for smallest memory region that can be used?
     // TODO test this function
@@ -226,22 +235,24 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         size_t size_aligned = size + padding_start;
 
         if (current->type == NodeType_Free && current->size >= size_aligned) {
+            err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
+            if (err_is_fail(err)) {
+                DEBUG_ERR(err, "failed to allocate new slot");
+                return err_push(err, LIB_ERR_SLOT_ALLOC);
+            }
+
             struct mmnode *new_node = NULL;
             err = split_mmnode(mm, current, size_aligned, padding_start, &new_node);
             if (err_is_fail(err)) {
                 DEBUG_ERR(err, "failed to split mmnode");
                 return err_push(err, MM_ERR_SPLIT_NODE);
             }
-            print_mmnodes(mm);
 
-            err = slot_alloc_prealloc(mm->slot_alloc_inst, 1, retcap);
-            if (err_is_fail(err)) {
-                DEBUG_ERR(err, "failed to allocate new slot");
-                return err_push(err, LIB_ERR_SLOT_ALLOC);
-            }
             gensize_t offset = current->base - new_node->cap.base + padding_start;
+            //TODO Call mm->slot_refill here somewhere
             err = cap_retype(*retcap, new_node->cap.cap, offset, mm->objtype, new_node->size, 1);
             if (err_is_fail(err)) {
+                // TODO Currently this leads to an inconsistent state, because the mmnode has already been split.
                 DEBUG_ERR(err, "failed to retype capability");
                 return err_push(err, LIB_ERR_CAP_RETYPE);
             }
@@ -264,7 +275,6 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap)
 // TODO Call refill functions for slabs and slots somewhere?
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size)
 {
-    printf("mm_free()\n");
     errval_t err;
     // TODO Test this
     struct mmnode *node_middle = NULL;
@@ -292,6 +302,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 
     struct mmnode *node_merged = (struct mmnode *) slab_alloc(&mm->slabs);
     if (node_merged == NULL)
+        // TODO Currently this leads to an unconsistent state, because the capability has already been deleted.
         return LIB_ERR_SLAB_ALLOC_FAIL;
 
     node_merged->type = NodeType_Free;
@@ -338,7 +349,6 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 
     slab_free(&mm->slabs, node_middle);
 
-    print_mmnodes(mm);
     return SYS_ERR_OK;
 
 }
