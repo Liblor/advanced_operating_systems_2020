@@ -78,7 +78,6 @@ void mm_destroy(struct mm *mm) {
  * @param offset offset of cap
  * @param res mmnode to return
  *
- * type is set as NodeType_Free;
  *
  * @return errval err code
  */
@@ -108,6 +107,7 @@ errval_t create_mmnode(struct mm *mm,
     };
     return SYS_ERR_OK;
 }
+
 /**
  * Add memory capabilities to mm (assume: cap not already added)
  *
@@ -123,10 +123,10 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 
     DEBUG_BEGIN;
     errval_t err;
-    struct mmnode *node;
+    struct mmnode *node = NULL;
     err = create_mmnode(mm, cap, NodeType_Free, base, size, 0, &node);
 
-    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ADD);}
+    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ADD); }
 
     if (mm->head == NULL) {
         assert(mm->tail == NULL);
@@ -152,7 +152,7 @@ bool is_node_suitable_alloc(struct mmnode *node, size_t size) {
 }
 
 static inline
-void enqueue_node_behind_other(struct mm *mm, struct mmnode *new_node, struct mmnode *other){
+void enqueue_node_behind_other(struct mm *mm, struct mmnode *new_node, struct mmnode *other) {
     if (other == mm->tail) {
         mm->tail = new_node;
     }
@@ -180,17 +180,14 @@ void enqueue_node_behind_other(struct mm *mm, struct mmnode *new_node, struct mm
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
     DEBUG_BEGIN;
     errval_t err;
+    // TODO-BEAN: how to handle alignment?
 
     if (alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
-    // align size to page size
-    size = size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE);
+    size = size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE); // align size to page size
 
     struct mmnode *node = mm->head;
-    while (node != NULL && !is_node_suitable_alloc(node, size)) {
-        node = node->next;
-    }
+    while (node != NULL && !is_node_suitable_alloc(node, size)) { node = node->next; }
     if (node == NULL) { return MM_ERR_NOT_ENOUGH_RAM; }
-
 
     /* In order to mm_alloc memory we need;
      * - a free slot for new cnode
@@ -212,15 +209,20 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     if (err_is_fail(err)) { err_push(err, MM_ERR_MISSING_CAPS); }
 
     // modify head (stays NodeType_Free)
+    assert(node->type == NodeType_Free);
     node->size -= size;
     node->cap.size -= size;
 
     // create new mmnode (becomes NodeType_Allocated)
-    struct mmnode *new_node;
+    struct mmnode *new_node = NULL;
     err = create_mmnode(mm, *retcap, NodeType_Allocated, node->base, size, new_node_offset, &new_node);
-    if (err_is_fail(err)) {return err_push(err, MM_ERR_MM_ALLOC);}
+    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC); }
+
 
     enqueue_node_behind_other(mm, new_node, node);
+    assert(node->next == new_node);
+    assert(new_node->prev = node);
+
     DEBUG_END;
     return SYS_ERR_OK;
 }
