@@ -19,6 +19,8 @@ errval_t mm_init(struct mm *mm,
                  void *slot_alloc_inst)
 {
     assert(mm != NULL);
+    assert(slot_alloc_func != NULL);
+    assert(slot_refill_func != NULL);
 
     debug_printf("mm_init(mm=%p, objtype=%d, ...)\n", mm, objtype);
 
