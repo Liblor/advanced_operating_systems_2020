@@ -1354,5 +1354,6 @@ errors vas VAS_ERR_ {
 errors aos AOS_ERR_ {
     failure LMP_SEND_FAILURE        "Failure while sending AOS LMP message",
     failure LMP_MSGTYPE_UNKNOWN     "Unknown message type for AOS LMP implementation",
+    failure MM_MISALIGN             "Invalid alignment requested",
 };
 

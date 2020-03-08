@@ -60,6 +60,7 @@ struct mm {
     void *slot_alloc_inst;       ///< Opaque instance pointer for slot allocator
     enum objtype objtype;        ///< Type of capabilities stored
     struct mmnode *head;         ///< Head of doubly-linked list of nodes in order
+    struct mmnode *tail;         ///< Tail of doubly-linked list of nodes in order
 
     /* statistics */
     gensize_t stats_bytes_max;
