@@ -67,8 +67,50 @@ void mm_destroy(struct mm *mm) {
     DEBUG_END;
 }
 
+
 /**
- * Add memory capabilities to mm
+ * create a mmnode
+ * @param mm this instance
+ * @param cap capability
+ * @param type type
+ * @param base base addr of cap
+ * @param size size of cap
+ * @param offset offset of cap
+ * @param res mmnode to return
+ *
+ * type is set as NodeType_Free;
+ *
+ * @return errval err code
+ */
+static inline
+errval_t create_mmnode(struct mm *mm,
+                       struct capref cap, enum nodetype type, genpaddr_t base, size_t size, genpaddr_t offset,
+                       struct mmnode **res) {
+    assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
+
+    // TODO-BEAN: implement slab_refill function
+
+    struct mmnode *node = *res;
+    node = slab_alloc(&mm->slabs);
+
+    if (node == NULL) {
+        DEBUG_PRINTF("failed to alloc a new slab block. no memory from slab\n");
+        return LIB_ERR_SLAB_ALLOC_FAIL;
+    }
+    node->type = type;
+    node->size = size;
+    node->base = base;
+    node->offset = offset;
+    node->cap = (struct capinfo) {
+            .cap = cap,
+            .size = size,
+            .base = base
+    };
+    return SYS_ERR_OK;
+}
+/**
+ * Add memory capabilities to mm (assume: cap not already added)
+ *
  * @param mm this ref
  * @param cap capability to the ram region
  * @param base base address of the ram region
@@ -78,25 +120,14 @@ void mm_destroy(struct mm *mm) {
  */
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) {
     // TODO-BEAN: failure ALREADY_PRESENT     "Node already present in add_node()",
-    //            what if add is called with same cap twice
-    DEBUG_BEGIN;
-    assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
 
-    // TODO-BEAN: implement slab_refill function
-    struct mmnode *node = slab_alloc(&mm->slabs);
-    if (node == NULL) {
-        DEBUG_PRINTF("mm_add failed to alloc a new slab block. no memory from slab\n");
-        return LIB_ERR_SLAB_ALLOC_FAIL;
-    }
-    node->type = NodeType_Free;
-    node->size = size;
-    node->base = base;
-    node->offset = 0;
-    node->cap = (struct capinfo) {
-            .cap = cap,
-            .size = size,
-            .base = base
-    };
+    DEBUG_BEGIN;
+    errval_t err;
+    struct mmnode *node;
+    err = create_mmnode(mm, cap, NodeType_Free, base, size, 0, &node);
+
+    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ADD);}
+
     if (mm->head == NULL) {
         assert(mm->tail == NULL);
         mm->head = node;
@@ -112,9 +143,29 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 }
 
 
+/**
+ * does current node fulfill requirement to be picked as suitable free node
+ */
 static inline
-bool is_mmnode_suitable_alloc(struct mmnode *node, size_t size) {
+bool is_node_suitable_alloc(struct mmnode *node, size_t size) {
     return node->size >= size && node->type == NodeType_Free;
+}
+
+static inline
+void enqueue_node_behind_other(struct mm *mm, struct mmnode *new_node, struct mmnode *other){
+    if (other == mm->tail) {
+        mm->tail = new_node;
+    }
+    // other->prev <-> other <-> new_node <-> other->next
+    new_node->next = other->next;
+    if (other->next != NULL) {
+        other->next->prev = new_node;
+    }
+    new_node->prev = other;
+    other->next = new_node;
+
+    assert(other->next == new_node);
+    assert(new_node->prev = other);
 }
 
 /**
@@ -131,60 +182,45 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     errval_t err;
 
     if (alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
-
-    // align size to pagesize
+    // align size to page size
     size = size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE);
 
     struct mmnode *node = mm->head;
-    while (node != NULL && !is_mmnode_suitable_alloc(node, size)) { node = node->next; }
+    while (node != NULL && !is_node_suitable_alloc(node, size)) {
+        node = node->next;
+    }
     if (node == NULL) { return MM_ERR_NOT_ENOUGH_RAM; }
 
-    /*
-     * In order to alloc memory we need;
-     * - split existing ram capability in appropriate size;
-     * - get free slot
-     * - create new mmnode for tail (used)
-     * - and change existing mmnode such that it fits requested size
+
+    /* In order to mm_alloc memory we need;
+     * - a free slot for new cnode
+     * - split existing ram capability in appropriate size (retype)
+     *   We use the tail for the new memory to allocate and create a new mmnode
+     *   based on the tail which is enqueue after the existing mmnode (head).
      */
-    err = mm->slot_alloc(mm->slot_alloc_inst, 1, &retcap);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "could not new alloc slot for mm_add\n");
-        // TODO-BEAN: implement error push
-        return err;
-    }
+    err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
+    if (err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_MM_ALLOC); }
     mm->slot_refill(mm->slot_alloc_inst);
-    if (err_is_fail(err)) {
-        // TODO-BEAN: push error
-        return err;
-    }
-    gensize_t offset = size;
-    err = cap_retype(*retcap, node->cap.cap, offset, mm->objtype, size, 1);
-    if (err_is_fail(err)) {
-        return err;
-    }
-    struct mmnode *new_node = slab_alloc(&mm->slabs);
-    if (new_node == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
-    new_node->type = NodeType_Allocated;
-    new_node->size = size;
-    new_node->base = node->base;
-    new_node->offset = offset;
-    new_node->cap = (struct capinfo) {
-            .cap = node->cap.cap,
-            .size = size,
-            .base = node->base
-    };
+    if (err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
 
-    // put node into queue
-    if (node == mm->tail) {
-        mm->tail = new_node;
-    }
-    new_node->next = node->next;
-    new_node->prev = node;
-    if (node->next != NULL) {
-        node->next->prev = new_node;
-    }
-    node->next = new_node;
 
+    /* upon retype the head and tail mmnode keep the same base.
+     * The tail mmnode updates its offset and size.
+     */
+    gensize_t new_node_offset = size;
+    err = cap_retype(*retcap, node->cap.cap, new_node_offset, mm->objtype, size, 1);
+    if (err_is_fail(err)) { err_push(err, MM_ERR_MISSING_CAPS); }
+
+    // modify head (stays NodeType_Free)
+    node->size -= size;
+    node->cap.size -= size;
+
+    // create new mmnode (becomes NodeType_Allocated)
+    struct mmnode *new_node;
+    err = create_mmnode(mm, *retcap, NodeType_Allocated, node->base, size, new_node_offset, &new_node);
+    if (err_is_fail(err)) {return err_push(err, MM_ERR_MM_ALLOC);}
+
+    enqueue_node_behind_other(mm, new_node, node);
     DEBUG_END;
     return SYS_ERR_OK;
 }

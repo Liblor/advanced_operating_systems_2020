@@ -728,6 +728,9 @@ errors libmm MM_ERR_ {
     failure REALLOC_RANGE       "Nested failure in realloc_range()",
     failure INIT_EMPTY_RAM      "No Ram capabilities initially added. Call add() first",
     failure NOT_ENOUGH_RAM      "No Ram capabilities large enough for requested size",
+    failure MM_ALLOC_RETYPE     "Failure in mm_alloc while retyping memory",
+    failure MM_ALLOC            "Failure in mm_alloc()",
+
 
 };
 
