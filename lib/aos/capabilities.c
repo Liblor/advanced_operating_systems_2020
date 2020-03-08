@@ -236,6 +236,7 @@ static errval_t cap_revoke_remote(struct capref root, capaddr_t src, uint8_t lev
  * \param dest_start    Location of first destination slot, which must be empty
  * \param src           Source capability to retype
  * \param offset        Offset into source capability
+ *                      (offset from base addr of storage of source cap)
  * \param new_type      Kernel object type to retype to.
  * \param objsize       Size of created objects in bytes
  *                      (ignored for fixed-size objects)

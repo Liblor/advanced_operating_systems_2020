@@ -726,6 +726,9 @@ errors libmm MM_ERR_ {
     failure CHUNK_SLOT_ALLOC    "Failure allocating slots for chunking",
     failure RESIZE_NODE         "Nested failure in resize_node()",
     failure REALLOC_RANGE       "Nested failure in realloc_range()",
+    failure INIT_EMPTY_RAM      "No Ram capabilities initially added. Call add() first",
+    failure NOT_ENOUGH_RAM      "No Ram capabilities large enough for requested size",
+
 };
 
 // errors in init

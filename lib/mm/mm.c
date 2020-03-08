@@ -7,8 +7,16 @@
 #include <aos/debug.h>
 #include <aos/solution.h>
 
-static
-errval_t mm_slab_refill_func(struct slab_allocator *slabs);
+
+/** slab refill function for slab allocator managed by mm.c */
+static inline
+errval_t mm_slab_refill_func(struct slab_allocator *slabs) {
+    DEBUG_BEGIN;
+    DEBUG_END;
+    return LIB_ERR_NOT_IMPLEMENTED;
+}
+
+
 
 /**
  * Init memory manager
@@ -70,6 +78,8 @@ void mm_destroy(struct mm *mm) {
  * @return
  */
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) {
+    // TODO-BEAN: failure ALREADY_PRESENT     "Node already present in add_node()",
+    //            what if add is called with same cap twice
     DEBUG_BEGIN;
     assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
 
@@ -101,6 +111,8 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     return SYS_ERR_OK;
 }
 
+
+
 /**
  * Request aligned ram capability
  *
@@ -112,10 +124,48 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
  */
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
     DEBUG_BEGIN;
+    errval_t err;
+
     if (alignment % BASE_PAGE_SIZE != 0) {
-        DEBUG_PRINTF("mm_add_align alignment does not match base page size\n");
+        DEBUG_PRINTF("mm_alloc_align alignment does not match base page size\n");
         return LIB_ERR_ALIGNMENT;
     }
+    if (mm->head == NULL) {
+        DEBUG_PRINTF("mm_alloc_align has no initial ram. call add first()\n");
+        return MM_ERR_INIT_EMPTY_RAM;
+    }
+    // align requested size
+    size = size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE);
+
+    struct mmnode *node;
+    for (node = mm->head; node != NULL; node = node->next) {
+        if (node->size < size) { continue; }
+    }
+    if (node == NULL) {
+        return MM_ERR_NOT_ENOUGH_RAM;
+    }
+
+    // - split cap in requested size
+    // - create new mmnode for remaining size, change offset and size
+    // - change size of mmnode (node), offset stays the same
+    err = mm->slot_alloc(mm->slot_alloc_inst, 1, &retcap);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "could not new alloc slot for mm_add\n");
+        // TODO-BEAN: implement error push
+        return err;
+    }
+    mm->slot_refill(mm->slot_alloc_inst);
+    if (err_is_fail(err)) {
+        // TODO-BEAN: push error
+        return err;
+    }
+    err = cap_retype(*retcap, node->cap.cap, node->base, mm->objtype, size, 1);
+    if (err_is_fail(err)) {
+        // TODO:
+        return err;
+    }
+
+
 
 
 
@@ -129,16 +179,8 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     DEBUG_BEGIN;
+    // TODO-BEAN: partial free? base addr is not base addr from capability?, fragmentaion?
 
-    DEBUG_END;
-    return LIB_ERR_NOT_IMPLEMENTED;
-}
-
-
-/** slab refill function for slab allocator managed by mm.c */
-
-errval_t mm_slab_refill_func(struct slab_allocator *slabs) {
-    DEBUG_BEGIN;
     DEBUG_END;
     return LIB_ERR_NOT_IMPLEMENTED;
 }
