@@ -11,9 +11,6 @@
 #include <aos/solution.h>
 #include <aos/cap_predicates.h>
 
-static struct mmnode mm_head;
-static struct mmnode mm_tail;
-
 errval_t mm_init(struct mm *mm,
                  enum objtype objtype,
                  slab_refill_func_t slab_refill_func,
@@ -32,12 +29,13 @@ errval_t mm_init(struct mm *mm,
 
     slab_init(&mm->slabs, sizeof(struct mmnode), slab_default_refill);
 
-    static uint8_t initial_slab_buffer[PAGE_SIZE];
-    slab_grow(&mm->slabs, (void *) initial_slab_buffer, PAGE_SIZE);
+    slab_grow(&mm->slabs, (void *) mm->initial_slab_buffer, PAGE_SIZE);
 
-    mm->head = &mm_head;
-    mm_head.next = &mm_tail;
-    mm_tail.prev = &mm_head;
+    mm->head = &mm->mm_head;
+    mm->mm_head.next = &mm->mm_tail;
+    mm->mm_head.prev = NULL;
+    mm->mm_tail.prev = &mm->mm_head;
+    mm->mm_tail.next = NULL;
 
     return SYS_ERR_OK;
 }
@@ -47,14 +45,14 @@ void mm_destroy(struct mm *mm)
     assert(!"NYI");
 }
 
-static inline void print_node(char *buffer, size_t length, struct mmnode *node)
+static inline void print_node(struct mm *mm, char *buffer, size_t length, struct mmnode *node)
 {
     assert(buffer != NULL);
     assert(node != NULL);
 
-    if (node == &mm_head)
+    if (node == &mm->mm_head)
         snprintf(buffer, 16, "head");
-    else if (node == &mm_tail)
+    else if (node == &mm->mm_tail)
         snprintf(buffer, 16, "tail");
     else if (node->type == NodeType_Free)
         snprintf(buffer, 16, "%p*", node);
@@ -71,7 +69,7 @@ static inline void print_list(struct mm *mm)
     struct mmnode *node;
     for (node = mm->head; node != NULL; node = node->next) {
         char buffer[16];
-        print_node(buffer, 16, node);
+        print_node(mm, buffer, 16, node);
 
         if (node->next == NULL)
             printf("%s", buffer);
@@ -89,7 +87,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
     debug_printf("mm_add(mm=%p, &cap=%p, base=0x%"PRIxGENPADDR", size=0x%zx)\n", mm, &cap, base, size);
 
     struct mmnode *next;
-    for (next = mm->head->next; next != &mm_tail; next = next->next) {
+    for (next = mm->head->next; next != &mm->mm_tail; next = next->next) {
         if (next->base == base)
             return MM_ERR_ALREADY_PRESENT;
         else if (next->base > base)
@@ -134,7 +132,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     size_t best_padding_size = 0;
 
     // Find the smallest node that is still free and can hold the requested size.
-    for (struct mmnode *next = mm->head->next; next != &mm_tail; next = next->next) {
+    for (struct mmnode *next = mm->head->next; next != &mm->mm_tail; next = next->next) {
         size_t padding_size = (next->base % alignment > 0) ? (alignment - (next->base % alignment)) : 0;
 
         // We only care about free nodes.
@@ -244,7 +242,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 
     struct mmnode *node;
 
-    for (node = mm->head->next; node != &mm_tail; node = node->next) {
+    for (node = mm->head->next; node != &mm->mm_tail; node = node->next) {
         // We can only free allocated nodes.
         if (node->type != NodeType_Allocated)
             continue;
@@ -257,7 +255,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
             break;
     }
 
-    if (node == &mm_tail)
+    if (node == &mm->mm_tail)
         return MM_ERR_NOT_FOUND;
 
     node->type = NodeType_Free;
@@ -273,7 +271,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
      */
 
     // Merge the node with next neighbor if possible.
-    if (node->next != &mm_tail &&
+    if (node->next != &mm->mm_tail &&
         node->next->type == NodeType_Free &&
         node->cap.base == node->next->cap.base) {
 
@@ -285,7 +283,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     }
 
     // Merge the node with previous neighbor if possible.
-    if (node->prev != &mm_head &&
+    if (node->prev != &mm->mm_head &&
         node->prev->type == NodeType_Free &&
         node->cap.base == node->prev->cap.base) {
 

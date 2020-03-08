@@ -54,12 +54,15 @@ struct mmnode {
  * them to allocate its memory, we declare it in the public header.
  */
 struct mm {
-    struct slab_allocator slabs; ///< Slab allocator used for allocating nodes
-    slot_alloc_t slot_alloc;     ///< Slot allocator for allocating cspace
-    slot_refill_t slot_refill;   ///< Slot allocator refill function
-    void *slot_alloc_inst;       ///< Opaque instance pointer for slot allocator
-    enum objtype objtype;        ///< Type of capabilities stored
-    struct mmnode *head;         ///< Head of doubly-linked list of nodes in order
+    struct slab_allocator slabs;            ///< Slab allocator used for allocating nodes
+    slot_alloc_t slot_alloc;                ///< Slot allocator for allocating cspace
+    slot_refill_t slot_refill;              ///< Slot allocator refill function
+    void *slot_alloc_inst;                  ///< Opaque instance pointer for slot allocator
+    enum objtype objtype;                   ///< Type of capabilities stored
+    struct mmnode *head;                    ///< Pointer to head of doubly-linked list of nodes
+    struct mmnode mm_head;                  ///< Head of the doubly-linked list.
+    struct mmnode mm_tail;                  ///< Tail of the doubly-linked list.
+    uint8_t initial_slab_buffer[PAGE_SIZE]; ///< Initial buffer for the slab allocator.
 
     /* statistics */
     gensize_t stats_bytes_max;
