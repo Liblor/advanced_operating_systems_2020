@@ -45,6 +45,7 @@ struct mmnode {
     struct mmnode *next;   ///< Next node in the list.
     genpaddr_t base;       ///< Base address of this region
     gensize_t size;        ///< Size of this free region in cap
+    gensize_t offset;      ///< Offset to base (free region after offset)
 };
 
 /**
