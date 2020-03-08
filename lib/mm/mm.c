@@ -91,6 +91,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     node->type = NodeType_Free;
     node->size = size;
     node->base = base;
+    node->offset = 0;
     node->cap = (struct capinfo) {
             .cap = cap,
             .size = size,
@@ -145,18 +146,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
      * - create new mmnode for tail (used)
      * - and change existing mmnode such that it fits requested size
      */
-    struct mmnode *new_node = slab_alloc(&mm->slabs);
-    if (new_node == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
-    new_node->type = NodeType_Free;
-//    new_node->size = size;
-//    new_node->base = 0; // TODO base;
-//    new_node->cap = (struct capinfo) {
-//            .cap = cap,
-//            .size = size,
-//            .base = base
-//    };
-
-
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, &retcap);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not new alloc slot for mm_add\n");
@@ -168,14 +157,22 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         // TODO-BEAN: push error
         return err;
     }
-    gensize_t new_offset = node->base + size;
-    err = cap_retype(*retcap, node->cap.cap, node->base, mm->objtype, size, 1);
+    gensize_t offset = size;
+    err = cap_retype(*retcap, node->cap.cap, offset, mm->objtype, size, 1);
     if (err_is_fail(err)) {
-        // TODO-BEAN:
         return err;
     }
-
-
+    struct mmnode *new_node = slab_alloc(&mm->slabs);
+    if (new_node == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
+    new_node->type = NodeType_Allocated;
+    new_node->size = size;
+    new_node->base = node->base;
+    new_node->offset = offset;
+    new_node->cap = (struct capinfo) {
+            .cap = node->cap.cap,
+            .size = size,
+            .base = node->base
+    };
 
     // put node into queue
     if (node == mm->tail) {

@@ -43,6 +43,8 @@ struct mmnode {
     struct capinfo cap;    ///< Cap in which this region exists
     struct mmnode *prev;   ///< Previous node in the list.
     struct mmnode *next;   ///< Next node in the list.
+
+    genpaddr_t offset;     ///< offset from base address of original (RAM) capability
     genpaddr_t base;       ///< Base address of this region
     gensize_t size;        ///< Size of this free region in cap
 };
