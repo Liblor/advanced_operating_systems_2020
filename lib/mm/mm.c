@@ -15,8 +15,7 @@ static errval_t mm_slab_refill(void *slabs) {
 static inline errval_t create_new_node(struct mm *mm,
                                        struct mmnode **new_node,
                                        genpaddr_t base,
-                                       gensize_t size,
-                                       gensize_t offset) {
+                                       gensize_t size) {
     void *block = slab_alloc(&mm->slabs);
     if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
     *new_node = (struct mmnode *)block;
@@ -24,7 +23,6 @@ static inline errval_t create_new_node(struct mm *mm,
     (*new_node)->cap = (struct capinfo) {.base = base, .size = size};
     (*new_node)->base = base;
     (*new_node)->size = size;
-    (*new_node)->offset = offset;
     return SYS_ERR_OK;
 }
 
@@ -44,6 +42,10 @@ static inline void insert_before(struct mm *mm, struct mmnode *new_node, struct 
  */
 static inline bool is_allocatable(struct mmnode *node, gensize_t size) {
     return node->size >= size && node->type == NodeType_Free;
+}
+
+static inline bool is_allocated_node(struct mmnode *node, genpaddr_t base, gensize_t size) {
+    return node->base == base && node->size == size && node->type == NodeType_Allocated;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -111,7 +113,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 }
 
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
-    if (alignment % BASE_PAGE_SIZE) {
+    if ((alignment % BASE_PAGE_SIZE) || alignment == 0) {
         debug_printf("[mm_alloc_aligned] Misaligned memory\n");
         return AOS_ERR_MM_MISALIGN;
     }
@@ -130,12 +132,14 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     // create new node
     struct mmnode *new_node;
-    errval_t err = create_new_node(mm, &new_node, curr->base, size, curr->offset);
+    errval_t err = create_new_node(mm, &new_node, curr->base, size);
     if (err_is_fail(err)) { return err; }
+    new_node->cap.base = curr->cap.base;
+    new_node->cap.size = curr->cap.size;
 
     // Update current
+    curr->base += size;
     curr->size -= size;
-    curr->offset += size;
 
     // new slot
     // TODO: only refill when needed
@@ -148,8 +152,8 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     //       and then a page size 2page aligned space is allocated
     //       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
     //         A   ?   A   A  <- make node from ?
-    err = cap_retype(new_node->cap.cap, curr->cap.cap, new_node->offset,
-                     mm->objtype, curr->offset, 1);
+    err = cap_retype(new_node->cap.cap, curr->cap.cap, new_node->base,
+                     mm->objtype, size, 1);
     if (err_is_fail(err)) { return err_push(err, AOS_ERR_SLOT_REFILL_FAIL); }
 
     insert_before(mm, new_node, curr);
@@ -165,6 +169,14 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     // XXX: What about partial free?
     struct mmnode *curr = mm->head;
+    while (curr != NULL && !is_allocated_node(curr, base, size)) {
+        curr = curr->next;
+    }
+    if (curr == NULL) { return MM_ERR_NOT_FOUND; }
+    curr->type = NodeType_Free;
 
-    return LIB_ERR_NOT_IMPLEMENTED;
+    // TODO: merge
+    // cap_destroy when next is free
+
+    return SYS_ERR_OK;
 }
