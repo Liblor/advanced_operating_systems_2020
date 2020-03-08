@@ -17,7 +17,6 @@ errval_t mm_slab_refill_func(struct slab_allocator *slabs) {
 }
 
 
-
 /**
  * Init memory manager
  * @param instance
@@ -112,6 +111,10 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 }
 
 
+static inline
+bool is_mmnode_suitable_alloc(struct mmnode *node, size_t size) {
+    return node->size >= size && node->type == NodeType_Free;
+}
 
 /**
  * Request aligned ram capability
@@ -126,28 +129,34 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     DEBUG_BEGIN;
     errval_t err;
 
-    if (alignment % BASE_PAGE_SIZE != 0) {
-        DEBUG_PRINTF("mm_alloc_align alignment does not match base page size\n");
-        return LIB_ERR_ALIGNMENT;
-    }
-    if (mm->head == NULL) {
-        DEBUG_PRINTF("mm_alloc_align has no initial ram. call add first()\n");
-        return MM_ERR_INIT_EMPTY_RAM;
-    }
-    // align requested size
+    if (alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
+
+    // align size to pagesize
     size = size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE);
 
-    struct mmnode *node;
-    for (node = mm->head; node != NULL; node = node->next) {
-        if (node->size < size) { continue; }
-    }
-    if (node == NULL) {
-        return MM_ERR_NOT_ENOUGH_RAM;
-    }
+    struct mmnode *node = mm->head;
+    while (node != NULL && !is_mmnode_suitable_alloc(node, size)) { node = node->next; }
+    if (node == NULL) { return MM_ERR_NOT_ENOUGH_RAM; }
 
-    // - split cap in requested size
-    // - create new mmnode for remaining size, change offset and size
-    // - change size of mmnode (node), offset stays the same
+    /*
+     * In order to alloc memory we need;
+     * - split existing ram capability in appropriate size;
+     * - get free slot
+     * - create new mmnode for tail (used)
+     * - and change existing mmnode such that it fits requested size
+     */
+    struct mmnode *new_node = slab_alloc(&mm->slabs);
+    if (new_node == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
+    new_node->type = NodeType_Free;
+//    new_node->size = size;
+//    new_node->base = 0; // TODO base;
+//    new_node->cap = (struct capinfo) {
+//            .cap = cap,
+//            .size = size,
+//            .base = base
+//    };
+
+
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, &retcap);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not new alloc slot for mm_add\n");
@@ -159,15 +168,25 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         // TODO-BEAN: push error
         return err;
     }
+    gensize_t new_offset = node->base + size;
     err = cap_retype(*retcap, node->cap.cap, node->base, mm->objtype, size, 1);
     if (err_is_fail(err)) {
-        // TODO:
+        // TODO-BEAN:
         return err;
     }
 
 
 
-
+    // put node into queue
+    if (node == mm->tail) {
+        mm->tail = new_node;
+    }
+    new_node->next = node->next;
+    new_node->prev = node;
+    if (node->next != NULL) {
+        node->next->prev = new_node;
+    }
+    node->next = new_node;
 
     DEBUG_END;
     return SYS_ERR_OK;
