@@ -180,18 +180,33 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
      * [best->prev] <--> [padding] <--> [best] <--> [leftover] <--> [best-next]
      */
 
+    struct mmnode *leftover = NULL;
+
+    // Make sure we can allocate a node for leftover if needed.
+    // Only create a leftover node if there is space left.
+    if (best_padding_size + size < best_size) {
+        leftover = slab_alloc(&mm->slabs);
+        if (leftover == NULL)
+            return MM_ERR_MM_ADD;
+    }
+
+    struct mmnode *padding = NULL;
+
+    // Make sure we can allocate a node for padding if needed.
+    // Only create a padding node if padding is necessary.
+    if (best_padding_size > 0) {
+        padding = slab_alloc(&mm->slabs);
+        if (padding == NULL)
+            return MM_ERR_MM_ADD;
+    }
+
     best->type = NodeType_Allocated;
     best->base = best_base + best_padding_size;
     best->size = size;
 
     debug_printf("Splitting node %p: new base is 0x%"PRIxGENPADDR", new size is 0x%"PRIxGENSIZE"\n", best, best->base, best->size);
 
-    // Only create a leftover node if there is space left.
-    if (best_padding_size + size < best_size) {
-        struct mmnode *leftover = slab_alloc(&mm->slabs);
-        if (leftover == NULL)
-            return MM_ERR_MM_ADD;
-
+    if (leftover != NULL) {
         leftover->cap = best->cap;
         leftover->type = NodeType_Free;
         leftover->base = best_base + best_padding_size + size;
@@ -205,12 +220,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         debug_printf("Inserted leftover node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", leftover, leftover->base, leftover->size);
     }
 
-    // Only create a padding node if padding is necessary.
-    if (best_padding_size > 0) {
-        struct mmnode *padding = slab_alloc(&mm->slabs);
-        if (padding == NULL)
-            return MM_ERR_MM_ADD;
-
+    if (padding != NULL) {
         padding->cap = best->cap;
         padding->type = NodeType_Free;
         padding->base = best_base;
