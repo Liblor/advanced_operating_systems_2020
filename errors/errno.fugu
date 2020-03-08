@@ -208,7 +208,8 @@ errors libaos LIB_ERR_ {
     failure NOT_IMPLEMENTED     "functionality not implemented yet",
     failure SHOULD_NOT_GET_HERE "Should not get here",
     failure NOT_CNODE           "Function invoked on a capref, that does not represent a CNode",
-    failure STRING_TOO_LONG     "String argument too long", 
+    failure STRING_TOO_LONG     "String argument too long",
+    failure ALIGNMENT            "The address / size is worngly alined",
 
     // cspace
     failure CNODE_TYPE          "Type requested for cnode creation is not valid cnode type",

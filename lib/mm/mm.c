@@ -44,8 +44,6 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     if (slab_refill_func == NULL) {
         slab_refill_func = mm_slab_refill_func;
     }
-
-    // TODO: what blocksize to choose for slab
     uint64_t blocksize = sizeof(struct mmnode);
     DEBUG_PRINTF("set blocksize for slab in mm %d bytes\n")
 
@@ -63,7 +61,7 @@ void mm_destroy(struct mm *mm) {
 }
 
 /**
- *
+ * Add memory capabilities to mm
  * @param mm this ref
  * @param cap capability to the ram region
  * @param base base address of the ram region
@@ -73,25 +71,9 @@ void mm_destroy(struct mm *mm) {
  */
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) {
     DEBUG_BEGIN;
-//    struct mmnode {
-//        enum nodetype type;    ///< Type of `this` node.
-//        struct capinfo cap;    ///< Cap in which this region exists
-//        struct mmnode *prev;   ///< Previous node in the list.
-//        struct mmnode *next;   ///< Next node in the list.
-//        genpaddr_t base;       ///< Base address of this region
-//        gensize_t size;        ///< Size of this free region in cap
-//    };
-
-//// Walk bootinfo and add all RAM caps to allocator handed to us by the kernel
-//    uint64_t mem_avail = 0;
-//    struct capref mem_cap = {
-//            .cnode = cnode_super,
-//            .slot = 0,
-//    };
-// cnode_super:
-// #define ROOTCN_SLOT_SUPERCN      3   ///< Slot for a cnode of SUPER frames
-
     assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
+
+    // TODO-BEAN: implement slab_refill function
     struct mmnode *node = slab_alloc(&mm->slabs);
     if (node == NULL) {
         DEBUG_PRINTF("mm_add failed to alloc a new slab block. no memory from slab\n");
@@ -105,7 +87,6 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
             .size = size,
             .base = base
     };
-
     if (mm->head == NULL) {
         assert(mm->tail == NULL);
         mm->head = node;
@@ -115,15 +96,31 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
         last->next = node;
         node->prev = last;
     }
+    DEBUG_PRINTF("adding RAM region (%p/%zu)\n", base, size);
     DEBUG_END;
     return SYS_ERR_OK;
 }
 
-
+/**
+ * Request aligned ram capability
+ *
+ * @param mm this instance
+ * @param size size of capability to request
+ * @param alignment alignment of address
+ * @param retcap cap to return
+ * @return
+ */
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
     DEBUG_BEGIN;
+    if (alignment % BASE_PAGE_SIZE != 0) {
+        DEBUG_PRINTF("mm_add_align alignment does not match base page size\n");
+        return LIB_ERR_ALIGNMENT;
+    }
+
+
+
     DEBUG_END;
-    return LIB_ERR_NOT_IMPLEMENTED;
+    return SYS_ERR_OK;
 }
 
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
@@ -132,6 +129,7 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     DEBUG_BEGIN;
+
     DEBUG_END;
     return LIB_ERR_NOT_IMPLEMENTED;
 }
