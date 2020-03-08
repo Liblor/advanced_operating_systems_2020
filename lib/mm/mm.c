@@ -74,9 +74,9 @@ static inline void print_list(struct mm *mm)
         print_node(mm, buffer, 16, node);
 
         if (node->next == NULL)
-            printf("%s", buffer);
+            printf("[%s]", buffer);
         else
-            printf("%s <--> ", buffer);
+            printf("[%s] <--> ", buffer);
     }
 
     printf("\n");
