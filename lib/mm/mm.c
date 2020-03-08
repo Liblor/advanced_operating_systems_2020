@@ -12,11 +12,11 @@ static errval_t mm_slab_refill(void *slabs) {
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
-static inline errval_t new_node(struct mm *mm,
-                                struct mmnode **new_node,
-                                genpaddr_t base,
-                                gensize_t size,
-                                gensize_t offset) {
+static inline errval_t create_new_node(struct mm *mm,
+                                       struct mmnode **new_node,
+                                       genpaddr_t base,
+                                       gensize_t size,
+                                       gensize_t offset) {
     void *block = slab_alloc(&mm->slabs);
     if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
     *new_node = (struct mmnode *)block;
@@ -25,6 +25,16 @@ static inline errval_t new_node(struct mm *mm,
     (*new_node)->base = base;
     (*new_node)->size = size;
     (*new_node)->offset = offset;
+    return SYS_ERR_OK;
+}
+
+static inline void insert_before(struct mm *mm, struct mmnode *new_node, struct mmnode *before) {
+    new_node->prev = before->prev;
+    if (new_node->prev != NULL) {
+        new_node->prev->next = new_node;
+    }
+    new_node->next = before;
+    before->prev = new_node;
 }
 
 /**
@@ -33,7 +43,7 @@ static inline errval_t new_node(struct mm *mm,
  * @return True iff enough space is available to allocate at this node
  */
 static inline bool is_allocatable(struct mmnode *node, gensize_t size) {
-    return node->size < size || node->type ==  NodeType_Allocated;
+    return node->size >= size && node->type == NodeType_Free;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -91,6 +101,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
         assert(mm->tail == NULL);
         mm->head = mm->tail = node;
     } else {
+        assert(mm->tail != NULL);
         mm->tail->next = node;
         node->prev = mm->tail;
         mm->tail = node;
@@ -112,24 +123,23 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     // find node with enough memory
     struct mmnode *curr = mm->head;
+    // TODO check alignment
+    //      But handle case mentioned below first
     while (curr != NULL && !is_allocatable(curr, size)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_RAM_ALLOC_FIXED_EXHAUSTED; }
 
     // create new node
-    void *block = slab_alloc(&mm->slabs);
-    if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
-    struct mmnode *new_node = (struct mmnode *)block;
-    new_node->type = NodeType_Allocated;
-    new_node->cap = (struct capinfo) {.base = curr->base, .size = size};
-    new_node->base = curr->base;
-    new_node->size = size;
+    struct mmnode *new_node;
+    errval_t err = create_new_node(mm, &new_node, curr->base, size, curr->offset);
+    if (err_is_fail(err)) { return err; }
+
+    // Update current
     curr->size -= size;
-    new_node->offset = curr->offset;
     curr->offset += size;
 
     // new slot
     // TODO: only refill when needed
-    errval_t err = mm->slot_alloc(mm->slot_alloc_inst, 1, &new_node->cap);
+    err = mm->slot_alloc(mm->slot_alloc_inst, 1, &new_node->cap.cap);
     if (err_is_fail(err)) { return err_push(err, LIB_ERR_SLOT_ALLOC); }
     err = mm->slot_refill(mm->slot_alloc_inst);
     if (err_is_fail(err)) { return err_push(err, AOS_ERR_SLOT_REFILL_FAIL); }
@@ -142,10 +152,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
                      mm->objtype, curr->offset, 1);
     if (err_is_fail(err)) { return err_push(err, AOS_ERR_SLOT_REFILL_FAIL); }
 
-    new_node->prev = curr->prev;
-    new_node->prev->next = new_node;
-    new_node->next = curr;
-    curr->prev = new_node;
+    insert_before(mm, new_node, curr);
 
     return SYS_ERR_OK;
 }
@@ -157,5 +164,7 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     // XXX: What about partial free?
+    struct mmnode *curr = mm->head;
+
     return LIB_ERR_NOT_IMPLEMENTED;
 }
