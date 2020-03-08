@@ -50,7 +50,7 @@ bsp_main(int argc, char *argv[]) {
     }
 
     // TODO: Remove.
-    test_libmm(&aos_mm);
+    test_libmm();
 
     // TODO: initialize mem allocator, vspace management here
 

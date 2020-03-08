@@ -3,6 +3,6 @@
 
 #include "mem_alloc.h"
 
-void test_libmm(struct mm *mm);
+void test_libmm(void);
 
 #endif /* _INIT_TEST_H_ */
