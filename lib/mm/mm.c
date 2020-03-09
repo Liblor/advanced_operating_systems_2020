@@ -299,8 +299,9 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     assert(current->type == NodeType_Allocated);
     assert(current->base == base);
     assert(current->size == size);
+
     err = cap_delete(cap);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
+    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE_CAP_DEL); }
 
     err = slot_free(cap);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
@@ -317,14 +318,24 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
         // |-|-----|    |-------|
         // where B is current, A is current->next, and A is origin of B
         struct mmnode *origin = current->next;
+        const gensize_t _old_size = origin->size;
+
         origin->size += current->size;
         origin->base = current->base;
-        assert(origin->type == NodeType_Free);
         origin->prev = current->prev;
-        if (current->prev != NULL) {
-            current->prev->next = origin;
+        if (current->prev != NULL) { current->prev->next = origin; }
+        if (current == mm->head) { mm->head = origin; }
+        {
+            assert(origin->type == NodeType_Free);
+            assert(origin->size == _old_size + current->size);
+            assert(origin->base == current->base);
+            assert(origin->prev != current);
+            if (origin->prev != NULL) {
+                assert (origin->prev->next != current);
+            }
         }
         slab_free(&mm->slabs, current);
+        current = NULL;
         mm_dump_mmnode(origin, "origin after free");
 
     } else if (current != mm->head && can_merge_node(current, current->prev)) {
@@ -339,12 +350,22 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
         // |-----|-|    |-------|
         // where B is current, A is current->prev, and A is origin of B
         struct mmnode *origin = current->prev;
+        const genpaddr_t _old_base = origin->base;
+        const gensize_t _old_size = origin->size;
+
         origin->size += current->size;
         // origin->base stays the same
-        assert(origin->type == NodeType_Free);
         origin->next = current->next;
-        if (current->next != NULL) {
-            current->next->prev = origin;
+        if (current->next != NULL) { current->next->prev = origin; }
+        if (current == mm->tail) { mm->tail = origin; }
+        {
+            assert(origin->type == NodeType_Free);
+            assert(origin->size == _old_size + current->size);
+            assert(origin->base == _old_base);
+            assert(origin->next != current);
+            if (origin->next != NULL) {
+                assert (origin->next->prev != current);
+            }
         }
         slab_free(&mm->slabs, current);
         mm_dump_mmnode(origin, "origin after free");
