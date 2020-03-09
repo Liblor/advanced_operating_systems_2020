@@ -119,9 +119,9 @@ errval_t create_mmnode(struct mm *mm,
  * @return
  */
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) {
-    // TODO-BEAN: failure ALREADY_PRESENT     "Node already present in add_node()",
-
     DEBUG_BEGIN;
+    // TODO-BEAN: handle failure ALREADY_PRESENT
+
     errval_t err;
     struct mmnode *node = NULL;
     err = create_mmnode(mm, cap, NodeType_Free, base, size, 0, &node);
@@ -143,20 +143,20 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 }
 
 
-/**
- * does current node fulfill requirement to be picked as suitable free node
- */
+/** does current node fulfill requirement to be picked as suitable free node */
 static inline
 bool is_node_suitable_alloc(struct mmnode *node, size_t size) {
     return node->size >= size && node->type == NodeType_Free;
 }
 
+/** Enqueue node behind other in linked list of mmnode
+ *  other->prev <-> other <-> new_node <-> other->next */
 static inline
 void enqueue_node_behind_other(struct mm *mm, struct mmnode *new_node, struct mmnode *other) {
     if (other == mm->tail) {
         mm->tail = new_node;
     }
-    // other->prev <-> other <-> new_node <-> other->next
+
     new_node->next = other->next;
     if (other->next != NULL) {
         other->next->prev = new_node;
@@ -168,6 +168,11 @@ void enqueue_node_behind_other(struct mm *mm, struct mmnode *new_node, struct mm
     assert(new_node->prev = other);
 }
 
+
+static inline
+size_t alloc_align_size(size_t size) {
+    return size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE); // align size to page size
+}
 /**
  * Request aligned ram capability
  *
@@ -182,8 +187,8 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     errval_t err;
     // TODO-BEAN: how to handle alignment?
 
-    if (alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
-    size = size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE); // align size to page size
+    if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
+    size = alloc_align_size(size);
 
     struct mmnode *node = mm->head;
     while (node != NULL && !is_node_suitable_alloc(node, size)) { node = node->next; }
@@ -233,8 +238,15 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     DEBUG_BEGIN;
+    errval_t err;
+    size = alloc_align_size(size);
+
+    err = cap_revoke(cap);
+    if (err_is_fail(err)) {return err_push(err, MM_ERR_MM_FREE);}
+
+
     // TODO-BEAN: partial free? base addr is not base addr from capability?, fragmentaion?
 
     DEBUG_END;
-    return LIB_ERR_NOT_IMPLEMENTED;
+    return SYS_ERR_OK;
 }
