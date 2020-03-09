@@ -15,11 +15,12 @@ static errval_t mm_slab_refill(void *slabs) {
 static inline errval_t create_new_node(struct mm *mm,
                                        struct mmnode **new_node,
                                        genpaddr_t base,
-                                       gensize_t size) {
+                                       gensize_t size,
+                                       enum nodetype type) {
     void *block = slab_alloc(&mm->slabs);
     if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
     *new_node = (struct mmnode *)block;
-    (*new_node)->type = NodeType_Allocated;
+    (*new_node)->type = type;
     (*new_node)->cap = (struct capinfo) {.base = base, .size = size};
     (*new_node)->base = base;
     (*new_node)->size = size;
@@ -30,9 +31,29 @@ static inline void insert_before(struct mm *mm, struct mmnode *new_node, struct 
     new_node->prev = before->prev;
     if (new_node->prev != NULL) {
         new_node->prev->next = new_node;
+    } else {
+        assert(mm->head == before);
+        mm->head = new_node;
     }
     new_node->next = before;
     before->prev = new_node;
+}
+
+// todo refactor
+static void remove_node(struct mm *mm, struct mmnode *node) {
+    if (node->prev != NULL) {
+        node->prev->next = node->next;
+    } else {
+        assert(mm->head == node);
+        mm->head = node->next;
+    }
+    if (node->next != NULL) {
+        node->next->prev = node->prev;
+    } else {
+        assert(mm->tail == node);
+        mm->tail = node->prev;
+    }
+    node->prev = node->next = NULL;
 }
 
 /**
@@ -55,6 +76,7 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
                      slot_alloc_t slot_alloc_func,
                      slot_refill_t slot_refill_func,
                      void *slot_alloc_inst) {
+    // TODO: refactor to double linked circle
     if (slab_refill_func == NULL) {
         slot_refill_func = &mm_slab_refill;
     }
@@ -95,6 +117,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     struct mmnode *node = (struct mmnode *)block;
     node->type = NodeType_Free;
     node->cap = (struct capinfo) {.cap = cap, .base = base, .size = size};
+    node->cap.parent = &node->cap.cap;
     base = base;
     size = size;
 
@@ -132,10 +155,11 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     // create new node
     struct mmnode *new_node;
-    errval_t err = create_new_node(mm, &new_node, curr->base, size);
+    errval_t err = create_new_node(mm, &new_node, curr->base, size, NodeType_Allocated);
     if (err_is_fail(err)) { return err; }
     new_node->cap.base = curr->cap.base;
     new_node->cap.size = curr->cap.size;
+    new_node->cap.parent = curr->cap.parent;
 
     // Update current
     curr->base += size;
@@ -152,7 +176,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     //       and then a page size 2page aligned space is allocated
     //       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
     //         A   ?   A   A  <- make node from ?
-    err = cap_retype(new_node->cap.cap, curr->cap.cap, new_node->base,
+    err = cap_retype(new_node->cap.cap, *curr->cap.parent, new_node->base,
                      mm->objtype, size, 1);
     if (err_is_fail(err)) { return err_push(err, AOS_ERR_SLOT_REFILL_FAIL); }
 
@@ -168,15 +192,46 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     // XXX: What about partial free?
+    if (size % BASE_PAGE_SIZE) {
+        size += (BASE_PAGE_SIZE - size % BASE_PAGE_SIZE);
+    }
+
     struct mmnode *curr = mm->head;
     while (curr != NULL && !is_allocated_node(curr, base, size)) {
         curr = curr->next;
     }
     if (curr == NULL) { return MM_ERR_NOT_FOUND; }
+
+    errval_t err = cap_revoke(cap);
+    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
+    err = cap_destroy(cap);
+    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
     curr->type = NodeType_Free;
 
-    // TODO: merge
-    // cap_destroy when next is free
+    // TODO refactor
+    struct mmnode *to_delete;
+    if (curr->prev != NULL && curr->prev->type == NodeType_Free && curr->cap.base == curr->prev->cap.base) {
+        assert(curr->cap.size == curr->prev->cap.size);
+        assert(curr->prev->base + curr->prev->size == curr->base);
+        curr->base = curr->prev->base;
+        curr->size += curr->prev->size;
+
+        to_delete = curr->prev;
+        remove_node(mm, to_delete);
+        slab_free(&mm->slabs, to_delete);
+    }
+
+    if (curr->next != NULL && curr->next->type == NodeType_Free && curr->cap.base == curr->next->cap.base) {
+        assert(curr->cap.size == curr->next->cap.size);
+        assert(curr->base + curr->size == curr->next->base);
+        curr = curr->next;
+        curr->base = curr->prev->base;
+        curr->size += curr->prev->size;
+
+        to_delete = curr->prev;
+        remove_node(mm, to_delete);
+        slab_free(&mm->slabs, to_delete);
+    }
 
     return SYS_ERR_OK;
 }

@@ -31,20 +31,21 @@ enum nodetype {
 
 struct capinfo {
     struct capref cap;
-    genpaddr_t base;    ///< base of original capability
-    gensize_t size;
+    struct capref *parent;
+    genpaddr_t base;        ///< Base of parent capability
+    gensize_t size;         ///< Size of parent capability
 };
 
 /**
  * \brief Node in Memory manager
  */
 struct mmnode {
-    enum nodetype type;    ///< Type of `this` node.
-    struct capinfo cap;    ///< Cap in which this region exists
-    struct mmnode *prev;   ///< Previous node in the list.
-    struct mmnode *next;   ///< Next node in the list.
-    genpaddr_t base;       ///< Base address of this region
-    gensize_t size;        ///< Size of this free region in cap
+    enum nodetype type;      ///< Type of `this` node.
+    struct capinfo cap;      ///< Cap in which this region exists
+    struct mmnode *prev;     ///< Previous node in the list.
+    struct mmnode *next;     ///< Next node in the list.
+    genpaddr_t base;         ///< Base address of this region
+    gensize_t size;          ///< Size of this free region in cap
 };
 
 /**
