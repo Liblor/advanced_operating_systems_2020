@@ -31,7 +31,7 @@ enum nodetype {
 
 struct capinfo {
     struct capref cap;
-    struct capinfo *origin; ///< capinfo of origin mmnode if created by retyping or reference to self if
+    struct capinfo *origin_unmapped; ///< capinfo of origin mmnode if created by retyping or reference to self if
                             ///< capinfo is initial ram capability added to mm
     genpaddr_t base; // base of origin cap
     gensize_t size; // size of origin cap

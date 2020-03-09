@@ -729,6 +729,7 @@ errors libmm MM_ERR_ {
     failure INIT_EMPTY_RAM      "No Ram capabilities initially added. Call add() first",
     failure NOT_ENOUGH_RAM      "No Ram capabilities large enough for requested size",
     failure MM_ALLOC_RETYPE     "Failure in mm_alloc while retyping memory",
+    failure MM_ALLOC_COPY       "Failure in mm_alloc while copy capability",
     failure MM_ALLOC            "Failure in mm_alloc()",
     failure MM_FREE_NOT_FOUND   "No matching node found in mm_free()",
 
