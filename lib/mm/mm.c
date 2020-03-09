@@ -55,7 +55,7 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     DEBUG_PRINTF("set blocksize for slab in mm %d bytes\n")
 
     slab_init(&mm->slabs, blocksize, slab_refill_func);
-    mm->slabs.refill_func = slab_refill_func;
+//    mm->slabs.refill_func = slab_refill_func;
 
     DEBUG_END;
     return SYS_ERR_OK;
@@ -72,12 +72,12 @@ static inline
 errval_t create_node_without_capinfo(struct mm *mm,
                                      enum nodetype type, genpaddr_t base, size_t size,
                                      struct mmnode **res) {
+    DEBUG_BEGIN;
     assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
 
     // TODO-BEAN: implement slab_refill function
+    *res = (struct mmnode *) slab_alloc(&mm->slabs);
     struct mmnode *node = *res;
-    node = slab_alloc(&mm->slabs);
-
     if (node == NULL) {
         DEBUG_PRINTF("failed to alloc a new slab block. no memory from slab\n");
         return LIB_ERR_SLAB_ALLOC_FAIL;
@@ -94,6 +94,7 @@ errval_t create_node_without_capinfo(struct mm *mm,
             .cap = {},
     };
 
+    DEBUG_END;
     return SYS_ERR_OK;
 }
 
@@ -116,12 +117,11 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     struct mmnode *node = NULL;
     err = create_node_without_capinfo(mm, NodeType_Free, base, size, &node);
     if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ADD); }
-
     node->capinfo = (struct capinfo) {
             .cap = cap,
             .size = size,
             .base = base,
-            .origin = &node->capinfo // mm node of unsplit RAM cap refers to its own capinfo
+            .origin = &(node->capinfo) // mm node of unsplit RAM cap refers to its own capinfo
     };
     if (mm->head == NULL) {
         assert(mm->tail == NULL);
@@ -132,7 +132,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
         last->next = node;
         node->prev = last;
     }
-//    DEBUG_PRINTF("adding RAM region (%p/%zu)\n", base, size);
+    DEBUG_PRINTF("adding RAM region (%p/%zu)\n", base, size);
     DEBUG_END;
     return SYS_ERR_OK;
 }
@@ -141,6 +141,8 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 /** does current node fulfill requirement to be picked as suitable free node */
 static inline
 bool is_node_suitable_alloc(struct mmnode *node, size_t size) {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return node->size >= size && node->type == NodeType_Free;
 }
 
@@ -151,6 +153,7 @@ bool is_node_suitable_alloc(struct mmnode *node, size_t size) {
  *  other->prev <-> new_node <-> other <-> other->next */
 static inline
 void enqueue_node_before_other(struct mm *mm, struct mmnode *new_node, struct mmnode *other) {
+    DEBUG_BEGIN;
     struct mmnode *_old_prev = other->prev;
     struct mmnode *_old_next = other->next;
 
@@ -168,10 +171,13 @@ void enqueue_node_before_other(struct mm *mm, struct mmnode *new_node, struct mm
     assert(new_node->next == other);
     assert(new_node->prev == _old_prev);
     assert(other->next == _old_next);
+    DEBUG_END;
 }
 
 static inline
 size_t alloc_align_size(size_t size) {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE); // align size to page size
 }
 
@@ -229,11 +235,9 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     new_node->capinfo = (struct capinfo) {
             .origin = &node->capinfo,
             .cap = *retcap,
-            .base = node->capinfo.base, //new_node_base, TODO
-            .size = node->capinfo.size //new_node_size,  TODO
+            .base = node->capinfo.base,
+            .size = node->capinfo.size
     };
-    assert(new_node->capinfo.origin != node->capinfo.origin);
-
     enqueue_node_before_other(mm, new_node, node);
     DEBUG_END;
     return SYS_ERR_OK;
@@ -245,6 +249,8 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 static inline
 bool can_merge_node(struct mmnode *node, struct mmnode *other) {
+    DEBUG_BEGIN;
+    DEBUG_END;
     return other != NULL && other->type == NodeType_Free
             && node->capinfo.base == other->capinfo.base;
 }
