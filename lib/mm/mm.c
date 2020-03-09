@@ -8,8 +8,14 @@
 #include <aos/solution.h>
 
 
+static char slab_buf[64*sizeof(struct mmnode)];
+static bool slab_buf_used;
+
 static errval_t mm_slab_refill(void *slabs) {
-    return LIB_ERR_NOT_IMPLEMENTED;
+    // TODO real slab refill
+    if (slab_buf_used) { return SYS_ERR_NOT_IMPLEMENTED; }
+    slab_grow(slabs, slab_buf, 64*sizeof(struct mmnode));
+    return SYS_ERR_OK;
 }
 
 static inline errval_t create_new_node(struct mm *mm,
@@ -88,6 +94,8 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
 
     slab_init(&(mm->slabs), sizeof(struct mmnode), slab_refill_func);
 
+    slab_buf_used = 0;
+
     return SYS_ERR_OK;
 }
 
@@ -106,7 +114,7 @@ void mm_destroy(struct mm *mm) {
  * @return Error
  */
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) {
-    debug_printf("[mm_add] base: %i, size &i\n", base, size);
+    debug_printf("[mm_add] base: %lu, size %lu\n", base, size);
     assert(mm->slabs.blocksize >= sizeof(struct mmnode));
     void *block = slab_alloc(&mm->slabs);
     if (block == NULL) {
