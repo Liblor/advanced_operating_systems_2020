@@ -131,6 +131,11 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
             .cap_origin_unmapped = &(node->capinfo), // mm node of unsplit RAM cap refers to its own capinfo
 
     };
+
+    assert(node->capinfo.cap_origin_unmapped == &node->capinfo);
+    assert(node->base == node->capinfo.base);
+    assert(node->size == node->capinfo.size);
+
     if (mm->head == NULL) {
         assert(mm->tail == NULL);
         mm->head = node;
@@ -224,17 +229,17 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     // TODO: do we save this cap or ok if we free slot afterwards in here
     // a cap can be mapped at most once. so copy cap of origin first
 
-    struct capref new_node_cap = {};
-    err = mm->slot_alloc(mm->slot_alloc_inst, 1, &new_node_cap);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_MM_ALLOC); }
-    mm->slot_refill(mm->slot_alloc_inst);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
-
-    dump_capref(&node->capinfo.cap_origin_unmapped->cap, "unmapped origin");
-    dump_capref(&new_node_cap, "copy of origin");
-
-    err = cap_copy(new_node_cap, node->capinfo.cap_origin_unmapped->cap);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC_COPY); }
+//    struct capref new_node_cap = {};
+//    err = mm->slot_alloc(mm->slot_alloc_inst, 1, &new_node_cap);
+//    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_MM_ALLOC); }
+//    mm->slot_refill(mm->slot_alloc_inst);
+//    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
+//
+//    dump_capref(&node->capinfo.cap_origin_unmapped->cap, "unmapped origin");
+//    dump_capref(&new_node_cap, "copy of origin");
+//
+//    err = cap_copy(new_node_cap, node->capinfo.cap_origin_unmapped->cap);
+//    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC_COPY); }
 
     // create a slot for returning cap
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
@@ -242,11 +247,14 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     mm->slot_refill(mm->slot_alloc_inst);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
 
-    err = cap_retype(*retcap, new_node_cap, 0, mm->objtype, size, 1);
+    mm_dump_mmnode(node, "mmnode matching requested size");
+    gensize_t offset = node->base - node->capinfo.base; // base of origin
+    DEBUG_PRINTF("retyping cap with offset %zu\n", offset);
+    err = cap_retype(*retcap, node->capinfo.cap_origin_unmapped->cap, offset, mm->objtype, size, 1);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC_RETYPE); }
 
     // free slot of copy of origin again, we dont need that cap
-    err = slot_free(new_node_cap);
+//    err = slot_free(new_node_cap);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC); }
 
     // create new node (becomes NodeType_Allocated)
@@ -379,11 +387,11 @@ void dump_capinfo(struct capinfo *capinfo, const char *msg) {
     DEBUG_PRINTF(">> capinfo: %p \n", capinfo);
     if (capinfo == NULL) { return; }
 
-    DEBUG_PRINTF("\tbase: %p\n", &capinfo->base);
+    DEBUG_PRINTF("\tbase: %p\n", capinfo->base);
     DEBUG_PRINTF("\tsize: %zu (%zu KB, %zu MB)\n", capinfo->size, capinfo->size / 1024, capinfo->size / 1024 / 1024);
     DEBUG_PRINTF("\torigin: %p \n", capinfo->cap_origin_unmapped);
     DEBUG_PRINTF("\tcap: %p \n", &capinfo->cap);
-    DEBUG_PRINTF("\tcap/slot: %zu \n", &capinfo->cap.slot);
+    DEBUG_PRINTF("\tcap/slot: %zu \n", capinfo->cap.slot);
     DEBUG_PRINTF("\tcap/cnode: %p \n", &capinfo->cap.cnode);
 }
 
@@ -398,8 +406,8 @@ void mm_dump_mmnode(struct mmnode *mmnode, const char *msg) {
     DEBUG_PRINTF("\ttype: %d (0 is free)\n", mmnode->type);
     DEBUG_PRINTF("\tbase: %p\n", mmnode->base);
     DEBUG_PRINTF("\tsize: %zu (%zu KB , %zu MB)\n", mmnode->size, mmnode->size / 1024, mmnode->size / 1024 / 1024);
-    DEBUG_PRINTF("\tprev: %p\n", &mmnode->prev);
-    DEBUG_PRINTF("\tnext: %p\n", &mmnode->next);
+    DEBUG_PRINTF("\tprev: %p\n", mmnode->prev);
+    DEBUG_PRINTF("\tnext: %p\n", mmnode->next);
     dump_capinfo(&mmnode->capinfo, NULL);
 }
 
