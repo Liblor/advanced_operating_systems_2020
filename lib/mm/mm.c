@@ -43,7 +43,7 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
                  void *slot_alloc_inst) {
     DEBUG_BEGIN;
     mm->slot_refill = slot_refill_func;
-    mm->slot_alloc_inst = slot_alloc_inst;
+    mm->slot_alloc_inst = slot_alloc_inst; // TODO deref and set mm instance
     mm->slot_refill = slot_refill_func;
     mm->slot_alloc = slot_alloc_func;
     mm->objtype = objtype;
@@ -243,17 +243,65 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
     return mm_alloc_aligned(mm, size, BASE_PAGE_SIZE, retcap);
 }
 
+static inline
+bool can_merge_node(struct mmnode *node, struct mmnode *other) {
+    return other != NULL && other->type == NodeType_Free
+            && node->capinfo.base == other->capinfo.base;
+}
+
+// TODO-BEAN: partial free? base addr is not base addr from capability?, fragmentaion?
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     DEBUG_BEGIN;
     errval_t err;
     size = alloc_align_size(size);
 
+    struct mmnode *current = mm->head;
+    while (current != NULL) { // TODO: make this nicer
+        if (current->base == base && current->size == size) { break;}
+        current = current->next;
+    }
+    if (current == NULL) { return MM_ERR_MM_FREE_NOT_FOUND; }
+    assert(current->type == NodeType_Allocated);
+    assert(current->base == base);
+    assert(current->size == size);
     err = cap_revoke(cap);
     if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
 
-
-    // TODO-BEAN: partial free? base addr is not base addr from capability?, fragmentaion?
-
+    if (current != mm->tail && can_merge_node(current, current->next)) {
+        // |-|-----|    |-------| A is free
+        // |B|  A  | -> |   A   |
+        // |-|-----|    |-------|
+        // where B is current, A is current->next, and A is origin of B
+        struct mmnode *origin = current->next;
+        origin->size += current->size;
+        origin->base = current->base;
+        assert(origin->type == NodeType_Free);
+        origin->prev = current->prev;
+        if (current->prev != NULL) {
+            current->prev->next = origin;
+        }
+        slab_free(&mm->slabs, current);
+    }
+    else if (current != mm->head && can_merge_node(current, current->prev)) {
+        // |-----|-|    |-------| A is free
+        // |  A  |B| -> |   A   |
+        // |-----|-|    |-------|
+        // where B is current, A is current->prev, and A is origin of B
+        struct mmnode *origin = current->prev;
+        origin->size += current->size;
+        // origin->base stays the same
+        assert(origin->type == NodeType_Free);
+        origin->next = current->next;
+        if (current->next != NULL) {
+            current->next->prev = origin;
+        }
+        slab_free(&mm->slabs, current);
+    }
+    else {
+        // current node is in between two NodeType_Alloacted nodes
+        // or they dont share the same origin
+        current->type = NodeType_Free;
+    }
     DEBUG_END;
     return SYS_ERR_OK;
 }
