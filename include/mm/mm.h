@@ -31,8 +31,11 @@ enum nodetype {
 
 struct capinfo {
     struct capref cap;
-    genpaddr_t base; // TODO: origin base
-    gensize_t size; // TODO: origin size
+    struct capinfo *origin; ///< capinfo of origin mmnode if created by retyping or reference to self if
+                            ///< capinfo is initial ram capability added to mm
+    genpaddr_t base; // base of origin cap
+    gensize_t size; // size of origin cap
+
 };
 
 /**
@@ -40,13 +43,13 @@ struct capinfo {
  */
 struct mmnode {
     enum nodetype type;    ///< Type of `this` node.
-    struct capinfo cap;    ///< Cap in which this region exists
+    struct capinfo capinfo;    ///< Cap in which this region exists
     struct mmnode *prev;   ///< Previous node in the list.
     struct mmnode *next;   ///< Next node in the list.
 
 
     // TODO-BEAN: does this make sense, not very intiutive
-    genpaddr_t offset;     ///< offset from base address of original (RAM) capability
+//    genpaddr_t offset;     ///< offset from base address of original (RAM) capability
     genpaddr_t base;       ///< Base address of this region
     gensize_t size;        ///< Size of this free region in cap
 };

@@ -68,23 +68,10 @@ void mm_destroy(struct mm *mm) {
 }
 
 
-/**
- * create a mmnode
- * @param mm this instance
- * @param cap capability
- * @param type type
- * @param base base addr of cap
- * @param size size of cap
- * @param offset offset of cap
- * @param res mmnode to return
- *
- *
- * @return errval err code
- */
 static inline
-errval_t create_mmnode(struct mm *mm,
-                       struct capref cap, enum nodetype type, genpaddr_t base, size_t size, genpaddr_t offset,
-                       struct mmnode **res) {
+errval_t create_node_without_capinfo(struct mm *mm,
+                                     enum nodetype type, genpaddr_t base, size_t size,
+                                     struct mmnode **res) {
     assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
 
     // TODO-BEAN: implement slab_refill function
@@ -99,12 +86,16 @@ errval_t create_mmnode(struct mm *mm,
     node->type = type;
     node->size = size;
     node->base = base;
-    node->offset = offset;
-    node->cap = (struct capinfo) {
-            .cap = cap,
-            .size = size,
-            .base = base
+    node->next = NULL;
+    node->prev = NULL;
+
+    node->capinfo = (struct capinfo) {
+            .origin = NULL,
+            .base = 0,
+            .size = 0,
+//            .cap = 0;
     };
+
     return SYS_ERR_OK;
 }
 
@@ -124,10 +115,15 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 
     errval_t err;
     struct mmnode *node = NULL;
-    err = create_mmnode(mm, cap, NodeType_Free, base, size, 0, &node);
-
+    err = create_node_without_capinfo(mm, NodeType_Free, base, size, &node);
     if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ADD); }
 
+    node->capinfo = (struct capinfo) {
+            .cap = cap,
+            .size = size,
+            .base = base,
+            .origin = &node->capinfo // mm node of unsplit RAM cap refers to its own capinfo
+    };
     if (mm->head == NULL) {
         assert(mm->tail == NULL);
         mm->head = node;
@@ -211,17 +207,17 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
      */
     // TODO: what if nothing else remaining
     gensize_t new_node_offset = size;
-    err = cap_retype(*retcap, node->cap.cap, new_node_offset, mm->objtype, size, 1);
+    err = cap_retype(*retcap, node->capinfo.cap, new_node_offset, mm->objtype, size, 1);
     if (err_is_fail(err)) { err_push(err, MM_ERR_MISSING_CAPS); }
 
     // modify head (stays NodeType_Free)
     assert(node->type == NodeType_Free);
     node->size -= size;
-    node->cap.size -= size;
+    node->capinfo.size -= size;
 
     // create new mmnode (becomes NodeType_Allocated)
     struct mmnode *new_node = NULL;
-    err = create_mmnode(mm, *retcap, NodeType_Allocated, node->base, size, new_node_offset, &new_node);
+    err = create_node_without_capinfo(mm, *retcap, NodeType_Allocated, node->base, size, new_node_offset, &new_node);
     if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC); }
 
 
