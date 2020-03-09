@@ -46,9 +46,9 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-//    struct capref retcap1;
-//    mm_alloc(&aos_mm, 1 << 10, &retcap1);
-//    mm_alloc(&aos_mm, 1 << 10, &retcap2);
+    struct capref retcap1, retcap2;
+    mm_alloc(&aos_mm, 1 << 10, &retcap1);
+    mm_alloc(&aos_mm, 1 << 10, &retcap2);
 //    aos_ram_free(retcap1, 1 <<10);
 //    aos_ram_free(retcap2, 1 << 10);
 

@@ -31,12 +31,16 @@ enum nodetype {
 
 struct capinfo {
     struct capref cap;
-    struct capinfo *origin_unmapped; ///< capinfo of origin mmnode if created by retyping or reference to self if
-                            ///< capinfo is initial ram capability added to mm
+    struct capinfo *cap_origin_unmapped; ///< capinfo of origin mmnode if created by retyping or reference to self if
+                                         ///< capinfo is initial ram capability added to mm
+
+//    struct capref cap_origin_copy;      ///< a single cap can be retyped at most once, so it needs to be copied first. is copy of cap_origin_unmapped
+//    bool has_cap_origin_copy;
     genpaddr_t base; // base of origin cap
     gensize_t size; // size of origin cap
 
 };
+/// TODO-BEAN: Packed?
 
 /**
  * \brief Node in Memory manager
@@ -46,10 +50,6 @@ struct mmnode {
     struct capinfo capinfo;    ///< Cap in which this region exists
     struct mmnode *prev;   ///< Previous node in the list.
     struct mmnode *next;   ///< Next node in the list.
-
-
-    // TODO-BEAN: does this make sense, not very intiutive
-//    genpaddr_t offset;     ///< offset from base address of original (RAM) capability
     genpaddr_t base;       ///< Base address of this region
     gensize_t size;        ///< Size of this free region in cap
 };
@@ -87,7 +87,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment,
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap);
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size);
 void mm_dump_mmnodes(struct mm *mm);
-void mm_dump_mmnode(struct mmnode* mmnode);
+void mm_dump_mmnode(struct mmnode* mmnode, const char *msg);
 void mm_destroy(struct mm *mm);
 
 __END_DECLS
