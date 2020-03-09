@@ -11,10 +11,10 @@
 static char slab_buf[64*sizeof(struct mmnode)];
 static bool slab_buf_used;
 
-static errval_t mm_slab_refill(void *slabs) {
+static errval_t mm_slab_refill(struct slab_allocator *slabs) {
     // TODO real slab refill
     if (slab_buf_used) { return SYS_ERR_NOT_IMPLEMENTED; }
-    slab_grow(slabs, slab_buf, 64*sizeof(struct mmnode));
+    slab_grow(slabs, slab_buf, sizeof(slab_buf));
     return SYS_ERR_OK;
 }
 
@@ -84,7 +84,7 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
                      void *slot_alloc_inst) {
     // TODO: refactor to double linked circle
     if (slab_refill_func == NULL) {
-        slot_refill_func = &mm_slab_refill;
+        slab_refill_func = mm_slab_refill;
     }
 
     mm->slot_alloc = slot_alloc_func;
