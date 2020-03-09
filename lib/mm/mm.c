@@ -126,8 +126,8 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     node->type = NodeType_Free;
     node->cap = (struct capinfo) {.cap = cap, .base = base, .size = size};
     node->cap.parent = &node->cap.cap;
-    base = base;
-    size = size;
+    node->base = base;
+    node->size = size;
 
     // add_node
     if (mm->head == NULL) {
