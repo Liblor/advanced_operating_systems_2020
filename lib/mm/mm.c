@@ -209,6 +209,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     /* upon retype the head and tail mmnode keep the same base.
      * The tail mmnode updates its offset and size.
      */
+    // TODO: what if nothing else remaining
     gensize_t new_node_offset = size;
     err = cap_retype(*retcap, node->cap.cap, new_node_offset, mm->objtype, size, 1);
     if (err_is_fail(err)) { err_push(err, MM_ERR_MISSING_CAPS); }

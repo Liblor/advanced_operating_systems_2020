@@ -31,8 +31,8 @@ enum nodetype {
 
 struct capinfo {
     struct capref cap;
-    genpaddr_t base;
-    gensize_t size;
+    genpaddr_t base; // TODO: origin base
+    gensize_t size; // TODO: origin size
 };
 
 /**
@@ -44,6 +44,8 @@ struct mmnode {
     struct mmnode *prev;   ///< Previous node in the list.
     struct mmnode *next;   ///< Next node in the list.
 
+
+    // TODO-BEAN: does this make sense, not very intiutive
     genpaddr_t offset;     ///< offset from base address of original (RAM) capability
     genpaddr_t base;       ///< Base address of this region
     gensize_t size;        ///< Size of this free region in cap

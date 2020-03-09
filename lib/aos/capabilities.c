@@ -689,7 +689,8 @@ errval_t vnode_create(struct capref dest, enum objtype type)
  * of memory). This is to facilitate retrying with different
  * constraints.
  */
-errval_t frame_create(struct capref dest, size_t bytes, size_t *retbytes)
+errval_t
+frame_create(struct capref dest, size_t bytes, size_t *retbytes)
 {
     assert(bytes > 0);
     errval_t err;
