@@ -155,6 +155,8 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 /** does current node fulfill requirement to be picked as suitable free node */
 static inline
 bool is_node_suitable_alloc(struct mmnode *node, size_t size) {
+//    DEBUG_BEGIN;
+//    DEBUG_END;
     return node->size >= size && node->type == NodeType_Free;
 }
 
@@ -216,7 +218,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     if (node == NULL) { return MM_ERR_NOT_ENOUGH_RAM; }
 
     // TODO: what if nothing else remaining
-
     // |-------|    |-|-----|
     // |  A    | -> |B|  A  |
     // |-------|    |-|-----|
@@ -225,37 +226,20 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     // B: new node with requested size (return) (new_node)
     // B is enqueued before A and A is updated
 
-
-    // TODO: do we save this cap or ok if we free slot afterwards in here
-    // a cap can be mapped at most once. so copy cap of origin first
-
-//    struct capref new_node_cap = {};
-//    err = mm->slot_alloc(mm->slot_alloc_inst, 1, &new_node_cap);
-//    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_MM_ALLOC); }
-//    mm->slot_refill(mm->slot_alloc_inst);
-//    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
-//
-//    dump_capref(&node->capinfo.cap_origin_unmapped->cap, "unmapped origin");
-//    dump_capref(&new_node_cap, "copy of origin");
-//
-//    err = cap_copy(new_node_cap, node->capinfo.cap_origin_unmapped->cap);
-//    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC_COPY); }
-
     // create a slot for returning cap
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_MM_ALLOC); }
     mm->slot_refill(mm->slot_alloc_inst);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
 
-    mm_dump_mmnode(node, "mmnode matching requested size");
-    gensize_t offset = node->base - node->capinfo.base; // base of origin
-    DEBUG_PRINTF("retyping cap with offset %zu\n", offset);
+    const gensize_t offset = node->base - node->capinfo.base; // base of origin
+    DEBUG_PRINTF("retyping cap (%p) from source cap (%p) with offset %zu and size %zu\n",
+                 retcap,
+                 &node->capinfo.cap_origin_unmapped->cap,
+                 offset,
+                 size);
     err = cap_retype(*retcap, node->capinfo.cap_origin_unmapped->cap, offset, mm->objtype, size, 1);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC_RETYPE); }
-
-    // free slot of copy of origin again, we dont need that cap
-//    err = slot_free(new_node_cap);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC); }
 
     // create new node (becomes NodeType_Allocated)
     struct mmnode *new_node = NULL;
@@ -315,7 +299,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     assert(current->type == NodeType_Allocated);
     assert(current->base == base);
     assert(current->size == size);
-    err = cap_revoke(cap);
+    err = cap_delete(cap);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
 
     err = slot_free(cap);
@@ -387,12 +371,12 @@ void dump_capinfo(struct capinfo *capinfo, const char *msg) {
     DEBUG_PRINTF(">> capinfo: %p \n", capinfo);
     if (capinfo == NULL) { return; }
 
-    DEBUG_PRINTF("\tbase: %p\n", capinfo->base);
-    DEBUG_PRINTF("\tsize: %zu (%zu KB, %zu MB)\n", capinfo->size, capinfo->size / 1024, capinfo->size / 1024 / 1024);
-    DEBUG_PRINTF("\torigin: %p \n", capinfo->cap_origin_unmapped);
-    DEBUG_PRINTF("\tcap: %p \n", &capinfo->cap);
-    DEBUG_PRINTF("\tcap/slot: %zu \n", capinfo->cap.slot);
-    DEBUG_PRINTF("\tcap/cnode: %p \n", &capinfo->cap.cnode);
+    DEBUG_PRINTF("\t\tbase: %p\n", capinfo->base);
+    DEBUG_PRINTF("\t\tsize: %zu (%zu KB, %zu MB)\n", capinfo->size, capinfo->size / 1024, capinfo->size / 1024 / 1024);
+    DEBUG_PRINTF("\t\torigin: %p \n", capinfo->cap_origin_unmapped);
+    DEBUG_PRINTF("\t\tcap: %p \n", &capinfo->cap);
+    DEBUG_PRINTF("\t\tcap/slot: %zu \n", capinfo->cap.slot);
+    DEBUG_PRINTF("\t\tcap/cnode: %p \n", &capinfo->cap.cnode);
 }
 
 void mm_dump_mmnode(struct mmnode *mmnode, const char *msg) {

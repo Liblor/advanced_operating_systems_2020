@@ -717,6 +717,7 @@ errors libmm MM_ERR_ {
     failure MM_ADD              "Failure in mm_add()",
     failure MM_ADD_MULTI        "Failure in mm_add_multi()",
     failure MM_FREE             "Failure in mm_free()",
+    failure MM_FREE_CAP_DEL     "Failure in mm_free() while deleting cap",
     failure NEW_NODE            "Failed allocating new node from slot allocator",
     failure OUT_OF_BOUNDS       "Given memory base address / size exceeds bounds of allocator",
     failure ALREADY_PRESENT     "Node already present in add_node()",
