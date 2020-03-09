@@ -18,6 +18,7 @@ errval_t aos_ram_free(struct capref cap, size_t bytes) {
     errval_t err;
     struct frame_identity fi;
     err = frame_identify(cap, &fi);
+    DEBUG_ERR(err, "frame identify error\n");
     if (bytes > fi.bytes) {
         bytes = fi.bytes;
     }

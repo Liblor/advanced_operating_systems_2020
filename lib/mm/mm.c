@@ -8,6 +8,9 @@
 #include <aos/solution.h>
 
 
+#define mm_err_is_fail(err)  \
+(err_is_fail(err) ? (DEBUG_ERR(err, "failure in mm.c "), true) : false)
+
 /** slab refill function for slab allocator managed by mm.c */
 static inline
 errval_t mm_slab_refill_func(struct slab_allocator *slabs) {
@@ -55,7 +58,7 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     DEBUG_PRINTF("set blocksize for slab in mm %d bytes\n")
 
     slab_init(&mm->slabs, blocksize, slab_refill_func);
-//    mm->slabs.refill_func = slab_refill_func;
+    mm->slabs.refill_func = slab_refill_func;
 
     DEBUG_END;
     return SYS_ERR_OK;
@@ -116,7 +119,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     errval_t err;
     struct mmnode *node = NULL;
     err = create_node_without_capinfo(mm, NodeType_Free, base, size, &node);
-    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ADD); }
+    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ADD); }
     node->capinfo = (struct capinfo) {
             .cap = cap,
             .size = size,
@@ -179,7 +182,8 @@ static inline
 size_t alloc_align_size(size_t size) {
     DEBUG_BEGIN;
     DEBUG_END;
-    return size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE); // align size to page size
+//    return size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE); // align size to page size
+    return ROUND_UP(size, BASE_PAGE_SIZE);
 }
 
 /**
@@ -206,9 +210,9 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     if (node == NULL) { return MM_ERR_NOT_ENOUGH_RAM; }
 
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
-    if (err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_MM_ALLOC); }
+    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_MM_ALLOC); }
     mm->slot_refill(mm->slot_alloc_inst);
-    if (err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
+    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
 
     // TODO: what if nothing else remaining
 
@@ -221,12 +225,12 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     // B is enqueued before A and A is updated
 
     err = cap_retype(*retcap, node->capinfo.cap, 0, mm->objtype, size, 1);
-    if (err_is_fail(err)) { err_push(err, MM_ERR_MISSING_CAPS); }
+    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MISSING_CAPS); }
 
     // create new node (becomes NodeType_Allocated)
     struct mmnode *new_node = NULL;
     err = create_node_without_capinfo(mm, NodeType_Allocated, node->base, size, &new_node);
-    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC); }
+    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC); }
     new_node->capinfo = (struct capinfo) {
             .origin = &node->capinfo,
             .cap = *retcap,
@@ -269,7 +273,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
         size_t size_old = size;
         size = alloc_align_size(size);
         DEBUG_PRINTF("request free at base %p for %zu KB -> %zu KB memory\n",
-                base, size_old / 1024, size / 1024);
+                     base, size_old / 1024, size / 1024);
     }
     struct mmnode *current = mm->head;
     while (current != NULL) { // TODO: make this nicer
@@ -284,17 +288,16 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     assert(current->base == base);
     assert(current->size == size);
     err = cap_revoke(cap);
-    if (err_is_fail(err)) {
-        DEBUG_PRINTF("error with revoke\n");
-        return err_push(err, MM_ERR_MM_FREE);
-    }
+    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
 
     if (current != mm->tail && can_merge_node(current, current->next)) {
-        DEBUG_PRINTF("node has origin to the right which is free\n");
-        DEBUG_PRINTF("node to free:\n");
-        mm_dump_mmnode(current);
-        DEBUG_PRINTF("origin\n");
-        mm_dump_mmnode(current->next);
+        {
+            DEBUG_PRINTF("node has origin to the right which is free\n");
+            DEBUG_PRINTF("node to free:\n");
+            mm_dump_mmnode(current);
+            DEBUG_PRINTF("origin\n");
+            mm_dump_mmnode(current->next);
+        }
 
         // |-|-----|    |-------| A is free
         // |B|  A  | -> |   A   |
@@ -313,11 +316,13 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
         mm_dump_mmnode(origin);
 
     } else if (current != mm->head && can_merge_node(current, current->prev)) {
-        DEBUG_PRINTF("node has origin to the left which is free\n");
-        DEBUG_PRINTF("node to free:\n");
-        mm_dump_mmnode(current);
-        DEBUG_PRINTF("origin\n");
-        mm_dump_mmnode(current->next);
+        {
+            DEBUG_PRINTF("node has origin to the left which is free\n");
+            DEBUG_PRINTF("node to free:\n");
+            mm_dump_mmnode(current);
+            DEBUG_PRINTF("origin\n");
+            mm_dump_mmnode(current->next);
+        }
 
         // |-----|-|    |-------| A is free
         // |  A  |B| -> |   A   |
@@ -338,11 +343,13 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     } else {
         // current node is in between two NodeType_Alloacted nodes
         // or they dont share the same origin
-        DEBUG_PRINTF("node has no free origin to left or right\n");
         current->type = NodeType_Free;
-        mm_dump_mmnode(current);
-        mm_dump_mmnode(current->next);
-        mm_dump_mmnode(current->prev);
+        {
+            DEBUG_PRINTF("node has no free origin to left or right\n");
+            mm_dump_mmnode(current);
+            mm_dump_mmnode(current->next);
+            mm_dump_mmnode(current->prev);
+        }
     }
     DEBUG_END;
     return SYS_ERR_OK;

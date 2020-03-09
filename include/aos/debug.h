@@ -58,6 +58,7 @@ void user_panic_fn(const char *file, const char *func, int line,
 #else
 # define DEBUG_PRINTF(fmt...) debug_printf(fmt);
 # define DEBUG_ERR(err, msg...) debug_err(__FILE__, __func__, __LINE__, err, msg)
+# define DEBUG_ERR_AND_RETURN(err, msg...) (debug_err(__FILE__, __func__, __LINE__, err, msg), err)
 # include <aos/dispatch.h>
 # define HERE fprintf(stderr, "Disp %.*s.%u: %s, %s, %u\n", \
                         DISP_NAME_LEN, disp_name(), disp_get_core_id(), \
