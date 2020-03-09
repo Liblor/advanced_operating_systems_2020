@@ -132,7 +132,8 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
         last->next = node;
         node->prev = last;
     }
-    DEBUG_PRINTF("adding RAM region (%p/%zu)\n", base, size);
+    DEBUG_PRINTF("adding RAM region (base: %p/ size: %zu MB)\n", base, (size / 1024 / 1024));
+    mm_dump_mmnode(node);
     DEBUG_END;
     return SYS_ERR_OK;
 }
@@ -164,7 +165,7 @@ void enqueue_node_before_other(struct mm *mm, struct mmnode *new_node, struct mm
     if (other->prev != NULL) {
         other->prev->next = new_node;
     }
-    new_node->next = other;
+    new_node->prev = other->prev;
     other->prev = new_node;
 
     assert(other->prev == new_node);
@@ -194,10 +195,12 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     DEBUG_BEGIN;
     errval_t err;
     // TODO-BEAN: how to handle alignment?
-
     if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
-    size = alloc_align_size(size);
-
+    {
+        size_t size_old = size;
+        size = alloc_align_size(size);
+        DEBUG_PRINTF("request alloc for %zu KB -> %zu KB memory\n", size_old / 1024, size / 1024);
+    }
     struct mmnode *node = mm->head;
     while (node != NULL && !is_node_suitable_alloc(node, size)) { node = node->next; }
     if (node == NULL) { return MM_ERR_NOT_ENOUGH_RAM; }
@@ -239,6 +242,11 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
             .size = node->capinfo.size
     };
     enqueue_node_before_other(mm, new_node, node);
+
+    DEBUG_PRINTF("updated free node:\n")
+    mm_dump_mmnode(node);
+    DEBUG_PRINTF("new allocated node:\n")
+    mm_dump_mmnode(new_node);
     DEBUG_END;
     return SYS_ERR_OK;
 }
@@ -252,7 +260,7 @@ bool can_merge_node(struct mmnode *node, struct mmnode *other) {
     DEBUG_BEGIN;
     DEBUG_END;
     return other != NULL && other->type == NodeType_Free
-            && node->capinfo.base == other->capinfo.base;
+           && node->capinfo.base == other->capinfo.base;
 }
 
 // TODO-BEAN: partial free? base addr is not base addr from capability?, fragmentaion?
@@ -263,7 +271,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 
     struct mmnode *current = mm->head;
     while (current != NULL) { // TODO: make this nicer
-        if (current->base == base && current->size == size) { break;}
+        if (current->base == base && current->size == size) { break; }
         current = current->next;
     }
     if (current == NULL) { return MM_ERR_MM_FREE_NOT_FOUND; }
@@ -287,8 +295,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
             current->prev->next = origin;
         }
         slab_free(&mm->slabs, current);
-    }
-    else if (current != mm->head && can_merge_node(current, current->prev)) {
+    } else if (current != mm->head && can_merge_node(current, current->prev)) {
         // |-----|-|    |-------| A is free
         // |  A  |B| -> |   A   |
         // |-----|-|    |-------|
@@ -302,12 +309,39 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
             current->next->prev = origin;
         }
         slab_free(&mm->slabs, current);
-    }
-    else {
+    } else {
         // current node is in between two NodeType_Alloacted nodes
         // or they dont share the same origin
         current->type = NodeType_Free;
     }
     DEBUG_END;
     return SYS_ERR_OK;
+}
+
+static inline
+void dump_capinfo(struct capinfo *capinfo) {
+    DEBUG_PRINTF(">> capinfo: %p \n", capinfo);
+    if (capinfo == NULL) { return; }
+
+    DEBUG_PRINTF("\tbase: %p\n", &capinfo->base);
+    DEBUG_PRINTF("\tsize: %zu (%zu KB, %zu MB)\n", capinfo->size, capinfo->size / 1024, capinfo->size / 1024 / 1024);
+    DEBUG_PRINTF("\torigin: %p \n", capinfo->origin);
+    DEBUG_PRINTF("\tcap: %p \n", &capinfo->cap);
+    DEBUG_PRINTF("\tcap/slot: %zu \n", &capinfo->cap.slot);
+    DEBUG_PRINTF("\tcap/cnode: %p \n", &capinfo->cap.cnode);
+}
+
+void mm_dump_mmnode(struct mmnode *mmnode) {
+    DEBUG_PRINTF("-- mmnode: %p \n", mmnode);
+    if (mmnode == NULL) { return; }
+
+    DEBUG_PRINTF("\ttype: %d (0 is free)\n", mmnode->type);
+    DEBUG_PRINTF("\tbase: %p\n", mmnode->base);
+    DEBUG_PRINTF("\tsize: %zu (%zu KB , %zu MB)\n", mmnode->size, mmnode->size / 1024, mmnode->size / 1024 / 1024);
+    DEBUG_PRINTF("\tprev: %p\n", &mmnode->prev);
+    DEBUG_PRINTF("\tnext: %p\n", &mmnode->next);
+    dump_capinfo(&mmnode->capinfo);
+}
+
+void mm_dump_mmnodes(struct mm *mm) {
 }

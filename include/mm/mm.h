@@ -87,6 +87,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment,
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap);
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size);
 void mm_dump_mmnodes(struct mm *mm);
+void mm_dump_mmnode(struct mmnode* mmnode);
 void mm_destroy(struct mm *mm);
 
 __END_DECLS

@@ -46,6 +46,9 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
+    struct capref retcap;
+    mm_alloc(&aos_mm, 1 << 10, &retcap);
+
     // TODO: initialize mem allocator, vspace management here
     
     // Grading 
