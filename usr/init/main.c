@@ -47,20 +47,33 @@ bsp_main(int argc, char *argv[]) {
     }
 
     struct capref retcap1;
-//    struct capref retcap2;
-    err = mm_alloc(&aos_mm, 1 << 10, &retcap1);
+    struct capref retcap2;
+    err = mm_alloc(&aos_mm, 1 << 20, &retcap1);
 
     assert(err_is_ok(err));
-//    err = mm_alloc(&aos_mm, 1 << 10, &retcap2);
-//    assert(err_is_ok(err));
 
-    struct capability tmp_cap;
-    cap_direct_identify(retcap1, &tmp_cap);
-    genpaddr_t base = get_address(&tmp_cap);
-    gensize_t size = get_size(&tmp_cap);
-    err = mm_free(&aos_mm, retcap1, base, size);
+    {
+        struct capability tmp_cap;
+        cap_direct_identify(retcap1, &tmp_cap);
+        genpaddr_t base = get_address(&tmp_cap);
+        gensize_t size = get_size(&tmp_cap);
+        err = mm_free(&aos_mm, retcap1, base, size);
+        assert(err_is_ok(err));
+
+    }
+
+    err = mm_alloc(&aos_mm, 1 << 10, &retcap2);
     assert(err_is_ok(err));
-
+    err = mm_alloc(&aos_mm, 1 << 20, &retcap1);
+    assert(err_is_ok(err));
+    {
+        struct capability tmp_cap;
+        cap_direct_identify(retcap2, &tmp_cap);
+        genpaddr_t base = get_address(&tmp_cap);
+        gensize_t size = get_size(&tmp_cap);
+        err = mm_free(&aos_mm, retcap2, base, size);
+        assert(err_is_ok(err));
+    }
 
 
     // TODO: initialize mem allocator, vspace management here

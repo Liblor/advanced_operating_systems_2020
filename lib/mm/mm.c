@@ -419,7 +419,6 @@ void mm_dump_mmnode(struct mmnode *mmnode, const char *msg) {
 void mm_dump_mmnodes(struct mm *mm) {
 }
 
-
 void dump_capref(struct capref *capref, const char *msg) {
     if (msg != NULL) {
         DEBUG_PRINTF("%s \n", msg);

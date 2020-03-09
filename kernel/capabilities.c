@@ -1922,7 +1922,7 @@ errval_t is_retypeable(struct cte *src_cte, enum objtype src_type,
     if (!is_well_founded(src_type, dest_type)) {
         return SYS_ERR_INVALID_RETYPE;
     } else if (!is_revoked_first(src_cte, src_type)){
-        printf("err_revoke_first: (%p, %d, %d)\n", src_cte, src_type, dest_type);
+//        printf("err_revoke_first: (%p, %d, %d)\n", src_cte, src_type, dest_type);
         return SYS_ERR_REVOKE_FIRST;
     } else if (dest_type == ObjType_EndPointLMP && src_cte->mdbnode.owner == my_core_id) {
         // XXX: because of the current "multi-retype" hack for endpoints, a
