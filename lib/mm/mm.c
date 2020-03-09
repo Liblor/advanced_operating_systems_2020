@@ -91,6 +91,11 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     mm->slot_refill = slot_refill_func;
     mm->slot_alloc_inst = slot_alloc_inst;
     mm->objtype = objtype;
+    mm->head = NULL;
+    mm->tail = NULL;
+
+    struct slot_prealloc *spre = (struct slot_prealloc*) slot_alloc_inst;
+    spre->mm = mm;
 
     slab_init(&(mm->slabs), sizeof(struct mmnode), slab_refill_func);
 
@@ -126,6 +131,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     node->type = NodeType_Free;
     node->cap = (struct capinfo) {.cap = cap, .base = base, .size = size};
     node->cap.parent = &node->cap.cap;
+    debug_printf("[mm_add] cap.parent 0x%lx\n", node->cap.parent);
     node->base = base;
     node->size = size;
 
@@ -173,6 +179,12 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     curr->base += size;
     curr->size -= size;
 
+    gensize_t offset = new_node->base - new_node->cap.base;
+    debug_printf("offset %u\n", offset);
+    debug_printf("size %u\n", size);
+    debug_printf("newnode base %u\n", new_node->base);
+    debug_printf("newnode cap.base %u\n", new_node->cap.base);
+
     // new slot
     // TODO: only refill when needed
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, &new_node->cap.cap);
@@ -184,9 +196,11 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     //       and then a page size 2page aligned space is allocated
     //       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
     //         A   ?   A   A  <- make node from ?
-    err = cap_retype(new_node->cap.cap, *curr->cap.parent, new_node->base,
+    debug_printf("[alloc] curr cap.parent 0x%lx\n", curr->cap.parent);
+    err = cap_retype(new_node->cap.cap, *(curr->cap.parent), offset,
                      mm->objtype, size, 1);
-    if (err_is_fail(err)) { return err_push(err, AOS_ERR_SLOT_REFILL_FAIL); }
+    if (err_is_fail(err)) { return err_push(err, SYS_ERR_RETYPE_CREATE); }
+    *retcap = new_node->cap.cap;
 
     insert_before(mm, new_node, curr);
 

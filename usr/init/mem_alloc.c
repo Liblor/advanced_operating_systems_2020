@@ -95,6 +95,12 @@ errval_t initialize_ram_alloc(void)
         return err_push(err, LIB_ERR_RAM_ALLOC_SET);
     }
 
+    struct capref cap;
+    errval_t e = mm_alloc(&aos_mm, 10, &cap);
+    if (err_is_fail(e)) {
+        err_print_calltrace(e);
+    }
+
     return SYS_ERR_OK;
 }
 
