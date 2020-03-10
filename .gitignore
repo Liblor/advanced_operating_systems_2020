@@ -53,3 +53,4 @@ compile_commands.json
 /cmake-build-debug/
 /build.log
 /usr/minunit/
+/usr/minunit/CMakeLists.txt
