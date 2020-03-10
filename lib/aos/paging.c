@@ -123,6 +123,14 @@ errval_t paging_init(void)
     // TIP: it might be a good idea to call paging_init_state() from here to
     // avoid code duplication.
     set_current_paging_state(&current);
+
+    // M1
+    current.l1_created = false;
+    for (size_t i = 0; i < ARMV8_PAGE_DIRECTORY_SIZE; i++) {
+        current.l2_table[i].created = false;
+    }
+    // M1 end
+
     return SYS_ERR_OK;
 }
 
@@ -291,6 +299,94 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
      * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
      * TODO(M2): General case
      */
+    // ASSUMPTION: L0 and L1 page table are fixed, no overlapping requests
+
+    // L0 Page Table
+    struct capref l0_pt = {
+            .cnode = cnode_page,
+            .slot = 0,
+    };
+
+    errval_t err;
+
+    // L1 Page Table
+    if (st->l1_created) {
+        err = pt_alloc_l1(st, &st->l1_pt);
+        if (err_is_fail(err)) { return err; }
+        st->l1_created = true;
+
+        capaddr_t l0_index = FIELD(ARMV8_PAGE_L0_INDEX_OFFSET, ARMV8_PAGE_ADDRESS_BITS, vaddr);
+        struct capref l0_l1_mapping;
+        err = st->slot_alloc->alloc(st->slot_alloc, &l0_l1_mapping);
+        if (err_is_fail(err)) {
+            cap_destroy(st->l1_pt);
+            return err;
+        }
+        err = vnode_map(l0_pt, st->l1_pt, l0_index, VREGION_FLAGS_READ_WRITE, 0, 1, l0_l1_mapping);
+        if (err_is_fail(err)) {
+            cap_destroy(l0_l1_mapping);
+            cap_destroy(st->l1_pt);
+            return err;
+        }
+    }
+
+    // L2 Page Table
+    //struct capref l2_pt;
+    if (st->l2_created) {
+        err = pt_alloc_l2(st, &st->l2_pt);
+        if (err_is_fail(err)) { return err; }
+        st->l2_created = true;
+
+        capaddr_t l1_index = FIELD(ARMV8_PAGE_L1_INDEX_OFFSET, ARMV8_PAGE_ADDRESS_BITS, vaddr);
+        struct capref l1_l2_mapping;
+        err = st->slot_alloc->alloc(st->slot_alloc, &l1_l2_mapping);
+        if (err_is_fail(err)) {
+            cap_destroy(st->l2_pt);
+            return err;
+        }
+        err = vnode_map(st->l1_pt, st->l2_pt, l1_index, VREGION_FLAGS_READ_WRITE, 0, 1, l1_l2_mapping);
+        if (err_is_fail(err)) {
+            cap_destroy(l1_l2_mapping);
+            cap_destroy(st->l2_pt);
+            return err;
+        }
+    }
+
+    // L3 Page Table
+    struct capref l3_pt;
+    capaddr_t l2_index = FIELD(ARMV8_PAGE_L2_INDEX_OFFSET, ARMV8_PAGE_ADDRESS_BITS, vaddr);
+    if (st->l2_table[l2_index].created) {
+        l3_pt = st->l2_table[l2_index].cap;
+    } else {
+        err = pt_alloc_l3(st, &l3_pt);
+        if (err_is_fail(err)) { return err; }
+
+        struct capref l2_l3_mapping;
+        err = st->slot_alloc->alloc(st->slot_alloc, &l2_l3_mapping);
+        if (err_is_fail(err)) {
+            cap_destroy(l3_pt);
+            return err;
+        }
+        err = vnode_map(st->l2_pt, l3_pt, l2_index, VREGION_FLAGS_READ_WRITE, 0, 1, l2_l3_mapping);
+        if (err_is_fail(err)) {
+            cap_destroy(l2_l3_mapping);
+            cap_destroy(l3_pt);
+            return err;
+        }
+        st->l2_table[l2_index].created = true;
+        st->l2_table[l2_index].cap = l3_pt;
+    }
+
+    struct capref l3_frame_mapping;
+    err = st->slot_alloc->alloc(st->slot_alloc, &l3_frame_mapping);
+    if (err_is_fail(err)) { return err; }
+    err = vnode_map(l3_pt, frame, l2_index, VREGION_FLAGS_READ_WRITE, 0, 1, l3_frame_mapping);
+    if (err_is_fail(err)) {
+        cap_destroy(l3_frame_mapping);
+        return err;
+    }
+
+
     return SYS_ERR_OK;
 }
 

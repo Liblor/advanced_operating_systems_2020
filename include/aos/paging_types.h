@@ -48,6 +48,13 @@
 #define VREGION_FLAGS_READ_WRITE_MPB \
     (VREGION_FLAGS_READ | VREGION_FLAGS_WRITE | VREGION_FLAGS_MPB)
 
+#define ARMV8_PAGE_ADDRESS_BITS 9
+#define ARMV8_PAGE_DIRECTORY_SIZE (1 << ARMV8_PAGE_ADDRESS_BITS)
+#define ARMV8_PAGE_L0_INDEX_OFFSET 39
+#define ARMV8_PAGE_L1_INDEX_OFFSET 30
+#define ARMV8_PAGE_L2_INDEX_OFFSET 21
+#define ARMV8_PAGE_L3_INDEX_OFFSET 12
+
 typedef int paging_flags_t;
 
 
@@ -60,9 +67,19 @@ struct paging_region {
 };
 
 
+struct page_state {
+    struct capref cap;
+    bool created;
+};
+
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
+    struct capref l1_pt;
+    struct capref l2_pt;
+    bool l1_created;
+    bool l2_created;
+    struct page_state l2_table[ARMV8_PAGE_DIRECTORY_SIZE];
 };
 
 
