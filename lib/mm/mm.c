@@ -171,10 +171,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
     if ((alignment % BASE_PAGE_SIZE) || alignment == 0) { return AOS_ERR_MM_MISALIGN; }
-    if (size % BASE_PAGE_SIZE) {
-        debug_printf("[mm_alloc_aligned] adjust size\n");
-        size += (BASE_PAGE_SIZE - size % BASE_PAGE_SIZE);
-    }
+    size = ROUND_UP(size, BASE_PAGE_SIZE);
 
     // find node with enough memory
     struct mmnode *curr = mm->head;
