@@ -74,7 +74,6 @@ void mm_destroy(struct mm *mm) {
     DEBUG_END;
 }
 
-
 static inline
 errval_t create_node_without_capinfo(struct mm *mm,
                                      enum nodetype type, genpaddr_t base, size_t size,
@@ -155,8 +154,6 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 /** does current node fulfill requirement to be picked as suitable free node */
 static inline
 bool is_node_suitable_alloc(struct mmnode *node, size_t size) {
-//    DEBUG_BEGIN;
-//    DEBUG_END;
     return node->size >= size && node->type == NodeType_Free;
 }
 
@@ -191,7 +188,23 @@ void enqueue_node_before_other(struct mm *mm, struct mmnode *new_node, struct mm
 static inline
 size_t alloc_align_size(size_t size) {
 //    return size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE); // align size to page size
-    return ROUND_UP(size, BASE_PAGE_SIZE);
+    size_t new_size = ROUND_UP(size, BASE_PAGE_SIZE);
+    DEBUG_PRINTF("aligning size %zu KB -> %zu KB\n", size / 1024, new_size / 1024);
+    return new_size;
+}
+
+static inline
+errval_t get_slot_for_cap(struct mm *mm, struct capref *retcap) {
+    errval_t err;
+    err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
+    if (mm_err_is_fail(err)) {
+        return err_push(err, MM_ERR_SLOT_MM_ALLOC);
+    }
+    mm->slot_refill(mm->slot_alloc_inst);
+    if (mm_err_is_fail(err)) {
+        return err_push(err, MM_ERR_SLOT_NOSLOTS);
+    }
+    return SYS_ERR_OK;
 }
 
 /**
@@ -203,48 +216,50 @@ size_t alloc_align_size(size_t size) {
  * @param retcap cap to return
  * @return
  */
+// TODO-BEAN: how to handle alignment?
+// TODO: what if nothing else remaining
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
     DEBUG_BEGIN;
     errval_t err;
-    // TODO-BEAN: how to handle alignment?
     if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
-    {
-        size_t size_old = size;
-        size = alloc_align_size(size);
-        DEBUG_PRINTF("request alloc for %zu KB -> %zu KB memory\n", size_old / 1024, size / 1024);
-    }
+    size = alloc_align_size(size);
+
+    // find node in pool of free nodes
     struct mmnode *node = mm->head;
     while (node != NULL && !is_node_suitable_alloc(node, size)) { node = node->next; }
     if (node == NULL) { return MM_ERR_NOT_ENOUGH_RAM; }
 
-    // TODO: what if nothing else remaining
-    // |-------|    |-|-----|
-    // |  A    | -> |B|  A  |
-    // |-------|    |-|-----|
-    //
-    // A: original node (node)
-    // B: new node with requested size (return) (new_node)
-    // B is enqueued before A and A is updated
-
     // create a slot for returning cap
-    err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_MM_ALLOC); }
-    mm->slot_refill(mm->slot_alloc_inst);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_SLOT_NOSLOTS); }
+    err = get_slot_for_cap(mm, retcap);
+    if (mm_err_is_fail(err)) { goto free_slot_and_return_err; }
 
-    const gensize_t offset = node->base - node->capinfo.base; // base of origin
+    /*
+     * How to split memory from existing (free) node
+     * |-------|    |-|-----|
+     * |  A    | -> |B|  A  |
+     * |-------|    |-|-----|
+     *
+     * A: original node (node)
+     * B: new node with requested size (return) (new_node)
+     * B is enqueued before A and A is updated
+     */
+    const gensize_t offset_into_origin = node->base - node->capinfo.base;
     DEBUG_PRINTF("retyping cap (%p) from source cap (%p) with offset %zu and size %zu\n",
-                 retcap,
-                 &node->capinfo.cap_origin_unmapped->cap,
-                 offset,
-                 size);
-    err = cap_retype(*retcap, node->capinfo.cap_origin_unmapped->cap, offset, mm->objtype, size, 1);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC_RETYPE); }
+                 retcap, &node->capinfo.cap_origin_unmapped->cap, offset_into_origin, size);
+
+    err = cap_retype(*retcap, node->capinfo.cap_origin_unmapped->cap, offset_into_origin, mm->objtype, size, 1);
+    if (mm_err_is_fail(err)) {
+        err = err_push(err, MM_ERR_MM_ALLOC_RETYPE);
+        goto free_slot_and_return_err;
+    }
 
     // create new node (becomes NodeType_Allocated)
     struct mmnode *new_node = NULL;
     err = create_node_without_capinfo(mm, NodeType_Allocated, node->base, size, &new_node);
-    if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ALLOC); }
+    if (mm_err_is_fail(err)) {
+        err = err_push(err, MM_ERR_MM_ALLOC);
+        goto free_slot_and_return_err;
+    }
     new_node->capinfo = (struct capinfo) {
             .cap_origin_unmapped = &node->capinfo,
             .cap = *retcap,
@@ -261,39 +276,113 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     mm_dump_mmnode(node, "updated free node");
     mm_dump_mmnode(new_node, "new allocated node");
+
     DEBUG_END;
     return SYS_ERR_OK;
+
+    /*
+     * clean up on error
+     */
+    free_slot_and_return_err:
+    slot_free(*retcap); // dont capture error of free
+    return err;
+
 }
 
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
     return mm_alloc_aligned(mm, size, BASE_PAGE_SIZE, retcap);
 }
 
+/**
+ * can merge `node` with free `other` for delete of `node`
+ */
 static inline
 bool can_merge_node(struct mmnode *node, struct mmnode *other) {
-    DEBUG_BEGIN;
-    DEBUG_END;
+//    DEBUG_BEGIN;
+//    DEBUG_END;
     return other != NULL && other->type == NodeType_Free
            && node->capinfo.base == other->capinfo.base;
 }
 
-// TODO-BEAN: partial free? base addr is not base addr from capability?, fragmentaion?
+static inline
+void free_and_merge_node_with_next(struct mm *mm, struct mmnode *current) {
+    DEBUG_PRINTF("node has origin to the right/ next which is NodeType_Free\n");
+    mm_dump_mmnode(current, "node to free");
+    mm_dump_mmnode(current->next, "origin");
+    /*
+     * |-|-----|    |-------| A is free
+     * |B|  A  | -> |   A   |
+     * |-|-----|    |-------|
+     * where B is current, A is current->next, and A is origin of B
+     */
+    struct mmnode *origin = current->next;
+    const gensize_t _old_size = origin->size;
+
+    origin->size += current->size;
+    origin->base = current->base;
+    origin->prev = current->prev;
+    if (current->prev != NULL) { current->prev->next = origin; }
+    if (current == mm->head) { mm->head = origin; }
+    {
+        assert(origin->type == NodeType_Free);
+        assert(origin->size == _old_size + current->size);
+        assert(origin->base == current->base);
+        assert(origin->prev != current);
+        if (origin->prev != NULL) {
+            assert (origin->prev->next != current);
+        }
+    }
+    slab_free(&mm->slabs, current);
+    mm_dump_mmnode(origin, "origin after free");
+}
+
+static inline
+void free_and_merge_node_with_prev(struct mm *mm, struct mmnode *current) {
+    DEBUG_PRINTF("node has origin to the left which is free\n");
+    mm_dump_mmnode(current, "node to free");
+    mm_dump_mmnode(current->next, "origin");
+    /*
+     * |-----|-|    |-------| A is free
+     * |  A  |B| -> |   A   |
+     * |-----|-|    |-------|
+     * where B is current, A is current->prev, and A is origin of B
+     */
+    struct mmnode *origin = current->prev;
+    const genpaddr_t _old_base = origin->base;
+    const gensize_t _old_size = origin->size;
+
+    origin->size += current->size;
+    // origin->base stays the same
+    origin->next = current->next;
+    if (current->next != NULL) { current->next->prev = origin; }
+    if (current == mm->tail) { mm->tail = origin; }
+    {
+        assert(origin->type == NodeType_Free);
+        assert(origin->size == _old_size + current->size);
+        assert(origin->base == _old_base);
+        assert(origin->next != current);
+        if (origin->next != NULL) {
+            assert (origin->next->prev != current);
+        }
+    }
+    slab_free(&mm->slabs, current);
+    mm_dump_mmnode(origin, "origin after free");
+}
+
+// TODO-BEAN: implement partial free? base addr may not be  base addr from capability
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     DEBUG_BEGIN;
+    DEBUG_PRINTF("free of base %p and size %zu\n", base, size);
     errval_t err;
-    {
-        size_t size_old = size;
-        size = alloc_align_size(size);
-        DEBUG_PRINTF("request free at base %p for %zu KB -> %zu KB memory\n",
-                     base, size_old / 1024, size / 1024);
-    }
+
+    size = alloc_align_size(size);
     struct mmnode *current = mm->head;
     while (current != NULL) { // TODO: make this nicer
         if (current->base == base && current->size == size) { break; }
         current = current->next;
     }
     if (current == NULL) {
-        DEBUG_PRINTF("node not found\n");
+        DEBUG_ERR(MM_ERR_MM_FREE_NOT_FOUND, "node not found");
         return MM_ERR_MM_FREE_NOT_FOUND;
     }
     assert(current->type == NodeType_Allocated);
@@ -302,76 +391,18 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 
     err = cap_delete(cap);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE_CAP_DEL); }
-
     err = slot_free(cap);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
 
     if (current != mm->tail && can_merge_node(current, current->next)) {
-        {
-            DEBUG_PRINTF("node has origin to the right which is free\n");
-            mm_dump_mmnode(current, "node to free");
-            mm_dump_mmnode(current->next, "origin");
-        }
-
-        // |-|-----|    |-------| A is free
-        // |B|  A  | -> |   A   |
-        // |-|-----|    |-------|
-        // where B is current, A is current->next, and A is origin of B
-        struct mmnode *origin = current->next;
-        const gensize_t _old_size = origin->size;
-
-        origin->size += current->size;
-        origin->base = current->base;
-        origin->prev = current->prev;
-        if (current->prev != NULL) { current->prev->next = origin; }
-        if (current == mm->head) { mm->head = origin; }
-        {
-            assert(origin->type == NodeType_Free);
-            assert(origin->size == _old_size + current->size);
-            assert(origin->base == current->base);
-            assert(origin->prev != current);
-            if (origin->prev != NULL) {
-                assert (origin->prev->next != current);
-            }
-        }
-        slab_free(&mm->slabs, current);
-        current = NULL;
-        mm_dump_mmnode(origin, "origin after free");
-
+        free_and_merge_node_with_next(mm, current);
     } else if (current != mm->head && can_merge_node(current, current->prev)) {
-        {
-            DEBUG_PRINTF("node has origin to the left which is free\n");
-            mm_dump_mmnode(current, "node to free");
-            mm_dump_mmnode(current->next, "origin");
-        }
-
-        // |-----|-|    |-------| A is free
-        // |  A  |B| -> |   A   |
-        // |-----|-|    |-------|
-        // where B is current, A is current->prev, and A is origin of B
-        struct mmnode *origin = current->prev;
-        const genpaddr_t _old_base = origin->base;
-        const gensize_t _old_size = origin->size;
-
-        origin->size += current->size;
-        // origin->base stays the same
-        origin->next = current->next;
-        if (current->next != NULL) { current->next->prev = origin; }
-        if (current == mm->tail) { mm->tail = origin; }
-        {
-            assert(origin->type == NodeType_Free);
-            assert(origin->size == _old_size + current->size);
-            assert(origin->base == _old_base);
-            assert(origin->next != current);
-            if (origin->next != NULL) {
-                assert (origin->next->prev != current);
-            }
-        }
-        slab_free(&mm->slabs, current);
-        mm_dump_mmnode(origin, "origin after free");
+        free_and_merge_node_with_prev(mm, current);
     } else {
-        // current node is in between two NodeType_Alloacted nodes
-        // or they dont share the same origin
+        /*
+         * current node is in between two NodeType_Alloacted nodes
+         * or they dont share the same origin
+         */
         current->type = NodeType_Free;
         {
             DEBUG_PRINTF("node has no free origin to left or right\n");
@@ -384,6 +415,9 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     return SYS_ERR_OK;
 }
 
+// ---------------------------------------
+// methods to dump/ trace objects
+// ---------------------------------------
 static inline
 void dump_capinfo(struct capinfo *capinfo, const char *msg) {
     if (msg != NULL) {
@@ -391,9 +425,9 @@ void dump_capinfo(struct capinfo *capinfo, const char *msg) {
     }
     DEBUG_PRINTF(">> capinfo: %p \n", capinfo);
     if (capinfo == NULL) { return; }
-
     DEBUG_PRINTF("\t\tbase: %p\n", capinfo->base);
-    DEBUG_PRINTF("\t\tsize: %zu (%zu KB, %zu MB)\n", capinfo->size, capinfo->size / 1024, capinfo->size / 1024 / 1024);
+    DEBUG_PRINTF("\t\tsize: %zu (%zu KB, %zu MB)\n",
+                 capinfo->size, capinfo->size / 1024, capinfo->size / 1024 / 1024);
     DEBUG_PRINTF("\t\torigin: %p \n", capinfo->cap_origin_unmapped);
     DEBUG_PRINTF("\t\tcap: %p \n", &capinfo->cap);
     DEBUG_PRINTF("\t\tcap/slot: %zu \n", capinfo->cap.slot);
@@ -404,19 +438,15 @@ void mm_dump_mmnode(struct mmnode *mmnode, const char *msg) {
     if (msg != NULL) {
         DEBUG_PRINTF("%s \n", msg);
     }
-
     DEBUG_PRINTF("-- mmnode: %p \n", mmnode);
     if (mmnode == NULL) { return; }
-
     DEBUG_PRINTF("\ttype: %d (0 is free)\n", mmnode->type);
     DEBUG_PRINTF("\tbase: %p\n", mmnode->base);
-    DEBUG_PRINTF("\tsize: %zu (%zu KB , %zu MB)\n", mmnode->size, mmnode->size / 1024, mmnode->size / 1024 / 1024);
+    DEBUG_PRINTF("\tsize: %zu (%zu KB , %zu MB)\n",
+                 mmnode->size, mmnode->size / 1024, mmnode->size / 1024 / 1024);
     DEBUG_PRINTF("\tprev: %p\n", mmnode->prev);
     DEBUG_PRINTF("\tnext: %p\n", mmnode->next);
     dump_capinfo(&mmnode->capinfo, NULL);
-}
-
-void mm_dump_mmnodes(struct mm *mm) {
 }
 
 void dump_capref(struct capref *capref, const char *msg) {
@@ -431,3 +461,7 @@ void dump_capref(struct capref *capref, const char *msg) {
     DEBUG_PRINTF("\tcnode/cnode: %p \n", capref->cnode.cnode);
     DEBUG_PRINTF("\tcnode/level: %d \n", capref->cnode.level);
 }
+
+void mm_dump_mmnodes(struct mm *mm) {
+}
+
