@@ -95,11 +95,64 @@ errval_t initialize_ram_alloc(void)
         return err_push(err, LIB_ERR_RAM_ALLOC_SET);
     }
 
+    ////// TEST
     struct capref cap;
     errval_t e = mm_alloc(&aos_mm, 10, &cap);
     if (err_is_fail(e)) {
         err_print_calltrace(e);
     }
+    debug_printf("newww\n");
+    struct capref cap2;
+    e = mm_alloc(&aos_mm, 10, &cap2);
+    if (err_is_fail(e)) {
+        err_print_calltrace(e);
+    }
+
+    struct mmnode *curr = aos_mm.head;
+    while (curr != NULL) {
+        debug_printf("before base: %lu, size: %lu, type %u\n", curr->base, curr->size, curr->type);
+        curr = curr->next;
+    }
+
+    e = mm_free(&aos_mm, cap2, 2171211776, 10);
+    if (err_is_fail(e)) {
+        err_print_calltrace(e);
+    }
+    debug_printf("deleted\n");
+
+    curr = aos_mm.head;
+    while (curr != NULL) {
+        debug_printf("base: %lu, size: %lu, type, %u \n", curr->base, curr->size, curr->type);
+        curr = curr->next;
+    }
+
+    e = mm_free(&aos_mm, cap, 2171215872, 10);
+    if (err_is_fail(e)) {
+        err_print_calltrace(e);
+    }
+    debug_printf("deleted\n");
+
+    curr = aos_mm.head;
+    while (curr != NULL) {
+        debug_printf("base: %lu, size: %lu, type, %u \n", curr->base, curr->size, curr->type);
+        curr = curr->next;
+    }
+
+    e = mm_alloc(&aos_mm, 10, &cap);
+    if (err_is_fail(e)) {
+        err_print_calltrace(e);
+    }
+    debug_printf("newww\n");
+    e = mm_alloc(&aos_mm, 10, &cap2);
+    if (err_is_fail(e)) {
+        err_print_calltrace(e);
+    }
+    curr = aos_mm.head;
+    while (curr != NULL) {
+        debug_printf("base: %lu, size: %lu, type, %u \n", curr->base, curr->size, curr->type);
+        curr = curr->next;
+    }
+    ////// TEST END
 
     return SYS_ERR_OK;
 }
