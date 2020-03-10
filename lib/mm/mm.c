@@ -22,12 +22,21 @@ static inline errval_t create_new_node(struct mm *mm,
                                        struct mmnode **new_node,
                                        genpaddr_t base,
                                        gensize_t size,
-                                       enum nodetype type) {
+                                       enum nodetype type,
+                                       struct capref *parent,
+                                       genpaddr_t cap_base,
+                                       gensize_t cap_size,
+                                       struct capref *cap) {
     void *block = slab_alloc(&mm->slabs);
     if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
     *new_node = (struct mmnode *)block;
     (*new_node)->type = type;
-    (*new_node)->cap = (struct capinfo) {.base = base, .size = size};
+    (*new_node)->cap = (struct capinfo) {
+        .base = cap_base,
+        .size = cap_size,
+        .parent = parent,
+        .cap = *cap,
+    };
     (*new_node)->base = base;
     (*new_node)->size = size;
     return SYS_ERR_OK;
@@ -45,7 +54,6 @@ static inline void insert_before(struct mm *mm, struct mmnode *new_node, struct 
     before->prev = new_node;
 }
 
-// todo refactor
 static void remove_node(struct mm *mm, struct mmnode *node) {
     if (node->prev != NULL) {
         node->prev->next = node->next;
@@ -62,6 +70,22 @@ static void remove_node(struct mm *mm, struct mmnode *node) {
     node->prev = node->next = NULL;
 }
 
+
+static inline void merge_with_prev_node(struct mm *mm, struct mmnode *node) {
+    assert(node->type == node->prev->type);
+    assert(node->cap.size == node->prev->cap.size);
+    assert(node->prev->base + node->prev->size == node->base);
+    if (mm->head == node->prev) {
+        mm->head = node;
+    }
+    node->base = node->prev->base;
+    node->size += node->prev->size;
+
+    struct mmnode *to_delete = node->prev;
+    remove_node(mm, to_delete);
+    slab_free(&mm->slabs, to_delete);
+}
+
 /**
  * @param node The queried  node
  * @param size How much space one wants to allocate
@@ -73,6 +97,10 @@ static inline bool is_allocatable(struct mmnode *node, gensize_t size) {
 
 static inline bool is_allocated_node(struct mmnode *node, genpaddr_t base, gensize_t size) {
     return node->base == base && node->size == size && node->type == NodeType_Allocated;
+}
+
+static inline bool is_mergeable(struct mmnode *prev, struct mmnode *next) {
+    return prev != NULL && prev->next == next && prev->type == next->type && prev->cap.base == next->cap.base;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -119,23 +147,15 @@ void mm_destroy(struct mm *mm) {
  * @return Error
  */
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) {
-    debug_printf("[mm_add] base: %lu, size %lu\n", base, size);
     assert(mm->slabs.blocksize >= sizeof(struct mmnode));
-    void *block = slab_alloc(&mm->slabs);
-    if (block == NULL) {
-        debug_printf("[mm_add] slab_alloc returned NULL\n");
-        return LIB_ERR_SLAB_ALLOC_FAIL;
-    }
+    debug_printf("[mm_add] base: %lu, size %lu\n", base, size);
 
-    struct mmnode *node = (struct mmnode *)block;
-    node->type = NodeType_Free;
-    node->cap = (struct capinfo) {.cap = cap, .base = base, .size = size};
+    struct mmnode *node;
+    errval_t err = create_new_node(mm, &node, base, size, NodeType_Free, NULL, base, size, &cap);
+    if (err_is_fail(err)) { return err; }
     node->cap.parent = &node->cap.cap;
-    debug_printf("[mm_add] cap.parent 0x%lx\n", node->cap.parent);
-    node->base = base;
-    node->size = size;
 
-    // add_node
+    // append node
     if (mm->head == NULL) {
         assert(mm->tail == NULL);
         mm->head = mm->tail = node;
@@ -150,11 +170,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 }
 
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
-    if ((alignment % BASE_PAGE_SIZE) || alignment == 0) {
-        debug_printf("[mm_alloc_aligned] Misaligned memory\n");
-        return AOS_ERR_MM_MISALIGN;
-    }
-
+    if ((alignment % BASE_PAGE_SIZE) || alignment == 0) { return AOS_ERR_MM_MISALIGN; }
     if (size % BASE_PAGE_SIZE) {
         debug_printf("[mm_alloc_aligned] adjust size\n");
         size += (BASE_PAGE_SIZE - size % BASE_PAGE_SIZE);
@@ -167,43 +183,50 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     while (curr != NULL && !is_allocatable(curr, size)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_RAM_ALLOC_FIXED_EXHAUSTED; }
 
-    // create new node
-    struct mmnode *new_node;
-    errval_t err = create_new_node(mm, &new_node, curr->base, size, NodeType_Allocated);
-    if (err_is_fail(err)) { return err; }
-    new_node->cap.base = curr->cap.base;
-    new_node->cap.size = curr->cap.size;
-    new_node->cap.parent = curr->cap.parent;
-
-    // Update current
-    curr->base += size;
-    curr->size -= size;
-    gensize_t offset = new_node->base - new_node->cap.base;
-    debug_printf("offset %u\n", offset);
-    debug_printf("size %u\n", size);
-    debug_printf("newnode base %u\n", new_node->base);
-    debug_printf("newnode cap.base %u\n", new_node->cap.base);
+    struct capref cap;
 
     // new slot
     // TODO: only refill when needed
-    err = mm->slot_alloc(mm->slot_alloc_inst, 1, &new_node->cap.cap);
+    errval_t err = mm->slot_alloc(mm->slot_alloc_inst, 1, &cap);
     if (err_is_fail(err)) { return err_push(err, LIB_ERR_SLOT_ALLOC); }
     err = mm->slot_refill(mm->slot_alloc_inst);
-    if (err_is_fail(err)) { return err_push(err, AOS_ERR_SLOT_REFILL_FAIL); }
+    if (err_is_fail(err)) {
+        err_push(err, AOS_ERR_SLOT_REFILL_FAIL);
+        goto free_slot;
+    }
 
     // TODO: handle case, where 1 page size is allocated (from left, page aligned)
     //       and then a page size 2page aligned space is allocated
     //       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
     //         A   ?   A   A  <- make node from ?
-    debug_printf("[alloc] curr cap.parent 0x%lx\n", curr->cap.parent);
-    err = cap_retype(new_node->cap.cap, *(curr->cap.parent), offset,
-                     mm->objtype, size, 1);
-    if (err_is_fail(err)) { return err_push(err, SYS_ERR_RETYPE_CREATE); }
-    *retcap = new_node->cap.cap;
+    gensize_t offset = curr->base - curr->cap.base;
+    err = cap_retype(cap, *(curr->cap.parent), offset, mm->objtype, size, 1);
+    if (err_is_fail(err)) {
+        err_push(err, SYS_ERR_RETYPE_CREATE);
+        goto free_slot;
+    }
+    // create new node
+    struct mmnode *new_node;
+    err = create_new_node(mm, &new_node, curr->base, size, NodeType_Allocated,
+                          curr->cap.parent, curr->cap.base, curr->cap.size, &cap);
+    if (err_is_fail(err)) { goto free_slot; }
+
+    // Update current
+    curr->base += size;
+    curr->size -= size;
 
     insert_before(mm, new_node, curr);
+    *retcap = cap;
+
+    debug_printf("offset %u\n", offset);
+    debug_printf("size %u\n", size);
+    debug_printf("newnode base %u\n", new_node->base);
+    debug_printf("newnode cap.base %u\n", new_node->cap.base);
 
     return SYS_ERR_OK;
+free_slot:
+    slot_free(cap);
+    return err;
 }
 
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
@@ -212,11 +235,11 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
-    // XXX: What about partial free?
     if (size % BASE_PAGE_SIZE) {
         size += (BASE_PAGE_SIZE - size % BASE_PAGE_SIZE);
     }
 
+    // find node to free
     struct mmnode *curr = mm->head;
     while (curr != NULL && !is_allocated_node(curr, base, size)) {
         curr = curr->next;
@@ -224,35 +247,17 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     if (curr == NULL) { return MM_ERR_NOT_FOUND; }
 
     // XXX: cap_revoke not fully implemented
-    //errval_t err = cap_revoke(cap);
-    //if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
+    // errval_t err = cap_revoke(cap);
+    // if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
     errval_t err = cap_destroy(cap);
     if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
     curr->type = NodeType_Free;
 
-    // TODO refactor
-    struct mmnode *to_delete;
-    if (curr->prev != NULL && curr->prev->type == NodeType_Free && curr->cap.base == curr->prev->cap.base) {
-        assert(curr->cap.size == curr->prev->cap.size);
-        assert(curr->prev->base + curr->prev->size == curr->base);
-        curr->base = curr->prev->base;
-        curr->size += curr->prev->size;
-
-        to_delete = curr->prev;
-        remove_node(mm, to_delete);
-        slab_free(&mm->slabs, to_delete);
+    if (is_mergeable(curr->prev, curr)) {
+        merge_with_prev_node(mm, curr);
     }
-
-    if (curr->next != NULL && curr->next->type == NodeType_Free && curr->cap.base == curr->next->cap.base) {
-        assert(curr->cap.size == curr->next->cap.size);
-        assert(curr->base + curr->size == curr->next->base);
-        curr = curr->next;
-        curr->base = curr->prev->base;
-        curr->size += curr->prev->size;
-
-        to_delete = curr->prev;
-        remove_node(mm, to_delete);
-        slab_free(&mm->slabs, to_delete);
+    if (is_mergeable(curr, curr->next)) {
+        merge_with_prev_node(mm, curr->next);
     }
 
     return SYS_ERR_OK;
