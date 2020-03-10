@@ -178,7 +178,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     // Update current
     curr->base += size;
     curr->size -= size;
-
     gensize_t offset = new_node->base - new_node->cap.base;
     debug_printf("offset %u\n", offset);
     debug_printf("size %u\n", size);
@@ -224,9 +223,10 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     }
     if (curr == NULL) { return MM_ERR_NOT_FOUND; }
 
-    errval_t err = cap_revoke(cap);
-    if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
-    err = cap_destroy(cap);
+    // XXX: cap_revoke not fully implemented
+    //errval_t err = cap_revoke(cap);
+    //if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
+    errval_t err = cap_destroy(cap);
     if (err_is_fail(err)) { return err_push(err, MM_ERR_MM_FREE); }
     curr->type = NodeType_Free;
 
