@@ -77,12 +77,26 @@ void mm_destroy(struct mm *mm) {
 }
 
 static inline
+errval_t ensure_slabs_refilled(struct mm *mm) {
+    errval_t err;
+    if (mm->slabs.slabs->free < SLAB_REFILL_THRESHOLD
+        && !mm->slab_is_refilling) {
+        mm->slab_is_refilling = true;
+        err = mm->slabs.refill_func(&mm->slabs);
+        if (mm_err_is_fail(err)) {
+            DEBUG_ERR(err, "cannot create more slab in mm_alloc. slab refilling state = 1");
+            return err_push(err, MM_ERR_MM_SLAB_REFILL);
+        }
+        mm->slab_is_refilling = false;
+    }
+    return SYS_ERR_OK;
+}
+
+static inline
 errval_t create_node_without_capinfo(struct mm *mm,
                                      enum nodetype type, genpaddr_t base, size_t size,
                                      struct mmnode **res) {
     assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
-
-    // TODO-BEAN: implement slab_refill function
     *res = (struct mmnode *) slab_alloc(&mm->slabs);
     struct mmnode *node = *res;
     if (node == NULL) {
@@ -100,8 +114,6 @@ errval_t create_node_without_capinfo(struct mm *mm,
             .size = 0,
             .cap = {},
     };
-
-//    DEBUG_END;
     return SYS_ERR_OK;
 }
 
@@ -119,7 +131,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     DEBUG_BEGIN;
     // TODO-BEAN: handle failure ALREADY_PRESENT
     // is base always aligned to PAGE_SIZE?
-
+    ensure_slabs_refilled(mm);
     errval_t err;
     struct mmnode *node = NULL;
     err = create_node_without_capinfo(mm, NodeType_Free, base, size, &node);
@@ -188,9 +200,8 @@ void enqueue_node_before_other(struct mm *mm, struct mmnode *new_node, struct mm
 
 static inline
 size_t alloc_align_size(size_t size) {
-//    return size + BASE_PAGE_SIZE - (size % BASE_PAGE_SIZE); // align size to page size
     size_t new_size = ROUND_UP(size, BASE_PAGE_SIZE);
-    DEBUG_PRINTF("aligning size %zu KB -> %zu KB\n", size / 1024, new_size / 1024);
+//    DEBUG_PRINTF("aligning size %zu KB -> %zu KB\n", size / 1024, new_size / 1024);
     return new_size;
 }
 
@@ -208,15 +219,6 @@ errval_t get_slot_for_cap(struct mm *mm, struct capref *retcap) {
     return SYS_ERR_OK;
 }
 
-/**
- * Request aligned ram capability
- *
- * @param mm this instance
- * @param size size of capability to request
- * @param alignment alignment of address
- * @param retcap cap to return
- * @return
- */
 // TODO-BEAN: how to handle alignment?
 // TODO: what if nothing else remaining
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
@@ -224,19 +226,9 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     errval_t err;
     if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
     size = alloc_align_size(size);
-    DEBUG_PRINTF("slab free: %d\n", mm->slabs.slabs->free);
-    DEBUG_PRINTF("slab total: %d\n", mm->slabs.slabs->total);
-
-    if (mm->slabs.slabs->free < SLAB_REFILL_THRESHOLD
-        && !mm->slab_is_refilling) {
-        mm->slab_is_refilling = true;
-        DEBUG_PRINTF("entering slab_is_refiling = 1 state\n");
-        err = mm->slabs.refill_func(&mm->slabs);
-        if (mm_err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot create more slab in mm_alloc. slab refilling state = 1");
-            return err_push(err, MM_ERR_MM_SLAB_REFILL);
-        }
-        mm->slab_is_refilling = false;
+    err = ensure_slabs_refilled(mm);
+    if (mm_err_is_fail(err)) {
+        return err;
     }
 
     // find node in pool of free nodes
@@ -260,7 +252,9 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
      */
     const gensize_t offset_into_origin = node->base - node->capinfo.base;
     DEBUG_PRINTF("retyping cap (%p) from source cap (%p) with offset %zu and size %zu\n",
-                 retcap, &node->capinfo.cap_origin_unmapped->cap, offset_into_origin, size);
+                 retcap, &node->capinfo.cap_origin_unmapped->cap,
+                 offset_into_origin,
+                 size);
 
     err = cap_retype(*retcap, node->capinfo.cap_origin_unmapped->cap, offset_into_origin, mm->objtype, size, 1);
     if (mm_err_is_fail(err)) {
@@ -313,8 +307,6 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
  */
 static inline
 bool can_merge_node(struct mmnode *node, struct mmnode *other) {
-//    DEBUG_BEGIN;
-//    DEBUG_END;
     return other != NULL && other->type == NodeType_Free
            && node->capinfo.base == other->capinfo.base;
 }
@@ -481,5 +473,12 @@ void dump_capref(struct capref *capref, const char *msg) {
 }
 
 void mm_dump_mmnodes(struct mm *mm) {
+    if (mm->head == NULL) return;
+    struct mmnode *n = mm->head;
+    do {
+        mm_dump_mmnode(n, NULL);
+        n = n->next;
+    } while (n != NULL && n != mm->tail);
+    assert(n == mm->tail);
 }
 

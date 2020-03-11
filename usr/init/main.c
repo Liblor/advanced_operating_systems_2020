@@ -78,16 +78,14 @@ __attribute__ ((unused))static void test_handle_slot_256(void) {
         assert(err_is_ok(err));
     }
     DEBUG_PRINTF("success\n");
-
 }
 
 __attribute__ ((unused))static void test_slab_simple(void) {
     errval_t err;
     const uint64_t size = 260;
     struct capref retcaps[size];
-
     for (int i = 0; i < size; ++i) {
-        err = mm_alloc(&aos_mm, 1 << 12, &retcaps[i]);
+        err = mm_alloc(&aos_mm, 1 << 20, &retcaps[i]);
         assert(err_is_ok(err));
     }
     for (int i = 0; i < size; ++i) {
@@ -99,10 +97,15 @@ __attribute__ ((unused))static void test_slab_simple(void) {
     DEBUG_PRINTF("success\n");
 }
 
+//static void test_free_error1(void) {
+//
+//
+//
+// }
 
 static void test_suite_milestone1(void) {
-    test_slab_simple();
     test_simple_alloc_free();
+    test_slab_simple();
     test_handle_slot_256();
 }
 

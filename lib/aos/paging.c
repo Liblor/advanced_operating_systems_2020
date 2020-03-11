@@ -371,7 +371,6 @@ errval_t create_pt3_mapping(struct paging_state *st, lvaddr_t vaddr) {
         if (err_is_fail(err)) {
             return err;
         }
-
         err = vnode_map(st->cap_fixed_pt2, pt3_entry->cap, pt2_index, VREGION_FLAGS_READ_WRITE,
                         0, 1, mapping_pt2_pt3);
         if (err_is_fail(err)) {
