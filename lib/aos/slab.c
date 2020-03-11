@@ -33,11 +33,12 @@ STATIC_ASSERT_SIZEOF(struct block_head, SLAB_BLOCK_HDRSIZE);
  * \param refill_func Pointer to function to call when out of memory (or NULL)
  */
 void slab_init(struct slab_allocator *slabs, size_t blocksize,
-               slab_refill_func_t refill_func)
-{
+               slab_refill_func_t refill_func) {
     slabs->slabs = NULL;
     slabs->blocksize = SLAB_REAL_BLOCKSIZE(blocksize);
     slabs->refill_func = refill_func;
+    slabs->vaddr_new_frame = VADDR_OFFSET;
+
 }
 
 
@@ -48,13 +49,12 @@ void slab_init(struct slab_allocator *slabs, size_t blocksize,
  * \param buf Pointer to start of memory region
  * \param buflen Size of memory region (in bytes)
  */
-void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen)
-{
+void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen) {
     /* setup slab_head structure at top of buffer */
     assert(buflen > sizeof(struct slab_head));
     struct slab_head *head = buf;
     buflen -= sizeof(struct slab_head);
-    buf = (char *)buf + sizeof(struct slab_head);
+    buf = (char *) buf + sizeof(struct slab_head);
 
     /* calculate number of blocks in buffer */
     size_t blocksize = slabs->blocksize;
@@ -65,7 +65,7 @@ void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen)
     /* enqueue blocks in freelist */
     struct block_head *bh = head->blocks = buf;
     for (uint32_t i = head->total; i > 1; i--) {
-        buf = (char *)buf + blocksize;
+        buf = (char *) buf + blocksize;
         bh->next = buf;
         bh = buf;
     }
@@ -83,8 +83,7 @@ void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen)
  *
  * \returns Pointer to block on success, NULL on error (out of memory)
  */
-void *slab_alloc(struct slab_allocator *slabs)
-{
+void *slab_alloc(struct slab_allocator *slabs) {
     errval_t err;
     /* find a slab with free blocks */
     struct slab_head *sh;
@@ -123,22 +122,21 @@ void *slab_alloc(struct slab_allocator *slabs)
  * \param slabs Pointer to slab allocator instance
  * \param block Pointer to block previously returned by #slab_alloc
  */
-void slab_free(struct slab_allocator *slabs, void *block)
-{
+void slab_free(struct slab_allocator *slabs, void *block) {
     if (block == NULL) {
         return;
     }
 
-    struct block_head *bh = (struct block_head *)block;
+    struct block_head *bh = (struct block_head *) block;
 
     /* find matching slab */
     struct slab_head *sh;
     size_t blocksize = slabs->blocksize;
     for (sh = slabs->slabs; sh != NULL; sh = sh->next) {
         /* check if block falls inside this slab */
-        uintptr_t slab_limit = (uintptr_t)sh + sizeof(struct slab_head)
+        uintptr_t slab_limit = (uintptr_t) sh + sizeof(struct slab_head)
                                + blocksize * sh->total;
-        if ((uintptr_t)bh > (uintptr_t)sh && (uintptr_t)bh < slab_limit) {
+        if ((uintptr_t) bh > (uintptr_t) sh && (uintptr_t) bh < slab_limit) {
             break;
         }
     }
@@ -158,8 +156,7 @@ void slab_free(struct slab_allocator *slabs, void *block)
  *
  * \returns Free block count
  */
-size_t slab_freecount(struct slab_allocator *slabs)
-{
+size_t slab_freecount(struct slab_allocator *slabs) {
     size_t ret = 0;
 
     for (struct slab_head *sh = slabs->slabs; sh != NULL; sh = sh->next) {
@@ -177,26 +174,61 @@ size_t slab_freecount(struct slab_allocator *slabs)
  * \param slabs Pointer to slab allocator instance
  * \param bytes (Minimum) amount of memory to map
  */
-static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
-{
+static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes) {
     errval_t err;
+    DEBUG_BEGIN;
+    DEBUG_PRINTF("refill slab with new frame\n");
     struct capref frame_cap;
 
+    DEBUG_PRINTF("calling frame_alloc\n");
     err = frame_alloc(&frame_cap, bytes, &bytes);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_FRAME_CREATE);
     }
 
-    void *buf;
-    err = paging_map_frame(get_current_paging_state(), &buf, bytes,
-            frame_cap, NULL, NULL);
+    genvaddr_t vaddr = slabs->vaddr_new_frame;
+    void *buf = (void *) vaddr;
+    err = paging_map_fixed(get_current_paging_state(), vaddr, frame_cap, bytes);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
+    slabs->vaddr_new_frame += bytes;
 
     slab_grow(slabs, buf, bytes);
+    DEBUG_END;
     return SYS_ERR_OK;
 }
+
+// untouched slab_refill_pages
+///**
+// * \brief General-purpose slab refill
+// *
+// * Allocates and maps a number of memory pages to the slab allocator.
+// *
+// * \param slabs Pointer to slab allocator instance
+// * \param bytes (Minimum) amount of memory to map
+// */
+//static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
+//{
+//    errval_t err;
+//    struct capref frame_cap;
+//
+//    err = frame_alloc(&frame_cap, bytes, &bytes);
+//    if (err_is_fail(err)) {
+//        return err_push(err, LIB_ERR_FRAME_CREATE);
+//    }
+//
+//    void *buf;
+//    err = paging_map_frame(get_current_paging_state(), &buf, bytes,
+//                           frame_cap, NULL, NULL);
+//    if (err_is_fail(err)) {
+//        return err_push(err, LIB_ERR_VSPACE_MAP);
+//    }
+//
+//    slab_grow(slabs, buf, bytes);
+//    return SYS_ERR_OK;
+//}
+
 
 /**
  * \brief General-purpose implementation of a slab allocate/refill function
@@ -206,7 +238,6 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
  *
  * \param slabs Pointer to slab allocator instance
  */
-errval_t slab_default_refill(struct slab_allocator *slabs)
-{
+errval_t slab_default_refill(struct slab_allocator *slabs) {
     return slab_refill_pages(slabs, BASE_PAGE_SIZE);
 }

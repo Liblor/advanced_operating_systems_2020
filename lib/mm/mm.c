@@ -20,7 +20,7 @@ static inline
 errval_t mm_slab_refill_func(struct slab_allocator *slabs) {
     DEBUG_BEGIN;
     DEBUG_END;
-    return LIB_ERR_NOT_IMPLEMENTED;
+    return slab_default_refill(slabs);
 }
 
 
@@ -55,9 +55,8 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     mm->slot_alloc = slot_alloc_func;
     mm->objtype = objtype;
 
-    if (slab_refill_func == NULL) {
-        slab_refill_func = mm_slab_refill_func;
-    }
+    slab_refill_func = mm_slab_refill_func;
+
     uint64_t blocksize = sizeof(struct mmnode);
     DEBUG_PRINTF("set blocksize for slab in mm %d bytes\n")
 

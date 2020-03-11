@@ -29,6 +29,59 @@ struct bootinfo *bi;
 
 coreid_t my_core_id;
 
+// ----------------------------------------------------------
+// tests
+// ----------------------------------------------------------
+__attribute__ ((unused)) static void test_simple_alloc_free(void) {
+    errval_t err;
+    struct capref retcap1;
+    struct capref retcap2;
+    err = mm_alloc(&aos_mm, 1 << 20, &retcap1);
+    assert(err_is_ok(err));
+
+    {
+        struct capability tmp_cap;
+        cap_direct_identify(retcap1, &tmp_cap);
+        genpaddr_t base = get_address(&tmp_cap);
+        gensize_t size = get_size(&tmp_cap);
+        err = mm_free(&aos_mm, retcap1, base, size);
+        assert(err_is_ok(err));
+
+    }
+    err = mm_alloc(&aos_mm, 1 << 10, &retcap2);
+    assert(err_is_ok(err));
+    err = mm_alloc(&aos_mm, 1 << 20, &retcap1);
+    assert(err_is_ok(err));
+    {
+        struct capability tmp_cap;
+        cap_direct_identify(retcap2, &tmp_cap);
+        genpaddr_t base = get_address(&tmp_cap);
+        gensize_t size = get_size(&tmp_cap);
+        err = mm_free(&aos_mm, retcap2, base, size);
+        assert(err_is_ok(err));
+    }
+}
+
+__attribute__ ((unused))static void test_handle_slot_256(void) {
+    errval_t err;
+    uint64_t size = 260;
+    struct capref retcaps[size];
+    for (int i = 0; i < size; ++i) {
+        err = mm_alloc(&aos_mm, 1 << 12, &retcaps[i]);
+        assert(err_is_ok(err));
+    }
+}
+
+static void test_suite_milestone1(void) {
+//    test_simple_alloc_free();
+    test_handle_slot_256();
+}
+
+
+// ----------------------------------------------------------
+// bsp_main
+// ----------------------------------------------------------
+
 static int
 bsp_main(int argc, char *argv[]) {
     DEBUG_BEGIN;
@@ -46,35 +99,7 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-    struct capref retcap1;
-    struct capref retcap2;
-    err = mm_alloc(&aos_mm, 1 << 20, &retcap1);
-
-    assert(err_is_ok(err));
-
-    {
-        struct capability tmp_cap;
-        cap_direct_identify(retcap1, &tmp_cap);
-        genpaddr_t base = get_address(&tmp_cap);
-        gensize_t size = get_size(&tmp_cap);
-        err = mm_free(&aos_mm, retcap1, base, size);
-        assert(err_is_ok(err));
-
-    }
-
-    err = mm_alloc(&aos_mm, 1 << 10, &retcap2);
-    assert(err_is_ok(err));
-    err = mm_alloc(&aos_mm, 1 << 20, &retcap1);
-    assert(err_is_ok(err));
-    {
-        struct capability tmp_cap;
-        cap_direct_identify(retcap2, &tmp_cap);
-        genpaddr_t base = get_address(&tmp_cap);
-        gensize_t size = get_size(&tmp_cap);
-        err = mm_free(&aos_mm, retcap2, base, size);
-        assert(err_is_ok(err));
-    }
-
+    test_suite_milestone1();
 
     // TODO: initialize mem allocator, vspace management here
     
