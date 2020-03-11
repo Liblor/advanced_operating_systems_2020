@@ -13,7 +13,8 @@
 [ build application { target = "init",
                       cFiles = [
                         "main.c",
-                        "mem_alloc.c"
+                        "mem_alloc.c",
+                        "tests.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init
                       addLibraries = [ "mm", "getopt", "elf",

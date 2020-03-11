@@ -24,6 +24,7 @@
 #include <grading.h>
 
 #include "mem_alloc.h"
+#include "tests.h"
 
 
 
@@ -49,8 +50,11 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
+    // TODO
+    test_aligned_alloc();
+    test_alloc_free_x256();
     // TODO: initialize mem allocator, vspace management here
-    
+
     // Grading 
     grading_test_early();
 

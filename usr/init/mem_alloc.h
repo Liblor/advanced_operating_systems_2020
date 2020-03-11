@@ -24,5 +24,6 @@ extern struct mm aos_mm;
 errval_t initialize_ram_alloc(void);
 errval_t aos_ram_alloc_aligned(struct capref *ret, size_t size, size_t alignment);
 errval_t aos_ram_free(struct capref cap, size_t bytes);
+__attribute__((unused)) void print_mm_linked_list(void);
 
 #endif /* _INIT_MEM_ALLOC_H_ */

@@ -233,6 +233,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         err = split_off(mm, curr, size);
         if (err_is_fail(err)) { return err; }
     } else {
+        // TODO: remove size 0 nodes if it isn't end of original ram cap
         gensize_t pad_size = (aligned_base - curr->base);
         err = split_off(mm, curr, pad_size);
         if (err_is_fail(err)) { return err; }

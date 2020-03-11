@@ -105,3 +105,11 @@ errval_t initialize_ram_alloc(void)
     return SYS_ERR_OK;
 }
 
+__attribute__((unused)) void print_mm_linked_list(void) {
+    struct mmnode *curr = aos_mm.head;
+    debug_printf("================\n");
+    while (curr != NULL) {
+        debug_printf("base: %lu, size: %lu, type, %u \n", curr->base, curr->size, curr->type);
+        curr = curr->next;
+    }
+}
