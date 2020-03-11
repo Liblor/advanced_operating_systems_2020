@@ -115,6 +115,7 @@ errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr
 errval_t paging_init(void)
 {
     debug_printf("paging_init\n");
+
     // TODO (M2): Call paging_init_state for &current
     // TODO (M4): initialize self-paging handler
     // TIP: use thread_set_exception_handler() to setup a page fault handler
@@ -122,7 +123,27 @@ errval_t paging_init(void)
     // you can handle page faults in any thread of a domain.
     // TIP: it might be a good idea to call paging_init_state() from here to
     // avoid code duplication.
+
     set_current_paging_state(&current);
+
+    current.slot_alloc = NULL;
+
+    struct capref root_pagetable = {
+        .cnode = cnode_page,
+        .slot  = 0,
+    };
+
+    current.l0pd = root_pagetable;
+    current.l1pd = NULL_CAP;
+    current.l2pd = NULL_CAP;
+
+    for (size_t i = 0; i < ARRAY_LENGTH(current.l3pd); i++)
+        current.l3pd[i] = NULL_CAP;
+
+    for (size_t i = 0; i < ARRAY_LENGTH(current.is_mapped); i++)
+        for (size_t j = 0; j < ARRAY_LENGTH(current.is_mapped[i]); j++)
+            current.is_mapped[i][j] = false;
+
     return SYS_ERR_OK;
 }
 
@@ -283,14 +304,140 @@ errval_t slab_refill_no_pagefault(struct slab_allocator *slabs, struct capref fr
     return SYS_ERR_OK;
 }
 
+static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype type, struct capref *parent, struct capref *ret, const uint16_t index)
+{
+    errval_t err;
+
+    const int flags = VREGION_FLAGS_READ_WRITE;
+
+    err = pt_alloc(st, type, ret);
+    if (err_is_fail(err)) {
+        debug_printf("pt_alloc_l1 failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_VNODE_CREATE);
+    }
+
+    struct capref mapping;
+    err = st->slot_alloc->alloc(st->slot_alloc, &mapping);
+    if (err_is_fail(err)) {
+        debug_printf("slot_alloc failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = vnode_map(*parent, *ret, index, flags, 0, 1, mapping);
+    if (err_is_fail(err)) {
+        debug_printf("vnode_map failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_VNODE_MAP);
+    }
+
+    return SYS_ERR_OK;
+}
+
+static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct capref *l3pd)
+{
+    assert(st != NULL);
+
+    errval_t err;
+
+    const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
+    const uint16_t l1_idx = VMSAv8_64_L1_INDEX(vaddr);
+    const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
+
+    assert(!capref_is_null(st->l0pd));
+
+    if (capref_is_null(st->l1pd)) {
+        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l1, &st->l0pd, &st->l1pd, l0_idx);
+        if (err_is_fail(err)) {
+            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+            return err;
+        }
+    }
+
+    assert(!capref_is_null(st->l1pd));
+
+    if (capref_is_null(st->l2pd)) {
+        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &st->l1pd, &st->l2pd, l1_idx);
+        if (err_is_fail(err)) {
+            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+            return err;
+        }
+    }
+
+    assert(!capref_is_null(st->l2pd));
+
+    if (capref_is_null(st->l3pd[l2_idx])) {
+        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &st->l2pd, &st->l3pd[l2_idx], l2_idx);
+        if (err_is_fail(err)) {
+            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+            return err;
+        }
+    }
+
+    *l3pd = st->l3pd[l2_idx];
+
+    return SYS_ERR_OK;
+}
+
+/**
+ * \brief map a user provided frame at user provided VA.
+ * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
+ * TODO(M2): General case
+ */
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
-    /**
-     * \brief map a user provided frame at user provided VA.
-     * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
-     * TODO(M2): General case
-     */
+    assert(st != NULL);
+
+    errval_t err;
+
+    debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ...)\n", st, vaddr);
+
+    if (bytes == 0)
+        return LIB_ERR_PAGING_SIZE_INVALID;
+    else if ((bytes % BASE_PAGE_SIZE) != 0)
+        return LIB_ERR_PAGING_SIZE_INVALID;
+
+    const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
+    const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
+
+    const uint32_t pte_count = bytes / BASE_PAGE_SIZE;
+
+    // TODO(M2): For M1 we could assume that the frame will always fit into L3.
+    if ((l3_idx + pte_count) > PTABLE_ENTRIES)
+        return LIB_ERR_PAGING_SIZE_INVALID;
+
+    struct capref l3pd;
+
+    // TODO(M2): Move this into the initialization function.
+    if (st->slot_alloc == NULL)
+        st->slot_alloc = get_default_slot_allocator();
+
+    err = paging_create_pd(st, vaddr, &l3pd);
+    if (err_is_fail(err)) {
+        debug_printf("paging_prepare_l1l2 failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    for (int i = 0; i < pte_count; i++) {
+        if (st->is_mapped[l2_idx][l3_idx + i])
+            return LIB_ERR_PAGING_ADDR_ALREADY_MAPPED;
+    }
+
+    struct capref mapping;
+
+    err = st->slot_alloc->alloc(st->slot_alloc, &mapping);
+    if (err_is_fail(err)) {
+        debug_printf("slot_alloc failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = vnode_map(l3pd, frame, l3_idx, flags, 0, pte_count, mapping);
+    if (err_is_fail(err)) {
+        debug_printf("vnode_map failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_VNODE_MAP);
+    }
+
+    st->is_mapped[l2_idx][l3_idx] = true;
+
     return SYS_ERR_OK;
 }
 
