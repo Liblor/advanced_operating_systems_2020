@@ -88,6 +88,8 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
 {
     assert(mm != NULL);
 
+    errval_t err;
+
     debug_printf("mm_add(mm=%p, &cap=%p, base=0x%"PRIxGENPADDR", size=0x%zx)\n", mm, &cap, base, size);
 
     struct mmnode *next;
@@ -118,7 +120,10 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
     node->next = next;
 
     debug_printf("Inserted new node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", node, node->base, node->size);
-    print_list(mm);
+
+    err = slab_ensure_threshold(&mm->slabs, 3);
+    if (err_is_fail(err))
+        return err;
 
     return SYS_ERR_OK;
 }
