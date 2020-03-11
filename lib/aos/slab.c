@@ -38,6 +38,7 @@ void slab_init(struct slab_allocator *slabs, size_t blocksize,
     slabs->slabs = NULL;
     slabs->blocksize = SLAB_REAL_BLOCKSIZE(blocksize);
     slabs->refill_func = refill_func;
+    slabs->is_refilling = false;
 }
 
 
@@ -209,4 +210,30 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
 errval_t slab_default_refill(struct slab_allocator *slabs)
 {
     return slab_refill_pages(slabs, BASE_PAGE_SIZE);
+}
+
+// Check if a minimum amount of slabs is still free. If there are less than
+// `threshold` slabs left, refill the allocator.
+errval_t slab_ensure_threshold(struct slab_allocator *slabs, const size_t threshold)
+{
+    errval_t err;
+
+    if (slabs->is_refilling)
+        return SYS_ERR_OK;
+
+    slabs->is_refilling = true;
+
+    const size_t count = slab_freecount(slabs);
+
+    if (count < threshold) {
+        err = slabs->refill_func(slabs);
+        if (err_is_fail(err)) {
+            slabs->is_refilling = false;
+            return err_push(err, LIB_ERR_SLAB_REFILL);
+        }
+    }
+
+    slabs->is_refilling = false;
+
+    return SYS_ERR_OK;
 }
