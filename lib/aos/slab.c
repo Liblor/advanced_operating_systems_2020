@@ -188,14 +188,27 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
         return err_push(err, LIB_ERR_FRAME_CREATE);
     }
 
-    void *buf;
+    static lvaddr_t vaddr = VADDR_OFFSET;
+    void *buf = (void *) vaddr;
+
+    /*
+    // TODO(M2): Switch back to using paging_map_frame();
     err = paging_map_frame(get_current_paging_state(), &buf, bytes,
             frame_cap, NULL, NULL);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
+    */
+
+    err = paging_map_fixed_attr(get_current_paging_state(), vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+    if (err_is_fail(err)) {
+        return err_push(err, LIB_ERR_VSPACE_MAP);
+    }
 
     slab_grow(slabs, buf, bytes);
+
+    vaddr += bytes;
+
     return SYS_ERR_OK;
 }
 
