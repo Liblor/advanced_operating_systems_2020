@@ -27,6 +27,8 @@
 #include "tests.h"
 
 
+/** RUN TESTS */
+#define MY_AOS_TESTS 0
 
 
 struct bootinfo *bi;
@@ -50,9 +52,12 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-    // TODO
-    test_aligned_alloc();
+#if MY_AOS_TESTS
+    test_aligned_alloc1();
+    test_aligned_alloc2();
     test_alloc_free_x256();
+    test_map_page_get_frame();
+#endif
     // TODO: initialize mem allocator, vspace management here
 
     // Grading 
