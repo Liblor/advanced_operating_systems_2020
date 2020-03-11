@@ -16,6 +16,7 @@
 #define PAGING_TYPES_H_ 1
 
 #include <aos/solution.h>
+#include <arch/aarch64/barrelfish_kpi/paging_arch.h>
 
 #define MCN_COUNT DIVIDE_ROUND_UP(PTABLE_ENTRIES, L2_CNODE_SLOTS)
 
@@ -62,7 +63,15 @@ struct paging_region {
 
 // struct to store the paging status of a process
 struct paging_state {
+    bool initialized;
     struct slot_allocator *slot_alloc;
+    struct capref pdir_l0;
+    struct capref pdir_l1;
+    struct capref pdir_l2;
+    struct capref pdir_l2_entries[PTABLE_ENTRIES];
+    bool page_mapped[PTABLE_ENTRIES][PTABLE_ENTRIES];
+
+    struct capref initial_slab_page;
 };
 
 

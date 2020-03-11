@@ -53,7 +53,9 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-    //mm_test_run2(&aos_mm);
+    //mm_test_run2(bi, &aos_mm);
+    //paging_test_run1();
+    //return EXIT_SUCCESS;
 
     // Grading
     grading_test_early();

@@ -9,18 +9,15 @@
 
 
 
-static uint8_t slab_buffer[4096*1024];
-
 static void print_mmnodes(struct mm *mm) {
     if (mm->head == NULL) {
-        printf("\t[empty list]\n");
+        printf("        [empty list]\n");
     } else {
-        printf("\thead->\n");
         struct mmnode *current = mm->head;
         struct mmnode *last = mm->head;
 
         while (current != NULL) {
-            printf("\t%p (base=%p, size=%d, prev=%p, next=%p)\n", current, current->base, current->size, current->prev, current->next);
+            printf("%s%p <- %p -> %p (base=%p, last=%p, size=%u)\n", current->type == NodeType_Allocated ? "       *" : "        ", current->prev, current, current->next, current->base, current->base + current->size - 1, current->size);
             if (current->next == NULL)
                 last = current;
             current = current->next;
@@ -46,9 +43,7 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
 
     size_t blocksize = sizeof(struct mmnode);
     slab_init(&mm->slabs, blocksize, &slab_default_refill);
-
-    // TODO Delete this as soon as paging works
-    slab_grow(&mm->slabs, slab_buffer, sizeof(slab_buffer));
+    mm->slabs.refill_func = slab_refill_func;
 
     // TODO not sure about those
     //mm->stats_bytes_max = ;
@@ -133,6 +128,19 @@ ERROR_OVERLAP:
     return MM_ERR_ALREADY_PRESENT;
 }
 
+static void refill_slabs_if_needed(struct slab_allocator *slabs) {
+    errval_t err;
+
+    size_t free = slab_freecount(slabs);
+    static bool is_refilling = false;
+    // TODO How few are needed?
+    if (!is_refilling && free <= 8) {
+        is_refilling = true;
+        err = slabs->refill_func(slabs);
+        is_refilling = false;
+    }
+}
+
 // n is the mmnode that will be split. The result will be 1, 2 or 3 new mmnodes created and n will be deleted.
 // n must not be null.
 // n->size must be  larger or equal to the given size.
@@ -144,6 +152,8 @@ static errval_t split_mmnode(struct mm *mm, struct mmnode *n, size_t size, size_
 {
     assert(n != NULL);
     assert(n->size >= size);
+
+    // TODO Operate on static nodes here and copy them into slab allocated nodes after the retype.
 
     // Allocate new nodes
     struct mmnode *node_padding = NULL;
@@ -164,7 +174,7 @@ static errval_t split_mmnode(struct mm *mm, struct mmnode *n, size_t size, size_
         return LIB_ERR_SLAB_ALLOC_FAIL;
     }
 
-    node_sized->type = NodeType_Free;
+    node_sized->type = NodeType_Allocated;
     node_sized->cap = n->cap;
     node_sized->base = n->base + padding_start;
     node_sized->size = size;
@@ -222,6 +232,8 @@ static errval_t split_mmnode(struct mm *mm, struct mmnode *n, size_t size, size_
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap)
 {
     errval_t err;
+
+    refill_slabs_if_needed(&mm->slabs);
     // TODO Maybe look for smallest memory region that can be used?
     // TODO test this function
     struct mmnode *current = mm->head;
@@ -235,36 +247,35 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         size_t size_aligned = size + padding_start;
 
         if (current->type == NodeType_Free && current->size >= size_aligned) {
+
+            struct mmnode *new_node = NULL;
+            err = split_mmnode(mm, current, size, padding_start, &new_node);
+            if (err_is_fail(err)) {
+                DEBUG_ERR(err, "failed to split mmnode");
+                return err_push(err, MM_ERR_SPLIT_NODE);
+            }
+
+            // TODO Test if refill works (allocate more slots than fit into a cnode (256))
+            mm->slot_refill(mm->slot_alloc_inst);
             err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
             if (err_is_fail(err)) {
                 DEBUG_ERR(err, "failed to allocate new slot");
                 return err_push(err, LIB_ERR_SLOT_ALLOC);
             }
 
-            struct mmnode *new_node = NULL;
-            err = split_mmnode(mm, current, size_aligned, padding_start, &new_node);
-            if (err_is_fail(err)) {
-                DEBUG_ERR(err, "failed to split mmnode");
-                return err_push(err, MM_ERR_SPLIT_NODE);
-            }
-
-            gensize_t offset = current->base - new_node->cap.base + padding_start;
-            //TODO Call mm->slot_refill here somewhere
+            gensize_t offset = new_node->base - new_node->cap.base + padding_start;
             err = cap_retype(*retcap, new_node->cap.cap, offset, mm->objtype, new_node->size, 1);
             if (err_is_fail(err)) {
                 // TODO Currently this leads to an inconsistent state, because the mmnode has already been split.
-                DEBUG_ERR(err, "failed to retype capability");
+                DEBUG_ERR(err, "failed to retype capability (base=%p, padding_start=%d, offset=%d, size=%d)", new_node->cap.base, padding_start, offset, new_node->size);
                 return err_push(err, LIB_ERR_CAP_RETYPE);
             }
-
-            // Allocation successful, so the node should be marked as allocated
-            new_node->type = NodeType_Allocated;
             return SYS_ERR_OK;
         }
         current = current->next;
     }
 
-    return MM_ERR_OUT_OF_MEMEORY;
+    return MM_ERR_OUT_OF_MEMORY;
 }
 
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap)
@@ -276,6 +287,8 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap)
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size)
 {
     errval_t err;
+
+    refill_slabs_if_needed(&mm->slabs);
     // TODO Test this
     struct mmnode *node_middle = NULL;
     struct mmnode *node_before;
@@ -296,6 +309,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     node_before = node_middle->prev;
     node_after = node_middle->next;
 
+    // TODO cap_delete or cap_destroy?
     err = cap_delete(cap);
     if (err_is_fail(err))
         return err_push(err, LIB_ERR_CAP_DELETE);

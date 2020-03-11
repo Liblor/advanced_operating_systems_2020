@@ -32,6 +32,20 @@ struct slot_allocator *get_default_slot_allocator(void)
     return (struct slot_allocator*)(&state->defca);
 }
 
+// TODO Move this into slab_alloc.c since it is the same function as in mm.c
+static void refill_slabs_if_needed(struct slab_allocator *slab) {
+    errval_t err;
+
+    size_t free = slab_freecount(slab);
+    static bool is_refilling = false;
+    // TODO How few are needed?
+    if (!is_refilling && free <= 8) {
+        is_refilling = true;
+        err = slab->refill_func(slab);
+        is_refilling = false;
+    }
+}
+
 /**
  * \brief Default slot allocator
  *
@@ -42,6 +56,9 @@ struct slot_allocator *get_default_slot_allocator(void)
 errval_t slot_alloc(struct capref *ret)
 {
     struct slot_allocator *ca = get_default_slot_allocator();
+    struct slot_alloc_state *state = get_slot_alloc_state();
+    struct multi_slot_allocator *def = &state->defca;
+    refill_slabs_if_needed(&def->slab);
     return ca->alloc(ca, ret);
 }
 
@@ -220,7 +237,7 @@ errval_t slot_alloc_init(void)
     // Slab
     size_t allocation_unit = sizeof(struct slot_allocator_list) +
                              SINGLE_SLOT_ALLOC_BUFLEN(SLOT_ALLOC_CNODE_SLOTS);
-    slab_init(&def->slab, allocation_unit, NULL);
+    slab_init(&def->slab, allocation_unit, slab_default_refill);
 
     // Vspace mgmt
     // Warning: necessary to do this in the end as during initialization,

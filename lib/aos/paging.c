@@ -29,8 +29,8 @@ static struct paging_state current;
  * \brief Helper function that allocates a slot and
  *        creates a aarch64 page table capability for a certain level
  */
-static errval_t pt_alloc(struct paging_state * st, enum objtype type, 
-                         struct capref *ret) 
+static errval_t pt_alloc(struct paging_state * st, enum objtype type,
+                         struct capref *ret)
 {
     errval_t err;
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
@@ -56,18 +56,66 @@ __attribute__((unused)) static errval_t pt_alloc_l2(struct paging_state * st, st
     return pt_alloc(st, ObjType_VNode_AARCH64_l2, ret);
 }
 
-__attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, struct capref *ret) 
+__attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, struct capref *ret)
 {
     return pt_alloc(st, ObjType_VNode_AARCH64_l3, ret);
 }
 
+static bool check_range_unmapped(struct paging_state *st, lvaddr_t vaddr, size_t size, bool reserve) {
+    assert(vaddr % BASE_PAGE_SIZE == 0);
+    assert(size % BASE_PAGE_SIZE == 0);
+    assert(st != NULL);
+
+    uint16_t idx_l2 = VMSAv8_64_L2_INDEX(vaddr);
+    uint16_t idx_l3 = VMSAv8_64_L3_INDEX(vaddr);
+    uint16_t size_pages = size / BASE_PAGE_SIZE;
+
+    // Current assumption is that the range does not span over more than one l3 pagetable
+    assert(size_pages <= PTABLE_ENTRIES - idx_l3);
+
+    bool *mapped_l3 = st->page_mapped[idx_l2];
+    for (int i = 0; i < size_pages; i++) {
+        if (mapped_l3[idx_l3 + i])
+            return false;
+    }
+
+    if (reserve) {
+        for (int i = 0; i < size_pages; i++) {
+            mapped_l3[idx_l3 + i] = true;
+        }
+    }
+
+    return true;
+}
+
+static errval_t create_pdir_and_map(struct paging_state *st, struct capref pdir, capaddr_t slot, enum objtype type, struct capref *retpdir) {
+    assert(st != NULL);
+
+    errval_t err;
+    struct capref mapping;
+
+    // TODO Free already allocated objects when an error happens
+    err =  pt_alloc(st, type, retpdir);
+    if (err_is_fail(err))
+        return err;
+
+    err = st->slot_alloc->alloc(st->slot_alloc, &mapping);
+    if (err_is_fail(err))
+        return err_push(err, LIB_ERR_SLOT_ALLOC);
+
+    err = vnode_map(pdir, *retpdir, slot, VREGION_FLAGS_READ_WRITE, 0, 1, mapping);
+    if (err_is_fail(err))
+        return err_push(err, LIB_ERR_VNODE_MAP);
+
+    return SYS_ERR_OK;
+}
 
 /**
  * TODO(M2): Implement this function.
  * TODO(M4): Improve this function.
  * \brief Initialize the paging_state struct for the paging
  *        state of the calling process.
- * 
+ *
  * \param st The struct to be initialized, must not be NULL.
  * \param start_vaddr Virtual address allocation should start at
  *        this address.
@@ -90,7 +138,7 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
  * TODO(M4): Improve this function.
  * \brief Initialize the paging_state struct for the paging state
  *        of a child process.
- * 
+ *
  * \param st The struct to be initialized, must not be NULL.
  * \param start_vaddr Virtual address allocation should start at
  *        this address.
@@ -122,6 +170,27 @@ errval_t paging_init(void)
     // you can handle page faults in any thread of a domain.
     // TIP: it might be a good idea to call paging_init_state() from here to
     // avoid code duplication.
+
+    current.initialized = false;
+
+    current.pdir_l0.cnode = cnode_page;
+    current.pdir_l0.slot = 0;
+
+    current.slot_alloc = NULL;
+    current.pdir_l1 = NULL_CAP;
+    current.pdir_l2 = NULL_CAP;
+
+    for (int i = 0; i < PTABLE_ENTRIES; i++) {
+        current.pdir_l2_entries[i] = NULL_CAP;
+    }
+
+    for (int i = 0; i < PTABLE_ENTRIES; i++) {
+        for (int j = 0; i < PTABLE_ENTRIES; i++) {
+            current.page_mapped[i][j] = false;
+        }
+    }
+
+    // TODO Use get_current_paging_state instead of current everywhere
     set_current_paging_state(&current);
     return SYS_ERR_OK;
 }
@@ -223,11 +292,11 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
-/** 
+/**
  * TODO(M2): Implement this function.
  * \brief Find a bit of free virtual address space that is large enough to accomodate a
  *        buffer of size 'bytes'.
- * 
+ *
  * \param st A pointer to the paging state.
  * \param buf This parameter is used to return the free virtual address that was found.
  * \param bytes The number of bytes that need to be free (at the minimum) at the found
@@ -250,7 +319,7 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
 /**
  * TODO(M2): Implement this function.
  * \brief Finds a free virtual address and maps a frame at that address
- * 
+ *
  * \param st A pointer to the paging state.
  * \param buf This will parameter will be used to return the free virtual
  * address at which a new frame as been mapped.
@@ -291,6 +360,56 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
      * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
      * TODO(M2): General case
      */
+    assert(bytes % BASE_PAGE_SIZE == 0);
+    assert(st != NULL);
+
+    errval_t err;
+
+    if (!st->initialized) {
+        st->initialized = true;
+        st->slot_alloc = get_default_slot_allocator();
+
+        // Slot 1 in l0 and slot 0 in l1 will put the pagetables into the correct position for the VA space to start on VADDR_OFFSET.
+        err = create_pdir_and_map(st, st->pdir_l0, 1, ObjType_VNode_AARCH64_l1, &st->pdir_l1);
+        if (err_is_fail(err))
+            return err;
+
+        err = create_pdir_and_map(st, st->pdir_l1, 0, ObjType_VNode_AARCH64_l2, &st->pdir_l2);
+        if (err_is_fail(err))
+            return err;
+    }
+
+    uint16_t idx_l2 = VMSAv8_64_L2_INDEX(vaddr);
+    uint16_t idx_l3 = VMSAv8_64_L3_INDEX(vaddr);
+
+    // Create l3 pagetable corresponding to the given vaddr if it doesn't exist yet
+    if (capref_is_null(st->pdir_l2_entries[idx_l2])) {
+        err = create_pdir_and_map(st, st->pdir_l2, idx_l2, ObjType_VNode_AARCH64_l3, &st->pdir_l2_entries[idx_l2]);
+        if (err_is_fail(err))
+            return err;
+    }
+
+    // TODO Map full frame range even if it spans multiple l3 tables.
+    // Check if page is already mapped to a frame
+    if (check_range_unmapped(st, vaddr, bytes, true)) {
+
+        struct capref mapping;
+
+        err = st->slot_alloc->alloc(st->slot_alloc, &mapping);
+        if (err_is_fail(err))
+            // TODO undo the range reservation
+            return err_push(err, LIB_ERR_SLOT_ALLOC);
+
+        uint64_t page_cnt = bytes / BASE_PAGE_SIZE;
+        err = vnode_map(st->pdir_l2_entries[idx_l2], frame, idx_l3, VREGION_FLAGS_READ_WRITE, 0, page_cnt, mapping);
+        if (err_is_fail(err))
+            // TODO undo the range reservation and slot allocation
+            return err_push(err, LIB_ERR_VNODE_MAP);
+    } else {
+        // Page is already mapped to a frame
+        return LIB_ERR_VSPACE_PAGE_ALREADY_MAPPED;
+    }
+
     return SYS_ERR_OK;
 }
 

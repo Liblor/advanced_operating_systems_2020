@@ -328,6 +328,7 @@ errors libaos LIB_ERR_ {
     failure SERIALISE_BUFOVERFLOW "Buffer overflow while serialising",
 
     failure VSPACE_MAP        "Failure in vspace_map() wrapper function",
+    failure VSPACE_PAGE_ALREADY_MAPPED "Page is already mapped to a frame",
 
     failure VSPACE_MMU_AWARE_INIT  "Failure in vspace_mmu_aware_init() function",
     failure VSPACE_MMU_AWARE_MAP   "Failure in vspace_mmu_aware_map() function",
@@ -719,7 +720,7 @@ errors libmm MM_ERR_ {
     failure NEW_NODE            "Failed allocating new node from slot allocator",
     failure SPLIT_NODE          "Failure in split_mmnode()",
     failure OUT_OF_BOUNDS       "Given memory base address / size exceeds bounds of allocator",
-    failure OUT_OF_MEMEORY      "No free memory region found that is large enough for the requested size",
+    failure OUT_OF_MEMORY      "No free memory region found that is large enough for the requested size",
     failure ALREADY_PRESENT     "Node already present in add_node()",
     failure ALREADY_ALLOCATED   "Requested node already allocated in find_node()",
     failure NOT_FOUND           "No matching node found",

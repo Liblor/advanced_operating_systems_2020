@@ -184,15 +184,23 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
 
     err = frame_alloc(&frame_cap, bytes, &bytes);
     if (err_is_fail(err)) {
+        DEBUG_ERR(err, "frame_alloc() failed");
         return err_push(err, LIB_ERR_FRAME_CREATE);
     }
 
     void *buf;
-    err = paging_map_frame(get_current_paging_state(), &buf, bytes,
-            frame_cap, NULL, NULL);
+    // TODO Revert this when possible
+    //err = paging_map_frame(get_current_paging_state(), &buf, bytes,
+            //frame_cap, NULL, NULL);
+    static lvaddr_t vaddr = VADDR_OFFSET;
+    err = paging_map_fixed_attr(get_current_paging_state(), vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
     if (err_is_fail(err)) {
+        DEBUG_ERR(err, "paging_map_fixed_attr() failed");
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
+
+    buf = (void *) vaddr;
+    vaddr += bytes;
 
     slab_grow(slabs, buf, bytes);
     return SYS_ERR_OK;
