@@ -164,14 +164,7 @@ void slab_free(struct slab_allocator *slabs, void *block)
  */
 size_t slab_freecount(struct slab_allocator *slabs)
 {
-    size_t ret = 0;
-
-    for (struct slab_head *sh = slabs->slabs; sh != NULL; sh = sh->next) {
-        ret += sh->free;
-    }
-    assert(ret == slabs->free_count);
-
-    return ret;
+    return slabs->free_count;
 }
 
 /**
