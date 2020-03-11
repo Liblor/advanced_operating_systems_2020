@@ -7,17 +7,6 @@
 #include <aos/debug.h>
 #include <aos/solution.h>
 
-/*
-static char slab_buf[64*sizeof(struct mmnode)];
-static bool slab_buf_used;
-
-static errval_t mm_slab_refill(struct slab_allocator *slabs) {
-    // TODO real slab refill
-    if (slab_buf_used) { return SYS_ERR_NOT_IMPLEMENTED; }
-    slab_grow(slabs, slab_buf, sizeof(slab_buf));
-    return SYS_ERR_OK;
-}
-*/
 
 static inline errval_t create_new_node(struct mm *mm,
                                        struct mmnode **new_node,
@@ -88,13 +77,53 @@ static inline void merge_with_prev_node(struct mm *mm, struct mmnode *node) {
     slab_free(&mm->slabs, to_delete);
 }
 
+static inline errval_t split_off(struct mm *mm, struct mmnode *node, gensize_t size) {
+    // new slot
+    struct capref cap;
+    errval_t err = mm->slot_alloc(mm->slot_alloc_inst, 1, &cap);
+    if (err_is_fail(err)) { return err_push(err, LIB_ERR_SLOT_ALLOC); }
+    err = mm->slot_refill(mm->slot_alloc_inst);         // TODO: only refill when needed
+    if (err_is_fail(err)) {
+        err_push(err, AOS_ERR_SLOT_REFILL_FAIL);
+        goto free_slot;
+    }
+
+    gensize_t offset = node->base - node->cap.base;
+    err = cap_retype(cap, *(node->cap.parent), offset, mm->objtype, size, 1);
+    if (err_is_fail(err)) {
+        err_push(err, SYS_ERR_RETYPE_CREATE);
+        goto free_slot;
+    }
+    // create new node
+    struct mmnode *new_node;
+    err = create_new_node(mm, &new_node, node->base, size, node->type,
+                          node->cap.parent, node->cap.base, node->cap.size, &cap);
+    if (err_is_fail(err)) { goto free_slot; }
+
+    // Update node
+    node->base += size;
+    node->size -= size;
+
+    insert_before(mm, new_node, node);
+
+free_slot:
+    slot_free(cap);
+    return err;
+}
+
 /**
  * @param node The queried  node
  * @param size How much space one wants to allocate
+ * @param alignment Alignment of allocation
  * @return True iff enough space is available to allocate at this node
  */
-static inline bool is_allocatable(struct mmnode *node, gensize_t size) {
-    return node->size >= size && node->type == NodeType_Free;
+static inline bool is_allocatable(struct mmnode *node, gensize_t size, gensize_t alignment) {
+    genpaddr_t aligned_base = ROUND_UP(node->base, alignment);
+    bool no_underflow = aligned_base >= node->base;
+    bool in_range = node->base + node->size > aligned_base;
+    bool enough_space = node->size - (aligned_base - node->base) >= size;
+
+    return node->type == NodeType_Free && no_underflow && in_range && enough_space;
 }
 
 static inline bool is_allocated_node(struct mmnode *node, genpaddr_t base, gensize_t size) {
@@ -129,8 +158,6 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     spre->mm = mm;
 
     slab_init(&(mm->slabs), sizeof(struct mmnode), slab_refill_func);
-
-    //slab_buf_used = 0;
 
     return SYS_ERR_OK;
 }
@@ -176,59 +203,36 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     if ((alignment % BASE_PAGE_SIZE) || alignment == 0) { return AOS_ERR_MM_MISALIGN; }
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
+    errval_t err;
     if (slab_freecount(&mm->slabs) <= SLAB_FREE_BLOCKS_THRESHOLD && !mm->slab_refilling) {
         mm->slab_refilling = true;
-        errval_t e = mm->slabs.refill_func(&mm->slabs);
+        err = mm->slabs.refill_func(&mm->slabs);
         mm->slab_refilling = false;
-        if (err_is_fail(e)) { return err_push(e, LIB_ERR_SLAB_REFILL); }
+        if (err_is_fail(err)) { return err_push(err, LIB_ERR_SLAB_REFILL); }
     }
 
     // find node with enough memory
     struct mmnode *curr = mm->head;
-    // TODO check alignment
-    //      But handle case mentioned below first
-    while (curr != NULL && !is_allocatable(curr, size)) { curr = curr->next; }
+    while (curr != NULL && !is_allocatable(curr, size, alignment)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_RAM_ALLOC_FIXED_EXHAUSTED; }
 
-    struct capref cap;
+    genpaddr_t aligned_base = ROUND_UP(curr->base, alignment);       // overflow checked in is_allocatable
 
-    // new slot
-    // TODO: only refill when needed
-    errval_t err = mm->slot_alloc(mm->slot_alloc_inst, 1, &cap);
-    if (err_is_fail(err)) { return err_push(err, LIB_ERR_SLOT_ALLOC); }
-    err = mm->slot_refill(mm->slot_alloc_inst);
-    if (err_is_fail(err)) {
-        err_push(err, AOS_ERR_SLOT_REFILL_FAIL);
-        goto free_slot;
+    if (aligned_base == curr->base) {
+        err = split_off(mm, curr, size);
+        if (err_is_fail(err)) { return err; }
+    } else {
+        gensize_t pad_size = (aligned_base - curr->base);
+        err = split_off(mm, curr, pad_size);
+        if (err_is_fail(err)) { return err; }
+        err = split_off(mm, curr, size);
+        if (err_is_fail(err)) { return err; }
     }
-
-    // TODO: handle case, where 1 page size is allocated (from left, page aligned)
-    //       and then a page size 2page aligned space is allocated
-    //       | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-    //         A   ?   A   A  <- make node from ?
-    gensize_t offset = curr->base - curr->cap.base;
-    err = cap_retype(cap, *(curr->cap.parent), offset, mm->objtype, size, 1);
-    if (err_is_fail(err)) {
-        err_push(err, SYS_ERR_RETYPE_CREATE);
-        goto free_slot;
-    }
-    // create new node
-    struct mmnode *new_node;
-    err = create_new_node(mm, &new_node, curr->base, size, NodeType_Allocated,
-                          curr->cap.parent, curr->cap.base, curr->cap.size, &cap);
-    if (err_is_fail(err)) { goto free_slot; }
-
-    // Update current node
-    curr->base += size;
-    curr->size -= size;
-
-    insert_before(mm, new_node, curr);
-    *retcap = cap;
+    struct mmnode *allocatable_node = curr->prev;
+    allocatable_node->type = NodeType_Allocated;
+    *retcap = allocatable_node->cap.cap;
 
     return SYS_ERR_OK;
-free_slot:
-    slot_free(cap);
-    return err;
 }
 
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
