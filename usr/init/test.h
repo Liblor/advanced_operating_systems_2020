@@ -5,4 +5,6 @@
 
 void test_libmm(void);
 
+void test_paging(void);
+
 #endif /* _INIT_TEST_H_ */

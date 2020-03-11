@@ -5,6 +5,24 @@
 
 #include "test.h"
 
+static inline void print_test_begin(const char *name)
+{
+    debug_printf("################################################################################\n");
+    debug_printf("# Begin of test %s\n", name);
+}
+
+static inline void print_test_end(const char *name)
+{
+    debug_printf("End of test %s\n", name);
+    debug_printf("################################################################################\n");
+}
+
+static inline void print_test_abort(const char *name)
+{
+    debug_printf("Aborting test %s\n", name);
+    debug_printf("################################################################################\n");
+}
+
 static struct capref test_allocate(struct mm *mm, const size_t size)
 {
     errval_t err;
@@ -79,7 +97,7 @@ static void test_allocate_small(struct mm *mm)
 
 static void test_allocate_ordered(struct mm *mm, const uint32_t count, const size_t size, const bool reverse)
 {
-    debug_printf("test_allocate_small(mm=%p, count=%zd, size=0x%zx, reverse=%d)\n", mm, count, size, reverse);
+    debug_printf("test_allocate_ordered(mm=%p, count=%zd, size=0x%zx, reverse=%d)\n", mm, count, size, reverse);
 
     struct capref caps[count];
 
@@ -97,6 +115,8 @@ static void test_allocate_ordered(struct mm *mm, const uint32_t count, const siz
 
 static void test_add(const uint32_t count, const size_t size)
 {
+    debug_printf("test_add(count=%"PRIx32", size=0x%zx)\n", count, size);
+
     errval_t err;
 
     struct mm mm;
@@ -140,15 +160,98 @@ static void test_add(const uint32_t count, const size_t size)
 
 void test_libmm(void)
 {
-    debug_printf("Starting test\n");
+    print_test_begin("libmm");
 
     test_add(8, 16 * PAGE_SIZE);
 
     test_allocate_small(&aos_mm);
 
-    // TODO: Increase count to 65536 once the slabs can dynamically grow.
-    test_allocate_ordered(&aos_mm, 64, 4 * PAGE_SIZE, false);
-    test_allocate_ordered(&aos_mm, 64, 4 * PAGE_SIZE, true);
+    test_allocate_ordered(&aos_mm, 45000, 4 * PAGE_SIZE, false);
+    test_allocate_ordered(&aos_mm, 45000, 4 * PAGE_SIZE, true);
 
-    debug_printf("Test successfully completed\n");
+    print_test_end("libmm");
+}
+
+static bool test_paging_multiple(const lvaddr_t base, lvaddr_t *newbase, const int count, const size_t size)
+{
+    debug_printf("test_paging_multiple(base=%"PRIxLVADDR", newbase=%p, count=%d, size=%zx)\n", base, newbase, count, size);
+
+    errval_t err;
+
+    *newbase = base;
+    lvaddr_t vaddr = base;
+
+    for (int i = 0; i < count; i++) {
+        struct capref frame_cap;
+        size_t bytes = size;
+
+        err = frame_alloc(&frame_cap, bytes, &bytes);
+        if (err_is_fail(err)) {
+            debug_printf("frame_alloc failed: %s\n", err_getstring(err));
+            return false;
+        }
+
+        *newbase += bytes;
+
+        err = paging_map_fixed_attr(get_current_paging_state(), vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+        if (err_is_fail(err)) {
+            debug_printf("paging_map_fixed_attr failed: %s\n", err_getstring(err));
+            return false;
+        }
+
+        vaddr += bytes;
+    }
+
+    for (uint32_t *buf = (uint32_t *) base; (lvaddr_t) buf < vaddr; buf++)
+        *buf = 0xAAAAAAAA;
+
+    return true;
+}
+
+void test_paging(void)
+{
+    const char *name = "paging";
+
+    print_test_begin(name);
+
+    // We may not start from VADDR_OFFSET currenty, since the
+    // slab_refill_pages() function claims virtual address space starting from
+    // there.
+    lvaddr_t vaddr = VADDR_OFFSET + 32 * BASE_PAGE_SIZE;
+
+    bool success;
+
+    success = test_paging_multiple(vaddr, &vaddr, 1, BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    success = test_paging_multiple(vaddr, &vaddr, 1, BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    success = test_paging_multiple(vaddr, &vaddr, 4, 4 * BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    // For the next test to work, we need to fill the remaining L3 page
+    // directory.
+    success = test_paging_multiple(vaddr, &vaddr, 462, BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    success = test_paging_multiple(vaddr, &vaddr, 200, 512 * BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    print_test_end(name);
 }
