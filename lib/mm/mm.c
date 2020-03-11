@@ -162,22 +162,8 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     const genpaddr_t best_base = best->base;
 
-    // Retype the aligned part of the node with the requested size.
-    err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
-    if (err_is_fail(err))
-        return err_push(err, MM_ERR_NEW_NODE);
-
-    err = mm->slot_refill(mm->slot_alloc_inst);
-    if (err_is_fail(err))
-        return err_push(err, MM_ERR_SLOT_MM_ALLOC);
-
-    err = cap_retype(*retcap, best->cap.cap, best->base - best->cap.base + best_padding_size, mm->objtype, size, 1);
-    // TODO: Return the correct error code.
-    if (err_is_fail(err))
-        return err_push(err, MM_ERR_MISSING_CAPS);
-
     /*
-     * Next we have to split the node and mark the requested part as being
+     * We have to split the node and mark the requested part as being
      * allocated. This will result in the following layout.
      * [best->prev] <--> [padding] <--> [best] <--> [leftover] <--> [best-next]
      */
@@ -236,7 +222,23 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         debug_printf("Inserted padding node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", padding, padding->base, padding->size);
     }
 
-    print_list(mm);
+    err = slab_ensure_threshold(&mm->slabs, 3);
+    if (err_is_fail(err))
+        return err;
+
+    // Retype the aligned part of the node with the requested size.
+    err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
+    if (err_is_fail(err))
+        return err_push(err, MM_ERR_NEW_NODE);
+
+    err = mm->slot_refill(mm->slot_alloc_inst);
+    if (err_is_fail(err))
+        return err_push(err, MM_ERR_SLOT_MM_ALLOC);
+
+    err = cap_retype(*retcap, best->cap.cap, best_base + best_padding_size - best->cap.base, mm->objtype, size, 1);
+    // TODO: Return the correct error code.
+    if (err_is_fail(err))
+        return err_push(err, MM_ERR_MISSING_CAPS);
 
     return SYS_ERR_OK;
 }
