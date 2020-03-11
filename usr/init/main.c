@@ -65,14 +65,12 @@ __attribute__ ((unused)) static void test_simple_alloc_free(void) {
 __attribute__ ((unused))static void test_handle_slot_256(void) {
     errval_t err;
     const uint64_t size = 260;
+//    static char nodebuf[1 << 20];
+//    slab_grow(&aos_mm.slabs, nodebuf, sizeof(nodebuf));
 
-    static char nodebuf[1 << 20];
-    slab_grow(&aos_mm.slabs, nodebuf, sizeof(nodebuf));
     struct capref retcaps[size];
     for (int i = 0; i < size; ++i) {
-        DEBUG_PRINTF("allocating slot %i\n", i);
         err = aos_mm.slot_alloc(aos_mm.slot_alloc_inst, 1, &retcaps[i]);
-//        err = mm_alloc(&aos_mm, 1 << 12, &retcaps[i]);
         assert(err_is_ok(err));
     }
     for (int i = 0; i < size; ++i) {
@@ -89,24 +87,23 @@ __attribute__ ((unused))static void test_slab_simple(void) {
     struct capref retcaps[size];
 
     for (int i = 0; i < size; ++i) {
-        DEBUG_PRINTF("alloc %d\n", i);
         err = mm_alloc(&aos_mm, 1 << 12, &retcaps[i]);
         assert(err_is_ok(err));
     }
-
-// free todo
-//    for (int i = 0; i < size; ++i) {
-//        assert(err_is_ok(err));
-//    }
+    for (int i = 0; i < size; ++i) {
+        struct capability tmp_cap;
+        cap_direct_identify(retcaps[i], &tmp_cap);
+        err = mm_free(&aos_mm, retcaps[i], get_address(&tmp_cap), get_size(&tmp_cap));
+        assert(err_is_ok(err));
+    }
     DEBUG_PRINTF("success\n");
-
 }
 
 
 static void test_suite_milestone1(void) {
-//    test_simple_alloc_free();
-//    test_handle_slot_256();
     test_slab_simple();
+    test_simple_alloc_free();
+    test_handle_slot_256();
 }
 
 

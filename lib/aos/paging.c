@@ -32,13 +32,11 @@ static errval_t pt_alloc(struct paging_state *st, enum objtype type,
                          struct capref *ret) {
     DEBUG_BEGIN;
     errval_t err;
-    DEBUG_PRINTF("slot_alloc: %p\n",st->slot_alloc);
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc failed: %s\n", err_getstring(err));
         return err;
     }
-    DEBUG_PRINTF("vnode_create:\n");
     err = vnode_create(*ret, type);
     if (err_is_fail(err)) {
         debug_printf("vnode_create failed: %s\n", err_getstring(err));
@@ -127,7 +125,7 @@ errval_t paging_init(void) {
 
     current.is_used_l1 = 0;
     current.fixed_lvl0_lvl1 = 0;
-//    current.slot_alloc =
+
     for (int i = 0; i < PAGING_STATE_TABLE_SIZE; i++) {
         current.lvl2_pt_mapping[i].is_used = 0;
     }
@@ -294,6 +292,7 @@ errval_t slab_refill_no_pagefault(struct slab_allocator *slabs, struct capref fr
     return SYS_ERR_OK;
 }
 
+
 /// Map user provided frame at user provided VA with given flags.
 // TODO-BEAN Task 1.2
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
@@ -310,31 +309,37 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     if (!st->is_used_l1) {
         st->fixed_lvl0_lvl1 = FIELD(30, (2 * 9), vaddr);
         DEBUG_PRINTF("fixed lvl0 lvl1: %p\n", st->fixed_lvl0_lvl1);
-
         DEBUG_PRINTF("creating lvl0->lvl1\n");
+
+
         err = pt_alloc_l1(st, &st->cap_lvl1_pt);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "cannot create pt_alloc_l1");
             return err;
         }
         DEBUG_PRINTF("A\n");
-        struct capref lvl0_pt = {
-                .cnode = cnode_page,
-                .slot = 0
-        };
+        struct capref lvl0_pt = { .cnode = cnode_page, .slot = 0 };
         lvaddr_t lvl0_i = FIELD(39, 9, vaddr);
         DEBUG_PRINTF("lvl0_i: %p, vaddr: %p\n", lvl0_i, vaddr);
 
         // dest: höhere
         // offste: 0
         // slot: lvl0
-        struct capref mapping_lvl0_lvl1 = {};
+        struct capref mapping_lvl0_lvl1;
+        err = st->slot_alloc->alloc(st->slot_alloc, &mapping_lvl0_lvl1);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "cannot crate slot");
+            return err;
+        }
+
         err = vnode_map(lvl0_pt, st->cap_lvl1_pt, lvl0_i, VREGION_FLAGS_READ_WRITE,
                         0, 1, mapping_lvl0_lvl1);
+
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "cannot create vnode map for lvl0-> lvl1 mapping");
             return err;
         }
+
         DEBUG_PRINTF("successfully created lvl0->lvl1\n");
 
         // create lvl1-> lvl2 mapping
@@ -342,13 +347,21 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         lvaddr_t lvl1_i = FIELD(30, 9, vaddr);
         DEBUG_PRINTF("lvl1_i: %p, vaddr: %p\n", lvl1_i, vaddr);
 
-        struct capref lvl1_pt = {};
-        err = pt_alloc_l2(st, &lvl1_pt);
+
+        err = pt_alloc_l2(st, &st->cap_lvl2_pt);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "cannot create pt_alloc_l2");
             return err;
         }
+        DEBUG_PRINTF("B\n");
         struct capref mapping_lvl1_lvl2 = {};
+        err = st->slot_alloc->alloc(st->slot_alloc, &mapping_lvl1_lvl2);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "cannot crate slot");
+            return err;
+        }
+
+        DEBUG_PRINTF("C\n");
         err = vnode_map(st->cap_lvl1_pt, st->cap_lvl2_pt, lvl1_i, VREGION_FLAGS_READ_WRITE,
                         0, 1, mapping_lvl1_lvl2);
         if (err_is_fail(err)) {
@@ -360,37 +373,50 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         st->is_used_l1 = 1;
     }
 
+
     // create lvl2 -> lvl3 mapping
     DEBUG_PRINTF("creating lvl2->lvl3\n");
     lvaddr_t lvl2_i = FIELD(21, 9, vaddr);
     DEBUG_PRINTF("%p addr, lvl2_i: %p\n", vaddr, lvl2_i);
 
-
     assert(st->fixed_lvl0_lvl1 == FIELD(30, 2 * 9, vaddr));
     assert(lvl2_i < PAGING_STATE_TABLE_SIZE);
 
+
     struct paging_state_entry *lvl3_pt = &st->lvl2_pt_mapping[lvl2_i];
-    err = pt_alloc_l3(st, &lvl3_pt->cap);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "cannot create pt_alloc_l2");
-        return err;
-    }
+    if (!lvl3_pt->is_used) {
+        err = pt_alloc_l3(st, &lvl3_pt->cap);
 
-    // TODO: slot=0?
-    struct capref mapping_lvl2_lvl3 = {};
-    err = vnode_map(st->cap_lvl2_pt, lvl3_pt->cap, lvl2_i, VREGION_FLAGS_READ_WRITE,
-                    0, 1, mapping_lvl2_lvl3);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "cannot create vnode map for lvl0-> lvl1 mapping");
-        return err;
-    }
-    DEBUG_PRINTF("successfully created lvl2->lvl3\n");
-    DEBUG_PRINTF("mapping frame into lvl3\n");
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "cannot create pt_alloc_3");
+            return err;
+        }
+        struct capref mapping_lvl2_lvl3 = {};
+        err = st->slot_alloc->alloc(st->slot_alloc, &mapping_lvl2_lvl3);
+        if (err_is_fail(err)) {
+            return err;
+        }
 
+        err = vnode_map(st->cap_lvl2_pt, lvl3_pt->cap, lvl2_i, VREGION_FLAGS_READ_WRITE,
+                        0, 1, mapping_lvl2_lvl3);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "cannot create vnode map for lvl2-> lvl3 mapping");
+            return err;
+        }
+        DEBUG_PRINTF("successfully created lvl2->lvl3\n");
+        DEBUG_PRINTF("mapping frame into lvl3\n");
+        lvl3_pt->is_used = true;
+    }
     struct capref mapping_lvl3_frame = {};
+    err = st->slot_alloc->alloc(st->slot_alloc, &mapping_lvl3_frame);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
     lvaddr_t lvl3_i = FIELD(12, 9, vaddr);
     lvaddr_t vaddr_pa = FIELD(0, 12, vaddr);
 
+    DEBUG_PRINTF("%p addr, lvl3_i: %p\n", vaddr, lvl3_i);
     DEBUG_PRINTF("%p addr, pa: %p\n", vaddr, vaddr_pa);
     err = vnode_map(lvl3_pt->cap, frame, lvl3_i, flags,
                     vaddr_pa, 1, mapping_lvl3_frame);
@@ -400,6 +426,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         return err;
     }
 
+    DEBUG_PRINTF("success\n");
     DEBUG_END;
     return SYS_ERR_OK;
 }

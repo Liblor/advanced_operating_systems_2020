@@ -50,6 +50,7 @@ void slab_init(struct slab_allocator *slabs, size_t blocksize,
  * \param buflen Size of memory region (in bytes)
  */
 void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen) {
+    DEBUG_BEGIN;
     /* setup slab_head structure at top of buffer */
     assert(buflen > sizeof(struct slab_head));
     struct slab_head *head = buf;
@@ -74,6 +75,7 @@ void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen) {
     /* enqueue slab in list of slabs */
     head->next = slabs->slabs;
     slabs->slabs = head;
+    DEBUG_END;
 }
 
 /**
@@ -192,6 +194,8 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes) {
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
+    DEBUG_PRINTF("vaddr mapped: %p, bytes: %zu\n", buf, bytes);
+
     slabs->vaddr_new_frame += bytes;
 
     slab_grow(slabs, buf, bytes);
