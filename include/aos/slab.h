@@ -19,6 +19,8 @@
 
 __BEGIN_DECLS
 
+#define SLAB_FREE_BLOCKS_THRESHOLD 10  // require to have at least as many blocks
+
 // forward declarations
 struct slab_allocator;
 struct block_head;
@@ -37,6 +39,8 @@ struct slab_allocator {
     struct slab_head *slabs;    ///< Pointer to list of slabs
     size_t blocksize;           ///< Size of blocks managed by this allocator
     slab_refill_func_t refill_func;  ///< Refill function
+    size_t free_count;
+    bool refilling;
 };
 
 void slab_init(struct slab_allocator *slabs, size_t blocksize,
