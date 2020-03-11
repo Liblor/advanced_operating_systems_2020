@@ -61,9 +61,29 @@ struct paging_region {
 
 
 // struct to store the paging status of a process
+struct paging_state_entry {
+    bool is_used;
+    struct capref cap;
+};
+
+
+#define PAGING_STATE_TABLE_BITS 9
+#define PAGING_STATE_TABLE_SIZE (1 << PAGING_STATE_TABLE_BITS)
 struct paging_state {
     struct slot_allocator *slot_alloc;
+
+    // Assumption: first two mappings are fixed for milestone 1 (lvl0, lvl1)
+    lvaddr_t fixed_lvl0_lvl1;
+
+    // Assumption: frames in lvl3 are not overlapping
+    bool is_used_l1;
+    struct capref cap_lvl1_pt;
+    struct capref cap_lvl2_pt;
+    struct paging_state_entry lvl2_pt_mapping[PAGING_STATE_TABLE_SIZE];
+    //
+
 };
+
 
 
 #endif  /// PAGING_TYPES_H_
