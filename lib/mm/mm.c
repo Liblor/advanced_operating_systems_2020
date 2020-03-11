@@ -7,7 +7,7 @@
 #include <aos/debug.h>
 #include <aos/solution.h>
 
-
+/*
 static char slab_buf[64*sizeof(struct mmnode)];
 static bool slab_buf_used;
 
@@ -17,6 +17,7 @@ static errval_t mm_slab_refill(struct slab_allocator *slabs) {
     slab_grow(slabs, slab_buf, sizeof(slab_buf));
     return SYS_ERR_OK;
 }
+*/
 
 static inline errval_t create_new_node(struct mm *mm,
                                        struct mmnode **new_node,
@@ -29,6 +30,7 @@ static inline errval_t create_new_node(struct mm *mm,
                                        struct capref *cap) {
     void *block = slab_alloc(&mm->slabs);
     if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
+
     *new_node = (struct mmnode *)block;
     (*new_node)->type = type;
     (*new_node)->cap = (struct capinfo) {
@@ -110,11 +112,12 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
                      slot_alloc_t slot_alloc_func,
                      slot_refill_t slot_refill_func,
                      void *slot_alloc_inst) {
-    // TODO: refactor to double linked circle
+    // XXX: maybe refactor to double linked circle
     if (slab_refill_func == NULL) {
-        slab_refill_func = mm_slab_refill;
+        slab_refill_func = slab_default_refill;
     }
 
+    mm->slab_refilling = false;
     mm->slot_alloc = slot_alloc_func;
     mm->slot_refill = slot_refill_func;
     mm->slot_alloc_inst = slot_alloc_inst;
@@ -122,12 +125,12 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     mm->head = NULL;
     mm->tail = NULL;
 
-    struct slot_prealloc *spre = (struct slot_prealloc*) slot_alloc_inst;
+    struct slot_prealloc *spre = (struct slot_prealloc *) slot_alloc_inst;
     spre->mm = mm;
 
     slab_init(&(mm->slabs), sizeof(struct mmnode), slab_refill_func);
 
-    slab_buf_used = 0;
+    //slab_buf_used = 0;
 
     return SYS_ERR_OK;
 }
@@ -173,6 +176,13 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     if ((alignment % BASE_PAGE_SIZE) || alignment == 0) { return AOS_ERR_MM_MISALIGN; }
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
+    if (slab_freecount(&mm->slabs) <= SLAB_FREE_BLOCKS_THRESHOLD && !mm->slab_refilling) {
+        mm->slab_refilling = true;
+        errval_t e = mm->slabs.refill_func(&mm->slabs);
+        mm->slab_refilling = false;
+        if (err_is_fail(e)) { return err_push(e, LIB_ERR_SLAB_REFILL); }
+    }
+
     // find node with enough memory
     struct mmnode *curr = mm->head;
     // TODO check alignment
@@ -208,17 +218,12 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
                           curr->cap.parent, curr->cap.base, curr->cap.size, &cap);
     if (err_is_fail(err)) { goto free_slot; }
 
-    // Update current
+    // Update current node
     curr->base += size;
     curr->size -= size;
 
     insert_before(mm, new_node, curr);
     *retcap = cap;
-
-    debug_printf("offset %u\n", offset);
-    debug_printf("size %u\n", size);
-    debug_printf("newnode base %u\n", new_node->base);
-    debug_printf("newnode cap.base %u\n", new_node->cap.base);
 
     return SYS_ERR_OK;
 free_slot:

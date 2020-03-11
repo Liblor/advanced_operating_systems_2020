@@ -24,6 +24,8 @@
 
 __BEGIN_DECLS
 
+#define SLAB_FREE_BLOCKS_THRESHOLD 10  // require to have at least as many blocks
+
 enum nodetype {
     NodeType_Free,      ///< This region exists and is free
     NodeType_Allocated  ///< This region exists and is allocated
@@ -62,6 +64,7 @@ struct mm {
     enum objtype objtype;        ///< Type of capabilities stored
     struct mmnode *head;         ///< Head of doubly-linked list of nodes in order
     struct mmnode *tail;         ///< Tail of doubly-linked list of nodes in order
+    bool slab_refilling;
 
     /* statistics */
     gensize_t stats_bytes_max;

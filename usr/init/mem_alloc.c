@@ -152,6 +152,24 @@ errval_t initialize_ram_alloc(void)
         debug_printf("base: %lu, size: %lu, type, %u \n", curr->base, curr->size, curr->type);
         curr = curr->next;
     }
+
+    for (int j = 0; j < 256; j++) {
+        //debug_printf("--------------------\n");
+        e = mm_alloc(&aos_mm, 10, &cap2);
+        if (err_is_fail(e)) {
+            err_print_calltrace(e);
+        } else {
+            //debug_printf("ALLOCATED \n");
+        }
+    }
+    debug_printf("--------------------\n");
+    curr = aos_mm.head;
+    while (curr != NULL) {
+        debug_printf("base: %lu, size: %lu, type, %u \n", curr->base, curr->size, curr->type);
+        curr = curr->next;
+    }
+    debug_printf("--------------------\n");
+
     ////// TEST END
 
     return SYS_ERR_OK;

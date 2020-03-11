@@ -24,7 +24,6 @@
 static struct paging_state current;
 
 
-
 /**
  * \brief Helper function that allocates a slot and
  *        creates a aarch64 page table capability for a certain level
@@ -124,8 +123,12 @@ errval_t paging_init(void)
     // avoid code duplication.
     set_current_paging_state(&current);
 
+    current.slot_alloc = get_default_slot_allocator();
+
     // M1
     current.l1_created = false;
+    current.l2_created = false;
+    current.last_addr = VADDR_OFFSET;
     for (size_t i = 0; i < ARMV8_PAGE_DIRECTORY_SIZE; i++) {
         current.l2_table[i].created = false;
     }
@@ -300,6 +303,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
      * TODO(M2): General case
      */
     // ASSUMPTION: L0 and L1 page table are fixed, no overlapping requests
+    debug_printf("paging_map_fixed_attr(vaddr: %lx, bytes: %lu )\n", vaddr, bytes);
 
     // L0 Page Table
     struct capref l0_pt = {
@@ -310,7 +314,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     errval_t err;
 
     // L1 Page Table
-    if (st->l1_created) {
+    if (!st->l1_created) {
         err = pt_alloc_l1(st, &st->l1_pt);
         if (err_is_fail(err)) { return err; }
         st->l1_created = true;
@@ -332,7 +336,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
     // L2 Page Table
     //struct capref l2_pt;
-    if (st->l2_created) {
+    if (!st->l2_created) {
         err = pt_alloc_l2(st, &st->l2_pt);
         if (err_is_fail(err)) { return err; }
         st->l2_created = true;
@@ -378,14 +382,14 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     }
 
     struct capref l3_frame_mapping;
+    capaddr_t l3_index = FIELD(ARMV8_PAGE_L3_INDEX_OFFSET, ARMV8_PAGE_ADDRESS_BITS, vaddr);
     err = st->slot_alloc->alloc(st->slot_alloc, &l3_frame_mapping);
     if (err_is_fail(err)) { return err; }
-    err = vnode_map(l3_pt, frame, l2_index, VREGION_FLAGS_READ_WRITE, 0, 1, l3_frame_mapping);
+    err = vnode_map(l3_pt, frame, l3_index, flags, vaddr & MASK(12), 1, l3_frame_mapping);
     if (err_is_fail(err)) {
         cap_destroy(l3_frame_mapping);
         return err;
     }
-
 
     return SYS_ERR_OK;
 }

@@ -39,7 +39,6 @@ void slab_init(struct slab_allocator *slabs, size_t blocksize,
     slabs->blocksize = SLAB_REAL_BLOCKSIZE(blocksize);
     slabs->refill_func = refill_func;
     slabs->free_count = 0;
-    slabs->refilling = false;
 }
 
 
@@ -89,10 +88,12 @@ void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen)
 void *slab_alloc(struct slab_allocator *slabs)
 {
     errval_t err;
-    /* refill slab if threshold of free blocks is reached */
-    if (slab_freecount(slabs) < SLAB_FREE_BLOCKS_THRESHOLD && !slabs->refilling) {
-        debug_printf("%u\n", slabs->free_count);
-        slabs->refilling = true;
+    /* find a slab with free blocks */
+    struct slab_head *sh;
+    for (sh = slabs->slabs; sh != NULL && sh->free == 0; sh = sh->next);
+
+    if (sh == NULL) {
+        /* out of memory. try refill function if we have one */
         if (!slabs->refill_func) {
             return NULL;
         } else {
@@ -101,16 +102,11 @@ void *slab_alloc(struct slab_allocator *slabs)
                 DEBUG_ERR(err, "slab refill_func failed");
                 return NULL;
             }
+            for (sh = slabs->slabs; sh != NULL && sh->free == 0; sh = sh->next);
+            if (sh == NULL) {
+                return NULL;
+            }
         }
-        slabs->refilling = false;
-    }
-
-    /* find a slab with free blocks */
-    struct slab_head *sh;
-    for (sh = slabs->slabs; sh != NULL && sh->free == 0; sh = sh->next);
-
-    if (sh == NULL) {
-        return NULL;
     }
 
     /* dequeue top block from freelist */

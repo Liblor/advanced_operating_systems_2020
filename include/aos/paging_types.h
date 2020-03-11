@@ -77,9 +77,10 @@ struct paging_state {
     struct slot_allocator *slot_alloc;
     struct capref l1_pt;
     struct capref l2_pt;
+    struct page_state l2_table[ARMV8_PAGE_DIRECTORY_SIZE];
+    lvaddr_t last_addr;
     bool l1_created;
     bool l2_created;
-    struct page_state l2_table[ARMV8_PAGE_DIRECTORY_SIZE];
 };
 
 
