@@ -77,7 +77,7 @@ static inline void merge_with_prev_node(struct mm *mm, struct mmnode *node) {
     slab_free(&mm->slabs, to_delete);
 }
 
-static inline errval_t split_off(struct mm *mm, struct mmnode *node, gensize_t size) {
+static inline errval_t alloc_node(struct mm *mm, struct mmnode *node) {
     // new slot
     struct capref cap;
     errval_t err = mm->slot_alloc(mm->slot_alloc_inst, 1, &cap);
@@ -89,16 +89,28 @@ static inline errval_t split_off(struct mm *mm, struct mmnode *node, gensize_t s
     }
 
     gensize_t offset = node->base - node->cap.base;
-    err = cap_retype(cap, *(node->cap.parent), offset, mm->objtype, size, 1);
+    err = cap_retype(cap, *(node->cap.parent), offset, mm->objtype, node->size, 1);
     if (err_is_fail(err)) {
         err_push(err, SYS_ERR_RETYPE_CREATE);
         goto free_slot;
     }
+
+    node->cap.cap = cap;
+    node->type = NodeType_Allocated;
+
+    return SYS_ERR_OK;
+
+free_slot:
+    slot_free(cap);
+    return err;
+}
+
+static inline errval_t split_off(struct mm *mm, struct mmnode *node, gensize_t size) {
     // create new node
     struct mmnode *new_node;
-    err = create_new_node(mm, &new_node, node->base, size, node->type,
-                          node->cap.parent, node->cap.base, node->cap.size, &cap);
-    if (err_is_fail(err)) { goto free_slot; }
+    errval_t err = create_new_node(mm, &new_node, node->base, size, node->type,
+                          node->cap.parent, node->cap.base, node->cap.size, &node->cap.cap);
+    if (err_is_fail(err)) { return err; }
 
     // Update node
     node->base += size;
@@ -106,9 +118,7 @@ static inline errval_t split_off(struct mm *mm, struct mmnode *node, gensize_t s
 
     insert_before(mm, new_node, node);
 
-free_slot:
-    slot_free(cap);
-    return err;
+    return SYS_ERR_OK;
 }
 
 /**
@@ -200,6 +210,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
 }
 
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
+    debug_printf("[mm_alloc_aligned] alignment: %lu, size %lu\n", alignment, size);
     if ((alignment % BASE_PAGE_SIZE) || alignment == 0) { return AOS_ERR_MM_MISALIGN; }
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
@@ -229,7 +240,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         if (err_is_fail(err)) { return err; }
     }
     struct mmnode *allocatable_node = curr->prev;
-    allocatable_node->type = NodeType_Allocated;
+    alloc_node(mm, allocatable_node);
     *retcap = allocatable_node->cap.cap;
 
     return SYS_ERR_OK;
@@ -241,7 +252,6 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
-    debug_printf("mm_free(base: %lu, size: %lu\n)", base, size);
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
     // find node to free
