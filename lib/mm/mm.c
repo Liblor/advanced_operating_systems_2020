@@ -384,7 +384,7 @@ void free_and_merge_node_with_prev(struct mm *mm, struct mmnode *current) {
     mm_dump_mmnode(origin, "origin after free");
 }
 
-// TODO-BEAN: implement partial free? base addr may not be  base addr from capability
+// TODO-BEAN: partial free?
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
     DEBUG_BEGIN;
     DEBUG_PRINTF("free of base %p and size %zu\n", base, size);
