@@ -62,7 +62,6 @@ struct mm {
     struct mmnode *head;                    ///< Pointer to head of doubly-linked list of nodes
     struct mmnode mm_head;                  ///< Head of the doubly-linked list.
     struct mmnode mm_tail;                  ///< Tail of the doubly-linked list.
-    uint8_t initial_slab_buffer[PAGE_SIZE]; ///< Initial buffer for the slab allocator.
 
     /* statistics */
     gensize_t stats_bytes_max;

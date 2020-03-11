@@ -24,14 +24,16 @@ errval_t mm_init(struct mm *mm,
 
     debug_printf("mm_init(mm=%p, objtype=%d, ...)\n", mm, objtype);
 
+    if (slab_refill_func == NULL)
+        slab_refill_func = slab_default_refill;
+
     mm->slot_alloc = slot_alloc_func;
     mm->slot_refill = slot_refill_func;
     mm->slot_alloc_inst = slot_alloc_inst;
     mm->objtype = objtype;
 
-    slab_init(&mm->slabs, sizeof(struct mmnode), slab_default_refill);
-
-    slab_grow(&mm->slabs, (void *) mm->initial_slab_buffer, PAGE_SIZE);
+    // NOTE: The slab is later grown by the initial process.
+    slab_init(&mm->slabs, sizeof(struct mmnode), slab_refill_func);
 
     mm->head = &mm->mm_head;
     mm->mm_head.next = &mm->mm_tail;
@@ -306,8 +308,6 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
         node->prev = node->prev->prev;
         slab_free(&mm->slabs, old);
     }
-
-    print_list(mm);
 
     // TODO: Revoke the capability to prevent further use.
     //err = cap_revoke(cap);
