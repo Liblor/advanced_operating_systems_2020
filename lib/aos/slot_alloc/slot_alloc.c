@@ -40,7 +40,9 @@ struct slot_allocator *get_default_slot_allocator(void)
  */
 errval_t slot_alloc(struct capref *ret)
 {
+    DEBUG_BEGIN;
     struct slot_allocator *ca = get_default_slot_allocator();
+    DEBUG_END;
     return ca->alloc(ca, ret);
 }
 
@@ -53,6 +55,7 @@ errval_t slot_alloc(struct capref *ret)
  */
 errval_t slot_alloc_root(struct capref *ret)
 {
+    DEBUG_BEGIN;
     errval_t err;
     struct slot_alloc_state *state = get_slot_alloc_state();
     size_t rootcn_free = single_slot_alloc_freecount(&state->rootca);
@@ -70,6 +73,7 @@ errval_t slot_alloc_root(struct capref *ret)
         state->rootca.refilling = false;
     }
     struct slot_allocator *ca = (struct slot_allocator*)(&state->rootca);
+    DEBUG_END;
     return ca->alloc(ca, ret);
 }
 
@@ -77,11 +81,13 @@ typedef errval_t (*cn_ram_alloc_func_t)(void *st, size_t reqbytes, struct capref
 
 static errval_t rootcn_alloc(void *st, size_t reqbytes, struct capref *ret)
 {
+    DEBUG_BEGIN; DEBUG_END;
     return ram_alloc(ret, reqbytes);
 }
 
 errval_t root_slot_allocator_refill(cn_ram_alloc_func_t myalloc, void *allocst)
 {
+    DEBUG_BEGIN;
     errval_t err;
 
     struct slot_alloc_state *state = get_slot_alloc_state();
@@ -131,6 +137,7 @@ errval_t root_slot_allocator_refill(cn_ram_alloc_func_t myalloc, void *allocst)
     }
 
     // update root slot allocator size and our metadata
+    DEBUG_BEGIN;
     return single_slot_alloc_resize(sca, nslots * 2);
 }
 

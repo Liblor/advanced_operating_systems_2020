@@ -122,6 +122,7 @@ errval_t paging_init(void) {
     DEBUG_PRINTF("initializing lvl2_pt mapping\n");
     current.is_used_l1 = 0;
     current.fixed_lvl0_lvl1 = 0;
+//    current.slot_alloc =
     for (int i = 0; i < PAGING_STATE_TABLE_SIZE; i++) {
         current.lvl2_pt_mapping[i].is_used = 0;
     }

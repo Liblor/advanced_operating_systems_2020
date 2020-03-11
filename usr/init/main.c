@@ -64,17 +64,49 @@ __attribute__ ((unused)) static void test_simple_alloc_free(void) {
 
 __attribute__ ((unused))static void test_handle_slot_256(void) {
     errval_t err;
-    uint64_t size = 260;
+    const uint64_t size = 260;
+
+    static char nodebuf[1 << 20];
+    slab_grow(&aos_mm.slabs, nodebuf, sizeof(nodebuf));
     struct capref retcaps[size];
     for (int i = 0; i < size; ++i) {
+        DEBUG_PRINTF("allocating slot %i\n", i);
+        err = aos_mm.slot_alloc(aos_mm.slot_alloc_inst, 1, &retcaps[i]);
+//        err = mm_alloc(&aos_mm, 1 << 12, &retcaps[i]);
+        assert(err_is_ok(err));
+    }
+    for (int i = 0; i < size; ++i) {
+        err = slot_free(retcaps[i]);
+        assert(err_is_ok(err));
+    }
+    DEBUG_PRINTF("success\n");
+
+}
+
+__attribute__ ((unused))static void test_slab_simple(void) {
+    errval_t err;
+    const uint64_t size = 260;
+    struct capref retcaps[size];
+
+    for (int i = 0; i < size; ++i) {
+        DEBUG_PRINTF("alloc %d\n", i);
         err = mm_alloc(&aos_mm, 1 << 12, &retcaps[i]);
         assert(err_is_ok(err));
     }
+
+// free todo
+//    for (int i = 0; i < size; ++i) {
+//        assert(err_is_ok(err));
+//    }
+    DEBUG_PRINTF("success\n");
+
 }
+
 
 static void test_suite_milestone1(void) {
 //    test_simple_alloc_free();
-    test_handle_slot_256();
+//    test_handle_slot_256();
+    test_slab_simple();
 }
 
 
@@ -91,23 +123,23 @@ bsp_main(int argc, char *argv[]) {
     grading_setup_bsp_init(argc, argv);
 
     // First argument contains the bootinfo location, if it's not set
-    bi = (struct bootinfo*)strtol(argv[1], NULL, 10);
+    bi = (struct bootinfo *) strtol(argv[1], NULL, 10);
     assert(bi);
 
     err = initialize_ram_alloc();
-    if(err_is_fail(err)){
+    if (err_is_fail(err)) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
     test_suite_milestone1();
 
     // TODO: initialize mem allocator, vspace management here
-    
+
     // Grading 
     grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
-    
+
     // Grading 
     grading_test_late();
 
@@ -136,8 +168,7 @@ app_main(int argc, char *argv[]) {
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     DEBUG_BEGIN;
     errval_t err;
 
@@ -148,12 +179,12 @@ int main(int argc, char *argv[])
 
     debug_printf("init: on core %" PRIuCOREID ", invoked as:", my_core_id);
     for (int i = 0; i < argc; i++) {
-       printf(" %s", argv[i]);
+        printf(" %s", argv[i]);
     }
     printf("\n");
     fflush(stdout);
 
     DEBUG_END;
-    if(my_core_id == 0) return bsp_main(argc, argv);
-    else                return app_main(argc, argv);
+    if (my_core_id == 0) return bsp_main(argc, argv);
+    else return app_main(argc, argv);
 }

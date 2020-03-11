@@ -21,6 +21,7 @@
 
 static errval_t salloc(struct slot_allocator *ca, struct capref *ret)
 {
+    DEBUG_BEGIN;
     struct single_slot_allocator *sca = (struct single_slot_allocator*)ca;
 
     if (sca->a.space == 0) {
@@ -52,6 +53,7 @@ static errval_t salloc(struct slot_allocator *ca, struct capref *ret)
     }
 
     thread_mutex_unlock(&ca->mutex);
+    DEBUG_END;
     return SYS_ERR_OK;
 }
 
