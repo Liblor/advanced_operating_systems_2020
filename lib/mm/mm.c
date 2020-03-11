@@ -241,9 +241,8 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap) {
 
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size) {
-    if (size % BASE_PAGE_SIZE) {
-        size += (BASE_PAGE_SIZE - size % BASE_PAGE_SIZE);
-    }
+    debug_printf("mm_free(base: %lu, size: %lu\n)", base, size);
+    size = ROUND_UP(size, BASE_PAGE_SIZE);
 
     // find node to free
     struct mmnode *curr = mm->head;
