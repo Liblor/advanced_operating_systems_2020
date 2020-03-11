@@ -141,3 +141,20 @@ __attribute__((unused)) void test_map_page_get_frame(void) {
     strcpy((char *)buf, "hello world");
     debug_printf("Read from it: %s\n", buf);
 }
+
+__attribute__((unused)) void test_mapping_pages(void) {
+    struct capref frame_cap;
+    gensize_t bytes = BASE_PAGE_SIZE;
+
+    // Currently not more than 128 pages are supported, due to
+    // the standard slot allocator being used
+    for (int i = 0; i < 20; i++) {
+        errval_t err = frame_alloc(&frame_cap, bytes, &bytes);
+        if (err_is_fail(err)) { err_print_calltrace(err_push(err, LIB_ERR_FRAME_CREATE)); return; }
+
+        lvaddr_t addr = get_current_paging_state()->last_addr;
+        err = paging_map_fixed_attr(get_current_paging_state(), addr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+        if (err_is_fail(err)) { err_print_calltrace(err_push(err, LIB_ERR_VSPACE_MAP)); return; }
+        get_current_paging_state()->last_addr += bytes;
+    }
+}

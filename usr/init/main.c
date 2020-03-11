@@ -57,6 +57,7 @@ bsp_main(int argc, char *argv[]) {
     test_aligned_alloc2();
     test_alloc_free_x256();
     test_map_page_get_frame();
+    test_mapping_pages();
 #endif
     // TODO: initialize mem allocator, vspace management here
 
