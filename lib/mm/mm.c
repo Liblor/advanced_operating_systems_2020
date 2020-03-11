@@ -255,7 +255,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
                 return err_push(err, MM_ERR_SPLIT_NODE);
             }
 
-            // TODO Test if refill works (allocate more slots than fit into a cnode (256))
             mm->slot_refill(mm->slot_alloc_inst);
             err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
             if (err_is_fail(err)) {
@@ -263,11 +262,13 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
                 return err_push(err, LIB_ERR_SLOT_ALLOC);
             }
 
-            gensize_t offset = new_node->base - new_node->cap.base + padding_start;
+            gensize_t offset = new_node->base - new_node->cap.base;
+            assert(offset % BASE_PAGE_SIZE == 0);
             err = cap_retype(*retcap, new_node->cap.cap, offset, mm->objtype, new_node->size, 1);
             if (err_is_fail(err)) {
                 // TODO Currently this leads to an inconsistent state, because the mmnode has already been split.
-                DEBUG_ERR(err, "failed to retype capability (base=%p, padding_start=%d, offset=%d, size=%d)", new_node->cap.base, padding_start, offset, new_node->size);
+                DEBUG_ERR(err, "failed to retype capability");
+                debug_printf("cap.base=%p, cap.size=%u, node.base=%p, node.size=%u, offset=%u, padding_start=%u\n", new_node->cap.base, new_node->cap.size, new_node->base, new_node->size, offset, padding_start);
                 return err_push(err, LIB_ERR_CAP_RETYPE);
             }
             return SYS_ERR_OK;
@@ -309,8 +310,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     node_before = node_middle->prev;
     node_after = node_middle->next;
 
-    // TODO cap_delete or cap_destroy?
-    err = cap_delete(cap);
+    err = cap_destroy(cap);
     if (err_is_fail(err))
         return err_push(err, LIB_ERR_CAP_DELETE);
 

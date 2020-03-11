@@ -9,17 +9,31 @@
 
 static struct bootinfo *bi;
 
-static void evaluate_result(struct mm *mm, errval_t err, errval_t err_expected, bool suppress_output) {
+static void mm_evaluate_result(struct mm *mm, errval_t err, bool expect_success, bool suppress_output) {
+    assert(mm != NULL);
+
+    if ((expect_success && err == SYS_ERR_OK) || (!expect_success && err != SYS_ERR_OK)) {
+        if (!suppress_output)
+            printf("OK\n");
+    } else {
+        printf("FAIL\n");
+        printf("Call returned %s (expected %s)\n", err_getcode(err), expect_success ? "success" : "error");
+        assert(false);
+    }
+
+    if (expect_success && !suppress_output)
+        mm_print_state(mm);
+}
+
+static void paging_evaluate_result(errval_t err, errval_t err_expected, bool suppress_output) {
     if (err == err_expected) {
         if (!suppress_output)
             printf("OK\n");
     } else {
         printf("FAIL\n");
-        printf("Call returned in %s (expected %s)\n", err_getcode(err), err_getcode(err_expected));
+        printf("Call returned %s (expected %s)\n", err_getcode(err), err_getcode(err_expected));
+        assert(false);
     }
-
-    if (mm != NULL && err_expected == SYS_ERR_OK && !suppress_output)
-        mm_print_state(mm);
 }
 
 static void mm_test_add(struct mm *mm, struct capref *cap, genpaddr_t position, size_t size, bool expect_success) {
@@ -27,18 +41,19 @@ static void mm_test_add(struct mm *mm, struct capref *cap, genpaddr_t position, 
 
     debug_printf("Testing mm_add(), base=%p, size=%u --- ", base, size);
     errval_t err = mm_add(mm, *cap, base, size);
-    evaluate_result(mm, err, SYS_ERR_OK, false);
+    mm_evaluate_result(mm, err, expect_success, false);
 }
 
-static void mm_test_alloc_aligned(struct mm *mm, size_t alignment, size_t size, struct capref *retcap, bool expect_success) {
-    debug_printf("Testing mm_alloc_aligned(), alignment=%d, size=%u --- ", alignment, size);
+static void mm_test_alloc_aligned(struct mm *mm, size_t alignment, size_t size, struct capref *retcap, bool expect_success, bool suppress_output) {
+    if (!suppress_output)
+        debug_printf("Testing mm_alloc_aligned(), alignment=%d, size=%u --- ", alignment, size);
     errval_t err = mm_alloc_aligned(mm, size, alignment, retcap);
-    evaluate_result(mm, err, SYS_ERR_OK, false);
-    if (err_is_ok(err))
+    mm_evaluate_result(mm, err, expect_success, suppress_output);
+    if (err_is_ok(err) && !suppress_output)
         debug_printf("retcap: %p > %p > %u\n", retcap->cnode.croot, retcap->cnode.cnode, retcap->slot);
 }
 
-static void mm_test_free(struct mm *mm, struct capref cap, bool expect_success) {
+static void mm_test_free(struct mm *mm, struct capref cap, bool expect_success, bool suppress_output) {
     errval_t err;
     struct capability capability;
 
@@ -51,9 +66,10 @@ static void mm_test_free(struct mm *mm, struct capref cap, bool expect_success) 
     genpaddr_t base = get_address(&capability);
     gensize_t size = get_size(&capability);
 
-    debug_printf("Testing mm_test_free(), base=%p, size=%u --- ", base, size);
+    if (!suppress_output)
+        debug_printf("Testing mm_test_free(), base=%p, size=%u --- ", base, size);
     err = mm_free(mm, cap, base, size);
-    evaluate_result(mm, err, SYS_ERR_OK, false);
+    mm_evaluate_result(mm, err, expect_success, suppress_output);
 }
 
 void mm_test_run1(struct bootinfo *b) {
@@ -112,60 +128,67 @@ void mm_test_run1(struct bootinfo *b) {
     mm_test_add(&aos_mm, &mem_cap, 0x08, 8, true);
     mm_test_add(&aos_mm, &mem_cap, 0x00, 8, true);
 
-    // Current version passes
-    debug_printf("################ CHECK THE OUTPUT FOR CORRECTNESS ################\n");
+    debug_printf("######################### TEST COMPLETED #########################\n");
 }
 
 void mm_test_run2(struct bootinfo *b, struct mm *mm) {
     bi = b;
     size_t space = bi->regions[4].mr_bytes - 16384;
 
-    struct capref caps[10];
+    struct capref caps[1000];
 
-    // Current version passes
     debug_printf("########################### SECTION 1 ############################\n");
 
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 1, &caps[0], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 2, &caps[1], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 3, &caps[2], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4, &caps[3], true);
-    mm_test_free(mm, caps[0], true);
-    mm_test_free(mm, caps[1], true);
-    mm_test_free(mm, caps[2], true);
-    mm_test_free(mm, caps[3], true);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 1, &caps[0], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 2, &caps[1], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 3, &caps[2], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4, &caps[3], true, false);
+    mm_test_free(mm, caps[0], true, false);
+    mm_test_free(mm, caps[1], true, false);
+    mm_test_free(mm, caps[2], true, false);
+    mm_test_free(mm, caps[3], true, false);
 
-    // Current version passes
     debug_printf("########################### SECTION 2 ############################\n");
 
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, space - 4096, &caps[0], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096, &caps[1], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 1, &caps[2], false);
-    mm_test_free(mm, caps[1], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 1, &caps[3], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 1, &caps[4], false);
-    mm_test_free(mm, caps[3], true);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, space - 4096, &caps[0], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096, &caps[1], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 1, &caps[2], false, false);
+    mm_test_free(mm, caps[1], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 1, &caps[3], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 1, &caps[4], false, false);
+    mm_test_free(mm, caps[3], true, false);
+    mm_test_free(mm, caps[0], true, false);
 
     debug_printf("########################### SECTION 3 ############################\n");
 
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*16, &caps[0], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, space - 4096*16, &caps[1], true);
-    mm_test_free(mm, caps[0], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*4, &caps[2], false);
-    mm_test_free(mm, caps[2], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE*3, 4096*16, &caps[3], false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE*3, 4096, &caps[4], true);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096, &caps[5], true);
-    mm_test_free(mm, caps[3], true);
-    mm_test_free(mm, caps[4], true);
-    mm_test_free(mm, caps[1], true);
-    mm_test_free(mm, caps[5], true);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*16, &caps[0], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, space - 4096*16, &caps[1], true, false);
+    mm_test_free(mm, caps[0], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*4, &caps[2], true, false);
+    mm_test_free(mm, caps[2], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE*5, 4096*16, &caps[3], false, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE*5, 4096, &caps[4], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096, &caps[5], true, false);
+    mm_test_free(mm, caps[4], true, false);
+    mm_test_free(mm, caps[1], true, false);
+    mm_test_free(mm, caps[5], true, false);
 
     debug_printf("########################### SECTION 4 ############################\n");
+    for (int j = 1; j <= 100; j++) {
+        if (j % 10 == 0)
+            debug_printf("Iteration %u\n", j);
+        for (int i = 0; i < ARRAY_LENGTH(caps); i++) {
+            mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096, &caps[i], true, true);
+        }
+        for (int i = 0; i < ARRAY_LENGTH(caps); i++) {
+            mm_test_free(mm, caps[i], true, true);
+        }
+    }
+
     // TODO test free throughly
     // TODO Check if all paths of alloc are covered
-    // TODO Check many alloc calls to have case where slot allocator runs out of slots and needs to be refilled
 
-    debug_printf("################ CHECK THE OUTPUT FOR CORRECTNESS ################\n");
+    debug_printf("######################### TEST COMPLETED #########################\n");
 }
 
 static void paging_test_map_fixed_attr(lvaddr_t vaddr, size_t size, errval_t err_expected, bool suppress_output) {
@@ -183,7 +206,7 @@ static void paging_test_map_fixed_attr(lvaddr_t vaddr, size_t size, errval_t err
 
     err = paging_map_fixed_attr(get_current_paging_state(), vaddr, frame_cap, frame_size, VREGION_FLAGS_READ_WRITE);
 
-    evaluate_result(NULL, err, err_expected, suppress_output);
+    paging_evaluate_result(err, err_expected, suppress_output);
 
     if (err == SYS_ERR_OK) {
         uint8_t *page = ((uint8_t *) vaddr);
@@ -258,4 +281,6 @@ void paging_test_run1(void) {
     paging_test_double_map();
     paging_test_double_map_range();
     paging_test_1g();
+
+    debug_printf("######################### TEST COMPLETED #########################\n");
 }
