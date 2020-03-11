@@ -30,17 +30,21 @@ static struct paging_state current;
  */
 static errval_t pt_alloc(struct paging_state *st, enum objtype type,
                          struct capref *ret) {
+    DEBUG_BEGIN;
     errval_t err;
+    DEBUG_PRINTF("slot_alloc: %p\n",st->slot_alloc);
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc failed: %s\n", err_getstring(err));
         return err;
     }
+    DEBUG_PRINTF("vnode_create:\n");
     err = vnode_create(*ret, type);
     if (err_is_fail(err)) {
         debug_printf("vnode_create failed: %s\n", err_getstring(err));
         return err;
     }
+    DEBUG_END;
     return SYS_ERR_OK;
 }
 
@@ -118,8 +122,9 @@ errval_t paging_init(void) {
     // TIP: it might be a good idea to call paging_init_state() from here to
     // avoid code duplication.
     set_current_paging_state(&current);
-
     DEBUG_PRINTF("initializing lvl2_pt mapping\n");
+    current.slot_alloc = get_default_slot_allocator();
+
     current.is_used_l1 = 0;
     current.fixed_lvl0_lvl1 = 0;
 //    current.slot_alloc =
@@ -294,11 +299,13 @@ errval_t slab_refill_no_pagefault(struct slab_allocator *slabs, struct capref fr
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags) {
     DEBUG_BEGIN;
+    DEBUG_PRINTF("paging_map_fixed_attr with vaddr: %p, size: %zu bytes\n", vaddr, bytes);
     /**
      * \brief map a user provided frame at user provided VA.
      * TODO(M1.2): Map a frame assuming all mappings will fit into one last level pt
      * TODO(M2): General case
      */
+
     errval_t err;
     if (!st->is_used_l1) {
         st->fixed_lvl0_lvl1 = FIELD(30, (2 * 9), vaddr);
@@ -310,6 +317,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
             DEBUG_ERR(err, "cannot create pt_alloc_l1");
             return err;
         }
+        DEBUG_PRINTF("A\n");
         struct capref lvl0_pt = {
                 .cnode = cnode_page,
                 .slot = 0

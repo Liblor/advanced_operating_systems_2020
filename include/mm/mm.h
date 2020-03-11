@@ -69,6 +69,7 @@ struct mm {
     struct mmnode *head;         ///< Head of doubly-linked list of nodes in order
     struct mmnode *tail;         ///< Tail of doubly-linked list
 
+    bool slab_is_refilling;
     /* statistics */
     gensize_t stats_bytes_max;
     gensize_t stats_bytes_available;

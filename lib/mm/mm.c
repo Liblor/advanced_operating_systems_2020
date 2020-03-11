@@ -7,6 +7,8 @@
 #include <aos/debug.h>
 #include <aos/solution.h>
 
+#define SLAB_REFILL_THRESHOLD 12
+#define ENABLE_DUMP 0
 
 #define mm_err_is_fail(err)  \
 (err_is_fail(err) ? (DEBUG_ERR(err, "failure in mm.c "), true) : false)
@@ -54,6 +56,7 @@ errval_t mm_init(struct mm *mm, enum objtype objtype,
     mm->slot_refill = slot_refill_func;
     mm->slot_alloc = slot_alloc_func;
     mm->objtype = objtype;
+    mm->slab_is_refilling = false;
 
     slab_refill_func = mm_slab_refill_func;
 
@@ -77,7 +80,6 @@ static inline
 errval_t create_node_without_capinfo(struct mm *mm,
                                      enum nodetype type, genpaddr_t base, size_t size,
                                      struct mmnode **res) {
-//    DEBUG_BEGIN;
     assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
 
     // TODO-BEAN: implement slab_refill function
@@ -222,6 +224,20 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     errval_t err;
     if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
     size = alloc_align_size(size);
+    DEBUG_PRINTF("slab free: %d\n", mm->slabs.slabs->free);
+    DEBUG_PRINTF("slab total: %d\n", mm->slabs.slabs->total);
+
+    if (mm->slabs.slabs->free < SLAB_REFILL_THRESHOLD
+        && !mm->slab_is_refilling) {
+        mm->slab_is_refilling = true;
+        DEBUG_PRINTF("entering slab_is_refiling = 1 state\n");
+        err = mm->slabs.refill_func(&mm->slabs);
+        if (mm_err_is_fail(err)) {
+            DEBUG_ERR(err, "cannot create more slab in mm_alloc. slab refilling state = 1");
+            return err_push(err, MM_ERR_MM_SLAB_REFILL);
+        }
+        mm->slab_is_refilling = false;
+    }
 
     // find node in pool of free nodes
     struct mmnode *node = mm->head;
@@ -419,6 +435,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 // ---------------------------------------
 static inline
 void dump_capinfo(struct capinfo *capinfo, const char *msg) {
+    if (!ENABLE_DUMP) { return; }
     if (msg != NULL) {
         DEBUG_PRINTF("%s \n", msg);
     }
@@ -434,6 +451,7 @@ void dump_capinfo(struct capinfo *capinfo, const char *msg) {
 }
 
 void mm_dump_mmnode(struct mmnode *mmnode, const char *msg) {
+    if (!ENABLE_DUMP) { return; }
     if (msg != NULL) {
         DEBUG_PRINTF("%s \n", msg);
     }
@@ -449,6 +467,7 @@ void mm_dump_mmnode(struct mmnode *mmnode, const char *msg) {
 }
 
 void dump_capref(struct capref *capref, const char *msg) {
+    if (!ENABLE_DUMP) { return; }
     if (msg != NULL) {
         DEBUG_PRINTF("%s \n", msg);
     }
