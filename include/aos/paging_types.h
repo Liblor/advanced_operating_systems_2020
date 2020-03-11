@@ -73,13 +73,13 @@ struct paging_state {
     struct slot_allocator *slot_alloc;
 
     // Assumption: first two mappings are fixed for milestone 1 (lvl0, lvl1)
-    lvaddr_t fixed_lvl0_lvl1;
+    lvaddr_t addr_fixed_pt0_pt1;
 
     // Assumption: frames in lvl3 are not overlapping
-    bool is_used_l1;
-    struct capref cap_lvl1_pt;
-    struct capref cap_lvl2_pt;
-    struct paging_state_entry lvl2_pt_mapping[PAGING_STATE_TABLE_SIZE];
+    bool is_used_pt1;
+    struct capref cap_fixed_pt1;
+    struct capref cap_fixed_pt2;
+    struct paging_state_entry pt2_mapping[PAGING_STATE_TABLE_SIZE];
     //
 
 };

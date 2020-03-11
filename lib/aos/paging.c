@@ -123,11 +123,11 @@ errval_t paging_init(void) {
     DEBUG_PRINTF("initializing lvl2_pt mapping\n");
     current.slot_alloc = get_default_slot_allocator();
 
-    current.is_used_l1 = 0;
-    current.fixed_lvl0_lvl1 = 0;
+    current.is_used_pt1 = 0;
+    current.addr_fixed_pt0_pt1 = 0;
 
     for (int i = 0; i < PAGING_STATE_TABLE_SIZE; i++) {
-        current.lvl2_pt_mapping[i].is_used = 0;
+        current.pt2_mapping[i].is_used = 0;
     }
 
     DEBUG_END;
@@ -293,140 +293,159 @@ errval_t slab_refill_no_pagefault(struct slab_allocator *slabs, struct capref fr
 }
 
 
+#define ARMV8A_L0L1_ADDR(va) FIELD(30, (2 * 9), va)
+#define ARMV8A_L0_ADDR(va) FIELD(39, 9, va)
+#define ARMV8A_L1_ADDR(va) FIELD(30, 9, va)
+#define ARMV8A_L2_ADDR(va) FIELD(21, 9, va)
+#define ARMV8A_L3_ADDR(va) FIELD(12, 9, va)
+#define ARMV8A_PAGE_ADDR(va) FIELD(0, 12, va)
+
+
+static inline
+errval_t create_pt1_pt2_mapping(struct paging_state *st, lvaddr_t vaddr) {
+    errval_t err;
+    const lvaddr_t pt0_index = ARMV8A_L0_ADDR(vaddr);
+
+    // create pt0->pt1 mapping
+    err = pt_alloc_l1(st, &st->cap_fixed_pt1);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    struct capref pt0 = {
+            .cnode = cnode_page,
+            .slot = 0
+    };
+    struct capref mapping_pt1;
+    err = st->slot_alloc->alloc(st->slot_alloc, &mapping_pt1);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    err = vnode_map(pt0, st->cap_fixed_pt1, pt0_index, VREGION_FLAGS_READ_WRITE,
+                    0, 1, mapping_pt1);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cannot create vnode map for pt0-> pt1 mapping");
+        return err;
+    }
+
+    // create lvl1-> lvl2 mapping
+    const lvaddr_t pt1_index = ARMV8A_L1_ADDR(vaddr);
+    err = pt_alloc_l2(st, &st->cap_fixed_pt2);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    struct capref mapping_pt2 = {};
+    err = st->slot_alloc->alloc(st->slot_alloc, &mapping_pt2);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cannot crate slot");
+        return err;
+    }
+
+    err = vnode_map(st->cap_fixed_pt1, st->cap_fixed_pt2, pt1_index, VREGION_FLAGS_READ_WRITE,
+                    0, 1, mapping_pt2);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cannot create vnode map for lvl1-> lvl2 mapping");
+        return err;
+    }
+    return SYS_ERR_OK;
+}
+
+static inline
+errval_t create_pt3_mapping(struct paging_state *st, lvaddr_t vaddr) {
+    errval_t  err;
+
+    const lvaddr_t pt2_index = ARMV8A_L2_ADDR(vaddr);
+
+    // Assumptions milestone1
+    assert(st->addr_fixed_pt0_pt1 == ARMV8A_L0L1_ADDR(vaddr));
+    assert(pt2_index < PAGING_STATE_TABLE_SIZE);
+
+    struct paging_state_entry *pt3_entry = &st->pt2_mapping[pt2_index];
+    if (!pt3_entry->is_used) {
+        err = pt_alloc_l3(st, &pt3_entry->cap);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "cannot create pt_alloc_l3");
+            return err;
+        }
+        struct capref mapping_pt2_pt3 = {};
+        err = st->slot_alloc->alloc(st->slot_alloc, &mapping_pt2_pt3);
+        if (err_is_fail(err)) {
+            return err;
+        }
+
+        err = vnode_map(st->cap_fixed_pt2, pt3_entry->cap, pt2_index, VREGION_FLAGS_READ_WRITE,
+                        0, 1, mapping_pt2_pt3);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "cannot create vnode map for lvl2-> lvl3 mapping");
+            return err;
+        }
+        pt3_entry->is_used = true;
+    }
+    return SYS_ERR_OK;
+}
+
+static inline
+errval_t create_pt3_frame_mapping(struct paging_state *st, lvaddr_t vaddr,
+                                  struct capref *frame, int flags) {
+    errval_t err;
+
+    // assumption milestone1
+    const lvaddr_t pt2_index = ARMV8A_L2_ADDR(vaddr);
+    struct paging_state_entry *pt3_entry = &st->pt2_mapping[pt2_index];
+    assert(pt3_entry->is_used);
+
+    struct capref mapping_frame = {};
+    err = st->slot_alloc->alloc(st->slot_alloc, &mapping_frame);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    const lvaddr_t pt3_index = ARMV8A_L3_ADDR(vaddr);
+    const lvaddr_t frame_offset = ARMV8A_PAGE_ADDR(vaddr);
+
+    err = vnode_map(pt3_entry->cap, *frame, pt3_index, flags,
+                    frame_offset, 1, mapping_frame);
+
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cannot create pt3 -> frame mapping");
+        return err;
+    }
+    return SYS_ERR_OK;
+}
+
+
 /// Map user provided frame at user provided VA with given flags.
 // TODO-BEAN Task 1.2
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags) {
     DEBUG_BEGIN;
-    DEBUG_PRINTF("paging_map_fixed_attr with vaddr: %p, size: %zu bytes\n", vaddr, bytes);
     /**
      * \brief map a user provided frame at user provided VA.
      * TODO(M1.2): Map a frame assuming all mappings will fit into one last level pt
      * TODO(M2): General case
      */
-
     errval_t err;
-    if (!st->is_used_l1) {
-        st->fixed_lvl0_lvl1 = FIELD(30, (2 * 9), vaddr);
-        DEBUG_PRINTF("fixed lvl0 lvl1: %p\n", st->fixed_lvl0_lvl1);
-        DEBUG_PRINTF("creating lvl0->lvl1\n");
-
-
-        err = pt_alloc_l1(st, &st->cap_lvl1_pt);
+    if (!st->is_used_pt1) {
+        err = create_pt1_pt2_mapping(st, vaddr);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot create pt_alloc_l1");
+            DEBUG_ERR(err, "cannot create pt mappings for level 0->1, or 1->2");
             return err;
         }
-        DEBUG_PRINTF("A\n");
-        struct capref lvl0_pt = { .cnode = cnode_page, .slot = 0 };
-        lvaddr_t lvl0_i = FIELD(39, 9, vaddr);
-        DEBUG_PRINTF("lvl0_i: %p, vaddr: %p\n", lvl0_i, vaddr);
-
-        // dest: höhere
-        // offste: 0
-        // slot: lvl0
-        struct capref mapping_lvl0_lvl1;
-        err = st->slot_alloc->alloc(st->slot_alloc, &mapping_lvl0_lvl1);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot crate slot");
-            return err;
-        }
-
-        err = vnode_map(lvl0_pt, st->cap_lvl1_pt, lvl0_i, VREGION_FLAGS_READ_WRITE,
-                        0, 1, mapping_lvl0_lvl1);
-
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot create vnode map for lvl0-> lvl1 mapping");
-            return err;
-        }
-
-        DEBUG_PRINTF("successfully created lvl0->lvl1\n");
-
-        // create lvl1-> lvl2 mapping
-        DEBUG_PRINTF("creating lvl1->lvl2\n");
-        lvaddr_t lvl1_i = FIELD(30, 9, vaddr);
-        DEBUG_PRINTF("lvl1_i: %p, vaddr: %p\n", lvl1_i, vaddr);
-
-
-        err = pt_alloc_l2(st, &st->cap_lvl2_pt);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot create pt_alloc_l2");
-            return err;
-        }
-        DEBUG_PRINTF("B\n");
-        struct capref mapping_lvl1_lvl2 = {};
-        err = st->slot_alloc->alloc(st->slot_alloc, &mapping_lvl1_lvl2);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot crate slot");
-            return err;
-        }
-
-        DEBUG_PRINTF("C\n");
-        err = vnode_map(st->cap_lvl1_pt, st->cap_lvl2_pt, lvl1_i, VREGION_FLAGS_READ_WRITE,
-                        0, 1, mapping_lvl1_lvl2);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot create vnode map for lvl1-> lvl2 mapping");
-            return err;
-        }
-
-        DEBUG_PRINTF("successfully created lvl1->lvl2\n");
-        st->is_used_l1 = 1;
+        st->addr_fixed_pt0_pt1 = ARMV8A_L0L1_ADDR(vaddr);
+        st->is_used_pt1 = true;
     }
-
 
     // create lvl2 -> lvl3 mapping
-    DEBUG_PRINTF("creating lvl2->lvl3\n");
-    lvaddr_t lvl2_i = FIELD(21, 9, vaddr);
-    DEBUG_PRINTF("%p addr, lvl2_i: %p\n", vaddr, lvl2_i);
-
-    assert(st->fixed_lvl0_lvl1 == FIELD(30, 2 * 9, vaddr));
-    assert(lvl2_i < PAGING_STATE_TABLE_SIZE);
-
-
-    struct paging_state_entry *lvl3_pt = &st->lvl2_pt_mapping[lvl2_i];
-    if (!lvl3_pt->is_used) {
-        err = pt_alloc_l3(st, &lvl3_pt->cap);
-
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot create pt_alloc_3");
-            return err;
-        }
-        struct capref mapping_lvl2_lvl3 = {};
-        err = st->slot_alloc->alloc(st->slot_alloc, &mapping_lvl2_lvl3);
-        if (err_is_fail(err)) {
-            return err;
-        }
-
-        err = vnode_map(st->cap_lvl2_pt, lvl3_pt->cap, lvl2_i, VREGION_FLAGS_READ_WRITE,
-                        0, 1, mapping_lvl2_lvl3);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cannot create vnode map for lvl2-> lvl3 mapping");
-            return err;
-        }
-        DEBUG_PRINTF("successfully created lvl2->lvl3\n");
-        DEBUG_PRINTF("mapping frame into lvl3\n");
-        lvl3_pt->is_used = true;
-    }
-    struct capref mapping_lvl3_frame = {};
-    err = st->slot_alloc->alloc(st->slot_alloc, &mapping_lvl3_frame);
+    err = create_pt3_mapping(st, vaddr);
     if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cannot create pt mappings for level 2->3");
         return err;
     }
 
-    lvaddr_t lvl3_i = FIELD(12, 9, vaddr);
-    lvaddr_t vaddr_pa = FIELD(0, 12, vaddr);
-
-    DEBUG_PRINTF("%p addr, lvl3_i: %p\n", vaddr, lvl3_i);
-    DEBUG_PRINTF("%p addr, pa: %p\n", vaddr, vaddr_pa);
-    err = vnode_map(lvl3_pt->cap, frame, lvl3_i, flags,
-                    vaddr_pa, 1, mapping_lvl3_frame);
-
+    // create lvl3 -> frame mapping
+    err = create_pt3_frame_mapping(st, vaddr, &frame, flags);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "cannot create frame");
         return err;
     }
-
-    DEBUG_PRINTF("success\n");
     DEBUG_END;
     return SYS_ERR_OK;
 }
