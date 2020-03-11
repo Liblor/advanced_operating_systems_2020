@@ -208,7 +208,7 @@ errors libaos LIB_ERR_ {
     failure NOT_IMPLEMENTED     "functionality not implemented yet",
     failure SHOULD_NOT_GET_HERE "Should not get here",
     failure NOT_CNODE           "Function invoked on a capref, that does not represent a CNode",
-    failure STRING_TOO_LONG     "String argument too long", 
+    failure STRING_TOO_LONG     "String argument too long",
 
     // cspace
     failure CNODE_TYPE          "Type requested for cnode creation is not valid cnode type",
@@ -272,6 +272,9 @@ errors libaos LIB_ERR_ {
     failure VSPACE_PAGEFAULT_HANDER "Failure in vspace_pagefault_handler()",
     failure VSPACE_VREGION_NOT_FOUND "The vregion to remove not found in the vspace list",
     failure VSPACE_PAGEFAULT_ADDR_NOT_FOUND "The faulting address not found in the page fault handler",
+
+    failure PAGING_ADDR_ALREADY_MAPPED "The virtual address is already mapped into the process space",
+    failure PAGING_SIZE_INVALID "The given size is invalid",
 
     failure VSPACE_PINNED_INIT  "Failure in vspace_pinned_init()",
     failure VSPACE_PINNED_ALLOC "Failure in vspace_pinned_alloc()",
@@ -667,7 +670,7 @@ errors spawn SPAWN_ERR_ {
     failure DOMAIN_ALLOCATE    "No more domain descriptors",
     failure DOMAIN_NOTFOUND    "Domain not found",
     failure DOMAIN_RUNNING    "Domain is running",
-    
+
     failure IDENTIFY_PROC_MNGR_CAP "Failed to identify process manager cap",
     failure NOT_PROC_MNGR          "Request did not come from the process manager",
 
@@ -1320,7 +1323,7 @@ errors queue QSERVICE_ERR_{
     failure NO_VALID_EP          "No valid EP could not initalized client",
     failure INVALID_CLIENT       "Invalid client struct",
     failure INVALID_SERVICE      "Invalid service struct",
-}; 
+};
 
 errors psci PSCI_ERR_{
     failure NOT_SUPPORTED    "Function not supported",
