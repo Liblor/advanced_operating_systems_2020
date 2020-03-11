@@ -42,6 +42,13 @@ struct slot_allocator *get_default_slot_allocator(void)
 errval_t slot_alloc(struct capref *ret)
 {
     struct slot_allocator *ca = get_default_slot_allocator();
+    struct slot_alloc_state *state = get_slot_alloc_state();
+    struct multi_slot_allocator *def = &state->defca;
+
+    // We need to make sure that a threshold is enforced, otherwise the memory
+    // allocator might not be able to refill in the following alloc call.
+    slab_ensure_threshold(&def->slab, 3);
+
     return ca->alloc(ca, ret);
 }
 
@@ -220,7 +227,7 @@ errval_t slot_alloc_init(void)
     // Slab
     size_t allocation_unit = sizeof(struct slot_allocator_list) +
                              SINGLE_SLOT_ALLOC_BUFLEN(SLOT_ALLOC_CNODE_SLOTS);
-    slab_init(&def->slab, allocation_unit, NULL);
+    slab_init(&def->slab, allocation_unit, slab_default_refill);
 
     // Vspace mgmt
     // Warning: necessary to do this in the end as during initialization,
