@@ -33,6 +33,16 @@ static inline errval_t create_new_node(struct mm *mm,
     return SYS_ERR_OK;
 }
 
+static inline errval_t mm_slab_threshold_refill(struct mm *mm) {
+    if (slab_freecount(&mm->slabs) <= SLAB_FREE_BLOCKS_THRESHOLD && !mm->slab_refilling) {
+        mm->slab_refilling = true;
+        errval_t err = mm->slabs.refill_func(&mm->slabs);
+        mm->slab_refilling = false;
+        if (err_is_fail(err)) { return err_push(err, LIB_ERR_SLAB_REFILL); }
+    }
+    return SYS_ERR_OK;
+}
+
 static inline void insert_before(struct mm *mm, struct mmnode *new_node, struct mmnode *before) {
     new_node->prev = before->prev;
     if (new_node->prev != NULL) {
@@ -45,6 +55,11 @@ static inline void insert_before(struct mm *mm, struct mmnode *new_node, struct 
     before->prev = new_node;
 }
 
+/**
+ * Removes node from linked list. Does NOT free the memory of node
+ * @param mm
+ * @param node Node to remove
+ */
 static void remove_node(struct mm *mm, struct mmnode *node) {
     if (node->prev != NULL) {
         node->prev->next = node->next;
@@ -125,7 +140,7 @@ static inline errval_t split_off(struct mm *mm, struct mmnode *node, gensize_t s
  * @param node The queried  node
  * @param size How much space one wants to allocate
  * @param alignment Alignment of allocation
- * @return True iff enough space is available to allocate at this node
+ * @return True iff enough space is available to allocate at this node with the provided alignment
  */
 static inline bool is_allocatable(struct mmnode *node, gensize_t size, gensize_t alignment) {
     genpaddr_t aligned_base = ROUND_UP(node->base, alignment);
@@ -190,8 +205,11 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     assert(mm->slabs.blocksize >= sizeof(struct mmnode));
     debug_printf("[mm_add] base: %lu, size %lu\n", base, size);
 
+    errval_t err = mm_slab_threshold_refill(mm);
+    if (err_is_fail(err)) { return err; }
+
     struct mmnode *node;
-    errval_t err = create_new_node(mm, &node, base, size, NodeType_Free, NULL, base, size, &cap);
+    err = create_new_node(mm, &node, base, size, NodeType_Free, NULL, base, size, &cap);
     if (err_is_fail(err)) { return err; }
     node->cap.parent = &node->cap.cap;
 
@@ -214,13 +232,8 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     if ((alignment % BASE_PAGE_SIZE) || alignment == 0) { return AOS_ERR_MM_MISALIGN; }
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
-    errval_t err;
-    if (slab_freecount(&mm->slabs) <= SLAB_FREE_BLOCKS_THRESHOLD && !mm->slab_refilling) {
-        mm->slab_refilling = true;
-        err = mm->slabs.refill_func(&mm->slabs);
-        mm->slab_refilling = false;
-        if (err_is_fail(err)) { return err_push(err, LIB_ERR_SLAB_REFILL); }
-    }
+    errval_t err = mm_slab_threshold_refill(mm);
+    if (err_is_fail(err)) { return err; }
 
     // find node with enough memory
     struct mmnode *curr = mm->head;
