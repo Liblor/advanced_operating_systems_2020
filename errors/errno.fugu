@@ -728,6 +728,7 @@ errors libmm MM_ERR_ {
     failure CHUNK_SLOT_ALLOC    "Failure allocating slots for chunking",
     failure RESIZE_NODE         "Nested failure in resize_node()",
     failure REALLOC_RANGE       "Nested failure in realloc_range()",
+    failure INVALID_SIZE        "The size given is invalid",
 };
 
 // errors in init

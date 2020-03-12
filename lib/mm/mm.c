@@ -136,6 +136,9 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     debug_printf("mm_alloc_aligned(mm=%p, size=0x%zx, alignment=0x%zx, retcap=%p)\n", mm, size, alignment, retcap);
 
+    if (size == 0)
+        return MM_ERR_INVALID_SIZE;
+
     struct mmnode *best = NULL;
     size_t best_size = SIZE_MAX;
     size_t best_padding_size = 0;
