@@ -295,9 +295,15 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     node_before = node_middle->prev;
     node_after = node_middle->next;
 
-    err = cap_destroy(cap);
+    // cap_delete is used instead of cap_destroy, because cap_destroy doesn't free the slot.
+    err = cap_delete(cap);
     if (err_is_fail(err))
         return err_push(err, LIB_ERR_CAP_DELETE);
+
+    // Free the slot. Remove this as soon as cap_destroy works.
+    err = slot_free(cap);
+    if (err_is_fail(err))
+        return err_push(err, LIB_ERR_SLOT_FREE);
 
     struct mmnode *node_merged = (struct mmnode *) slab_alloc(&mm->slabs);
     if (node_merged == NULL)
