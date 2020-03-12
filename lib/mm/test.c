@@ -174,6 +174,28 @@ void mm_test_run2(struct bootinfo *b, struct mm *mm) {
     mm_test_free(mm, caps[5], true, false);
 
     debug_printf("########################### SECTION 4 ############################\n");
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*16, &caps[0], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, space - 4096*16, &caps[1], true, false);
+    mm_test_free(mm, caps[0], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*16, &caps[2], true, false);
+    mm_test_free(mm, caps[2], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*8, &caps[3], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*8, &caps[4], true, false);
+    mm_test_free(mm, caps[3], true, false);
+    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*8, &caps[5], true, false);
+    mm_test_free(mm, caps[4], true, false);
+    mm_test_free(mm, caps[5], true, false);
+    mm_test_free(mm, caps[1], true, false);
+
+    debug_printf("########################### SECTION 5 ############################\n");
+    genpaddr_t base = VADDR_OFFSET + BASE_PAGE_SIZE * 100;
+    gensize_t size = 5;
+
+    debug_printf("Testing mm_test_free(), base=%p, size=%u --- ", base, size);
+    errval_t err = mm_free(mm, NULL_CAP, base, size);
+    mm_evaluate_result(mm, err, false, false);
+
+    debug_printf("########################### SECTION 6 ############################\n");
     for (int j = 1; j <= 100; j++) {
         if (j % 10 == 0)
             debug_printf("Iteration %u\n", j);
@@ -184,9 +206,6 @@ void mm_test_run2(struct bootinfo *b, struct mm *mm) {
             mm_test_free(mm, caps[i], true, true);
         }
     }
-
-    // TODO test free throughly
-    // TODO Check if all paths of alloc are covered
 
     debug_printf("######################### TEST COMPLETED #########################\n");
 }

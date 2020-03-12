@@ -189,6 +189,7 @@ static errval_t split_mmnode(struct mm *mm, struct mmnode *n, size_t size, size_
         if (n->prev != NULL)
             n->prev->next = node_padding;
         else
+            // TODO This case is currently untested
             mm->head = node_padding;
     }
     if (node_remaining == NULL) {
@@ -218,7 +219,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         return err;
 
     // TODO Maybe look for smallest memory region that can be used?
-    // TODO test this function
     struct mmnode *current = mm->head;
     while (current != NULL) {
         // Find a free memory region that can accommodate the desired size including the required padding to conform to the specified alignment
@@ -267,7 +267,6 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap)
     return mm_alloc_aligned(mm, size, BASE_PAGE_SIZE, retcap);
 }
 
-// TODO Call refill functions for slabs and slots somewhere?
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size)
 {
     errval_t err;
@@ -307,13 +306,14 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 
     struct mmnode *node_merged = (struct mmnode *) slab_alloc(&mm->slabs);
     if (node_merged == NULL)
-        // TODO Currently this leads to an unconsistent state, because the capability has already been deleted.
+        // TODO Currently this leads to an inconsistent state, because the capability has already been deleted.
         return LIB_ERR_SLAB_ALLOC_FAIL;
 
     node_merged->type = NodeType_Free;
     node_merged->cap = node_middle->cap;
     node_merged->size = node_middle->size;
     if (node_before == NULL)
+        // TODO This case is currently untested
         // Middle node was the head, so the merged node should be the new head
         mm->head = node_merged;
 
@@ -327,6 +327,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
         if (node_before->prev != NULL)
             node_before->prev->next = node_merged;
         else
+            // TODO This case is currently untested
             // The merged node merged with the head, so the merged node should be the new head
             mm->head = node_merged;
 
