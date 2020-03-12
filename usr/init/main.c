@@ -122,6 +122,7 @@ __attribute__ ((unused)) static void test_map_frame_va(void) {
     DEBUG_PRINTF("success\n");
 }
 
+__attribute__ ((unused))
 static void test_suite_milestone1(void) {
     test_simple_alloc_free();
     test_map_frame_va();
