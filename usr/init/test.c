@@ -166,8 +166,13 @@ void test_libmm(void)
 
     test_allocate_small(&aos_mm);
 
-    test_allocate_ordered(&aos_mm, 45000, 4 * PAGE_SIZE, false);
-    test_allocate_ordered(&aos_mm, 45000, 4 * PAGE_SIZE, true);
+    const uint16_t count = 100;
+
+    for (int i = 0; i < count; i++) {
+        debug_printf("Executing loop %d of %d\n", i + 1, count);
+        test_allocate_ordered(&aos_mm, 20000, 4 * PAGE_SIZE, false);
+        test_allocate_ordered(&aos_mm, 20000, 4 * PAGE_SIZE, true);
+    }
 
     print_test_end("libmm");
 }
