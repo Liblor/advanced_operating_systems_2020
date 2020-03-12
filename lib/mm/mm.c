@@ -135,8 +135,11 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
     DEBUG_BEGIN;
     // TODO-BEAN: handle failure ALREADY_PRESENT
     // is base always aligned to PAGE_SIZE?
-    ensure_slabs_refilled(mm);
     errval_t err;
+    err = ensure_slabs_refilled(mm);
+    if (mm_err_is_fail(err)) {
+        return err;
+    }
     struct mmnode *node = NULL;
     err = create_node_without_capinfo(mm, NodeType_Free, base, size, &node);
     if (mm_err_is_fail(err)) { return err_push(err, MM_ERR_MM_ADD); }

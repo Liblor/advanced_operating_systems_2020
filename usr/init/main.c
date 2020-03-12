@@ -99,6 +99,11 @@ __attribute__ ((unused))static void test_slab_simple(void) {
 
 __attribute__ ((unused)) static void test_map_frame_va(void) {
     errval_t err;
+
+    // when mapping more than 120 frames at a time I get pagefault?
+    // reason: possibly default slot allocator having issues
+    // does not happen when mm_alloc calls frame mapping
+
     uint64_t bytes = 1024;
     const uint64_t length = 64;
     for(int i = 0; i < length; i ++ ) {
