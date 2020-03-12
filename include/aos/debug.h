@@ -68,7 +68,7 @@ void user_panic_fn(const char *file, const char *func, int line,
 
 #endif
 
-//#define NO_DEBUG_METHOD_TRACE 1
+#define NO_DEBUG_METHOD_TRACE 1
 #ifdef NO_DEBUG_METHOD_TRACE
 #define DEBUG_BEGIN ((void)0)
 #define DEBUG_END   ((void)0)

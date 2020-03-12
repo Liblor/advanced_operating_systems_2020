@@ -127,12 +127,28 @@ __attribute__ ((unused)) static void test_map_frame_va(void) {
     DEBUG_PRINTF("success\n");
 }
 
+__attribute__ ((unused)) static void test_alloc_free_many(void) {
+    errval_t err;
+    const uint64_t size = 1024 * 1024;
+    for (int i = 0; i < size; ++i) {
+        struct capref retcaps;
+        err = mm_alloc(&aos_mm, 1 << 30, &retcaps);
+        assert(err_is_ok(err));
+        struct capability tmp_cap;
+        cap_direct_identify(retcaps, &tmp_cap);
+        err = mm_free(&aos_mm, retcaps, get_address(&tmp_cap), get_size(&tmp_cap));
+        assert(err_is_ok(err));
+    }
+    DEBUG_PRINTF("success test_alloc_free_many\n");
+}
+
 __attribute__ ((unused))
 static void test_suite_milestone1(void) {
     test_simple_alloc_free();
     test_map_frame_va();
     test_slab_simple();
     test_handle_slot_256();
+    test_alloc_free_many();
 }
 
 
@@ -157,7 +173,7 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-    test_suite_milestone1();
+//    test_suite_milestone1();
 
     // TODO: initialize mem allocator, vspace management here
 
