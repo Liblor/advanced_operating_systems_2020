@@ -128,26 +128,6 @@ ERROR_OVERLAP:
     return MM_ERR_ALREADY_PRESENT;
 }
 
-static void refill_slabs_if_needed(struct slab_allocator *slabs) {
-    errval_t err;
-
-    size_t free = slab_freecount(slabs);
-    static bool is_refilling = false;
-    // TODO How few are needed?
-    if (!is_refilling && free <= 8) {
-        is_refilling = true;
-        err = slabs->refill_func(slabs);
-        is_refilling = false;
-    }
-}
-
-// n is the mmnode that will be split. The result will be 1, 2 or 3 new mmnodes created and n will be deleted.
-// n must not be null.
-// n->size must be  larger or equal to the given size.
-// TODO Fix doc below
-// If start_offset is 0, n will be split into 2 new nodes. The first of the two nodes will be of the given size. The second node will be of the remaining size. result_node will be the pointer to the first node.
-// If start_offset it larger than 0 n will be split into 3 new nodes. The first of the three nodes will the size of padding_start. The second node will be of the given size. The third node will be of the remaining size. result_node will be the pointer to the second node.
-// The type of all nodes will be NodeType_Free.
 static errval_t split_mmnode(struct mm *mm, struct mmnode *n, size_t size, size_t padding_start, struct mmnode **result_node)
 {
     assert(n != NULL);
@@ -233,7 +213,10 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 {
     errval_t err;
 
-    refill_slabs_if_needed(&mm->slabs);
+    err = slab_ensure_margin(&mm->slabs, 6);
+    if (err_is_fail(err))
+        return err;
+
     // TODO Maybe look for smallest memory region that can be used?
     // TODO test this function
     struct mmnode *current = mm->head;
@@ -289,8 +272,10 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 {
     errval_t err;
 
-    refill_slabs_if_needed(&mm->slabs);
-    // TODO Test this
+    err = slab_ensure_margin(&mm->slabs, 6);
+    if (err_is_fail(err))
+        return err;
+
     struct mmnode *node_middle = NULL;
     struct mmnode *node_before;
     struct mmnode *node_after;

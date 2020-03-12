@@ -190,7 +190,6 @@ errval_t paging_init(void)
         }
     }
 
-    // TODO Use get_current_paging_state instead of current everywhere
     set_current_paging_state(&current);
     return SYS_ERR_OK;
 }

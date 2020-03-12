@@ -170,6 +170,29 @@ size_t slab_freecount(struct slab_allocator *slabs)
 }
 
 /**
+ * \brief Ensures that the slab allocator has a certain number of slabs available
+ *
+ * \param slabs Pointer to slab allocator instance
+ * \param margin The least number of slabs that the slab allocator should have available
+ */
+errval_t slab_ensure_margin(struct slab_allocator *slabs, uint32_t margin) {
+    errval_t err;
+
+    /*
+    The is_refilling flag is used indicate that the slab allocator is being
+    refilled. It is used to detect a recursive refill. In that case the
+    available margin to resolve that situation (which should have been ensured
+    up to this point using this very function) will be used to save the day.
+    */
+    static bool is_refilling = false; if (!is_refilling) { is_refilling = true;
+        while (slab_freecount(slabs) <= margin) { err =
+            slabs->refill_func(slabs); if (err_is_fail(err)) return err; }
+        is_refilling = false; }
+
+    return SYS_ERR_OK;
+}
+
+/**
  * \brief General-purpose slab refill
  *
  * Allocates and maps a number of memory pages to the slab allocator.

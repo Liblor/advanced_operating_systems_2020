@@ -45,6 +45,7 @@ void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen);
 void *slab_alloc(struct slab_allocator *slabs);
 void slab_free(struct slab_allocator *slabs, void *block);
 size_t slab_freecount(struct slab_allocator *slabs);
+errval_t slab_ensure_margin(struct slab_allocator *slabs, uint32_t margin);
 errval_t slab_default_refill(struct slab_allocator *slabs);
 
 // size of block header
