@@ -16,7 +16,6 @@
 static inline
 void dump_capref(struct capref *, const char *);
 
-
 /** slab refill function for slab allocator managed by mm.c */
 static inline
 errval_t mm_slab_refill_func(struct slab_allocator *slabs) {
@@ -79,8 +78,8 @@ void mm_destroy(struct mm *mm) {
 static inline
 errval_t ensure_slabs_refilled(struct mm *mm) {
     errval_t err;
-    DEBUG_PRINTF("slabs free: %zu, slabs total: %zu\n",
-                 mm->slabs.slabs->free, mm->slabs.slabs->total);
+    DEBUG_PRINTF("slabs free: %zu, slabs total: %zu\n", mm->slabs.slabs->free, mm->slabs.slabs->total);
+
     if (mm->slabs.slabs->free < SLAB_REFILL_THRESHOLD
         && !mm->slab_is_refilling) {
         DEBUG_PRINTF("entering slab refilling mode, slabs free: %zu, slabs total: %zu\n",
@@ -98,8 +97,8 @@ errval_t ensure_slabs_refilled(struct mm *mm) {
 
 static inline
 errval_t create_node_without_capinfo(struct mm *mm,
-                                     enum nodetype type, genpaddr_t base, size_t size,
-                                     struct mmnode **res) {
+        enum nodetype type, genpaddr_t base, size_t size, struct mmnode **res) {
+
     assert(sizeof(struct mmnode) >= mm->slabs.blocksize);
     *res = (struct mmnode *) slab_alloc(&mm->slabs);
     struct mmnode *node = *res;
@@ -121,20 +120,10 @@ errval_t create_node_without_capinfo(struct mm *mm,
     return SYS_ERR_OK;
 }
 
-/**
- * Add memory capabilities to mm (assume: cap not already added)
- *
- * @param mm this ref
- * @param cap capability to the ram region
- * @param base base address of the ram region
- * @param size size of the ram region
- *
- * @return
- */
+// we assume that base is alsways aligned to basepage size
+// we assume that no ram caps are added that are already present
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) {
     DEBUG_BEGIN;
-    // TODO-BEAN: handle failure ALREADY_PRESENT
-    // is base always aligned to PAGE_SIZE?
     errval_t err;
     err = ensure_slabs_refilled(mm);
     if (mm_err_is_fail(err)) {
@@ -150,7 +139,6 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) 
             .cap_origin_unmapped = &(node->capinfo), // mm node of unsplit RAM cap refers to its own capinfo
 
     };
-
     assert(node->capinfo.cap_origin_unmapped == &node->capinfo);
     assert(node->base == node->capinfo.base);
     assert(node->size == node->capinfo.size);
@@ -208,7 +196,6 @@ void enqueue_node_before_other(struct mm *mm, struct mmnode *new_node, struct mm
 static inline
 size_t alloc_align_size(size_t size) {
     size_t new_size = ROUND_UP(size, BASE_PAGE_SIZE);
-//    DEBUG_PRINTF("aligning size %zu KB -> %zu KB\n", size / 1024, new_size / 1024);
     return new_size;
 }
 
@@ -226,12 +213,13 @@ errval_t get_slot_for_cap(struct mm *mm, struct capref *retcap) {
     return SYS_ERR_OK;
 }
 
-// TODO-BEAN: how to handle alignment?
-// TODO: what if nothing else remaining
+// Alignment is currently not implemented, and can be passed as a recommendation.
+// only guarantee is that allocated ram caps are always aligned to base page size.
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap) {
     DEBUG_BEGIN;
     errval_t err;
     if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
+
     size = alloc_align_size(size);
     err = ensure_slabs_refilled(mm);
     if (mm_err_is_fail(err)) {
@@ -391,7 +379,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 
     size = alloc_align_size(size);
     struct mmnode *current = mm->head;
-    while (current != NULL) { // TODO: make this nicer
+    while (current != NULL) {
         if (current->base == base && current->size == size) { break; }
         current = current->next;
     }
