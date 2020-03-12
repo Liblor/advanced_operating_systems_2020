@@ -734,6 +734,8 @@ errors libmm MM_ERR_ {
     failure MM_ALLOC            "Failure in mm_alloc()",
     failure MM_FREE_NOT_FOUND   "No matching node found in mm_free()",
     failure MM_SLAB_REFILL      "error in refilling slabs in mm",
+    failure MM_NOT_ALIGNED     "address must be page size aligned",
+
 
 
 };

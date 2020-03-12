@@ -125,6 +125,9 @@ errval_t create_node_without_capinfo(struct mm *mm,
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size) {
     DEBUG_BEGIN;
     errval_t err;
+    if (base % BASE_PAGE_SIZE != 0) {
+        return MM_ERR_MM_NOT_ALIGNED;
+    }
     err = ensure_slabs_refilled(mm);
     if (mm_err_is_fail(err)) {
         return err;
@@ -219,11 +222,9 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     DEBUG_BEGIN;
     errval_t err;
     if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0) { return LIB_ERR_ALIGNMENT; }
-
     if (alignment != BASE_PAGE_SIZE) {
         debug_printf("aligned other than %p not supported, using %p alignment\n", BASE_PAGE_SIZE, BASE_PAGE_SIZE);
     }
-
     size = alloc_align_size(size);
     err = ensure_slabs_refilled(mm);
     if (mm_err_is_fail(err)) {

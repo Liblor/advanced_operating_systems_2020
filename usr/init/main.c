@@ -157,7 +157,7 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-//    test_suite_milestone1();
+    test_suite_milestone1();
 
     // TODO: initialize mem allocator, vspace management here
 
