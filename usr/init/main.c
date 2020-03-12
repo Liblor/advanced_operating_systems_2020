@@ -97,14 +97,34 @@ __attribute__ ((unused))static void test_slab_simple(void) {
     DEBUG_PRINTF("success\n");
 }
 
-//static void test_free_error1(void) {
-//
-//
-//
-// }
+__attribute__ ((unused)) static void test_map_frame_va(void) {
+    errval_t err;
+    uint64_t bytes = 1024;
+    const uint64_t length = 64;
+    for(int i = 0; i < length; i ++ ) {
+        DEBUG_PRINTF("iteration %d\n", i);
+        struct capref frame_cap;
+        err = frame_alloc(&frame_cap, bytes, &bytes);
+        assert(err_is_ok(err));
+        DEBUG_PRINTF("frame: bytes: %zu\n", bytes);
+
+
+        lvaddr_t vaddr = aos_mm.slabs.vaddr_new_frame;
+        aos_mm.slabs.vaddr_new_frame += bytes;
+        err = paging_map_fixed(get_current_paging_state(), vaddr, frame_cap, bytes);
+        assert(err_is_ok(err));
+        char *buf = (char *) vaddr;
+        *buf = 1;
+        DEBUG_PRINTF("allocated vaddr try %d at %p\n", vaddr, buf);
+        DEBUG_PRINTF("value: %d\n", *buf);
+    }
+
+    DEBUG_PRINTF("success\n");
+}
 
 static void test_suite_milestone1(void) {
     test_simple_alloc_free();
+    test_map_frame_va();
     test_slab_simple();
     test_handle_slot_256();
 }
@@ -131,7 +151,7 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-    test_suite_milestone1();
+//    test_suite_milestone1();
 
     // TODO: initialize mem allocator, vspace management here
 

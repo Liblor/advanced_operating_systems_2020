@@ -79,8 +79,12 @@ void mm_destroy(struct mm *mm) {
 static inline
 errval_t ensure_slabs_refilled(struct mm *mm) {
     errval_t err;
+    DEBUG_PRINTF("slabs free: %zu, slabs total: %zu\n",
+                 mm->slabs.slabs->free, mm->slabs.slabs->total);
     if (mm->slabs.slabs->free < SLAB_REFILL_THRESHOLD
         && !mm->slab_is_refilling) {
+        DEBUG_PRINTF("entering slab refilling mode, slabs free: %zu, slabs total: %zu\n",
+                mm->slabs.slabs->free, mm->slabs.slabs->total);
         mm->slab_is_refilling = true;
         err = mm->slabs.refill_func(&mm->slabs);
         if (mm_err_is_fail(err)) {

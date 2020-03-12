@@ -189,14 +189,14 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes) {
     }
 
     genvaddr_t vaddr = slabs->vaddr_new_frame;
+    slabs->vaddr_new_frame += bytes;
+
     void *buf = (void *) vaddr;
     err = paging_map_fixed(get_current_paging_state(), vaddr, frame_cap, bytes);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
     DEBUG_PRINTF("vaddr mapped: %p, bytes: %zu\n", buf, bytes);
-
-    slabs->vaddr_new_frame += bytes;
 
     slab_grow(slabs, buf, bytes);
     DEBUG_END;
