@@ -47,7 +47,7 @@ errval_t slot_alloc(struct capref *ret)
 
     // We need to make sure that a threshold is enforced, otherwise the memory
     // allocator might not be able to refill in the following alloc call.
-    slab_ensure_threshold(&def->slab, 3);
+    slab_ensure_threshold(&def->slab, 10);
 
     return ca->alloc(ca, ret);
 }

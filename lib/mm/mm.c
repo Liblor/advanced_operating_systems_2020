@@ -121,7 +121,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
 
     debug_printf("Inserted new node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", node, node->base, node->size);
 
-    err = slab_ensure_threshold(&mm->slabs, 3);
+    err = slab_ensure_threshold(&mm->slabs, 10);
     if (err_is_fail(err))
         return err;
 
@@ -227,7 +227,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         debug_printf("Inserted padding node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", padding, padding->base, padding->size);
     }
 
-    err = slab_ensure_threshold(&mm->slabs, 3);
+    err = slab_ensure_threshold(&mm->slabs, 10);
     if (err_is_fail(err))
         return err;
 
