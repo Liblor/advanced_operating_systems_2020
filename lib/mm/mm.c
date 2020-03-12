@@ -282,6 +282,19 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     if (node == &mm->mm_tail)
         return MM_ERR_NOT_FOUND;
 
+    // TODO: Revoke the capability to prevent further use.
+    //err = cap_revoke(cap);
+    //if (err_is_fail(err))
+    //    return err_push(err, MM_ERR_MM_FREE);
+
+    err = cap_delete(cap);
+    if (err_is_fail(err))
+        return err_push(err, MM_ERR_MM_FREE);
+
+    err = slot_free(cap);
+    if (err_is_fail(err))
+        return err_push(err, MM_ERR_MM_FREE);
+
     node->type = NodeType_Free;
 
     /*
@@ -318,15 +331,6 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
         node->prev = node->prev->prev;
         slab_free(&mm->slabs, old);
     }
-
-    // TODO: Revoke the capability to prevent further use.
-    //err = cap_revoke(cap);
-    //if (err_is_fail(err))
-    //    return err_push(err, MM_ERR_MM_FREE);
-
-    err = cap_destroy(cap);
-    if (err_is_fail(err))
-        return err_push(err, MM_ERR_MM_FREE);
 
     return SYS_ERR_OK;
 }
