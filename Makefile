@@ -29,5 +29,8 @@ tags:
 	    --langmap=c:+.h \
 	    --exclude=.git \
 	    --exclude=build \
+	    --exclude=test \
+	    --exclude=tests \
+	    --exclude=.venv \
 	    --extra=+f \
 	    .
