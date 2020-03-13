@@ -18,6 +18,8 @@ tags
 .arcconfig
 sftp-config.json
 .sync-config.cson
+.idea/
+cmake-build-debug/
 
 /.metadata/
 /toolchain/
@@ -48,3 +50,7 @@ bin/
 # clang
 .clang_complete
 compile_commands.json
+CMakeLists.txt
+
+# docker
+bfdocker.sh
