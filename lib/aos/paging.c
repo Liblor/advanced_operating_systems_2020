@@ -384,7 +384,7 @@ errval_t create_pt3_mapping(struct paging_state *st, lvaddr_t vaddr) {
 
 static inline
 errval_t create_pt3_frame_mapping(struct paging_state *st, lvaddr_t vaddr,
-                                  struct capref *frame, int flags) {
+                                  struct capref *frame, int flags, uint64_t bytes) {
     errval_t err;
 
     // assumption milestone1
@@ -401,8 +401,10 @@ errval_t create_pt3_frame_mapping(struct paging_state *st, lvaddr_t vaddr,
     const lvaddr_t pt3_index = ARMV8A_L3_ADDR(vaddr);
     const lvaddr_t frame_offset = ARMV8A_PAGE_ADDR(vaddr);
 
+    DEBUG_PRINTF("bytes: %zu", ROUND_UP(bytes, BASE_PAGE_SIZE));
+
     err = vnode_map(pt3_entry->cap, *frame, pt3_index, flags,
-                    frame_offset, 1, mapping_frame);
+                    frame_offset, ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE, mapping_frame);
 
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "cannot create pt3 -> frame mapping");
@@ -441,7 +443,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     }
 
     // create lvl3 -> frame mapping
-    err = create_pt3_frame_mapping(st, vaddr, &frame, flags);
+    err = create_pt3_frame_mapping(st, vaddr, &frame, flags, bytes);
     if (err_is_fail(err)) {
         return err;
     }

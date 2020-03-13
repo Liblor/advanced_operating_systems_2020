@@ -38,7 +38,6 @@ __attribute__ ((unused)) static void test_simple_alloc_free(void) {
     struct capref retcap2;
     err = mm_alloc(&aos_mm, 1 << 20, &retcap1);
     assert(err_is_ok(err));
-
     {
         struct capability tmp_cap;
         cap_direct_identify(retcap1, &tmp_cap);
@@ -82,7 +81,7 @@ __attribute__ ((unused))static void test_handle_slot_256(void) {
 
 __attribute__ ((unused))static void test_slab_simple(void) {
     errval_t err;
-    const uint64_t size = 260;
+    const uint64_t size = 512;
     struct capref retcaps[size];
     for (int i = 0; i < size; ++i) {
         err = mm_alloc(&aos_mm, 1 << 20, &retcaps[i]);
@@ -104,8 +103,8 @@ __attribute__ ((unused)) static void test_map_frame_va(void) {
     // reason: possibly default slot allocator having issues
     // does not happen when mm_alloc calls frame mapping
 
-    uint64_t bytes = 1024;
-    const uint64_t length = 64;
+    uint64_t bytes = 16 * 1024;
+    const uint64_t length = 1;
     for(int i = 0; i < length; i ++ ) {
         DEBUG_PRINTF("iteration %d\n", i);
         struct capref frame_cap;
@@ -119,7 +118,17 @@ __attribute__ ((unused)) static void test_map_frame_va(void) {
         err = paging_map_fixed(get_current_paging_state(), vaddr, frame_cap, bytes);
         assert(err_is_ok(err));
         char *buf = (char *) vaddr;
-        *buf = 1;
+//        for(int j = 0; j < bytes; j ++) {
+//            buf[j] = 1;
+//        }
+
+        buf[5000] = 1;
+        buf[16000] = 1;
+
+//        for(int j = 0; j < bytes; j ++) {
+//            DEBUG_PRINTF("value at addr %p, %d\n", &buf[j], buf[j]);
+//        }
+
         DEBUG_PRINTF("allocated vaddr try %d at %p\n", vaddr, buf);
         DEBUG_PRINTF("value: %d\n", *buf);
     }
@@ -129,7 +138,7 @@ __attribute__ ((unused)) static void test_map_frame_va(void) {
 
 __attribute__ ((unused)) static void test_alloc_free_many(void) {
     errval_t err;
-    const uint64_t size = 1024 * 1024;
+    const uint64_t size = 1024;
     for (int i = 0; i < size; ++i) {
         struct capref retcaps;
         err = mm_alloc(&aos_mm, 1 << 30, &retcaps);
@@ -144,11 +153,15 @@ __attribute__ ((unused)) static void test_alloc_free_many(void) {
 
 __attribute__ ((unused))
 static void test_suite_milestone1(void) {
-    test_simple_alloc_free();
+//    test_simple_alloc_free();
+//    test_map_frame_va();
+//    test_slab_simple();
+//    test_handle_slot_256();
+//    test_alloc_free_many();
     test_map_frame_va();
-    test_slab_simple();
-    test_handle_slot_256();
-    test_alloc_free_many();
+//    test_slab_simple();
+//    test_map_frame_va();
+//    test_handle_slot_256();
 }
 
 
@@ -173,7 +186,7 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-//    test_suite_milestone1();
+    test_suite_milestone1();
 
     // TODO: initialize mem allocator, vspace management here
 
