@@ -1,0 +1,28 @@
+.PHONY: all
+all: hake build
+
+.PHONY: _install
+_install:
+	./tools/imx8x/bf-boot.sh --bf build/armv8_imx8x_image.efi
+
+.PHONY: install
+install: build _install
+
+.PHONY: monitor
+monitor:
+	minicom -b 115200 -D /dev/ttyUSB0
+
+.PHONY: tags
+tags:
+	@ctags -R \
+	    --sort=yes \
+	    --totals=yes \
+	    --languages=C \
+	    --langmap=c:+.h \
+	    --exclude=.git \
+	    --exclude=build \
+	    --exclude=test \
+	    --exclude=tests \
+	    --exclude=.venv \
+	    --extra=+f \
+	    .
