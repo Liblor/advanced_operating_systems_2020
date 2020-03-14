@@ -1,0 +1,29 @@
+os: linux
+dist: bionic
+language: c
+addons:
+  apt:
+    packages:
+    - 'build-essential'
+    - 'bison'
+    - 'flex'
+    - 'ghc'
+    - 'libghc-src-exts-dev'
+    - 'libghc-ghc-paths-dev'
+    - 'libghc-parsec3-dev'
+    - 'libghc-random-dev'
+    - 'libghc-ghc-mtl-dev'
+    - 'libghc-async-dev'
+    - 'cabal-install'
+    - 'freebsd-glue'
+    - 'libelf-freebsd-dev'
+    - 'gcc-aarch64-linux-gnu'
+    - 'g++-aarch64-linux-gnu'
+install:
+  - cabal update
+  - cabal install bytestring-trie
+before_script:
+  - mkdir -p $HOME/build
+script:
+  - cd $HOME/build && $TRAVIS_BUILD_DIR/hake/hake.sh -s $TRAVIS_BUILD_DIR
+  - cd $HOME/build && make -j7 imx8x
