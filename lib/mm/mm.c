@@ -143,7 +143,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         return MM_ERR_INVALID_ALIGNMENT;
 
     struct mmnode *best = NULL;
-    size_t best_size = SIZE_MAX;
+    size_t best_size = 0;
     size_t best_padding_size = 0;
 
     // Find the smallest node that is still free and can hold the requested size.
@@ -159,8 +159,8 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         if (size + padding_size >= size && next->size < size + padding_size)
             continue;
 
-        // We want the smallest node possible.
-        if (next->size <= best_size) {
+        // We want the largest node possible to minimize fragmentation (worst-fit).
+        if (next->size >= best_size) {
             best = next;
             best_size = next->size;
             best_padding_size = padding_size;
