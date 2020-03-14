@@ -1,18 +1,18 @@
-// 
+//
 // Copyright 2010 Intel Corporation
-// 
+//
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
 //    You may obtain a copy of the License at
-// 
+//
 //        http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 //    Unless required by applicable law or agreed to in writing, software
 //    distributed under the License is distributed on an "AS IS" BASIS,
 //    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
-// 
+//
 #define RC_GLOBAL_CLOCK_MHZ          1600
 #define RPC_ROOT                     0
 #define RC_NUM_VOLTAGE_DOMAINS       6
@@ -33,9 +33,9 @@
 
 
 typedef struct {
-float volt; 
+float volt;
 int   VID;
-int   MHz_cap; 
+int   MHz_cap;
 } triple;
 
 int RCCE_set_frequency(int);
@@ -62,7 +62,7 @@ unsigned int VID_word(int, int);
   extern int          RCCE_set_power_active;
   extern int          RC_current_voltage_level;
   extern int          RC_current_frequency_divider;
-  
+
   int RCCE_init_RPC(int *, int, int);
 #endif
 

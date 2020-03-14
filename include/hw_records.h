@@ -1,6 +1,6 @@
 /**
  * \file hw.h
- * \brief 
+ * \brief
  */
 
 /*
@@ -106,7 +106,7 @@ HW_PCI_IOMMU_DMAR_FAIL  = 4
 "address: %" PRIu64 ", uid:%" PRIu64
 
 #define HW_HPET_RECORD_FIELDS_READ \
-"address:%d, uid:%d" 
+"address:%d, uid:%d"
 
 #define HW_HPET_RECORD_FORMAT \
 "hw.hpet.{" HW_HPET_RECORD_FIELDS " }"
@@ -118,7 +118,7 @@ HW_PCI_IOMMU_DMAR_FAIL  = 4
 "hpet_uid:%" PRIu64 ", index:%" PRIu64
 
 #define HW_HPET_COMP_RECORD_FIELDS_READ \
-"hpet_uid: %d, index:%d" 
+"hpet_uid: %d, index:%d"
 
 #define HW_HPET_COMP_RECORD_FORMAT \
 "hw.hpet_comp.{" HW_HPET_COMP_RECORD_FIELDS " }"

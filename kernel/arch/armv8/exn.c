@@ -199,7 +199,7 @@ void handle_user_fault(lvaddr_t fault_address, uintptr_t cause,
     resume(&resume_area);
 }
 
-void nosave_handle_irq(void) 
+void nosave_handle_irq(void)
 {
     uint32_t irq = 0;
     irq = platform_get_active_irq();

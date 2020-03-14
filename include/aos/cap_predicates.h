@@ -41,7 +41,7 @@ static inline lpaddr_t mem_to_local_phys(lvaddr_t addr)
     return 0;
 }
 
-//#endif 
+//#endif
 
 __END_DECLS
 

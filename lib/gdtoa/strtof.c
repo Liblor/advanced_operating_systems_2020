@@ -65,7 +65,7 @@ strtof_l(CONST char *s, char **sp, locale_t loc)
 	  case STRTOG_NaNbits:
 		/* FreeBSD local: always return a quiet NaN */
 		u.L[0] = bits[0] | 0x7fc00000;
-		break;	      
+		break;
 
 	  case STRTOG_Denormal:
 		u.L[0] = bits[0];

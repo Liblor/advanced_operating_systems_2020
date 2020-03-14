@@ -1,7 +1,7 @@
 /**
  * \file
  * \brief Application to test spawning in more depth.
- * 
+ *
  * This file contains code to test recursive spawning (a child
  * spawning another child. Note that you need to have implemented
  * aos_rpc_process_spawn for it to work.)
@@ -28,7 +28,7 @@ coreid_t my_core_id;
 /**
  * \brief This function accepts a value in the range
  * 0 to 255 and converts it to a string representation.
- * 
+ *
  * \param The value to be converted.
  * \return A pointer to a char array that is 4 bytes long
  * and null terminated. Contains the value represented by
@@ -36,17 +36,17 @@ coreid_t my_core_id;
  */
 static char * utostr(uint8_t i) {
     char * ret = malloc(4);
-    
+
     *(ret + 3) = '\0';
     for (int it = 2; it >= 0; it--) {
         *(ret + it) = '0' + (i % 10);
         i /= 10;
     }
     return ret;
-} 
+}
 
 int main(int argc, char *argv[]) {
-    
+
     // get a channel to init
     init_rpc = aos_rpc_get_init_channel();
     if (!init_rpc) {
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
             if (err_is_fail(err)) {
                 DEBUG_PRINTF("Starting spawnTester failed.\n");
                 return EXIT_FAILURE;
-            } 
+            }
             DEBUG_PRINTF("Starting spawnTester succeded.\n");
         }
         return EXIT_SUCCESS;

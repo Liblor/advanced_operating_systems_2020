@@ -623,7 +623,7 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	nss_cache_data	*cache_data_p;
 	int		 cache_flag;
 #endif
-	
+
 	dbt = NULL;
 	fb_method = NULL;
 

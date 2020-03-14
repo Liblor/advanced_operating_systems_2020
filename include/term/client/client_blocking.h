@@ -44,9 +44,9 @@ errval_t term_client_blocking_write(struct term_client *client,
 errval_t term_client_blocking_config(struct term_client *client,
                                      enum TerminalConfig opt, size_t arg);
 
-errval_t term_client_blocking_tcgetattr(struct term_client *client, 
+errval_t term_client_blocking_tcgetattr(struct term_client *client,
                                         struct termios* t);
-errval_t term_client_blocking_tcsetattr(struct term_client *client, 
+errval_t term_client_blocking_tcsetattr(struct term_client *client,
                                         const struct termios* t);
 
 #endif // LIBTERM_CLIENT_CLIENT_BLOCKING_H

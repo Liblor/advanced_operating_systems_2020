@@ -18,14 +18,14 @@
 
 #include <barrelfish_kpi/types.h>
 
-/** 
+/**
  * \brief Configure the SP804 modules.
  *
  * We expose the timers individually, and simply trust that the rest
  * of the CPU driver knows that each pair of timers shares a single
  * interrupt line.   We also require that the MMU is turned on at this
- * point. 
- * 
+ * point.
+ *
  * \param n the number of modules (half the number of timers)
  * \param hz the clock frequency of the timers in Hertz
  * \param addrs an array of n physical addresses of sp804 devices
@@ -33,11 +33,11 @@
  *
  * Each SP804 has two timers.  We number timers sequentially; the
  * number supplied to this function is the number of SP804s (i.e. half
- * the number of timers). 
+ * the number of timers).
  */
-extern void sp804_configure(size_t n, 
-			    uint32_t hz, 
-			    const lpaddr_t pit_addrs[], 
+extern void sp804_configure(size_t n,
+			    uint32_t hz,
+			    const lpaddr_t pit_addrs[],
 			    const uint32_t irqs[] );
 
 #endif // __SP804_UART_H__

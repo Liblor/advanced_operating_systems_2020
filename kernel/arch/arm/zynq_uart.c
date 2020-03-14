@@ -75,7 +75,7 @@ zynq_uart_hw_init(zynq_uart_t *uart) {
 }
 
 /**
- * \brief Prints a single character to a serial port. 
+ * \brief Prints a single character to a serial port.
  */
 void
 serial_putchar(unsigned port, char c) {
@@ -89,7 +89,7 @@ serial_putchar(unsigned port, char c) {
     zynq_uart_FIFO_FIFO_wrf(uart, c);
 }
 
-/** 
+/**
  * \brief Reads a single character from the default serial port.
  */
 char

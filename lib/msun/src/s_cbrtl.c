@@ -22,7 +22,7 @@ __FBSDID("$FreeBSD$");
 #include <ieeefp.h>
 #endif
 
-#include "fpmath.h"    
+#include "fpmath.h"
 #include "math.h"
 #include "math_private.h"
 
@@ -65,7 +65,7 @@ cbrtl(long double x)
  	} else
 		k -= BIAS;
 	u.xbits.expsign = BIAS;
-	v.e = 1; 
+	v.e = 1;
 
 	x = u.e;
 	switch (k % 3) {

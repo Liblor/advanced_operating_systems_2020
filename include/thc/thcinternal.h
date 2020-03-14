@@ -247,7 +247,7 @@ extern int _end_text_nx;
 
 #define __WORD_SIZE (sizeof(void*))
 
- 
+
 /***********************************************************************/
 
 #ifdef CONFIG_LAZY_THC
@@ -474,7 +474,7 @@ extern int _end_text_nx;
 
 // - NYI
 #define SWIZZLE_DEF(_NAME, _NS, _FN) assert(0 && "THC not yet implemented on AARCH64")
-	
+
 #else
 #error "No definition of SWIZZLE_DEF for THC"
 #endif

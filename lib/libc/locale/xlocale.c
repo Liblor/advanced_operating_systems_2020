@@ -136,7 +136,7 @@ get_thread_locale(void)
 {
 
 	_once(&once_control, init_key);
-	
+
 	return (fake_tls ? thread_local_locale :
 		pthread_getspecific(locale_info_key));
 }
@@ -157,7 +157,7 @@ set_thread_locale(locale_t loc)
 	locale_t l = (loc == LC_GLOBAL_LOCALE) ? 0 : loc;
 
 	_once(&once_control, init_key);
-	
+
 	if (NULL != l) {
 		xlocale_retain((struct xlocale_refcounted*)l);
 	}
@@ -218,7 +218,7 @@ copyflags(locale_t new, locale_t old)
 	new->using_messages_locale = old->using_messages_locale;
 }
 
-static int dupcomponent(int type, locale_t base, locale_t new) 
+static int dupcomponent(int type, locale_t base, locale_t new)
 {
 	/* Always copy from the global locale, since it has mutable components.
 	 */
@@ -244,7 +244,7 @@ static int dupcomponent(int type, locale_t base, locale_t new)
 
 /*
  * Public interfaces.  These are the five public functions described by the
- * xlocale interface.  
+ * xlocale interface.
  */
 
 locale_t newlocale(int mask, const char *locale, locale_t base)
@@ -310,7 +310,7 @@ locale_t duplocale(locale_t base)
 	if (NULL == new) {
 		return (NULL);
 	}
-	
+
 	FIX_LOCALE(base);
 	copyflags(new, base);
 
@@ -323,7 +323,7 @@ locale_t duplocale(locale_t base)
 
 /*
  * Free a locale_t.  This is quite a poorly named function.  It actually
- * disclaims a reference to a locale_t, rather than freeing it.  
+ * disclaims a reference to a locale_t, rather than freeing it.
  */
 void
 freelocale(locale_t loc)

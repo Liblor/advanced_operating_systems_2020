@@ -344,7 +344,7 @@ __END_DECLS
 
 #define dbtoc(db)			/* calculates devblks to pages */ \
 	((db + (ctodb(1) - 1)) >> (PAGE_SHIFT - DEV_BSHIFT))
- 
+
 #define ctodb(db)			/* calculates pages to devblks */ \
 	((db) << (PAGE_SHIFT - DEV_BSHIFT))
 

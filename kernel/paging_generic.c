@@ -415,7 +415,7 @@ errval_t paging_tlb_flush_range(struct cte *mapping_cte, size_t offset, size_t p
             break;
         case ObjType_VNode_AARCH64_l1:
             page_size = VMSAv8_64_L1_BLOCK_SIZE;
-            break;            
+            break;
 #else
 #error setup page sizes for arch
 #endif

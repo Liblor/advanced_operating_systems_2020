@@ -1,6 +1,6 @@
 /**
  * \file hw.h
- * \brief 
+ * \brief
  */
 
 /*

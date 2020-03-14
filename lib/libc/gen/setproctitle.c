@@ -78,7 +78,7 @@ setproctitle(const char *fmt, ...)
 
 	if (buf == NULL) {
 		buf = malloc(SPT_BUFSIZE);
-		if (buf == NULL) 
+		if (buf == NULL)
 			return;
 		nargv[0] = buf;
 	}

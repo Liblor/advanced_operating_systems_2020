@@ -1,5 +1,5 @@
 /**
- * @brief 
+ * @brief
  *  net_filter.h
  *  Install filters (mostly HW)
  */
@@ -25,7 +25,7 @@
 struct net_filter_ip {
     uint64_t qid;
     uint32_t ip_src;
-    uint32_t ip_dst;          
+    uint32_t ip_dst;
     uint16_t port_src;
     uint16_t port_dst;
     uint8_t type;
@@ -60,7 +60,7 @@ struct net_filter_state {
     volatile bool bound;
 };
 
-errval_t net_filter_init(struct net_filter_state** st, 
+errval_t net_filter_init(struct net_filter_state** st,
                          const char* cardname);
 
 errval_t net_filter_init_with_ep(struct net_filter_state** st,

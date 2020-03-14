@@ -174,7 +174,7 @@ errval_t platform_enable_interrupt(uint32_t int_id, uint16_t prio,
     if(int_id<32) {
         gic_v3_redist_GICR_ISENABLER0_wr(&gic_v3_redist_dev, 1<<int_id );
     }
-    else {  
+    else {
         gic_v3_dist_GICD_ISENABLER_wr(&gic_v3_dist_dev, int_id/32,
             1<<(int_id % 32));
     }

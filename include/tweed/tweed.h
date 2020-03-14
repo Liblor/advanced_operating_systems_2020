@@ -1,5 +1,5 @@
-/** \file 
- *  \brief A simple work stealing library based upon both cilk and wool. 
+/** \file
+ *  \brief A simple work stealing library based upon both cilk and wool.
  */
 
 /*
@@ -47,7 +47,7 @@
 int name ## _task_func (struct generic_task_desc * _tweed_top_,              \
                         void* arg1_name);                                    \
 int name ## _task_func (struct generic_task_desc * _tweed_top_,              \
-                        void* arg1_name)                         
+                        void* arg1_name)
 
 
 /* Task declaration macro */
@@ -93,7 +93,7 @@ void name ## _task_func (struct generic_task_desc * _tweed_top_             \
 /* Function macros, to be used externally */
 
 #define INIT_TWEED(workers, main_task, args)                                 \
-    init_tweed(workers, & main_task ## _task_func, args);    
+    init_tweed(workers, & main_task ## _task_func, args);
 
 
 #define SPAWN(name, arg_count, ...)                                          \
@@ -127,13 +127,13 @@ void name ## _task_func (struct generic_task_desc * _tweed_top_             \
 
 
 #define CALL(name, arg_cnt, ...)                                             \
-    (name ## _task_func (_tweed_top_, ##__VA_ARGS__ )) 
+    (name ## _task_func (_tweed_top_, ##__VA_ARGS__ ))
 
 
 #define SYNC(name, arg_cnt)                                                  \
     _SYNC( TOKEN_CONCAT(_task_, __LINE__), name, arg_cnt)
 
-                                    
+
 #define _SYNC(task_id, name, arg_cnt)                                        \
     ({                                                                       \
         int stolen = 0;                                                      \
@@ -175,15 +175,15 @@ void name ## _task_func (struct generic_task_desc * _tweed_top_             \
 // use mfence operations
 #define SET_FUNC_INLINED(t)                                                  \
         t->task.f.func = NULL;                                               \
-        mfence();   
+        mfence();
 #define WAS_STOLEN(t) (t->task.balarm & TWEED_TASK_STOLEN) != 0
 #define INIT_THIEF(t) t->task.thief = NULL
 #endif
 
 #define PREV_TASK(x,y)                                                       \
-    ((struct generic_task_desc *) (((char*)(x)) - (y)))    
+    ((struct generic_task_desc *) (((char*)(x)) - (y)))
 #define NEXT_TASK(x,y)                                                       \
-    ((struct generic_task_desc *) (((char*)(x)) + (y)))    
+    ((struct generic_task_desc *) (((char*)(x)) + (y)))
 #define AT_TOP_OF_STACK                                                      \
     ((((uint64_t )_tweed_top_) & TWEED_TASK_STACK_MASK) == 0)
 
@@ -337,7 +337,7 @@ void name ## _task_func (struct generic_task_desc * _tweed_top_             \
 
 
 /* Set spawn args */
-#define _SET_SPAWN_ARGS_0(task_name)                                         
+#define _SET_SPAWN_ARGS_0(task_name)
 
 #define _SET_SPAWN_ARGS_1(task_name, arg_val_1)                              \
     task_name->arg1 = arg_val_1;
@@ -348,12 +348,12 @@ void name ## _task_func (struct generic_task_desc * _tweed_top_             \
 
 #define _SET_SPAWN_ARGS_3(task_name, arg_val_1, arg_val_2, arg_val_3)        \
     _SET_SPAWN_ARGS_2(task_name, arg_val_1, arg_val_2);                      \
-    task_name->arg3 = arg_val_3;                           
+    task_name->arg3 = arg_val_3;
 
 #define _SET_SPAWN_ARGS_4(task_name, arg_val_1, arg_val_2, arg_val_3,        \
                           arg_val_4)                                         \
     _SET_SPAWN_ARGS_3(task_name, arg_val_1, arg_val_2, arg_val_3);           \
-    task_name->arg4 = arg_val_4;                                               
+    task_name->arg4 = arg_val_4;
 
 #define _SET_SPAWN_ARGS_5(task_name, arg_val_1, arg_val_2, arg_val_3,        \
                           arg_val_4, arg_val_5)                              \
@@ -455,31 +455,31 @@ struct generic_task_desc {
         volatile tweed_task_func_t func;
     } f;
     volatile long balarm;
-    int size; 
+    int size;
 #ifndef TWEED_USE_CAS
     volatile struct worker_desc * thief;
 #endif
 };
 
 /** Main task's description */
-struct main_task_desc {                                       
-    struct generic_task_desc task;                            
-    void* arg1;                                               
+struct main_task_desc {
+    struct generic_task_desc task;
+    void* arg1;
 };
-  
+
 /** Worker descriptor */
 struct worker_desc {
     // task descriptors for this worker
-    struct generic_task_desc * task_desc_stack;       
+    struct generic_task_desc * task_desc_stack;
     // pointer to first task to steal
     struct generic_task_desc * bot;
-#ifndef TWEED_LOCK_FREE                   
-    // lock, primarily used by thief 
+#ifndef TWEED_LOCK_FREE
+    // lock, primarily used by thief
     spinlock_t lock;
 #endif
     // worker's thread
-    struct thread * worker_thr;   
-    int id;  
+    struct thread * worker_thr;
+    int id;
     int core_id;
 };
 

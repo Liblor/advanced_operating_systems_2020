@@ -31,7 +31,7 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint) 
+#if defined(LIBC_SCCS) && !defined(lint)
 static char *sccsid2 = "@(#)xdr_rec.c 1.21 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)xdr_rec.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
  * by n bytes of data, where n is contained in the header.  The header
  * is represented as a htonl(u_long).  Thegh order bit encodes
  * whether or not the fragment is the last fragment of the record
- * (1 => fragment is last, 0 => more fragments to follow. 
+ * (1 => fragment is last, 0 => more fragments to follow.
  * The other 31 bits encode the byte length of the fragment.
  */
 
@@ -178,8 +178,8 @@ xdrrec_create(XDR *xdrs, u_int sendsize, u_int recvsize, void *tcp_handle,
 
 	if (rstrm == NULL) {
 		warnx("xdrrec_create: out of memory");
-		/* 
-		 *  This is bad.  Should rework xdrrec_create to 
+		/*
+		 *  This is bad.  Should rework xdrrec_create to
 		 *  return a handle, and in this case return NULL
 		 */
 		return;
@@ -293,7 +293,7 @@ xdrrec_getbytes(XDR *xdrs, char *addr, u_int len)
 		current = (len < current) ? len : current;
 		if (! get_input_bytes(rstrm, addr, current))
 			return (FALSE);
-		addr += current; 
+		addr += current;
 		rstrm->fbtbc -= current;
 		len -= current;
 	}
@@ -616,11 +616,11 @@ static bool_t
 flush_out(RECSTREAM *rstrm, bool_t eor)
 {
 	u_int32_t eormask = (eor == TRUE) ? LAST_FRAG : 0;
-	u_int32_t len = (u_int32_t)((u_long)(rstrm->out_finger) - 
+	u_int32_t len = (u_int32_t)((u_long)(rstrm->out_finger) -
 		(u_long)(rstrm->frag_header) - sizeof(u_int32_t));
 
 	*(rstrm->frag_header) = htonl(len | eormask);
-	len = (u_int32_t)((u_long)(rstrm->out_finger) - 
+	len = (u_int32_t)((u_long)(rstrm->out_finger) -
 	    (u_long)(rstrm->out_base));
 	if ((*(rstrm->writeit))(rstrm->tcp_handle, rstrm->out_base, (int)len)
 		!= (int)len)
@@ -713,7 +713,7 @@ skip_input_bytes(RECSTREAM *rstrm, long cnt)
 	u_int32_t current;
 
 	while (cnt > 0) {
-		current = (size_t)((long)rstrm->in_boundry - 
+		current = (size_t)((long)rstrm->in_boundry -
 		    (long)rstrm->in_finger);
 		if (current == 0) {
 			if (! fill_input_buf(rstrm))

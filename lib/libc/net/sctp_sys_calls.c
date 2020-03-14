@@ -878,7 +878,7 @@ sctp_recvmsg(int s,
 #endif
 }
 
-ssize_t 
+ssize_t
 sctp_recvv(int sd,
     const struct iovec *iov,
     int iovlen,

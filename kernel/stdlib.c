@@ -71,7 +71,7 @@ ascii_to_int(int c)
 long int strtol(const char *nptr, char **endptr, int base)
 {
     assert(base == 10 || base == 16);
-    
+
     long int retval = 0;
     size_t i;
 
@@ -92,7 +92,7 @@ long int strtol(const char *nptr, char **endptr, int base)
 unsigned long int strtoul(const char *nptr, char **endptr, int base)
 {
     assert(base == 10 || base == 16);
-    
+
     unsigned long int retval = 0;
     size_t i;
 

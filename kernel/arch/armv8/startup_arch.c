@@ -739,7 +739,7 @@ void arm_kernel_startup(void)
         init_dcb = spawn_bsp_init(BSP_INIT_MODULE_NAME);
     } else {
         MSG("Doing non-BSP related bootup \n");
-        
+
         /* Initialize the allocator */
         app_alloc_phys_start = (armv8_glbl_core_data->memory.base);
         app_alloc_phys_end   = (armv8_glbl_core_data->memory.length + app_alloc_phys_start);

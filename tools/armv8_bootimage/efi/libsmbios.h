@@ -7,7 +7,7 @@ Copyright (c) 2000  Intel Corporation
 Module Name:
 
     LibSmbios.h
-    
+
 Abstract:
 
     Lib include  for SMBIOS services. Used to get system serial number and GUID
@@ -71,7 +71,7 @@ typedef struct {
     // always byte copy this data to prevent alignment faults!
     //
     EFI_GUID        Uuid;
-    
+
     UINT8           WakeUpType;
 } SMBIOS_TYPE1;
 

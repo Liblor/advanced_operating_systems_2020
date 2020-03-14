@@ -73,7 +73,7 @@ _posix1e_acl_to_text(acl_t acl, ssize_t *len_p, int flags)
 
 	mask_perm = ACL_PERM_BITS;	/* effective is regular if no mask */
 	for (i = 0; i < acl_int->acl_cnt; i++)
-		if (acl_int->acl_entry[i].ae_tag == ACL_MASK) 
+		if (acl_int->acl_entry[i].ae_tag == ACL_MASK)
 			mask_perm = acl_int->acl_entry[i].ae_perm;
 
 	for (i = 0; i < acl_int->acl_cnt; i++) {

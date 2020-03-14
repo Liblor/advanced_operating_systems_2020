@@ -20,7 +20,7 @@
 #include <stdint.h>
 
 static inline uint64_t rdtsc(void)
-{  
+{
     uint64_t ccnt = 0;
     __asm__ volatile("mrs %[ccnt], CNTPCT_EL0;" : [ccnt] "=r" (ccnt));
     return ccnt;

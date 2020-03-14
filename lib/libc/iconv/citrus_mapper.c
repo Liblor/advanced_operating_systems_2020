@@ -350,7 +350,7 @@ _citrus_mapper_open(struct _citrus_mapper_area *__restrict ma,
 	if (cm->cm_key == NULL) {
 		ret = errno;
 		_mapper_close(cm);
-		goto quit;	
+		goto quit;
 	}
 
 	/* insert to the cache */

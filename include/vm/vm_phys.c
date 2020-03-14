@@ -825,7 +825,7 @@ vm_phys_alloc_freelist_pages(int freelist, int pool, int order)
 
 static vm_page_t
 vm_phys_alloc_domain_pages(int domain, int flind, int pool, int order)
-{	
+{
 	struct vm_freelist *fl;
 	struct vm_freelist *alt;
 	int oind, pind;
@@ -1217,7 +1217,7 @@ vm_phys_scan_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 }
 
 /*
- * Set the pool for a contiguous, power of two-sized set of physical pages. 
+ * Set the pool for a contiguous, power of two-sized set of physical pages.
  */
 void
 vm_phys_set_pool(int pool, vm_page_t m, int order)

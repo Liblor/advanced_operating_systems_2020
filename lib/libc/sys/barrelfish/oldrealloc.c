@@ -1,5 +1,5 @@
 /*
- * K&R Malloc 
+ * K&R Malloc
  *
  * System specifc code should implement `more_core'
  */

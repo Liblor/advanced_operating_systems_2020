@@ -32,7 +32,7 @@
  * storage.  The backing store is usually swap so we just fall through to
  * the swap routines.  However, since swap metadata has not been assigned,
  * the swap routines assign and manage the swap backing store through the
- * vm_page->swapblk field.  The object is only converted when the page is 
+ * vm_page->swapblk field.  The object is only converted when the page is
  * physically freed after having been cleaned and even then vm_page->swapblk
  * is maintained whenever a resident page also has swap backing store.
  */
@@ -57,9 +57,9 @@ static vm_object_t default_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void default_pager_dealloc(vm_object_t);
 static int default_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
-static void default_pager_putpages(vm_object_t, vm_page_t *, int, 
+static void default_pager_putpages(vm_object_t, vm_page_t *, int,
 		boolean_t, int *);
-static boolean_t default_pager_haspage(vm_object_t, vm_pindex_t, int *, 
+static boolean_t default_pager_haspage(vm_object_t, vm_pindex_t, int *,
 		int *);
 /*
  * pagerops for OBJT_DEFAULT - "default pager".
@@ -145,7 +145,7 @@ default_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 
 /*
  * Tell us whether the backing store for the requested (object,index) is
- * synchronized.  i.e. tell us whether we can throw the page away and 
+ * synchronized.  i.e. tell us whether we can throw the page away and
  * reload it later.  So, for example, if we are in the process of writing
  * the page to its backing store, or if no backing store has been assigned,
  * it is not yet synchronized.

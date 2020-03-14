@@ -168,8 +168,8 @@ unlock_and_deallocate(struct faultstate *fs)
 		fs->first_m = NULL;
 	}
 	vm_object_deallocate(fs->first_object);
-	unlock_map(fs);	
-	if (fs->vp != NULL) { 
+	unlock_map(fs);
+	if (fs->vp != NULL) {
 		vput(fs->vp);
 		fs->vp = NULL;
 	}
@@ -415,7 +415,7 @@ fast_failed:
 	 * to be diddled.  Since objects reference their shadows (and copies),
 	 * they will stay around as well.
 	 *
-	 * Bump the paging-in-progress count to prevent size changes (e.g. 
+	 * Bump the paging-in-progress count to prevent size changes (e.g.
 	 * truncation operations) during I/O.  This must be done after
 	 * obtaining the vnode lock in order to avoid possible deadlocks.
 	 */
@@ -463,7 +463,7 @@ fast_failed:
 			 * We can theoretically allow the busy case on a read
 			 * fault if the page is marked valid, but since such
 			 * pages are typically already pmap'd, putting that
-			 * special case in might be more effort then it is 
+			 * special case in might be more effort then it is
 			 * worth.  We cannot under any circumstances mess
 			 * around with a shared busied page except, perhaps,
 			 * to pmap it.
@@ -472,7 +472,7 @@ fast_failed:
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
-				 * likely to reclaim it. 
+				 * likely to reclaim it.
 				 */
 				vm_page_aflag_set(fs.m, PGA_REFERENCED);
 				if (fs.object != fs.first_object) {
@@ -505,7 +505,7 @@ fast_failed:
 			vm_page_unlock(fs.m);
 
 			/*
-			 * Mark page busy for other processes, and the 
+			 * Mark page busy for other processes, and the
 			 * pagedaemon.  If it still isn't completely valid
 			 * (readable), jump to readrest, else break-out ( we
 			 * found the page ).
@@ -747,7 +747,7 @@ vnode_locked:
 		}
 
 		/*
-		 * We get here if the object has default pager (or unwiring) 
+		 * We get here if the object has default pager (or unwiring)
 		 * or the pager doesn't have the page.
 		 */
 		if (fs.object == fs.first_object)
@@ -819,13 +819,13 @@ vnode_locked:
 		 */
 		if ((fault_type & (VM_PROT_COPY | VM_PROT_WRITE)) != 0) {
 			/*
-			 * This allows pages to be virtually copied from a 
-			 * backing_object into the first_object, where the 
+			 * This allows pages to be virtually copied from a
+			 * backing_object into the first_object, where the
 			 * backing object has no other refs to it, and cannot
-			 * gain any more refs.  Instead of a bcopy, we just 
-			 * move the page from the backing object to the 
-			 * first object.  Note that we must mark the page 
-			 * dirty in the first object so that it will go out 
+			 * gain any more refs.  Instead of a bcopy, we just
+			 * move the page from the backing object to the
+			 * first object.  Note that we must mark the page
+			 * dirty in the first object so that it will go out
 			 * to swap when needed.
 			 */
 			is_first_object_locked = FALSE;
@@ -888,7 +888,7 @@ vnode_locked:
 					vm_page_lock(fs.first_m);
 					vm_page_wire(fs.first_m);
 					vm_page_unlock(fs.first_m);
-					
+
 					vm_page_lock(fs.m);
 					vm_page_unwire(fs.m, PQ_INACTIVE);
 					vm_page_unlock(fs.m);
@@ -899,7 +899,7 @@ vnode_locked:
 				release_page(&fs);
 			}
 			/*
-			 * fs.object != fs.first_object due to above 
+			 * fs.object != fs.first_object due to above
 			 * conditional
 			 */
 			vm_object_pip_wakeup(fs.object);
@@ -1048,7 +1048,7 @@ vnode_locked:
 			PROC_UNLOCK(curproc);
 		}
 #endif
-	} else 
+	} else
 		curthread->td_ru.ru_minflt++;
 
 	return (KERN_SUCCESS);
@@ -1273,7 +1273,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 				goto error;
 	}
 	return (count);
-error:	
+error:
 	for (mp = ma; mp < ma + count; mp++)
 		if (*mp != NULL) {
 			vm_page_lock(*mp);
@@ -1455,7 +1455,7 @@ again:
 		 * Mark it no longer busy, and put it on the active list.
 		 */
 		VM_OBJECT_WLOCK(dst_object);
-		
+
 		if (upgrade) {
 			if (src_m != dst_m) {
 				vm_page_lock(src_m);
@@ -1486,7 +1486,7 @@ again:
  * Block entry into the machine-independent layer's page fault handler by
  * the calling thread.  Subsequent calls to vm_fault() by that thread will
  * return KERN_PROTECTION_FAILURE.  Enable machine-dependent handling of
- * spurious page faults. 
+ * spurious page faults.
  */
 int
 vm_fault_disable_pagefaults(void)

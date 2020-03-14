@@ -40,7 +40,7 @@ typedef errval_t(*driverkit_get_ep_fn)(struct bfdriver_instance*, bool lmp, stru
 struct bfdriver_instance {
     char name[256]; //< This is owned by driverkit 'modules.c'.
     struct bfdriver* driver; //< This is owned by driverkit 'modules.c'.
-    uint32_t core; 
+    uint32_t core;
 
     struct capref caps[6];
     uint8_t capc;
@@ -49,7 +49,7 @@ struct bfdriver_instance {
     char *argv[4];
     char _argv[4][256];
     uint8_t argc;
-   
+
     struct capref ctrl;
     iref_t device; //< Driver state. This is owned by the driver implementation.
     void* dstate;  //< Driver state. This is owned by the driver implementation.
@@ -103,8 +103,8 @@ struct driver_instance {
     struct capref* caps;
     uint64_t flags;
     iref_t dev;
-    
-    // Control interface 
+
+    // Control interface
     struct capref control_ep;
     struct dcontrol_binding* ctrl;
     bool bound;
@@ -124,7 +124,7 @@ errval_t ddomain_driver_add_arg(struct driver_instance* drv, char *str);
 void ddomain_wait_for_id(void);
 
 /** driver control flounder interface */
-errval_t dcontrol_service_init(struct bfdriver_instance* bfi, struct waitset* ws, 
+errval_t dcontrol_service_init(struct bfdriver_instance* bfi, struct waitset* ws,
                                 bool lmp, struct capref* ret_cap);
 errval_t map_device_register(lpaddr_t, size_t, lvaddr_t*);
 errval_t map_device_cap(struct capref, lvaddr_t *);

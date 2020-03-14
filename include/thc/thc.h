@@ -12,7 +12,7 @@ typedef int errval_t;
 #define THC_CANCELED 1
 #endif
 
-// The implementation of do..finish relies on shadowing so that 
+// The implementation of do..finish relies on shadowing so that
 // _fb_info always refers to the closest enclosing do..finish block.
 #pragma GCC diagnostic ignored "-Wshadow"
 
@@ -39,8 +39,8 @@ typedef int errval_t;
 
 #define DO_FINISH(_CODE) DO_FINISH__(__,_CODE,0)
 
-// ASYNC implementation.  __COUNTER__ is a GCC extension that will 
-// allocate a unique integer ID on each expansion.  Hence use it once 
+// ASYNC implementation.  __COUNTER__ is a GCC extension that will
+// allocate a unique integer ID on each expansion.  Hence use it once
 // here and use the resulting expanded value in ASYNC_:
 
 #define ASYNC(_BODY) ASYNC_(_BODY, __COUNTER__)
@@ -72,7 +72,7 @@ typedef int errval_t;
 // the continuation of the block and store a reference to it on the nested
 // function's stackframe.  We then mark this as an async by replacing the
 // return address of the nested function with a special marker.  If we block,
-// the runtime system looks through the stack for this marker, allocating 
+// the runtime system looks through the stack for this marker, allocating
 // a lazy stack for any AWE continuations it finds.
 //
 // We are careful to avoid taking the address of the nested function.
@@ -82,16 +82,16 @@ typedef int errval_t;
 //
 // There are several hacks:
 //
-// 1. The nested function is given an explicit name in the generated 
-//    assembly language code (NESTED_FN_STRING(_C)).  This means that 
+// 1. The nested function is given an explicit name in the generated
+//    assembly language code (NESTED_FN_STRING(_C)).  This means that
 //    inline asm can refer to it without needing to take the address
 //    of the nested function.
 //
 // 2. The nested function specifically jumps to the point after the async
 //    continuation rather than returning normally, since (i) we have fiddled
-//    with the return address to make it a marker and (ii), changing it back 
+//    with the return address to make it a marker and (ii), changing it back
 //    then returning normally confuses the branch prediction hardware leading
-//    to an increase in async cost by about 40 cycles (25 cycles -> 65 cycles) 
+//    to an increase in async cost by about 40 cycles (25 cycles -> 65 cycles)
 //
 #define ASYNC_(_BODY, _C)						\
   do {									\
@@ -151,7 +151,7 @@ typedef int errval_t;
 // - Define a "swizzle" function that will transfer execution onto the
 //   new stack, capturing the stack and target function address from
 //   its environment
-// 
+//
 // We are careful to avoid taking the address of the nested function.
 // This prevents GCC trying to generate stack-allocated trampoline functions
 // (this is not implemented on Beehive where the I and D caches are not
@@ -159,8 +159,8 @@ typedef int errval_t;
 //
 // There are several hacks:
 //
-// 1. The nested function is given an explicit name in the generated 
-//    assembly language code (NESTED_FN_STRING(_C)).  This means that 
+// 1. The nested function is given an explicit name in the generated
+//    assembly language code (NESTED_FN_STRING(_C)).  This means that
 //    inline asm can refer to it without needing to take the address
 //    of the nested function.
 //
@@ -262,13 +262,13 @@ void THCYield(void);
 // to THCYieldTo on the run-queue.)
 void THCYieldTo(awe_t *awe_ptr);
 
-// Cancellation actions.  These are executed in LIFO order when cancellation 
+// Cancellation actions.  These are executed in LIFO order when cancellation
 // occurs.  Once cancellation has been requested, it is assumed that no
-// further cancellation actions will be added.  Cancellation actions can be 
+// further cancellation actions will be added.  Cancellation actions can be
 // added and removed in any order (not just LIFO) -- in practice this occurs
 // when they are added/removed in different async branches.
 //
-// The structure of a cancel_item_t should be treated as opaque: it is 
+// The structure of a cancel_item_t should be treated as opaque: it is
 // defined here so that its size is known, and hence so that it can be
 // stack-allocated by callers to THCAdd/RemoveCancelItem.
 typedef void (*THCCancelFn_t)(void *);

@@ -9,11 +9,11 @@ static char * multiboot_strings;
 
 /**
  * \brief Get the command line arguments of a multiboot module as a raw string
- * 
+ *
  * This function returns a raw pointer into the multiboot_strings array.
  * The pointer points to the first char of the first argument of the multi-
  * boot module. That is always the filename of the binary.
- * 
+ *
  * \param module A pointer to a mem_region struct corresponding to a
  * multiboot module. Must not be NULL.
  * \return A raw pointer into the multiboot_strings array.
@@ -43,7 +43,7 @@ const char *multiboot_module_opts(struct mem_region *module)
 
 /**
  * \brief Returns a raw pointer to the modules string area string
- * 
+ *
  * \param region A pointer the the mem_region struct of a multiboot module.
  * \return A raw pointer into the multiboot_strings array or NULL.
  */
@@ -78,14 +78,14 @@ const char *multiboot_module_rawstring(struct mem_region *region)
 
 /**
  * \brief Returns the basename of 'region' without arguments
- * 
+ *
  * This function returns the basename of a multiboot module.
  * As it is returned in a static char buffer, it is advised
  * to copy the basename for continued use after calling this
  * function.
- * 
+ *
  * XXX: returns pointer to static buffer. NOT THREAD SAFE
- * 
+ *
  * \param region A pointer to the mem_region struct of a
  * multiboot module.
  * \return A pointer to a static char buffer cointaining the
@@ -114,12 +114,12 @@ const char *multiboot_module_name(struct mem_region *region)
 
 /**
  * \brief Returns a pointer to the mem_region struct corresponding to the binary 'name'
- * 
+ *
  * This function returns a pointer to the mem_region struct stored in the bootinfo
  * struct's memory regions array that corresponds to 'name'. 'name' can either be
  * the absolute path of a binary (starting with '/') or simply the relative path of
  * the binary (relative to the directory build/armv8/sbin/).
- * 
+ *
  * \param bi A pointer to the bootinfo struct, must not be NULL.
  * \param name A string corresponding to the absolute or relative path of a binary.
  * Must not be NULL.

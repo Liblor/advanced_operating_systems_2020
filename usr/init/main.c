@@ -24,7 +24,7 @@
 #include <grading.h>
 
 #include "mem_alloc.h"
-
+#include "test.h"
 
 
 
@@ -37,7 +37,7 @@ static int
 bsp_main(int argc, char *argv[]) {
     errval_t err;
 
-    // Grading 
+    // Grading
     grading_setup_bsp_init(argc, argv);
 
     // First argument contains the bootinfo location, if it's not set
@@ -49,14 +49,18 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
+    // TODO: Remove.
+    //test_libmm();
+    //test_paging();
+
     // TODO: initialize mem allocator, vspace management here
-    
-    // Grading 
+
+    // Grading
     grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
-    
-    // Grading 
+
+    // Grading
     grading_test_late();
 
     debug_printf("Message handler loop\n");

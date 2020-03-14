@@ -108,7 +108,7 @@ errval_t driverkit_iommu_set_root_vnode(struct iommu_client *cl,
 /**
  * @brief obtains the capability type for the root level vnode
  *
- * @return 
+ * @return
  */
 enum objtype driverkit_iommu_get_root_vnode_type(struct iommu_client *cl);
 
@@ -116,7 +116,7 @@ enum objtype driverkit_iommu_get_root_vnode_type(struct iommu_client *cl);
 /**
  * @brief obtains the maximu supported page size
  *
- * @return 
+ * @return
  */
 size_t driverkit_iommu_get_max_pagesize(struct iommu_client *cl);
 

@@ -109,7 +109,7 @@ kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
 {
 	vm_offset_t addr;
 	int result;
- 
+
 	addr = vm_map_min(kernel_map);
 	result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
 	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
@@ -139,7 +139,7 @@ vm_mem_init(dummy)
 	 */
 	vm_set_page_size();
 	virtual_avail = vm_page_startup(virtual_avail);
-	
+
 	/*
 	 * Initialize other VM packages
 	 */

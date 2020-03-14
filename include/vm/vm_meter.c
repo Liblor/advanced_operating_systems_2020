@@ -71,7 +71,7 @@ SYSCTL_UINT(_vm, OID_AUTO, v_free_severe,
 static int
 sysctl_vm_loadavg(SYSCTL_HANDLER_ARGS)
 {
-	
+
 #ifdef SCTL_MASK32
 	u_int32_t la[4];
 
@@ -242,7 +242,7 @@ vcnt(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_vm, VM_TOTAL, vmtotal, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
-    0, sizeof(struct vmtotal), vmtotal, "S,vmtotal", 
+    0, sizeof(struct vmtotal), vmtotal, "S,vmtotal",
     "System virtual memory statistics");
 SYSCTL_NODE(_vm, OID_AUTO, stats, CTLFLAG_RW, 0, "VM meter stats");
 static SYSCTL_NODE(_vm_stats, OID_AUTO, sys, CTLFLAG_RW, 0,

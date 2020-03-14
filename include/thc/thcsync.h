@@ -91,16 +91,16 @@ errval_t thc_condvar_wait_x(thc_condvar_t *cv, thc_lock_t *lock);
 void thc_condvar_signal(thc_condvar_t *cv);
 void thc_condvar_broadcast(thc_condvar_t *cv);
 
-// FIFO queues.  
+// FIFO queues.
 //
-// These are modeled on event-counts and sequencers, but are 
+// These are modeled on event-counts and sequencers, but are
 // designed to allow waiters to abandon their place in the queue.
-// The design is motivated by requiring only storage space 
+// The design is motivated by requiring only storage space
 // in temporary stack-allocated queue-entry data structures used
 // by the threads actually waiting.
 //
-// The caller passes in a thc_queue_entry_t which is used to 
-// implement a doubly-link-list of waiters. 
+// The caller passes in a thc_queue_entry_t which is used to
+// implement a doubly-link-list of waiters.
 //
 // The thc_queue_await_turn... functions wait for the given queue
 // entry to be the oldest that has entered and not left.  (The
@@ -110,12 +110,12 @@ void thc_condvar_broadcast(thc_condvar_t *cv);
 // The thc_queue_leave function indicates that a given
 // queue entry can be discarded.  The return value is 0 unless the
 // queue entry is the oldest that has entered and not left.
-// Otherwise, the thc_queue_leave function returns a count of the 
+// Otherwise, the thc_queue_leave function returns a count of the
 // number of queue entries that have entered and left without service,
 // counting up (but not including) until the next queue entry (if any)
-// that has entered and not left.  
+// that has entered and not left.
 //
-// e.g.: a thread enters, waits in await_turn, and calls leave == 0 
+// e.g.: a thread enters, waits in await_turn, and calls leave == 0
 //       a thread enters, is interrupted in await_turn, and calls leave == 1
 //       thread T1 enters, thread T2 enters, T2 leaves=0, T1 leaves=2
 

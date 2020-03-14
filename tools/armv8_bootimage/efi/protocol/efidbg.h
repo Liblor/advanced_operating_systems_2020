@@ -2,28 +2,28 @@
  * Copyright (c) 1999, 2000
  * Intel Corporation.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- * 
+ *
  *    This product includes software developed by Intel Corporation and
  *    its contributors.
- * 
+ *
  * 4. Neither the name of Intel Corporation or its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY INTEL CORPORATION AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -35,7 +35,7 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 
@@ -124,7 +124,7 @@ typedef struct _EFI_DEBUG_SUPPORT_INTERFACE {
 
 #define DEBUGPORT_IO_PROTOCOL \
 { 0XEBA4E8D2, 0X3858, 0X41EC, 0XA2, 0X81, 0X26, 0X47, 0XBA, 0X96, 0X60, 0XD0 }
- 
+
 
 typedef
 EFI_STATUS
@@ -164,8 +164,8 @@ typedef struct _EFI_DEBUGPORT_IO_INTERFACE {
 
 #define DEBUGPORT_UART16550_CONTROL_PROTOCOL \
 { 0X628EA978, 0X4C26, 0X4605, 0XBC, 0X2, 0XA4, 0X2A, 0X49, 0X69, 0X17, 0XDD }
- 
-// Note: The definitions for EFI_PARITY_TYPE, EFI_STOP_BITS_TYPE, and 
+
+// Note: The definitions for EFI_PARITY_TYPE, EFI_STOP_BITS_TYPE, and
 // SERIAL_IO_MODE are included from efiser.h
 
 typedef
@@ -203,8 +203,8 @@ typedef struct _EFI_DEBUGPORT_UART16550_CONTROL_INTERFACE {
 	EFI_UART16550_GET_CONTROL_BITS 		GetControl;
 	DEBUGPORT_16550_CONFIG_DATA			*Mode;
 } EFI_DEBUGPORT_UART16550_CONTROL_INTERFACE;
-        
+
 
 #define DEVICE_PATH_DEBUGPORT DEBUGPORT_IO_PROTOCOL
-        
+
 #endif /* _EFIDBG_H_ */

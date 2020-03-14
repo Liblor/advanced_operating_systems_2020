@@ -6,7 +6,7 @@
  * If you do not find this file, copies can be found by writing to:
  * ETH Zurich D-INFK, Universitaetstrasse 6, CH-8092 Zurich. Attn: Systems Group.
  */
- 
+
 #ifndef MLX4_DEVIF_H
 #define MLX4_DEVIF_H
 

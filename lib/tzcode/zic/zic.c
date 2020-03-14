@@ -1743,7 +1743,7 @@ const char * const	string;
 		    fullname, (unsigned)mflag);
 	if ((uflag != (uid_t)-1 || gflag != (gid_t)-1)
 	    && chown(fullname, uflag, gflag) < 0)
-		err(EXIT_FAILURE, _("cannot change ownership of %s"), 
+		err(EXIT_FAILURE, _("cannot change ownership of %s"),
 		    fullname);
 }
 

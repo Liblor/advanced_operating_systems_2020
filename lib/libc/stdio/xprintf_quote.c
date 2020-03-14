@@ -62,9 +62,9 @@ __printf_render_quote(struct __printf_io *io, const struct printf_info *pi __unu
 	for (i = 0, p = str; *p; p++)
 		if (isspace(*p) || *p == '\\' || *p == '"')
 			i++;
-	if (!i) 
+	if (!i)
 		return (__printf_out(io, pi, str, strlen(str)));
-	
+
 	ret = __printf_out(io, pi, "\"", 1);
 	for (t = p = str; *p; p++) {
 		o = NULL;

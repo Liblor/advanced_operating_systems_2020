@@ -7,27 +7,27 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 extern int key_decryptsession_pk(const char *, netobj *, des_block *);
 
-#define debug(msg)	 printf("svcauth_des: %s\n", msg) 
+#define debug(msg)	 printf("svcauth_des: %s\n", msg)
 
 #define USEC_PER_SEC ((u_long) 1000000L)
 #define BEFORE(t1, t2) timercmp(t1, t2, <)
@@ -97,7 +97,7 @@ static void cache_ref(short sid);	/* note that sid was ref'd */
 static void invalidate(char *);	/* invalidate entry in cache */
 
 /*
- * cache statistics 
+ * cache statistics
  */
 static struct {
 	u_long ncachehits;	/* times cache hit, and is not replay */
@@ -148,7 +148,7 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 			return (AUTH_BADCRED);
 		}
 		cred->adc_fullname.name = area->area_netname;
-		bcopy((char *)ixdr, cred->adc_fullname.name, 
+		bcopy((char *)ixdr, cred->adc_fullname.name,
 			(u_int)namelen);
 		cred->adc_fullname.name[namelen] = 0;
 		ixdr += (RNDUP(namelen) / BYTES_PER_XDR_UNIT);
@@ -160,7 +160,7 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 		cred->adc_nickname = (u_long)*ixdr++;
 		break;
 	default:
-		return (AUTH_BADCRED);	
+		return (AUTH_BADCRED);
 	}
 
 	/*
@@ -191,7 +191,7 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 			debug("decryptsessionkey");
 			return (AUTH_BADCRED); /* key not found */
 		}
-	} else { /* ADN_NICKNAME */	
+	} else { /* ADN_NICKNAME */
 		sid = (short)cred->adc_nickname;
 		if (sid < 0 || sid >= AUTHDES_CACHESZ) {
 			debug("bad nickname");
@@ -204,13 +204,13 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 	/*
 	 * Decrypt the timestamp
 	 */
-	cryptbuf[0] = verf.adv_xtimestamp; 
+	cryptbuf[0] = verf.adv_xtimestamp;
 	if (cred->adc_namekind == ADN_FULLNAME) {
 		cryptbuf[1].key.high = cred->adc_fullname.window;
 		cryptbuf[1].key.low = verf.adv_winverf;
-		ivec.key.high = ivec.key.low = 0;	
+		ivec.key.high = ivec.key.low = 0;
 		status = cbc_crypt((char *)sessionkey, (char *)cryptbuf,
-			2*sizeof(des_block), DES_DECRYPT | DES_HW, 
+			2*sizeof(des_block), DES_DECRYPT | DES_HW,
 			(char *)&ivec);
 	} else {
 		status = ecb_crypt((char *)sessionkey, (char *)cryptbuf,
@@ -246,7 +246,7 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 				debug("window verifier mismatch");
 				return (AUTH_BADCRED);	/* garbled credential */
 			}
-			sid = cache_spot(sessionkey, cred->adc_fullname.name, 
+			sid = cache_spot(sessionkey, cred->adc_fullname.name,
 			    &timestamp);
 			if (sid < 0) {
 				debug("replayed credential");
@@ -263,7 +263,7 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 			/* cached out (bad key), or garbled verifier */
 			return (nick ? AUTH_REJECTEDVERF : AUTH_BADVERF);
 		}
-		if (nick && BEFORE(&timestamp, 
+		if (nick && BEFORE(&timestamp,
 				   &authdes_cache[sid].laststamp)) {
 			debug("timestamp before last seen");
 			return (AUTH_REJECTEDVERF);	/* replay */
@@ -289,7 +289,7 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 	IXDR_PUT_LONG(ixdr, timestamp.tv_sec - 1);
 	IXDR_PUT_LONG(ixdr, timestamp.tv_usec);
 
-	/*	 
+	/*
 	 * encrypt the timestamp
 	 */
 	status = ecb_crypt((char *)sessionkey, (char *)cryptbuf,
@@ -310,7 +310,7 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 
 	rqst->rq_xprt->xp_verf.oa_flavor = AUTH_DES;
 	rqst->rq_xprt->xp_verf.oa_base = msg->rm_call.cb_verf.oa_base;
-	rqst->rq_xprt->xp_verf.oa_length = 
+	rqst->rq_xprt->xp_verf.oa_length =
 		(char *)ixdr - msg->rm_call.cb_verf.oa_base;
 
 	/*
@@ -339,7 +339,7 @@ _svcauth_des(struct svc_req *rqst, struct rpc_msg *msg)
 	} else { /* ADN_NICKNAME */
 		/*
 		 * nicknames are cooked into fullnames
-		 */	
+		 */
 		cred->adc_namekind = ADN_FULLNAME;
 		cred->adc_fullname.name = entry->rname;
 		cred->adc_fullname.key = entry->key;
@@ -358,8 +358,8 @@ cache_init(void)
 	int i;
 
 	authdes_cache = (struct cache_entry *)
-		mem_alloc(sizeof(struct cache_entry) * AUTHDES_CACHESZ);	
-	bzero((char *)authdes_cache, 
+		mem_alloc(sizeof(struct cache_entry) * AUTHDES_CACHESZ);
+	bzero((char *)authdes_cache,
 		sizeof(struct cache_entry) * AUTHDES_CACHESZ);
 
 	authdes_lru = (short *)mem_alloc(sizeof(short) * AUTHDES_CACHESZ);
@@ -415,7 +415,7 @@ cache_spot(des_block *key, char *name, struct timeval *timestamp)
 
 	hi = key->key.high;
 	for (cp = authdes_cache, i = 0; i < AUTHDES_CACHESZ; i++, cp++) {
-		if (cp->key.key.high == hi && 
+		if (cp->key.key.high == hi &&
 		    cp->key.key.low == key->key.low &&
 		    cp->rname != NULL &&
 		    bcmp(cp->rname, name, strlen(name) + 1) == 0) {
@@ -460,7 +460,7 @@ authdes_getucred(struct authdes_cred *adc, uid_t *uid, gid_t *gid,
 {
 	unsigned sid;
 	int i;
-	uid_t i_uid;	
+	uid_t i_uid;
 	gid_t i_gid;
 	int i_grouplen;
 	struct bsdcred *cred;
@@ -480,7 +480,7 @@ authdes_getucred(struct authdes_cred *adc, uid_t *uid, gid_t *gid,
 		/*
 		 * not in cache: lookup
 		 */
-		if (!netname2user(adc->adc_fullname.name, &i_uid, &i_gid, 
+		if (!netname2user(adc->adc_fullname.name, &i_uid, &i_gid,
 			&i_grouplen, groups))
 		{
 			debug("unknown netname");
@@ -498,7 +498,7 @@ authdes_getucred(struct authdes_cred *adc, uid_t *uid, gid_t *gid,
 	} else if (cred->grouplen == UNKNOWN) {
 		/*
 		 * Already lookup up, but no match found
-		 */	
+		 */
 		return (0);
 	}
 

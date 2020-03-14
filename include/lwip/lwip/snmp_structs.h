@@ -222,7 +222,7 @@ extern "C" {
                             void *value);
         void (*set_value_a) (u8_t rid, struct obj_def * od, u16_t len,
                              void *value);
-  /** async Panic Close (agent returns error reply, 
+  /** async Panic Close (agent returns error reply,
       e.g. used for external transaction cleanup) */
         void (*get_object_def_pc) (u8_t rid, u8_t ident_len, s32_t * ident);
         void (*get_value_pc) (u8_t rid, struct obj_def * od);

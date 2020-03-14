@@ -97,7 +97,7 @@ static wchar_t *do_svis(wchar_t *, wint_t, int, wint_t, const wchar_t *);
 
 #undef BELL
 #define BELL L'\a'
- 
+
 #if defined(LC_C_LOCALE)
 #define iscgraph(c)      isgraph_l(c, LC_C_LOCALE)
 #else

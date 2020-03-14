@@ -1,7 +1,7 @@
 /**
  * \file
- * \brief Contains definitions of VMX controls along with the controls 
- * that are desired to be used for each VMCS. 
+ * \brief Contains definitions of VMX controls along with the controls
+ * that are desired to be used for each VMCS.
  */
 
 /*
@@ -10,7 +10,7 @@
  *
  * This file is distributed under the terms in the attached LICENSE file.
  * If you do not find this file, copies can be found by writing to:
- * ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich. 
+ * ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich.
  * Attn: Systems Group.
  */
 
@@ -34,7 +34,7 @@ enum vmx_ctls_t {
 #define PIN_CTLS_PREEMPT_TIMER  (1 << 6)
 #define PIN_CTLS_POSTED_INTR    (1 << 7)
 
-// Primary processor-based VM-execution controls 
+// Primary processor-based VM-execution controls
 #define PP_CTLS_INTR_WINDOW     (1 << 2)
 #define PP_CLTS_TSC_OFF         (1 << 3)
 #define PP_CLTS_HLT             (1 << 7)

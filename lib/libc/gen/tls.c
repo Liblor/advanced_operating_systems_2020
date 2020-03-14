@@ -165,7 +165,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign __unused)
 			    tls_static_space - tls_init_size);
 	}
 
-	return(tcb); 
+	return(tcb);
 }
 
 #endif

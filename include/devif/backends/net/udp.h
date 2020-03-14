@@ -45,12 +45,12 @@ errval_t udp_destroy(struct udp_q* q);
  * @param dst_port     UPD destination port
  * @param dst_ip       Destination IP
  * @param interrupt    Interrupt handler
- * @param poll         If the queue is polled or should use interrupts             
+ * @param poll         If the queue is polled or should use interrupts
  *
  */
-errval_t udp_create(struct udp_q** q, const char* card_name, 
+errval_t udp_create(struct udp_q** q, const char* card_name,
                     uint16_t src_port, uint16_t dst_port,
-                    uint32_t dst_ip, void(*interrupt)(void*), 
+                    uint32_t dst_ip, void(*interrupt)(void*),
                     bool poll);
 /*
  * @brief  Writes into a buffer so that we still have space to add the headers
@@ -60,7 +60,7 @@ errval_t udp_create(struct udp_q** q, const char* card_name,
  * @param offset      The offset into the region at which the buffer start
  * @param data        The data to write into the buffer
  * @param len         The length of the data
- * 
+ *
  */
 errval_t udp_write_buffer(struct udp_q* q, regionid_t rid, genoffset_t offset,
                           void* data, uint16_t len);

@@ -436,7 +436,7 @@ iruserok_sa(const void *ra, int rlen, int superuser, const char *ruser,
 	struct sockaddr_storage ss;
 
 	/* avoid alignment issue */
-	if (rlen > sizeof(ss)) 
+	if (rlen > sizeof(ss))
 		return(-1);
 	memcpy(&ss, ra, rlen);
 	raddr = (struct sockaddr *)&ss;

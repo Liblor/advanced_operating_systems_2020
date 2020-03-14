@@ -126,7 +126,7 @@ sfs2svfs(const struct statfs *from, struct statvfs *to)
 	to->f_favail = to->f_ffree;
 	return (0);
 }
-								 
+
 #ifdef MAIN
 #include <err.h>
 #include <stdint.h>

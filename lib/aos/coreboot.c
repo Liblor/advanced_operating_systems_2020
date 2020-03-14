@@ -13,7 +13,7 @@ extern struct bootinfo *bi;
 struct mem_info {
     size_t                size;      // Size in bytes of the memory region
     void                  *buf;      // Address where the region is currently mapped
-    lpaddr_t              phys_base; // Physical base address   
+    lpaddr_t              phys_base; // Physical base address
 };
 
 /**
@@ -83,7 +83,7 @@ static errval_t load_elf_binary(genvaddr_t binary, const struct mem_info *mem,
 }
 
 /**
- * Relocate an already loaded ELF image. 
+ * Relocate an already loaded ELF image.
  *
  * binary:            Valid pointer to ELF image in current address space
  * mem:               Where the ELF is loaded
@@ -193,22 +193,22 @@ errval_t coreboot(coreid_t mpid,
 
     // Implement me!
     // - Get a new KCB by retyping a RAM cap to ObjType_KernelControlBlock.
-    //   Note that it should at least OBJSIZE_KCB, and it should also be aligned 
+    //   Note that it should at least OBJSIZE_KCB, and it should also be aligned
     //   to a multiple of 16k.
     // - Get and load the CPU and boot driver binary.
     // - Relocate the boot and CPU driver. The boot driver runs with a 1:1
-    //   VA->PA mapping. The CPU driver is expected to be loaded at the 
+    //   VA->PA mapping. The CPU driver is expected to be loaded at the
     //   high virtual address space, at offset ARMV8_KERNEL_OFFSET.
     // - Allocate a page for the core data struct
     // - Allocate stack memory for the new cpu driver (at least 16 pages)
     // - Fill in the core data struct, for a description, see the definition
     //   in include/target/aarch64/barrelfish_kpi/arm_core_data.h
     // - Find the CPU driver entry point. Look for the symbol "arch_init". Put
-    //   the address in the core data struct. 
+    //   the address in the core data struct.
     // - Find the boot driver entry point. Look for the symbol "boot_entry_psci"
     // - Flush the cache.
-    // - Call the invoke_monitor_spawn_core with the entry point 
-    //   of the boot driver and pass the (physical, of course) address of the 
+    // - Call the invoke_monitor_spawn_core with the entry point
+    //   of the boot driver and pass the (physical, of course) address of the
     //   boot struct as argument.
 
     return SYS_ERR_OK;

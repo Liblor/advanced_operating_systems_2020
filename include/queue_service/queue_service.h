@@ -55,12 +55,12 @@ errval_t queue_service_init(struct queue_service_state** st, char* name);
  * @param st            service state handle
  * @param name          factory name
  * @param core          the core on which the ep factory resides
- * @param factory       driver_instance struct of a endpoint factory 
+ * @param factory       driver_instance struct of a endpoint factory
  *                      (normally only available in kaluga)
  *
  * @return SYS_ERR_OK on sucess, errval on failure
  */
-errval_t queue_service_add_ep_factory(struct queue_service_state* st, 
+errval_t queue_service_add_ep_factory(struct queue_service_state* st,
                                       char* factory_name,
                                       coreid_t core,
                                       struct driver_instance* factory);
@@ -75,7 +75,7 @@ errval_t queue_service_add_ep_factory(struct queue_service_state* st,
  *
  * @return SYS_ERR_OK on sucess, errval on failure
  */
-errval_t queue_service_create_self_ep(struct queue_service_state* st, 
+errval_t queue_service_create_self_ep(struct queue_service_state* st,
                                       coreid_t core,
                                       struct capref* ep);
 

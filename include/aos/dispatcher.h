@@ -91,7 +91,7 @@ struct dispatcher_generic {
 
     /// list of polled channels
     struct waitset_chanstate *polled_channels;
-    
+
     struct notificator *notificators;
 
     struct capref recv_slots[MAX_RECV_SLOTS];///< Queued cap recv slots

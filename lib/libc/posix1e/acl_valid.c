@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
  * This call is deprecated, as it doesn't ask whether the ACL is valid
  * for a particular target.  However, this call is standardized, unlike
  * the other two forms.
- */ 
+ */
 int
 acl_valid(acl_t acl)
 {

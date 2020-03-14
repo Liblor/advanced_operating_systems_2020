@@ -15,8 +15,8 @@ void grading_setup_bsp_init(int argc, char **argv);
  * It will use bootinfo pointer to determine the arguments to the grading library.
  *
  * Note: We do not want to restrict your OS design. If you have a design
- * that does not need the bootinfo on the second core, please talk to the 
- * assistants. This function is a convenience for the 90% of designs 
+ * that does not need the bootinfo on the second core, please talk to the
+ * assistants. This function is a convenience for the 90% of designs
  * that make the bootinfo available on the second core anyway.
  */
 void grading_setup_app_init(struct bootinfo * bi);
@@ -39,7 +39,7 @@ void grading_test_mm(struct mm * mmtest);
 /**
  * Call this function to run the tests. In init, call this
  * function after all the library functions are available, but before
- * spwaning any other process. 
+ * spwaning any other process.
  */
 void grading_test_early(void);
 
@@ -52,9 +52,9 @@ void grading_test_late(void);
 
 
 /**
- * Stubs for grading RPC implementation 
+ * Stubs for grading RPC implementation
  * These calls should be called on the receiver side of the RPC defined in
- * lib/aos/aos_rpc.c 
+ * lib/aos/aos_rpc.c
  * */
 void grading_rpc_handle_number(uintptr_t val);
 void grading_rpc_handler_string(const char* string);

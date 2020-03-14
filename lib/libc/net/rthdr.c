@@ -3,7 +3,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -15,7 +15,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -58,7 +58,7 @@ inet6_rthdr_space(int type, int seg)
 #else
 		return (CMSG_SPACE(sizeof(struct in6_addr) * seg +
 		    sizeof(struct ip6_rthdr0)));
-#endif 
+#endif
 	default:
 		return (0);
 	}
@@ -82,7 +82,7 @@ inet6_rthdr_init(void *bp, int type)
 		    sizeof(struct in6_addr));
 #else
 		ch->cmsg_len = CMSG_LEN(sizeof(struct ip6_rthdr0));
-#endif 
+#endif
 
 		bzero(rthdr, sizeof(struct ip6_rthdr0));
 		rthdr->ip6r_type = IPV6_RTHDR_TYPE_0;
@@ -119,7 +119,7 @@ inet6_rthdr_add(struct cmsghdr *cmsg, const struct in6_addr *addr, u_int flags)
 #else
 		if (flags != IPV6_RTHDR_LOOSE)
 			return (-1);
-#endif 
+#endif
 		rt0->ip6r0_segleft++;
 		bcopy(addr, (caddr_t)rt0 + ((rt0->ip6r0_len + 1) << 3),
 		    sizeof(struct in6_addr));

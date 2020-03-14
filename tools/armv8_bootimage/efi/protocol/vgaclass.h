@@ -8,7 +8,7 @@ Copyright (c) 1999  Intel Corporation
 Module Name:
 
     VgaClass.h
-    
+
 Abstract:
 
     Vga Mini port binding to Vga Class protocol
@@ -27,8 +27,8 @@ Revision History
 #define VGA_CLASS_DRIVER_PROTOCOL \
     { 0xe3d6310, 0x6fe4, 0x11d3, {0xbb, 0x81, 0x0, 0x80, 0xc7, 0x3c, 0x88, 0x81} }
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (* INIT_VGA_CARD) (
     IN  UINTN   VgaMode,
     IN  VOID    *Context
@@ -76,14 +76,14 @@ typedef struct {
 #define VGA_CON_OUT_DEV_FROM_THIS(a) CR(a, VGA_CON_OUT_DEV, ConOut, VGA_CON_OUT_DEV_SIGNATURE)
 
 //
-// Vga Class Driver Protocol. 
+// Vga Class Driver Protocol.
 // GUID defined in EFI Lib
 //
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *INSTALL_VGA_DRIVER) (
-    IN  VGA_CON_OUT_DEV    *ConOutDev 
+    IN  VGA_CON_OUT_DEV    *ConOutDev
     );
 
 typedef struct {

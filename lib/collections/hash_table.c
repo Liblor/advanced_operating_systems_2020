@@ -92,7 +92,7 @@ void collections_hash_release(collections_hash_table *t)
         uint32_t before, after;
 		bucket = t->buckets[bucket_num];
 		bucket_size = collections_list_size(bucket);
-        
+
         before = t->num_elems;
         collections_list_visit(bucket, collections_hash_release_elem, t);
         after = t->num_elems;
@@ -108,8 +108,8 @@ void collections_hash_release(collections_hash_table *t)
 
 static collections_hash_elem* collections_hash_find_elem(collections_hash_table *t, uint64_t key)
 {
-	uint32_t bucket_num;	
-	collections_listnode *bucket;	
+	uint32_t bucket_num;
+	collections_listnode *bucket;
 	collections_hash_elem *elem;
 
 	bucket_num = key % t->num_buckets;
@@ -157,9 +157,9 @@ void *collections_hash_find(collections_hash_table *t, uint64_t key)
  * Removes a specific element from the table.
  */
 void collections_hash_delete(collections_hash_table *t, uint64_t key)
-{	
-	uint32_t bucket_num;	
-	collections_listnode *bucket;	
+{
+	uint32_t bucket_num;
+	collections_listnode *bucket;
 	collections_hash_elem *elem;
 
 	bucket_num = key % t->num_buckets;
@@ -228,12 +228,12 @@ int32_t collections_hash_traverse_start(collections_hash_table *t)
 void* collections_hash_traverse_next(collections_hash_table* t, uint64_t *key)
 {
 	if (t->cur_bucket_num == -1) {
-		// if the cur_bucket_num is invalid, 
+		// if the cur_bucket_num is invalid,
 		// hash traversal has not been started.
 		printf("Error: collections_hash_table must be opened for traversal first.\n");
 		return NULL;
 	}
-	
+
 	if (t->cur_bucket_num >= t->num_buckets) {
 		// all the buckets have been traversed.
 		return NULL;
@@ -271,14 +271,14 @@ void* collections_hash_traverse_next(collections_hash_table* t, uint64_t *key)
 int32_t	collections_hash_traverse_end(collections_hash_table* t)
 {
 	if (t->cur_bucket_num == -1) {
-		// if the cur_bucket_num is invalid, 
+		// if the cur_bucket_num is invalid,
 		// hash traversal has not been started.
 		printf("Error: collections_hash_table must be opened for traversal first.\n");
 		return -1;
 	}
 
     // XXX The bucktes (list) are not reset here which may cause errors when the
-    // hash table is only traversed half way. 
+    // hash table is only traversed half way.
 
 	t->cur_bucket_num = -1;
 	return 1;

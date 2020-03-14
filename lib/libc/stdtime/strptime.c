@@ -107,7 +107,7 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 
 		if (c != '%') {
 			if (isspace_l((unsigned char)c, locale))
-				while (*buf != 0 && 
+				while (*buf != 0 &&
 				       isspace_l((unsigned char)*buf, locale))
 					buf++;
 			else if (c != *buf++)

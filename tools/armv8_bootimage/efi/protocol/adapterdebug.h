@@ -8,7 +8,7 @@ Copyright (c) 1999  Intel Corporation
 Module Name:
 
     AdapterDebug.h
-    
+
 Abstract:
 
     Protocol to debug the EDD 3.0 enablement of BIOS option ROMs

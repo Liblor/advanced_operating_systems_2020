@@ -31,49 +31,49 @@
 
 /*
  * Requirements:
- * 
+ *
  * 1. The thread safe mechanism should be lightweight so the library can
  *    be used by non-threaded applications without unreasonable overhead.
- * 
+ *
  * 2. There should be no dependency on a thread engine for non-threaded
  *    applications.
- * 
+ *
  * 3. There should be no dependency on any particular thread engine.
- * 
+ *
  * 4. The library should be able to be compiled without support for thread
  *    safety.
- * 
- * 
+ *
+ *
  * Rationale:
- * 
+ *
  * One approach for thread safety is to provide discrete versions of the
  * library: one thread safe, the other not.  The disadvantage of this is
  * that libc is rather large, and two copies of a library which are 99%+
  * identical is not an efficient use of resources.
- * 
+ *
  * Another approach is to provide a single thread safe library.  However,
  * it should not add significant run time or code size overhead to non-
  * threaded applications.
- * 
+ *
  * Since the NetBSD C library is used in other projects, it should be
  * easy to replace the mutual exclusion primitives with ones provided by
  * another system.  Similarly, it should also be easy to remove all
  * support for thread safety completely if the target environment does
  * not support threads.
- * 
- * 
+ *
+ *
  * Implementation Details:
- * 
+ *
  * The mutex primitives used by the library (mutex_t, mutex_lock, etc.)
  * are macros which expand to the cooresponding primitives provided by
  * the thread engine or to nothing.  The latter is used so that code is
  * not unreasonably cluttered with #ifdefs when all thread safe support
  * is removed.
- * 
+ *
  * The mutex macros can be directly mapped to the mutex primitives from
  * pthreads, however it should be reasonably easy to wrap another mutex
  * implementation so it presents a similar interface.
- * 
+ *
  * Stub implementations of the mutex functions are provided with *weak*
  * linkage.  These functions simply return success.  When linked with a
  * thread library (i.e. -lpthread), the functions will override the

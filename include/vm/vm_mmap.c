@@ -213,7 +213,7 @@ sys_mmap(td, uap)
 	 * Ignore old flags that used to be defined but did not do anything.
 	 */
 	flags &= ~(MAP_RESERVED0020 | MAP_RESERVED0040);
-	
+
 	/*
 	 * Enforce the constraints.
 	 * Mapping of length 0 is only allowed for old binaries.
@@ -898,7 +898,7 @@ RestartScan:
 				 * required because a concurrent pmap
 				 * operation could clear the last reference
 				 * and set PGA_REFERENCED before the call to
-				 * pmap_is_referenced(). 
+				 * pmap_is_referenced().
 				 */
 				if ((m->aflags & PGA_REFERENCED) != 0 ||
 				    pmap_is_referenced(m) ||

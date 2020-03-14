@@ -66,7 +66,7 @@ errval_t irq_table_set(unsigned int nidt, capaddr_t endpoint)
 
         // Correct interrupt forwarding by the distributor must be ensured
         // in userspace.
-        
+
         return err;
     }
 
@@ -103,7 +103,7 @@ errval_t irq_table_alloc_dest_cap(uint8_t dcn_level, capaddr_t dcn,
         return SYS_ERR_IRQ_INVALID;
     }
 
-    // TODO: Keep track of allocations 
+    // TODO: Keep track of allocations
     struct cte * cn;
     err = caps_lookup_slot(&dcb_current->cspace.cap, dcn, dcn_level,
                            &cn, CAPRIGHTS_WRITE);

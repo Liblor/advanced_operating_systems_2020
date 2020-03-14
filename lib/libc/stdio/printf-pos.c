@@ -88,7 +88,7 @@ inittypes(struct typetable *types)
 
 	types->table = types->stattable;
 	types->tablesize = STATIC_ARG_TBL_SIZE;
-	types->tablemax = 0; 
+	types->tablemax = 0;
 	types->nextarg = 1;
 	for (n = 0; n < STATIC_ARG_TBL_SIZE; n++)
 		types->table[n] = T_UNUSED;
@@ -96,7 +96,7 @@ inittypes(struct typetable *types)
 
 /*
  * struct typetable destructor.
- */ 
+ */
 static inline void
 freetypes(struct typetable *types)
 {
@@ -239,7 +239,7 @@ addwaster(struct typetable *types, wchar_t **fmtp)
  * initial argument table should be an array of STATIC_ARG_TBL_SIZE entries.
  * It will be replaces with a malloc-ed one if it overflows.
  * Returns 0 on success. On failure, returns nonzero and sets errno.
- */ 
+ */
 int
 __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
 {

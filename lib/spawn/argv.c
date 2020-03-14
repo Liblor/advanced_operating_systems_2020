@@ -8,11 +8,11 @@
 
 /**
  * \brief Tokenize the command line arguments and count them
- * 
+ *
  * \param cmdline The string to be parsed. Must not be NULL.
  * \param _argc Will be filled out with the number of arguments
  * found in 'cmdline'. Must not be NULL.
- * \param buf Will be filled out with a char array that contains 
+ * \param buf Will be filled out with a char array that contains
  * the continuously in memory arranged arguments separated by '\0'.
  * (Note that there might also be some extra whitespace intbetween
  * the arguments.)

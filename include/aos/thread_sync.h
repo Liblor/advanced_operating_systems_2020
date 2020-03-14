@@ -79,7 +79,7 @@ struct thread_barrier {
 #else
 #		define THREAD_BARRIER_INITIALIZER \
 	{ 0, 0, (struct thread_sem *) NULL, \
-	  (struct thread_sem *) NULL, (struct thread_sem *) NULL }	
+	  (struct thread_sem *) NULL, (struct thread_sem *) NULL }
 #endif
 
 #endif

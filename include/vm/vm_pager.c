@@ -387,7 +387,7 @@ initpbuf(struct buf *bp)
  *	to 1/2 nswbuf.  getpbuf() decrements this counter in allocation and
  *	increments it on release, and blocks if the counter hits zero.  A
  *	subsystem may initialize the counter to -1 to disable the feature,
- *	but it must still be sure to match up all uses of getpbuf() with 
+ *	but it must still be sure to match up all uses of getpbuf() with
  *	relpbuf() using the same variable.
  *
  *	NOTE: pfreecnt can be NULL, but this 'feature' will be removed

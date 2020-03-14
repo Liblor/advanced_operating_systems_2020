@@ -1,6 +1,6 @@
 /**
  * \file
- * \brief Kernel serial driver for the OMAP44xx UARTs.  
+ * \brief Kernel serial driver for the OMAP44xx UARTs.
  */
 
 /*
@@ -29,11 +29,11 @@ extern void omap_uart_early_init(unsigned port, lpaddr_t base);
 extern void omap_uart_init(unsigned port, lvaddr_t base, bool initialize_hw);
 
 /**
- * \brief Prints a single character to a serial port. 
+ * \brief Prints a single character to a serial port.
  */
 extern void omap_uart_putchar(unsigned port, char c);
 
-/** 
+/**
  * \brief Reads a single character from the default serial port.
  * This function spins waiting for a character to arrive.
  */

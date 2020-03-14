@@ -72,7 +72,7 @@ destruct_ctype(void *v)
 {
 	struct xlocale_ctype *l = v;
 
-	if (&_DefaultRuneLocale != l->runes) 
+	if (&_DefaultRuneLocale != l->runes)
 		free(l->runes);
 	free(l);
 }

@@ -477,7 +477,7 @@ getgroupmembership_fallback(void *retval, void *mdata, va_list ap)
 	agroup = va_arg(ap, gid_t);
 	groups = va_arg(ap, gid_t *);
 	maxgrp = va_arg(ap, int);
-	grpcnt = va_arg(ap, int *); 
+	grpcnt = va_arg(ap, int *);
 
 	rv = NS_UNAVAIL;
 
@@ -800,7 +800,7 @@ files_setgrent(void *retval, void *mdata, va_list ap)
 	int		 rv, stayopen;
 
 	rv = files_getstate(&st);
-	if (rv != 0) 
+	if (rv != 0)
 		return (NS_UNAVAIL);
 	switch ((enum constants)mdata) {
 	case SETGRENT:
@@ -888,7 +888,7 @@ files_group(void *retval, void *mdata, va_list ap)
 		}
 		memcpy(buffer, line, linesize);
 		buffer[linesize] = '\0';
-		rv = __gr_parse_entry(buffer, linesize, grp, 
+		rv = __gr_parse_entry(buffer, linesize, grp,
 		    &buffer[linesize + 1], bufsize - linesize - 1, errnop);
 		if (rv & NS_TERMINATE)
 			break;
@@ -1082,7 +1082,7 @@ nis_group(void *retval, void *mdata, va_list ap)
 	gid_t		 gid;
 	enum nss_lookup_type how;
 	int		*errnop, keylen, resultlen, rv;
-	
+
 	name = NULL;
 	gid = (gid_t)-1;
 	how = (enum nss_lookup_type)mdata;
@@ -1187,7 +1187,7 @@ nis_group(void *retval, void *mdata, va_list ap)
 fin:
 	if (rv == NS_SUCCESS && retval != NULL)
 		*(struct group **)retval = grp;
-	return (rv);	
+	return (rv);
 erange:
 	*errnop = ERANGE;
 	return (NS_RETURN);
@@ -1426,7 +1426,7 @@ docompat:
 				st->compat = COMPAT_MODE_NAME;
 			}
 			goto docompat;
-		} 
+		}
 		rv = __gr_match_entry(line, linesize, how, name, gid);
 		if (rv != NS_SUCCESS)
 			continue;
@@ -1441,7 +1441,7 @@ docompat:
 		}
 		memcpy(buffer, line, linesize);
 		buffer[linesize] = '\0';
-		rv = __gr_parse_entry(buffer, linesize, grp, 
+		rv = __gr_parse_entry(buffer, linesize, grp,
 		    &buffer[linesize + 1], bufsize - linesize - 1, errnop);
 		if (rv & NS_TERMINATE)
 			break;

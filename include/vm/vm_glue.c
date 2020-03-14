@@ -351,7 +351,7 @@ vm_thread_new(struct thread *td, int pages)
 	 * Allocate an object for the kstack.
 	 */
 	ksobj = vm_object_allocate(OBJT_DEFAULT, pages);
-	
+
 	/*
 	 * Get a kernel virtual address for this thread's kstack.
 	 */
@@ -386,7 +386,7 @@ vm_thread_new(struct thread *td, int pages)
 	 * want to deallocate them.
 	 */
 	td->td_kstack_pages = pages;
-	/* 
+	/*
 	 * For the length of the stack, link in a real page of ram for each
 	 * page of stack.
 	 */
@@ -765,7 +765,7 @@ loop:
 			/*
 			 * An otherwise runnable thread of a process
 			 * swapped out has only the TDI_SWAPPED bit set.
-			 * 
+			 *
 			 */
 			thread_lock(td);
 			if (td->td_inhibitors == TDI_SWAPPED) {
@@ -915,7 +915,7 @@ retry:
 
 		/*
 		 * only aiod changes vmspace, however it will be
-		 * skipped because of the if statement above checking 
+		 * skipped because of the if statement above checking
 		 * for P_SYSTEM
 		 */
 		if ((p->p_flag & (P_INMEM|P_SWAPPINGOUT|P_SWAPPINGIN)) != P_INMEM)

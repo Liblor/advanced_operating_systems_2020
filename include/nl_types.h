@@ -9,7 +9,7 @@
 
 /*
  * Derived from the The Open Group Base Specifications Issue 6, IEEE
- * Std 1003.1, 2004 Edition. 
+ * Std 1003.1, 2004 Edition.
  * http://www.opengroup.org/onlinepubs/009695399/basedefs/nl_types.h.html
  */
 

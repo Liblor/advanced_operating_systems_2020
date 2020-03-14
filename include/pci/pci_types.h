@@ -23,7 +23,7 @@
  * is expressed as uint32_t */
 
 struct pci_addr {
-    uint32_t bus;        
+    uint32_t bus;
     uint32_t device;
     uint32_t function;
 };
@@ -36,7 +36,7 @@ struct pci_id {
 struct pci_class {
     uint32_t class_code;
     uint32_t subclass;
-    uint32_t prog_if; 
+    uint32_t prog_if;
 };
 
 #define PCI_OCTET_LEN (8*4+8)

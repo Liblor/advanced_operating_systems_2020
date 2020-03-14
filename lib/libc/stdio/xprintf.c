@@ -147,7 +147,7 @@ __printf_pad(struct __printf_io *io, int howmany, int zero)
 		with = blanks;
 
 	if ((n = (howmany)) > 0) {
-		while (n > PADSIZE) { 
+		while (n > PADSIZE) {
 			ret += __printf_puts(io, with, PADSIZE);
 			n -= PADSIZE;
 		}
@@ -294,7 +294,7 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 		pi->begin = pi->end = fmt;
 		while (*fmt != '\0' && *fmt != '%')
 			pi->end = ++fmt;
-		if (*fmt == '\0') 
+		if (*fmt == '\0')
 			break;
 		fmt++;
 		for (;;) {
@@ -372,7 +372,7 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 						maxarg = nextarg;
 					nextarg = n;
 					fmt++;
-				} else 
+				} else
 					pi->width = n;
 				continue;
 			case 'D':
@@ -542,7 +542,7 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 				pi->width = -pi->width;
 			}
 		}
-		if (pi->get_prec) 
+		if (pi->get_prec)
 			pi->prec = args[pi->get_prec].intarg;
 		ret += __printf_puts(&io, pi->begin, pi->end - pi->begin);
 		if (printf_tbl[pi->spec].gnurender != NULL) {

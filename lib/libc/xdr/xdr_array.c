@@ -114,7 +114,7 @@ xdr_array(XDR *xdrs, caddr_t *addrp, u_int *sizep, u_int maxsize, u_int elsize, 
 		case XDR_ENCODE:
 			break;
 	}
-	
+
 	/*
 	 * now we xdr each element of array
 	 */
@@ -156,5 +156,5 @@ xdr_vector(XDR *xdrs, char *basep, u_int nelem, u_int elemsize, xdrproc_t xdr_el
 		}
 		elptr += elemsize;
 	}
-	return(TRUE);	
+	return(TRUE);
 }

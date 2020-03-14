@@ -16,7 +16,7 @@
 #include <aos/aos_rpc.h>
 
 
-void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap) 
+void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
     if (string) {
         debug_printf("||TEST %s length %zu \n", string, strlen(string));

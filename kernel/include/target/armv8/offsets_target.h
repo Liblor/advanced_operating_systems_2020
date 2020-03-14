@@ -49,7 +49,7 @@
 
 /**
  * Maximum physical address space mappable by the kernel.  Adjust this
- * for a bigger physical address space.  
+ * for a bigger physical address space.
  */
 #define ARMv8_PADDR_SPACE_LIMIT       (GEN_ADDR(49) - 1) // 2GB
 
@@ -79,7 +79,7 @@
 
 /**
  * The absolute base address of mapped physical memory, within the kernel's
- * virtual address space.  
+ * virtual address space.
  *
  */
 #define ARMv8_MEMORY_OFFSET           (KERNEL_OFFSET)

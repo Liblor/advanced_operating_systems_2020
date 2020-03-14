@@ -23,7 +23,7 @@ static coreboot_start_fn_t spawn_core_handlers[CPU_TYPE_NUM];
 
 /**
  * Register spawn core handler function for specific cpu type.
- * 
+ *
  * \param type CPU type
  * \param handler Handler functions
  */

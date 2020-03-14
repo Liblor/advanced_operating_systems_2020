@@ -82,7 +82,7 @@ __rec_put(const DB *dbp, DBT *key, const DBT *data, u_int flags)
 			goto einval;
 
 		if (t->bt_rdata.size < t->bt_reclen) {
-			t->bt_rdata.data = 
+			t->bt_rdata.data =
 			    reallocf(t->bt_rdata.data, t->bt_reclen);
 			if (t->bt_rdata.data == NULL)
 				return (RET_ERROR);

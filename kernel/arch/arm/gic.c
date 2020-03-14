@@ -59,7 +59,7 @@ static enum IrqType get_irq_type(uint32_t int_id)
     } else {
         return IrqType_SPI;
     }
-} 
+}
 
 /*
  * Initialize the global interrupt controller
@@ -179,7 +179,7 @@ errval_t platform_enable_interrupt(uint32_t int_id, uint16_t prio,
            int_id, bit_mask, ind);
 
     enum IrqType irq_type = get_irq_type(int_id);
-    // We only allow enableing PPI interrupts. 
+    // We only allow enableing PPI interrupts.
     if(irq_type != IrqType_PPI) {
         return SYS_ERR_IRQ_INVALID;
     }

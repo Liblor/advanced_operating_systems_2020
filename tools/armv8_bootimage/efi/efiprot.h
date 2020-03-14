@@ -313,9 +313,9 @@ typedef struct {
 //
 // The FileName field of the EFI_FILE_INFO data structure is variable length.
 // Whenever code needs to know the size of the EFI_FILE_INFO data structure, it needs to
-// be the size of the data structure without the FileName field.  The following macro 
+// be the size of the data structure without the FileName field.  The following macro
 // computes this size correctly no matter how big the FileName array is declared.
-// This is required to make the EFI_FILE_INFO data structure ANSI compilant. 
+// This is required to make the EFI_FILE_INFO data structure ANSI compilant.
 //
 
 #define SIZE_OF_EFI_FILE_INFO EFI_FIELD_OFFSET(EFI_FILE_INFO,FileName)
@@ -335,9 +335,9 @@ typedef struct {
 //
 // The VolumeLabel field of the EFI_FILE_SYSTEM_INFO data structure is variable length.
 // Whenever code needs to know the size of the EFI_FILE_SYSTEM_INFO data structure, it needs
-// to be the size of the data structure without the VolumeLable field.  The following macro 
+// to be the size of the data structure without the VolumeLable field.  The following macro
 // computes this size correctly no matter how big the VolumeLable array is declared.
-// This is required to make the EFI_FILE_SYSTEM_INFO data structure ANSI compilant. 
+// This is required to make the EFI_FILE_SYSTEM_INFO data structure ANSI compilant.
 //
 
 #define SIZE_OF_EFI_FILE_SYSTEM_INFO EFI_FIELD_OFFSET(EFI_FILE_SYSTEM_INFO,VolumeLabel)
@@ -418,7 +418,7 @@ typedef struct {
     EFI_DEVICE_IO                   Write;
 } EFI_IO_ACCESS;
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_PCI_DEVICE_PATH) (
     IN struct _EFI_DEVICE_IO_INTERFACE  *This,
@@ -722,7 +722,7 @@ typedef union {
 typedef enum {
   EfiBltVideoFill,
   EfiBltVideoToBltBuffer,
-  EfiBltBufferToVideo, 
+  EfiBltBufferToVideo,
   EfiBltVideoToVideo,
   EfiGraphicsOutputBltOperationMax
 } EFI_GRAPHICS_OUTPUT_BLT_OPERATION;
@@ -730,28 +730,28 @@ typedef enum {
 /**
   The following table defines actions for BltOperations:
 
-  <B>EfiBltVideoFill</B> - Write data from the  BltBuffer pixel (SourceX, SourceY) 
-  directly to every pixel of the video display rectangle 
-  (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height). 
+  <B>EfiBltVideoFill</B> - Write data from the  BltBuffer pixel (SourceX, SourceY)
+  directly to every pixel of the video display rectangle
+  (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height).
   Only one pixel will be used from the BltBuffer. Delta is NOT used.
 
-  <B>EfiBltVideoToBltBuffer</B> - Read data from the video display rectangle 
-  (SourceX, SourceY) (SourceX + Width, SourceY + Height) and place it in 
-  the BltBuffer rectangle (DestinationX, DestinationY ) 
-  (DestinationX + Width, DestinationY + Height). If DestinationX or 
-  DestinationY is not zero then Delta must be set to the length in bytes 
+  <B>EfiBltVideoToBltBuffer</B> - Read data from the video display rectangle
+  (SourceX, SourceY) (SourceX + Width, SourceY + Height) and place it in
+  the BltBuffer rectangle (DestinationX, DestinationY )
+  (DestinationX + Width, DestinationY + Height). If DestinationX or
+  DestinationY is not zero then Delta must be set to the length in bytes
   of a row in the BltBuffer.
 
-  <B>EfiBltBufferToVideo</B> - Write data from the  BltBuffer rectangle 
-  (SourceX, SourceY) (SourceX + Width, SourceY + Height) directly to the 
-  video display rectangle (DestinationX, DestinationY) 
-  (DestinationX + Width, DestinationY + Height). If SourceX or SourceY is 
-  not zero then Delta must be set to the length in bytes of a row in the 
+  <B>EfiBltBufferToVideo</B> - Write data from the  BltBuffer rectangle
+  (SourceX, SourceY) (SourceX + Width, SourceY + Height) directly to the
+  video display rectangle (DestinationX, DestinationY)
+  (DestinationX + Width, DestinationY + Height). If SourceX or SourceY is
+  not zero then Delta must be set to the length in bytes of a row in the
   BltBuffer.
 
   <B>EfiBltVideoToVideo</B> - Copy from the video display rectangle (SourceX, SourceY)
-  (SourceX + Width, SourceY + Height) .to the video display rectangle 
-  (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height). 
+  (SourceX + Width, SourceY + Height) .to the video display rectangle
+  (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height).
   The BltBuffer and Delta  are not used in this mode.
 
   @param  This         Protocol instance pointer.
@@ -933,7 +933,7 @@ typedef struct _EFI_COMPONENT_NAME2 {
 #define LOADED_IMAGE_PROTOCOL      \
     { 0x5B1B31A1, 0x9562, 0x11d2, {0x8E, 0x3F, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B} }
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IMAGE_UNLOAD) (
     IN EFI_HANDLE                   ImageHandle

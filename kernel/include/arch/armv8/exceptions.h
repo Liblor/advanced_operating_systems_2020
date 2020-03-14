@@ -156,7 +156,7 @@ void nosave_handle_irq(void) __attribute__((noreturn));
 
 /**
  * Handle IRQs occuring in EL0. Expects a partially saved register
- * state. Stores the arguments and FPU state in the save_area. 
+ * state. Stores the arguments and FPU state in the save_area.
  *
  * This function should be called with interrupts disabled.
  */

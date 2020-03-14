@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "xlocale_private.h"
 
 int
-vsnprintf_l(char * __restrict str, size_t n, locale_t locale, 
+vsnprintf_l(char * __restrict str, size_t n, locale_t locale,
 		const char * __restrict fmt, __va_list ap)
 {
 	size_t on;

@@ -109,7 +109,7 @@ format_flags_verbose(char *str, size_t size, uint32_t var,
 		off--;
 		/* ... then remove the last slash. */
 		assert(str[off] == '/');
-	} 
+	}
 
 	str[off] = '\0';
 

@@ -217,7 +217,7 @@ _nis_initshells(void *rv, void *cb_data, va_list ap)
 		    &key, &keylen, &data, &datalen);
 		free(lastkey);
 	} while (r == 0);
-	
+
 	if (r == YPERR_NOMORE) {
 		/*
 		 * `data' and `key' ought to be NULL - do not try to free them.

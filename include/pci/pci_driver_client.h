@@ -31,12 +31,12 @@ struct pcid {
     struct int_startup_argument int_arg;
     size_t num_bars;
 
-    // 
+    //
     struct cnoderef arg_cnode; // CNode (in local cspace) containing the passed caps
 };
 
 /**
- * initialize the pci driver client. 
+ * initialize the pci driver client.
  * \param ws Used for the pci_driver_client binding and interrupts
  * */
 errval_t pcid_init(

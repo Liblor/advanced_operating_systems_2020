@@ -432,7 +432,7 @@ rem(dbp, kp)
 		if (ofd != STDOUT_FILENO)
 			(void)write(ofd, NOSUCHKEY, sizeof(NOSUCHKEY) - 1);
 		else if (flags != R_CURSOR)
-			(void)fprintf(stderr, "%d: %.*s: %s", 
+			(void)fprintf(stderr, "%d: %.*s: %s",
 			    lineno, MIN(kp->size, 20), kp->data, NOSUCHKEY);
 		else
 			(void)fprintf(stderr,
@@ -476,7 +476,7 @@ seq(dbp, kp)
 		if (ofd != STDOUT_FILENO)
 			(void)write(ofd, NOSUCHKEY, sizeof(NOSUCHKEY) - 1);
 		else if (flags == R_CURSOR)
-			(void)fprintf(stderr, "%d: %.*s: %s", 
+			(void)fprintf(stderr, "%d: %.*s: %s",
 			    lineno, MIN(kp->size, 20), kp->data, NOSUCHKEY);
 		else
 			(void)fprintf(stderr,
@@ -517,7 +517,7 @@ dump(dbp, rev)
 		}
 done:	return;
 }
-	
+
 u_int
 setflags(s)
 	char *s;
@@ -561,7 +561,7 @@ sflags(flags)
 
 	return ("UNKNOWN!");
 }
-	
+
 DBTYPE
 dbtype(s)
 	char *s;
@@ -591,7 +591,7 @@ setinfo(type, s)
 	*eq++ = '\0';
 	if (!isdigit(*eq))
 		err("%s: structure set statement must be a number", s);
-		
+
 	switch (type) {
 	case DB_BTREE:
 		if (!strcmp("flags", s)) {

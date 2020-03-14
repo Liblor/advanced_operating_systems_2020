@@ -2,7 +2,7 @@
  * Copyright (C) 2010 David Xu <davidxu@freebsd.org>.
  * Copyright (C) 2000 Jason Evans <jasone@freebsd.org>.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -14,7 +14,7 @@
  *    notice(s), this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -98,7 +98,7 @@ typedef struct sem* sem_t;
 #define SYM_FB10(sym)                   __CONCAT(sym, _fb10)
 #define WEAK_REF(sym, alias)            __weak_reference(sym, alias)
 #define SYM_COMPAT(sym, impl, ver)      __sym_compat(sym, impl, ver)
- 
+
 #define FB10_COMPAT(func, sym)                          \
         WEAK_REF(func, SYM_FB10(sym));                  \
         SYM_COMPAT(sym, SYM_FB10(sym), FBSD_1.0)
@@ -328,7 +328,7 @@ _umtx_wait_uint(volatile unsigned *mtx, unsigned id, const struct timespec *abst
 		tm_size = sizeof(timeout);
 	}
 	return _umtx_op(__DEVOLATILE(void *, mtx),
-		UMTX_OP_WAIT_UINT_PRIVATE, id, 
+		UMTX_OP_WAIT_UINT_PRIVATE, id,
 		(void *)tm_size, __DECONST(void*, tm_p));
 }
 

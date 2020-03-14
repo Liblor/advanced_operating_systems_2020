@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2013 Pietro Cerutti <gahr@FreeBSD.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -9,7 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -82,7 +82,7 @@ fmemopen(void * __restrict buf, size_t size, const char * __restrict mode)
 		errno = EINVAL;
 		return (NULL);
 	}
-	
+
 	ck = malloc(sizeof(struct fmemopen_cookie));
 	if (ck == NULL) {
 		return (NULL);
@@ -115,14 +115,14 @@ fmemopen(void * __restrict buf, size_t size, const char * __restrict mode)
 	/*
 	 * The size of the current buffer contents is set depending on the
 	 * mode:
-	 * 
+	 *
 	 * for append (text-mode), the position of the first NULL byte, or the
 	 * size of the buffer if none is found
 	 *
 	 * for append (binary-mode), the size of the buffer
-	 * 
+	 *
 	 * for read, the size of the buffer
-	 * 
+	 *
 	 * for write, 0
 	 */
 	switch (mode[0]) {
@@ -138,7 +138,7 @@ fmemopen(void * __restrict buf, size_t size, const char * __restrict mode)
 	}
 
 	f = funopen(ck,
-	    flags & O_WRONLY ? NULL : fmemopen_read, 
+	    flags & O_WRONLY ? NULL : fmemopen_read,
 	    flags & O_RDONLY ? NULL : fmemopen_write,
 	    fmemopen_seek, fmemopen_close);
 

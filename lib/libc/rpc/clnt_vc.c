@@ -4,27 +4,27 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -35,7 +35,7 @@ static char sccsid3[] = "@(#)clnt_vc.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 #endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
- 
+
 /*
  * clnt_tcp.c, Implements a TCP/IP based, client side RPC.
  *
@@ -801,11 +801,11 @@ __msgread(int sock, void *buf, size_t cnt)
 		struct cmsghdr cmsg;
 		char control[CMSG_SPACE(sizeof(struct cmsgcred))];
 	} cm;
- 
+
 	bzero((char *)&cm, sizeof(cm));
 	iov[0].iov_base = buf;
 	iov[0].iov_len = cnt;
- 
+
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
 	msg.msg_name = NULL;
@@ -813,7 +813,7 @@ __msgread(int sock, void *buf, size_t cnt)
 	msg.msg_control = (caddr_t)&cm;
 	msg.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 	msg.msg_flags = 0;
- 
+
 	return(_recvmsg(sock, &msg, 0));
 }
 
@@ -826,15 +826,15 @@ __msgwrite(int sock, void *buf, size_t cnt)
 		struct cmsghdr cmsg;
 		char control[CMSG_SPACE(sizeof(struct cmsgcred))];
 	} cm;
- 
+
 	bzero((char *)&cm, sizeof(cm));
 	iov[0].iov_base = buf;
 	iov[0].iov_len = cnt;
- 
+
 	cm.cmsg.cmsg_type = SCM_CREDS;
 	cm.cmsg.cmsg_level = SOL_SOCKET;
 	cm.cmsg.cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
- 
+
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
 	msg.msg_name = NULL;

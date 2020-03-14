@@ -1836,7 +1836,7 @@ errval_t caps_retype(enum objtype type, gensize_t objsize, size_t count,
             TRACE(KERNEL_CAPOPS, RETYPE_DONE, retype_seqnum);
             return SYS_ERR_RETYPE_INVALID_OFFSET;
         }
-        
+
         // Check vec_start_new in range
         if(!(src_cap->u.irqsrc.vec_start <= vec_start_new &&
                 vec_start_new <= src_cap->u.irqsrc.vec_end)){

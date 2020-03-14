@@ -32,7 +32,7 @@ typedef void (*inthandler_t)(void*);
 /**
  * @brief creates a queue to the given card
  *
- * @param interrupt interrupt handler 
+ * @param interrupt interrupt handler
  * @param cardname  network card to create the queue for
  * @param ep        endpoint to NIC driver, possibly NULL
  * @param queueid   queueid of the network card

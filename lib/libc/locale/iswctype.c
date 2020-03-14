@@ -89,7 +89,7 @@ iswgraph(wint_t wc)
 	return (__istype(wc, _CTYPE_G));
 }
 
-#undef iswhexnumber 
+#undef iswhexnumber
 int
 iswhexnumber(wint_t wc)
 {
@@ -117,7 +117,7 @@ iswnumber(wint_t wc)
 	return (__istype(wc, _CTYPE_N));
 }
 
-#undef iswphonogram	
+#undef iswphonogram
 int
 iswphonogram(wint_t wc)
 {

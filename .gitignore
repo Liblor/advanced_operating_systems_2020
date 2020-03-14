@@ -54,3 +54,6 @@ CMakeLists.txt
 
 # docker
 bfdocker.sh
+
+.mypy_cache/
+.venv/

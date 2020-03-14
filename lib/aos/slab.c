@@ -38,6 +38,7 @@ void slab_init(struct slab_allocator *slabs, size_t blocksize,
     slabs->slabs = NULL;
     slabs->blocksize = SLAB_REAL_BLOCKSIZE(blocksize);
     slabs->refill_func = refill_func;
+    slabs->is_refilling = false;
 }
 
 
@@ -187,14 +188,27 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
         return err_push(err, LIB_ERR_FRAME_CREATE);
     }
 
-    void *buf;
+    static lvaddr_t vaddr = VADDR_OFFSET;
+    void *buf = (void *) vaddr;
+
+    /*
+    // TODO(M2): Switch back to using paging_map_frame();
     err = paging_map_frame(get_current_paging_state(), &buf, bytes,
             frame_cap, NULL, NULL);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
+    */
+
+    err = paging_map_fixed_attr(get_current_paging_state(), vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+    if (err_is_fail(err)) {
+        return err_push(err, LIB_ERR_VSPACE_MAP);
+    }
 
     slab_grow(slabs, buf, bytes);
+
+    vaddr += bytes;
+
     return SYS_ERR_OK;
 }
 
@@ -209,4 +223,30 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
 errval_t slab_default_refill(struct slab_allocator *slabs)
 {
     return slab_refill_pages(slabs, BASE_PAGE_SIZE);
+}
+
+// Check if a minimum amount of slabs is still free. If there are less than
+// `threshold` slabs left, refill the allocator.
+errval_t slab_ensure_threshold(struct slab_allocator *slabs, const size_t threshold)
+{
+    errval_t err;
+
+    if (slabs->is_refilling)
+        return SYS_ERR_OK;
+
+    slabs->is_refilling = true;
+
+    const size_t count = slab_freecount(slabs);
+
+    if (count < threshold) {
+        err = slabs->refill_func(slabs);
+        if (err_is_fail(err)) {
+            slabs->is_refilling = false;
+            return err_push(err, LIB_ERR_SLAB_REFILL);
+        }
+    }
+
+    slabs->is_refilling = false;
+
+    return SYS_ERR_OK;
 }

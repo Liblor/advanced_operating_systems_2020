@@ -19,9 +19,9 @@
 #define BLOCK_SIZE 512
 
 // The QEMU AHCI emulation only supports PRDs of size 512 bytes
-// PR_SIZE can be used together with AHCI_FIXED_PR_SIZE to enforce 
+// PR_SIZE can be used together with AHCI_FIXED_PR_SIZE to enforce
 // PRs of fixed size specified in PR_SIZE
-// If not forced, PRs will be of arbitrary size with max length 4MB as 
+// If not forced, PRs will be of arbitrary size with max length 4MB as
 // specified in the AHCI spec
 #define PR_SIZE 512
 #define MAX_PR_SIZE (128 * 1024)

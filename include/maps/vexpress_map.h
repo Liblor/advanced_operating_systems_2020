@@ -1,7 +1,7 @@
 /**
  * \file
  * \brief Physical memory map for the Versatile Express motherboard
- * 
+ *
  */
 
 /*
@@ -10,7 +10,7 @@
  *
  * This file is distributed under the terms in the attached LICENSE file.
  * If you do not find this file, copies can be found by writing to:
- * ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich. 
+ * ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich.
  * Attn: Systems Group.
  */
 
@@ -25,7 +25,7 @@
 /*
  * Chip select addresses: see S.4.2.2.  This is the setup used by the
  * CoreTile Express A15x2 daughterboard, which is what GEM5 seems to
- * be emulating (mostly). 
+ * be emulating (mostly).
  */
 #define VEXPRESS_MAP_CS0        0x00000000
 #define VEXPRESS_MAP_CS1        0x14000000

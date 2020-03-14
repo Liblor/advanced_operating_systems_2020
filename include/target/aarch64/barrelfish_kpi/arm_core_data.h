@@ -77,7 +77,7 @@ struct armv8_core_data {
     char cpu_driver_cmdline[128];
 
     /**
-     * Physical address of the L0 page table in memory. 
+     * Physical address of the L0 page table in memory.
      * Will be set by the initiating core, userspace does not have to set it.
      */
     genpaddr_t page_table_root;
@@ -91,7 +91,7 @@ struct armv8_core_data {
     struct armv8_coredata_memreg memory;
 
     /**
-     * Memory region to be used for the URPC frame for the monitor process. 
+     * Memory region to be used for the URPC frame for the monitor process.
      */
     struct armv8_coredata_memreg urpc_frame;
 
@@ -114,13 +114,13 @@ struct armv8_core_data {
      * The physical start of allocated kernel memory
      * Does not have to be set for APP cores.
      */
-    uint64_t    start_kernel_ram; 
+    uint64_t    start_kernel_ram;
 
     /**
      * The physical start of free ram for the bsp allocator
      * Does not have to be set for APP cores.
      */
-    uint64_t    start_free_ram; 
+    uint64_t    start_free_ram;
 
     /**
      * Does not have to be set for APP cores.
@@ -130,7 +130,7 @@ struct armv8_core_data {
     /**
      * Physical address of the kernel control block
      */
-    genpaddr_t kcb; 
+    genpaddr_t kcb;
 
 
     /**

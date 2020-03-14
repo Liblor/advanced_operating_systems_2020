@@ -1,14 +1,14 @@
 /**
  * \file
- * \brief Physical memory map for TI OMAP 44xx-series SoCs. 
- * 
+ * \brief Physical memory map for TI OMAP 44xx-series SoCs.
+ *
  * This is derived from:
  *
  * OMAP4430 Multimedia Device Silicon Revision 2.x Technical Reference
- * Manual Version O 
+ * Manual Version O
  * OMAP4460 Multimedia Device Silicon Revision 1.x Technical Reference
  * Manual Version Q
- * 
+ *
  * Section numbers refer to the OMAP4460 TRM.
  */
 
@@ -18,15 +18,15 @@
  *
  * This file is distributed under the terms in the attached LICENSE file.
  * If you do not find this file, copies can be found by writing to:
- * ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich. 
+ * ETH Zurich D-INFK, CAB F.78, Universitaetstrasse 6, CH-8092 Zurich.
  * Attn: Systems Group.
  */
 
 #ifndef OMAP44XX_MAP_H
 #define OMAP44XX_MAP_H
 
-/* 
- * 2.2.1 L3_EMU Memory Space Mapping 
+/*
+ * 2.2.1 L3_EMU Memory Space Mapping
  */
 #define OMAP44XX_MAP_L3_EMU_MIPI_STM_0                  0x54000000
 #define OMAP44XX_MAP_L3_EMU_MIPI_STM_0_SIZE             0x100000
@@ -199,7 +199,7 @@
 #define OMAP44XX_MAP_L4_WKUP_GPIO1                      0x4A310000
 #define OMAP44XX_MAP_L4_WKUP_GPIO1_SIZE                 0x1000
 
-#define OMAP44XX_MAP_L4_WKUP_WDTIMER2                   0x4A314000 
+#define OMAP44XX_MAP_L4_WKUP_WDTIMER2                   0x4A314000
 #define OMAP44XX_MAP_L4_WKUP_WDTIMER2_SIZE              0x1000
 
 #define OMAP44XX_MAP_L4_WKUP_GPTIMER1                   0x4A318000
@@ -415,7 +415,7 @@
  * 2.5 DSP Subsystem Memory Space Mapping
  */
 
-/* 
+/*
  * 2.6.1 L3 Interconnect View of the Display Memory Spac
  */
 #define OMAP44XX_MAP_L3_DISPLAY_REGISTERS               0x58000000
@@ -435,7 +435,7 @@
 #define OMAP44XX_MAP_L3_DISPLAY_HDCP                    0x58007000
 #define OMAP44XX_MAP_L3_DISPLAY_HDCP_SIZE               0x1000
 
-/* 
+/*
  * 2.6.2 L4 Interconnect View of the Display Memory Spac
  */
 #define OMAP44XX_MAP_L4_DISPLAY_REGISTERS               0x48040000

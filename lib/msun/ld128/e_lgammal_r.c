@@ -323,7 +323,7 @@ lgammal_r(long double x, int *signgamp)
 		y*(w17+y*w18)))))))))))))))));
 	    r = (x-half)*(t-one)+w;
     /* 2**(p+3) <= x <= inf */
-	} else 
+	} else
 	    r =  x*(logl(x)-1);
 	if(hx&0x8000) r = nadj - r;
 	return r;
