@@ -729,6 +729,7 @@ errors libmm MM_ERR_ {
     failure RESIZE_NODE         "Nested failure in resize_node()",
     failure REALLOC_RANGE       "Nested failure in realloc_range()",
     failure INVALID_SIZE        "The size given is invalid",
+    failure INVALID_ALIGNMENT   "The alignment given is invalid",
 };
 
 // errors in init
