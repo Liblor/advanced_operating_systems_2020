@@ -151,8 +151,9 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         if (next->type != NodeType_Free)
             continue;
 
-        // We only care about nodes of sufficient size.
-        if (next->size < size + padding_size)
+        // We only care about nodes of sufficient size. We also need to make
+        // sure that the addition does not overflow.
+        if (size + padding_size >= size && next->size < size + padding_size)
             continue;
 
         // We want the smallest node possible.
