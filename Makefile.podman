@@ -7,4 +7,3 @@ hake:
 .PHONY: build
 build:
 	./tools/bfpodman.sh make -j7 imx8x
-
