@@ -63,6 +63,7 @@ struct paging_region {
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
+    struct slabs_allocator *slabs;
     struct capref l0pd;
     struct capref l1pd;
     struct capref l2pd;

@@ -82,6 +82,10 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
+
+    st->slot_alloc = ca;
+    // TODO
+
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
@@ -124,25 +128,10 @@ errval_t paging_init(void)
     // TIP: it might be a good idea to call paging_init_state() from here to
     // avoid code duplication.
 
+    // TODO check parameters
+    struct capref pdir;     // TODO find out where we get pdir from
+    paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
     set_current_paging_state(&current);
-
-    current.slot_alloc = NULL;
-
-    struct capref root_pagetable = {
-        .cnode = cnode_page,
-        .slot  = 0,
-    };
-
-    current.l0pd = root_pagetable;
-    current.l1pd = NULL_CAP;
-    current.l2pd = NULL_CAP;
-
-    for (size_t i = 0; i < ARRAY_LENGTH(current.l3pd); i++)
-        current.l3pd[i] = NULL_CAP;
-
-    for (size_t i = 0; i < ARRAY_LENGTH(current.is_mapped); i++)
-        for (size_t j = 0; j < ARRAY_LENGTH(current.is_mapped[i]); j++)
-            current.is_mapped[i][j] = false;
 
     return SYS_ERR_OK;
 }
