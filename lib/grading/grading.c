@@ -35,12 +35,21 @@ static void check_node_count(uint64_t expected_node_count) {
     mu_assert_int_eq(expected_node_count, node_count);
 }
 
-/*
 static void check_mm_valid_state(void) {
-    // TODO Check head element first and tail element last
-    // TODO Check consistency of next/prev in neighboring nodes
+    mu_assert(test_mm->head == &test_mm->mm_head, "Linked list is corrupted. Head is not pointing to head node.");
+
+    // Get last element
+    struct mmnode *curr;
+    struct mmnode *prev = test_mm->head;
+
+    // If this end in a unhandled pagefault or something similar fatal then the
+    // tail is probably corrupted.
+    for (curr = test_mm->head->next; curr != &test_mm->mm_tail; curr = curr->next) {
+        mu_assert(prev->next == curr && curr->prev == prev, "Linked list is corrupted. Next/curr in neighboring nodes is inconsistent.");
+        prev = curr;
+    }
+    mu_assert(curr == &test_mm->mm_tail, "Linked list is corrupted. Last element is not tail node.");
 }
-*/
 
 static void check_mmnode(uint64_t n, enum nodetype type, uint64_t base_offset_pages, uint64_t size_pages) {
     // Get the nth node.
@@ -58,7 +67,7 @@ static void check_mmnode(uint64_t n, enum nodetype type, uint64_t base_offset_pa
     mu_assert(node->base == expected_base, "Node base address wrong.");
 
     // size_pages == 0 can be used for the last node to indicate the "rest of the memory"
-    // TODO Maybe make it possible to check that size as well, but I think the values need to be given manually.
+    // TODO Maybe make it possible to check that size as well, but I think the values need to be calculated manually.
     if (size_pages != 0) {
         mu_assert(node->size == size_pages * BASE_PAGE_SIZE, "Node size wrong.");
     }
@@ -70,6 +79,8 @@ static void mm_test_alloc_aligned(struct capref *retcap, uint64_t alignment_page
     int64_t node_count_before = count_mmnodes(test_mm);
     errval_t err = mm_alloc_aligned(test_mm, size_pages * BASE_PAGE_SIZE, alignment_pages * BASE_PAGE_SIZE, retcap);
     int64_t node_count_after = count_mmnodes(test_mm);
+
+    check_mm_valid_state();
 
     if (err_no(err) != err_no(expected_error)) {
         debug_printf("expected=%s (%d), actual=%s (%d)\n", err_getcode(expected_error), expected_error, err_getcode(err), err);
@@ -92,6 +103,8 @@ static void _mm_test_free(struct capref cap, genpaddr_t base, gensize_t size, er
     int64_t node_count_before = count_mmnodes(test_mm);
     err = mm_free(test_mm, cap, base, size);
     int64_t node_count_after = count_mmnodes(test_mm);
+
+    check_mm_valid_state();
 
     if (err_no(err) != err_no(expected_error)) {
         debug_printf("expected=%s, actual=%s\n", err_getcode(expected_error), err_getcode(err));
@@ -123,6 +136,9 @@ static void mm_test_free(struct capref cap, errval_t expected_error, uint64_t ex
 }
 
 static void test_setup(void) {
+    // Ensure that all caps are NULL_CAP when a test starts. This guarantee is
+    // used during the test for checking if mm_alloc() didn't wrongly give out
+    // a capability.
     for (int i = 0; i < ARRAY_LENGTH(caps); i++) {
         caps[i] = NULL_CAP;
     }
