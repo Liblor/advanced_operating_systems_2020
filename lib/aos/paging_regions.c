@@ -139,6 +139,7 @@ errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size) {
 
 errval_t alloc_region(struct paging_state *st, lvaddr_t addr, size_t size, struct paging_region *ret) {
     errval_t err;
+    ret = NULL;
     struct paging_region *curr = st->head;
     while (curr != NULL && is_in_free_region(curr, addr, size)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_OUT_OF_VIRTUAL_ADDR; }

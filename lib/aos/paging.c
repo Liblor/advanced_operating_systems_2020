@@ -284,11 +284,15 @@ errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes
                                struct capref frame, int flags, void *arg1, void *arg2)
 {
 
-    // TODO(M2): Implement me
+    // TODO(M2): Implement me (done, remove todo after review)
     // - Call paging_alloc to get a free virtual address region of the requested size
     // - Map the user provided frame at the free virtual address
 
-    return LIB_ERR_NOT_IMPLEMENTED;
+    slab_ensure_threshold(&st->slabs, 10);      // TODO macro
+    errval_t err = paging_alloc(st, buf, bytes, BASE_PAGE_SIZE);
+    if (err_is_fail(err)) { return err; }
+
+    return paging_map_fixed_attr(st, (lvaddr_t)(*buf), frame, bytes, flags);
 
 }
 
@@ -392,8 +396,9 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     }
 
 
-    struct paging_region *region;
+    struct paging_region *region = NULL;
     err = alloc_region(st, vaddr, bytes, region);
+    if (err_is_fail(err)) { return err; }
 
     // TODO(M2) reimplement from here
 
