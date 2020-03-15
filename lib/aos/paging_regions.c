@@ -94,7 +94,7 @@ static inline bool is_in_free_region(struct paging_region *region, lvaddr_t addr
     bool no_overflow = addr + size > addr;
     bool end = addr + size <= region->base_addr + region->region_size;
     bool is_free = region->type == NodeType_Free;
-    return addr_start && no_overflow && end;
+    return addr_start && no_overflow && end && is_free;
 }
 
 static inline bool is_mergeable(struct paging_region *prev, struct paging_region *next) {
