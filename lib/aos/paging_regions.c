@@ -114,7 +114,7 @@ static inline bool is_region_free(struct paging_region *region, gensize_t size, 
 errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size) {
     assert(st->slabs.blocksize >= sizeof(struct paging_region));
 
-    errval_t err = slab_ensure_threshold(st);
+    errval_t err = slab_ensure_threshold(st->slabs);
     if (err_is_fail(err)) { return err; }
 
     struct paging_region *region;
@@ -136,6 +136,7 @@ errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size) {
 }
 
 errval_t alloc_region(struct paging_state *st, lvaddr_t addr, size_t size, struct paging_region *ret) {
+    errval_t err;
     struct paging_region *curr = st->head;
     while (curr != NULL && is_in_region(curr, addr, size)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_OUT_OF_VIRTUAL_ADDR; }
