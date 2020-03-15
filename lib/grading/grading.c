@@ -13,8 +13,12 @@
 
 
 
-// TODO Test mm_add()
-// TODO Test slab and slot allocator failure modes by simulating running our of slabs/slots.
+// Here are some things that are not explicitly tested yet if someone has too much time.
+// TODO Test mm_add() (omitted since in practice we only have the one region that is added at boot)
+// TODO Test slab and slot allocator failure modes (running our of slabs/slots needs to be simulated)
+// TODO Test allocating all space that is left and fill a gap that is determined by the alignment. Do that with different sizes/alignments.
+// TODO Test states after free calls
+// TODO Test sections 3 and 4 from the milestone1/cleopolds branch
 
 static struct mm *test_mm;
 static genpaddr_t default_region_base;
@@ -135,6 +139,23 @@ static void mm_test_free(struct capref cap, errval_t expected_error, uint64_t ex
     _mm_test_free(cap, base, size, expected_error, expected_node_count);
 }
 
+// Creates an alignment normalization node to normalize alignment for a test
+// since default_region_base sometimes changes between runs. The node ensures
+// initial alignment of alignment*BASE_PAGE_SIZE for the rest of the test.
+// The node has to be freed manually at the end of the test.
+static void add_alignment_normalization_node(uint64_t alignment, struct capref *retcap, size_t *retsize) {
+    uint64_t default_page_count = (default_region_base + default_allocated) / BASE_PAGE_SIZE;
+
+    uint64_t remainder = default_page_count % alignment;
+    *retsize = 0;
+    if (remainder != 0)
+        *retsize = alignment - remainder;
+
+    if (*retsize != 0) {
+        mm_test_alloc_aligned(retcap, 1, *retsize, SYS_ERR_OK, 0);
+    }
+}
+
 static void test_setup(void) {
     // Ensure that all caps are NULL_CAP when a test starts. This guarantee is
     // used during the test for checking if mm_alloc() didn't wrongly give out
@@ -149,7 +170,7 @@ static void test_teardown(void) {
 
 MU_TEST(test_minimal) {
     uint64_t s = default_allocated / BASE_PAGE_SIZE;
-    uint64_t space = default_total_size / BASE_PAGE_SIZE;
+    uint64_t space = (default_total_size - default_allocated) / BASE_PAGE_SIZE;
 
     mm_test_alloc_aligned(&caps[0], 1, 1, SYS_ERR_OK, 3);
     check_mmnode(0, NodeType_Allocated, 0, s);
@@ -160,26 +181,15 @@ MU_TEST(test_minimal) {
 }
 
 MU_TEST(test_alignment) {
-    // Add alignment normalization node to normalize alignment for this test
-    // since default_region_base sometimes changes between runs. The node
-    // ensures initial alignment of 32*3*BASE_PAGE_SIZE for the rest of the test.
-    uint64_t default_page_count = (default_region_base + default_allocated) / BASE_PAGE_SIZE;
-
-    uint64_t alignment = 32 * 3;
-    uint64_t remainder = default_page_count % alignment;
-    size_t alignment_node_size = 0;
-    if (remainder != 0)
-        alignment_node_size = alignment - remainder;
-
     struct capref alignment_node_cap;
-    if (alignment_node_size != 0) {
-        mm_test_alloc_aligned(&alignment_node_cap, 1, alignment_node_size, SYS_ERR_OK, 0);
-    }
+    size_t alignment_node_size;
+    add_alignment_normalization_node(32*3, &alignment_node_cap, &alignment_node_size);
 
     // One extra node from the first allocation that happens when the memory regions are added at boot.
     // One extra node if the alignment normalization node has been added.
     uint64_t n = 1 + (alignment_node_size != 0 ? 1 : 0);
     uint64_t s = alignment_node_size + default_allocated / BASE_PAGE_SIZE;
+    uint64_t space = default_total_size / BASE_PAGE_SIZE;
 
     mm_test_alloc_aligned(&caps[0], 1, 1, SYS_ERR_OK, n+2);
     // xxxx x...x x ooo...
@@ -290,10 +300,48 @@ MU_TEST(test_alignment) {
     check_mmnode(n+14, NodeType_Allocated, s+24, 1);
     check_mmnode(n+15, NodeType_Free,      s+25, 0);
 
-    // TODO Allocate all space that is left and fill a gap that is determined by the alignment
-    // TODO Do that with different sizes/alignments
+    mm_test_alloc_aligned(&caps[9], 1, space-(s+25), SYS_ERR_OK, n+16);
+    // xxxx x...x x o x x oo x o x ooo x ooo xx oo xxxx x x...x
+    check_mmnode(n+0 , NodeType_Allocated, s+0, 1);
+    check_mmnode(n+1 , NodeType_Free,      s+1, 1);
+    check_mmnode(n+2 , NodeType_Allocated, s+2, 1);
+    check_mmnode(n+3 , NodeType_Allocated, s+3, 1);
+    check_mmnode(n+4 , NodeType_Free,      s+4, 2);
+    check_mmnode(n+5 , NodeType_Allocated, s+6, 1);
+    check_mmnode(n+6 , NodeType_Free,      s+7, 1);
+    check_mmnode(n+7 , NodeType_Allocated, s+8, 1);
+    check_mmnode(n+8 , NodeType_Free,      s+9, 3);
+    check_mmnode(n+9 , NodeType_Allocated, s+12, 1);
+    check_mmnode(n+10, NodeType_Free,      s+13, 3);
+    check_mmnode(n+11, NodeType_Allocated, s+16, 2);
+    check_mmnode(n+12, NodeType_Free,      s+18, 2);
+    check_mmnode(n+13, NodeType_Allocated, s+20, 4);
+    check_mmnode(n+14, NodeType_Allocated, s+24, 1);
+    check_mmnode(n+15, NodeType_Allocated, s+25, 0);
 
-    for (int i = 0; i < 9; i++) {
+    mm_test_alloc_aligned(&caps[10], 3, 3, SYS_ERR_OK, n+16);
+    // xxxx x...x x o x x oo x o x xxx x ooo xx oo xxxx x x...x
+    //            0 1 2 0 12 0 1 2 012 0 120 12 01 2012
+    check_mmnode(n+0 , NodeType_Allocated, s+0, 1);
+    check_mmnode(n+1 , NodeType_Free,      s+1, 1);
+    check_mmnode(n+2 , NodeType_Allocated, s+2, 1);
+    check_mmnode(n+3 , NodeType_Allocated, s+3, 1);
+    check_mmnode(n+4 , NodeType_Free,      s+4, 2);
+    check_mmnode(n+5 , NodeType_Allocated, s+6, 1);
+    check_mmnode(n+6 , NodeType_Free,      s+7, 1);
+    check_mmnode(n+7 , NodeType_Allocated, s+8, 1);
+    check_mmnode(n+8 , NodeType_Allocated, s+9, 3);
+    check_mmnode(n+9 , NodeType_Allocated, s+12, 1);
+    check_mmnode(n+10, NodeType_Free,      s+13, 3);
+    check_mmnode(n+11, NodeType_Allocated, s+16, 2);
+    check_mmnode(n+12, NodeType_Free,      s+18, 2);
+    check_mmnode(n+13, NodeType_Allocated, s+20, 4);
+    check_mmnode(n+14, NodeType_Allocated, s+24, 1);
+    check_mmnode(n+15, NodeType_Allocated, s+25, 0);
+
+    mm_test_alloc_aligned(&caps[11], 3, 3, MM_ERR_OUT_OF_MEMORY, n+16);
+
+    for (int i = 0; i <= 10; i++) {
         mm_test_free(caps[i], SYS_ERR_OK, 0);
     }
 
@@ -305,12 +353,11 @@ MU_TEST(test_alignment) {
 
 MU_TEST(test_out_of_memory) {
     uint64_t s = default_allocated / BASE_PAGE_SIZE;
-    uint64_t space = default_total_size / BASE_PAGE_SIZE;
+    uint64_t space = (default_total_size - default_allocated) / BASE_PAGE_SIZE;
 
     mm_test_alloc_aligned(&caps[1], 1, space + 1, MM_ERR_OUT_OF_MEMORY, 2);
 
-    // TODO This test could fail by chance because of the inconsistent alignment of the boot region. Insert an alignment normalization node to be sure.
-    mm_test_alloc_aligned(&caps[2], 2000, space, MM_ERR_OUT_OF_MEMORY, 2);
+    mm_test_alloc_aligned(&caps[2], 0x10000, space, MM_ERR_OUT_OF_MEMORY, 2);
 
     mm_test_alloc_aligned(&caps[3], 1, space, SYS_ERR_OK, 2);
     check_mmnode(1, NodeType_Allocated, s+0, space);
@@ -436,7 +483,7 @@ MU_TEST_SUITE(test_suite) {
 
     // This is the amount of free memory that is left after the memory
     // initialization at boot.
-    default_total_size = bi->regions[4].mr_bytes - default_allocated;
+    default_total_size = bi->regions[4].mr_bytes;
 
     MU_SUITE_CONFIGURE(&test_setup, &test_teardown);
 
@@ -450,37 +497,6 @@ MU_TEST_SUITE(test_suite) {
     // Leave these tests at the end
     MU_RUN_TEST(test_alloc_stress);
 }
-
-// TODO Add these types of test as well.
-/*
-    debug_printf("########################### SECTION 3 ############################\n");
-
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*16, &caps[0], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, space - 4096*16, &caps[1], true, false);
-    mm_test_free(mm, caps[0], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*4, &caps[2], true, false);
-    mm_test_free(mm, caps[2], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE*5, 4096*16, &caps[3], false, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE*5, 4096, &caps[4], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096, &caps[5], true, false);
-    mm_test_free(mm, caps[4], true, false);
-    mm_test_free(mm, caps[1], true, false);
-    mm_test_free(mm, caps[5], true, false);
-
-    debug_printf("########################### SECTION 4 ############################\n");
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*16, &caps[0], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, space - 4096*16, &caps[1], true, false);
-    mm_test_free(mm, caps[0], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*16, &caps[2], true, false);
-    mm_test_free(mm, caps[2], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*8, &caps[3], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*8, &caps[4], true, false);
-    mm_test_free(mm, caps[3], true, false);
-    mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096*8, &caps[5], true, false);
-    mm_test_free(mm, caps[4], true, false);
-    mm_test_free(mm, caps[5], true, false);
-    mm_test_free(mm, caps[1], true, false);
-*/
 
 void
 grading_setup_bsp_init(int argc, char **argv) {
