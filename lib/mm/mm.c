@@ -258,6 +258,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     //if (err_is_fail(err))
     //    return err_push(err, MM_ERR_MM_FREE);
 
+    // TODO Maybe use an explicit error for NULL_CAP.
     err = cap_delete(cap);
     if (err_is_fail(err))
         return err_push(err, LIB_ERR_CAP_DELETE);

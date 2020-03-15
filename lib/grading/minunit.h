@@ -71,6 +71,8 @@
 /*  Accuracy with which floats are compared */
 #define MINUNIT_EPSILON 1E-12
 
+bool mu_output_enabled = true;
+
 /*  Misc. counters */
 static int minunit_run = 0;
 static int minunit_assert = 0;
@@ -154,9 +156,11 @@ static void (*minunit_teardown)(void) = NULL;
 		minunit_status = 1;\
 		return;\
 	} else {\
-		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
-			printf("\n");\
-		printf(".");\
+		if (mu_output_enabled) {\
+			if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+				printf("\n");\
+				printf(".");\
+		}\
 	}\
 )
 
@@ -174,9 +178,11 @@ static void (*minunit_teardown)(void) = NULL;
 		minunit_status = 1;\
 		return;\
 	} else {\
-		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
-			printf("\n");\
-		printf(".");\
+		if (mu_output_enabled) {\
+			if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+				printf("\n");\
+				printf(".");\
+		}\
 	}\
 )
 
@@ -191,9 +197,11 @@ static void (*minunit_teardown)(void) = NULL;
 		minunit_status = 1;\
 		return;\
 	} else {\
-		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
-			printf("\n");\
-		printf(".");\
+		if (mu_output_enabled) {\
+			if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+				printf("\n");\
+				printf(".");\
+		}\
 	}\
 )
 
@@ -209,9 +217,11 @@ static void (*minunit_teardown)(void) = NULL;
 		minunit_status = 1;\
 		return;\
 	} else {\
-		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
-			printf("\n");\
-		printf(".");\
+		if (mu_output_enabled) {\
+			if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+				printf("\n");\
+				printf(".");\
+		}\
 	}\
 )
 
@@ -230,9 +240,11 @@ static void (*minunit_teardown)(void) = NULL;
 		minunit_status = 1;\
 		return;\
 	} else {\
-		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
-			printf("\n");\
-		printf(".");\
+		if (mu_output_enabled) {\
+			if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+				printf("\n");\
+				printf(".");\
+		}\
 	}\
 )
 

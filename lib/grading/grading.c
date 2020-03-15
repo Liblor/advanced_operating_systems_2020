@@ -13,11 +13,14 @@
 
 
 
+// TODO Test mm_add()
+// TODO Test slab and slot allocator failure modes by simulating running our of slabs/slots.
+
 static struct mm *test_mm;
 static genpaddr_t default_region_base;
 static gensize_t default_allocated;
 static gensize_t default_total_size;
-static struct capref caps[1000];
+static struct capref caps[30000];
 
 static int64_t count_mmnodes(struct mm *mm) {
     assert(mm != NULL);
@@ -67,12 +70,9 @@ static void check_mmnode(uint64_t n, enum nodetype type, uint64_t base_offset_pa
     mu_assert(node->base == expected_base, "Node base address wrong.");
 
     // size_pages == 0 can be used for the last node to indicate the "rest of the memory"
-    // TODO Maybe make it possible to check that size as well, but I think the values need to be calculated manually.
     if (size_pages != 0) {
         mu_assert(node->size == size_pages * BASE_PAGE_SIZE, "Node size wrong.");
     }
-
-    // TODO check capinfo for consistency and with cap_direct_identify()?
 }
 
 static void mm_test_alloc_aligned(struct capref *retcap, uint64_t alignment_pages, uint64_t size_pages, errval_t expected_error, uint64_t expected_node_count) {
@@ -145,16 +145,16 @@ static void test_setup(void) {
 }
 
 static void test_teardown(void) {
-    // Make sure each test leaves a clean memory manager
-    assert(count_mmnodes(test_mm) == 2);
 }
 
 MU_TEST(test_minimal) {
     uint64_t s = default_allocated / BASE_PAGE_SIZE;
+    uint64_t space = default_total_size / BASE_PAGE_SIZE;
 
     mm_test_alloc_aligned(&caps[0], 1, 1, SYS_ERR_OK, 3);
     check_mmnode(0, NodeType_Allocated, 0, s);
     check_mmnode(1, NodeType_Allocated, s + 0, 1);
+    check_mmnode(2, NodeType_Free, s + 1, space - 1);
 
     mm_test_free(caps[0], SYS_ERR_OK, 2);
 }
@@ -340,10 +340,9 @@ MU_TEST(test_out_of_memory) {
     mm_test_alloc_aligned(&caps[8], 1, 1, MM_ERR_OUT_OF_MEMORY, 3);
 
     mm_test_free(caps[4], SYS_ERR_OK, 0);
-    mm_test_free(caps[7], SYS_ERR_OK, 0);
+    mm_test_free(caps[7], SYS_ERR_OK, 2);
 }
 
-// TODO Check all other possible errors
 MU_TEST(test_alloc_size_0) {
     mm_test_alloc_aligned(&caps[0], 1, 0, MM_ERR_INVALID_SIZE, 2);
 }
@@ -354,7 +353,6 @@ MU_TEST(test_free_null) {
     genpaddr_t base_correct = default_region_base + default_allocated;
     gensize_t size_correct = BASE_PAGE_SIZE;
 
-    // TODO Maybe use an explicit error for NULL_CAP.
     _mm_test_free(NULL_CAP, base_correct, size_correct, LIB_ERR_CAP_DELETE, 3);
 
     _mm_test_free(caps[0], base_correct, size_correct, SYS_ERR_OK, 2);
@@ -371,6 +369,57 @@ MU_TEST(test_free_invalid) {
     _mm_test_free(caps[0], base_correct, size_correct+1, MM_ERR_NOT_FOUND, 3);
 
     _mm_test_free(caps[0], base_correct, size_correct, SYS_ERR_OK, 2);
+}
+
+MU_TEST(test_alloc_stress) {
+    int i, j;
+    const uint64_t node_count = 1024;
+    const uint64_t repetitions_multiple = 200;
+    const uint64_t repetitions_single = 10000;
+    assert(ARRAY_LENGTH(caps) >= node_count);
+
+    mu_output_enabled = false;
+    printf("\n");
+
+    for (i = 0; i < repetitions_single; i++) {
+        if (i % 1000 == 0) {
+            debug_printf("Allocated and freed single large nodes %d times\n", i);
+        }
+        mm_test_alloc_aligned(&caps[0], 1, (1<<30)/BASE_PAGE_SIZE, SYS_ERR_OK, 0);
+        mm_test_free(caps[0], SYS_ERR_OK, 0);
+    }
+    debug_printf("Allocated and freed single large nodes %d times\n", i);
+
+    for (i = 0; i < repetitions_multiple; i++) {
+        if (i % 20 == 0) {
+            debug_printf("Allocated and freed %d nodes %d times\n", node_count, i);
+        }
+        for (j = 0; j < node_count; j++) {
+            mm_test_alloc_aligned(&caps[j], 1, (1<<20)/BASE_PAGE_SIZE, SYS_ERR_OK, 0);
+        }
+        for (j = 0; j < node_count; j++) {
+            mm_test_free(caps[j], SYS_ERR_OK, 0);
+        }
+    }
+    debug_printf("Allocated and freed %d nodes %d times\n", node_count, i);
+
+    for (i = 0; i < ARRAY_LENGTH(caps); i++) {
+        if (i % 1000 == 0) {
+            debug_printf("Allocated %d small nodes\n", i);
+        }
+        mm_test_alloc_aligned(&caps[i], 1, 1, SYS_ERR_OK, 0);
+    }
+    debug_printf("Allocated %d nodes\n", i);
+    for (i = 0; i < ARRAY_LENGTH(caps); i++) {
+        if (i % 1000 == 0) {
+            debug_printf("Freed %d small nodes\n", i);
+        }
+        mm_test_free(caps[i], SYS_ERR_OK, 0);
+    }
+    debug_printf("Freed %d nodes\n", i);
+
+    debug_printf("Stress test complete", i);
+    mu_output_enabled = true;
 }
 
 MU_TEST_SUITE(test_suite) {
@@ -397,12 +446,11 @@ MU_TEST_SUITE(test_suite) {
 	MU_RUN_TEST(test_alloc_size_0);
 	MU_RUN_TEST(test_free_null);
     MU_RUN_TEST(test_free_invalid);
+
+    // Leave these tests at the end
+    MU_RUN_TEST(test_alloc_stress);
 }
 
-
-// TODO Test allocating more than 256 slots with test_mm.slot_alloc and then freeing them with slot_free
-// TODO Test allocating 512 pieces of memory (size 1 << 20) and then freeing them
-// TODO Test allocating and immediately freeing 1024 pieces of memory (size 1 << 30) and then freeing them
 // TODO Add these types of test as well.
 /*
     debug_printf("########################### SECTION 3 ############################\n");
@@ -432,20 +480,6 @@ MU_TEST_SUITE(test_suite) {
     mm_test_free(mm, caps[4], true, false);
     mm_test_free(mm, caps[5], true, false);
     mm_test_free(mm, caps[1], true, false);
-
-    debug_printf("########################### SECTION 6 ############################\n");
-    for (int j = 1; j <= 100; j++) {
-        if (j % 10 == 0)
-            debug_printf("Iteration %u\n", j);
-        for (int i = 0; i < ARRAY_LENGTH(caps); i++) {
-            mm_test_alloc_aligned(mm, BASE_PAGE_SIZE, 4096, &caps[i], true, true);
-        }
-        for (int i = 0; i < ARRAY_LENGTH(caps); i++) {
-            mm_test_free(mm, caps[i], true, true);
-        }
-    }
-
-    debug_printf("######################### TEST COMPLETED #########################\n");
 */
 
 void
@@ -466,11 +500,8 @@ grading_test_mm(struct mm * test) {
 
 void
 grading_test_early(void) {
-
     MU_RUN_SUITE(test_suite);
     MU_REPORT();
-
-    //return MU_EXIT_CODE;
 }
 
 void
