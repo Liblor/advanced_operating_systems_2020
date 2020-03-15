@@ -42,10 +42,10 @@
 #define _POSIX_C_SOURCE 200112L
 #endif
 
-#include <unistd.h>	/* POSIX flags */
-#include <time.h>	/* clock_gettime(), time() */
-#include <sys/time.h>	/* gethrtime(), gettimeofday() */
-#include <sys/resource.h>
+//#include <unistd.h>	/* POSIX flags */
+//#include <time.h>	/* clock_gettime(), time() */
+//#include <sys/time.h>	/* gethrtime(), gettimeofday() */
+//#include <sys/resource.h>
 #include <sys/times.h>
 #include <string.h>
 
@@ -65,6 +65,7 @@
 #include <stdio.h>
 #include <math.h>
 
+#define DOT_BREAK_COUNT (50)
 /*  Maximum length of last message */
 #define MINUNIT_MESSAGE_LEN 1024
 /*  Accuracy with which floats are compared */
@@ -121,7 +122,8 @@ static void (*minunit_teardown)(void) = NULL;
 	if (minunit_status) {\
 		minunit_fail++;\
 		printf("F");\
-		printf("\n%s\n", minunit_last_message);\
+		printf("\n");\
+		printf("%s\n", minunit_last_message);\
 	}\
 	fflush(stdout);\
 	if (minunit_teardown) (*minunit_teardown)();\
@@ -131,12 +133,16 @@ static void (*minunit_teardown)(void) = NULL;
 #define MU_REPORT() MU__SAFE_BLOCK(\
 	double minunit_end_real_timer;\
 	double minunit_end_proc_timer;\
-	printf("\n\n%d tests, %d assertions, %d failures\n", minunit_run, minunit_assert, minunit_fail);\
+	printf("\n");\
+	printf("\n");\
+	printf("%d tests, %d assertions, %d failures\n", minunit_run, minunit_assert, minunit_fail);\
 	minunit_end_real_timer = mu_timer_real();\
 	minunit_end_proc_timer = mu_timer_cpu();\
-	printf("\nFinished in %.8f seconds (real) %.8f seconds (proc)\n\n",\
+	printf("\n");\
+	printf("Finished in %.8f seconds (real) %.8f seconds (proc)\n",\
 		minunit_end_real_timer - minunit_real_timer,\
 		minunit_end_proc_timer - minunit_proc_timer);\
+	printf("\n");\
 )
 #define MU_EXIT_CODE minunit_fail
 
@@ -144,17 +150,19 @@ static void (*minunit_teardown)(void) = NULL;
 #define mu_check(test) MU__SAFE_BLOCK(\
 	minunit_assert++;\
 	if (!(test)) {\
-		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\n\t%s:%d: %s", __func__, __FILE__, __LINE__, #test);\
+		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\t%s:%d: %s", __func__, __FILE__, __LINE__, #test);\
 		minunit_status = 1;\
 		return;\
 	} else {\
+		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+			printf("\n");\
 		printf(".");\
 	}\
 )
 
 #define mu_fail(message) MU__SAFE_BLOCK(\
 	minunit_assert++;\
-	snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\n\t%s:%d: %s", __func__, __FILE__, __LINE__, message);\
+	snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\t%s:%d: %s", __func__, __FILE__, __LINE__, message);\
 	minunit_status = 1;\
 	return;\
 )
@@ -162,10 +170,12 @@ static void (*minunit_teardown)(void) = NULL;
 #define mu_assert(test, message) MU__SAFE_BLOCK(\
 	minunit_assert++;\
 	if (!(test)) {\
-		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\n\t%s:%d: %s", __func__, __FILE__, __LINE__, message);\
+		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\t%s:%d: %s", __func__, __FILE__, __LINE__, message);\
 		minunit_status = 1;\
 		return;\
 	} else {\
+		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+			printf("\n");\
 		printf(".");\
 	}\
 )
@@ -177,10 +187,12 @@ static void (*minunit_teardown)(void) = NULL;
 	minunit_tmp_e = (expected);\
 	minunit_tmp_r = (result);\
 	if (minunit_tmp_e != minunit_tmp_r) {\
-		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\n\t%s:%d: %d expected but was %d", __func__, __FILE__, __LINE__, minunit_tmp_e, minunit_tmp_r);\
+		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\t%s:%d: %d expected but was %d", __func__, __FILE__, __LINE__, minunit_tmp_e, minunit_tmp_r);\
 		minunit_status = 1;\
 		return;\
 	} else {\
+		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+			printf("\n");\
 		printf(".");\
 	}\
 )
@@ -193,10 +205,12 @@ static void (*minunit_teardown)(void) = NULL;
 	minunit_tmp_r = (result);\
 	if (fabs(minunit_tmp_e-minunit_tmp_r) > MINUNIT_EPSILON) {\
 		int minunit_significant_figures = 1 - log10(MINUNIT_EPSILON);\
-		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\n\t%s:%d: %.*g expected but was %.*g", __func__, __FILE__, __LINE__, minunit_significant_figures, minunit_tmp_e, minunit_significant_figures, minunit_tmp_r);\
+		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\t%s:%d: %.*g expected but was %.*g", __func__, __FILE__, __LINE__, minunit_significant_figures, minunit_tmp_e, minunit_significant_figures, minunit_tmp_r);\
 		minunit_status = 1;\
 		return;\
 	} else {\
+		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+			printf("\n");\
 		printf(".");\
 	}\
 )
@@ -212,10 +226,12 @@ static void (*minunit_teardown)(void) = NULL;
 		minunit_tmp_r = "<null pointer>";\
 	}\
 	if(strcmp(minunit_tmp_e, minunit_tmp_r)) {\
-		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\n\t%s:%d: '%s' expected but was '%s'", __func__, __FILE__, __LINE__, minunit_tmp_e, minunit_tmp_r);\
+		snprintf(minunit_last_message, MINUNIT_MESSAGE_LEN, "%s failed:\t%s:%d: '%s' expected but was '%s'", __func__, __FILE__, __LINE__, minunit_tmp_e, minunit_tmp_r);\
 		minunit_status = 1;\
 		return;\
 	} else {\
+		if ((minunit_assert-1) % DOT_BREAK_COUNT == 0)\
+			printf("\n");\
 		printf(".");\
 	}\
 )
