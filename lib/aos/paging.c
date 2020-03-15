@@ -14,6 +14,7 @@
 
 #include <aos/aos.h>
 #include <aos/paging.h>
+#include <aos/paging_regions.h>
 #include <aos/except.h>
 #include <aos/slab.h>
 #include "threads_priv.h"
@@ -233,6 +234,7 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
+
 /**
  * TODO(M2): Implement this function.
  * \brief Find a bit of free virtual address space that is large enough to accomodate a
@@ -253,7 +255,11 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
      * \brief Find a bit of free virtual address space that is large enough to
      *        accomodate a buffer of size `bytes`.
      */
+
     *buf = NULL;
+    errval_t err = find_region(st, buf, bytes, alignment);
+    if (err_is_fail(err)) { return err; }
+
     return SYS_ERR_OK;
 }
 
@@ -384,6 +390,10 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         return LIB_ERR_PAGING_SIZE_INVALID;
     else if ((bytes % BASE_PAGE_SIZE) != 0)
         return LIB_ERR_PAGING_SIZE_INVALID;
+
+
+    // find paging region
+
 
     const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);

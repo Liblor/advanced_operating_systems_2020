@@ -41,6 +41,7 @@
                              "morecore.c",
                              "notificator.c",
                              "paging.c",
+                             "paging_regions.c",
                              "ram_alloc.c",
                              "slab.c",
                              "sys_debug.c",
