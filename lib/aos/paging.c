@@ -381,19 +381,21 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
     assert(st != NULL);
-
     errval_t err;
 
     debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ...)\n", st, vaddr);
 
-    if (bytes == 0)
+    if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
-    else if ((bytes % BASE_PAGE_SIZE) != 0)
+    } else if ((bytes % BASE_PAGE_SIZE) != 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
+    }
 
 
-    // find paging region
+    struct paging_region *region;
+    err = alloc_region(st, vaddr, bytes, region);
 
+    // TODO(M2) reimplement from here
 
     const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);

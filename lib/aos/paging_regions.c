@@ -89,10 +89,11 @@ static inline errval_t split_off(struct paging_state *st, struct paging_region *
     return SYS_ERR_OK;
 }
 
-static inline bool is_in_region(struct paging_region *region, lvaddr_t addr, size_t size) {
+static inline bool is_in_free_region(struct paging_region *region, lvaddr_t addr, size_t size) {
     bool addr_start = region->base_addr <= addr;
     bool no_overflow = addr + size > addr;
     bool end = addr + size <= region->base_addr + region->region_size;
+    bool is_free = region->type == NodeType_Free;
     return addr_start && no_overflow && end;
 }
 
@@ -139,7 +140,7 @@ errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size) {
 errval_t alloc_region(struct paging_state *st, lvaddr_t addr, size_t size, struct paging_region *ret) {
     errval_t err;
     struct paging_region *curr = st->head;
-    while (curr != NULL && is_in_region(curr, addr, size)) { curr = curr->next; }
+    while (curr != NULL && is_in_free_region(curr, addr, size)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_OUT_OF_VIRTUAL_ADDR; }
 
     if (addr == curr->base_addr) {
