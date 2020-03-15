@@ -66,22 +66,24 @@ static inline void print_node(struct mm *mm, char *buffer, size_t length, struct
     buffer[length - 1] = '\0';
 }
 
-static inline void print_list(struct mm *mm)
-{
-    printf("Forward: ");
+static void print_mmnodes(struct mm *mm) {
+    if (mm->head == NULL) {
+        debug_printf("        [empty list]\n");
+    } else {
+        struct mmnode *current = mm->head;
+        struct mmnode *last = mm->head;
 
-    struct mmnode *node;
-    for (node = mm->head; node != NULL; node = node->next) {
-        char buffer[16];
-        print_node(mm, buffer, 16, node);
-
-        if (node->next == NULL)
-            printf("[%s]", buffer);
-        else
-            printf("[%s] <--> ", buffer);
+        while (current != NULL) {
+            debug_printf("%s%p <- %p -> %p (base=%p, last=%p, size=%u)\n", current->type == NodeType_Allocated ? "       *" : "        ", current->prev, current, current->next, current->base, current->base + current->size - 1, current->size);
+            if (current->next == NULL)
+                last = current;
+            current = current->next;
+        }
     }
+}
 
-    printf("\n");
+void mm_print_state(struct mm *mm) {
+    print_mmnodes(mm);
 }
 
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
@@ -146,7 +148,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     size_t best_size = 0;
     size_t best_padding_size = 0;
 
-    // Find the smallest node that is still free and can hold the requested size.
+    // Find the largest node that is still free and can hold the requested size.
     for (struct mmnode *next = mm->head->next; next != &mm->mm_tail; next = next->next) {
         size_t padding_size = (next->base % alignment > 0) ? (alignment - (next->base % alignment)) : 0;
 
@@ -167,8 +169,10 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         }
     }
 
-    if (best == NULL)
+    // TODO Rename this error to something like MM_ERR_OUT_OF_MEMORY
+    if (best == NULL) {
         return MM_ERR_NOT_FOUND;
+    }
 
     debug_printf("Found free node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", best, best->base, best->size);
 
