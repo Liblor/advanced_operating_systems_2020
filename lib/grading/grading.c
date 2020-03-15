@@ -291,10 +291,10 @@ MU_TEST(test_out_of_memory) {
     uint64_t s = default_allocated / BASE_PAGE_SIZE;
     uint64_t space = default_total_size / BASE_PAGE_SIZE;
 
-    mm_test_alloc_aligned(&caps[1], 1, space + 1, MM_ERR_NOT_FOUND, 2);
+    mm_test_alloc_aligned(&caps[1], 1, space + 1, MM_ERR_OUT_OF_MEMORY, 2);
 
     // TODO This test could fail by chance because of the inconsistent alignment of the boot region. Insert an alignment normalization node to be sure.
-    mm_test_alloc_aligned(&caps[2], 2000, space, MM_ERR_NOT_FOUND, 2);
+    mm_test_alloc_aligned(&caps[2], 2000, space, MM_ERR_OUT_OF_MEMORY, 2);
 
     mm_test_alloc_aligned(&caps[3], 1, space, SYS_ERR_OK, 2);
     check_mmnode(1, NodeType_Allocated, s+0, space);
@@ -311,7 +311,7 @@ MU_TEST(test_out_of_memory) {
     check_mmnode(1, NodeType_Allocated, s+0, space-1);
     check_mmnode(2, NodeType_Allocated, s+space-1, 1);
 
-    mm_test_alloc_aligned(&caps[6], 1, 1, MM_ERR_NOT_FOUND, 3);
+    mm_test_alloc_aligned(&caps[6], 1, 1, MM_ERR_OUT_OF_MEMORY, 3);
 
     mm_test_free(caps[5], SYS_ERR_OK, 3);
     // xxxx x...x o
@@ -321,7 +321,7 @@ MU_TEST(test_out_of_memory) {
     check_mmnode(1, NodeType_Allocated, s+0, space-1);
     check_mmnode(2, NodeType_Allocated, s+space-1, 1);
 
-    mm_test_alloc_aligned(&caps[8], 1, 1, MM_ERR_NOT_FOUND, 3);
+    mm_test_alloc_aligned(&caps[8], 1, 1, MM_ERR_OUT_OF_MEMORY, 3);
 
     mm_test_free(caps[4], SYS_ERR_OK, 0);
     mm_test_free(caps[7], SYS_ERR_OK, 0);
@@ -339,7 +339,7 @@ MU_TEST(test_free_null) {
     gensize_t size_correct = BASE_PAGE_SIZE;
 
     // TODO Maybe use an explicit error for NULL_CAP.
-    _mm_test_free(NULL_CAP, base_correct, size_correct, MM_ERR_MM_FREE, 3);
+    _mm_test_free(NULL_CAP, base_correct, size_correct, LIB_ERR_CAP_DELETE, 3);
 
     _mm_test_free(caps[0], base_correct, size_correct, SYS_ERR_OK, 2);
 }

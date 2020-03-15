@@ -169,9 +169,8 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         }
     }
 
-    // TODO Rename this error to something like MM_ERR_OUT_OF_MEMORY
     if (best == NULL) {
-        return MM_ERR_NOT_FOUND;
+        return MM_ERR_OUT_OF_MEMORY;
     }
 
     debug_printf("Found free node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", best, best->base, best->size);
@@ -245,16 +244,15 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     // Retype the aligned part of the node with the requested size.
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_NEW_NODE);
+        return err_push(err, LIB_ERR_SLOT_ALLOC);
 
     err = mm->slot_refill(mm->slot_alloc_inst);
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_SLOT_MM_ALLOC);
+        return err_push(err, MM_ERR_SLOT_REFILL);
 
     err = cap_retype(*retcap, best->cap.cap, best_base + best_padding_size - best->cap.base, mm->objtype, size, 1);
-    // TODO: Return the correct error code.
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_MISSING_CAPS);
+        return err_push(err, LIB_ERR_CAP_RETYPE);
 
     return SYS_ERR_OK;
 }
@@ -297,11 +295,11 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
 
     err = cap_delete(cap);
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_MM_FREE);
+        return err_push(err, LIB_ERR_CAP_DELETE);
 
     err = slot_free(cap);
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_MM_FREE);
+        return err_push(err, LIB_ERR_SLOT_FREE);
 
     node->type = NodeType_Free;
 
