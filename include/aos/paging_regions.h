@@ -2,6 +2,7 @@
 #define BF_AOS_PAGING_REGIONS_H
 
 #include <aos/debug.h>
+#include <aos/paging_types.h>
 
 
 errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size);

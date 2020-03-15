@@ -3,6 +3,7 @@
  * \brief Paging region manager
  */
 
+#include <aos/aos.h>
 #include <aos/paging_regions.h>
 #include <aos/paging_types.h>
 #include <aos/slab.h>
@@ -64,7 +65,7 @@ static inline void merge_with_prev_node(struct paging_state *st, struct paging_r
     if (st->head == region->prev) {
         st->head = region;
     }
-    region->base_addr = region->prev->base;
+    region->base_addr = region->prev->base_addr;
     region->current_addr = region->base_addr;
     region->region_size += region->prev->region_size;
 
@@ -114,7 +115,7 @@ static inline bool is_region_free(struct paging_region *region, gensize_t size, 
 errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size) {
     assert(st->slabs.blocksize >= sizeof(struct paging_region));
 
-    errval_t err = slab_ensure_threshold(st->slabs);
+    errval_t err = slab_ensure_threshold(&st->slabs, 10); // TODO macro
     if (err_is_fail(err)) { return err; }
 
     struct paging_region *region;
@@ -184,6 +185,6 @@ errval_t find_region(struct paging_state *st, void **buf, size_t bytes, size_t a
     while (curr != NULL && !is_region_free(curr, bytes, alignment)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_OUT_OF_VIRTUAL_ADDR; }
 
-    *buf = ROUND_UP(curr->base_addr, alignment);       // overflow checked in is_allocatable
+    *buf = (void *) ROUND_UP(curr->base_addr, alignment);       // overflow checked in is_allocatable
     return SYS_ERR_OK;
 }

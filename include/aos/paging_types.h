@@ -15,6 +15,7 @@
 #ifndef PAGING_TYPES_H_
 #define PAGING_TYPES_H_ 1
 
+#include <aos/slab.h>
 #include <aos/solution.h>
 
 #define MCN_COUNT DIVIDE_ROUND_UP(PTABLE_ENTRIES, L2_CNODE_SLOTS)
@@ -72,7 +73,7 @@ struct paging_region {
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
-    struct slabs_allocator *slabs;
+    struct slab_allocator slabs;
     struct paging_region *head;
     struct paging_region *tail;
     struct capref l0pd;
