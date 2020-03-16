@@ -17,6 +17,7 @@
 
 #include <aos/slab.h>
 #include <aos/solution.h>
+#include <collections/hash_table.h>
 
 #define MCN_COUNT DIVIDE_ROUND_UP(PTABLE_ENTRIES, L2_CNODE_SLOTS)
 
@@ -63,6 +64,8 @@ struct paging_region {
     lvaddr_t current_addr;
     size_t region_size;
     paging_flags_t flags;
+    struct capref cap;
+    struct capref cap_mapping;
     struct paging_region *next;
     struct paging_region *prev;
     enum nodetype type;
@@ -70,17 +73,25 @@ struct paging_region {
 };
 
 
+struct pt_entry {
+    struct capref cap;
+    struct capref cap_mapping;
+    collections_hash_table *pt;
+};
+
+struct pt_l3_entry {
+    struct capref cap;
+    struct paging_region *entries[PTABLE_ENTRIES];
+};
+
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
     struct slab_allocator slabs;
     struct paging_region *head;
     struct paging_region *tail;
-    struct capref l0pd;
-    struct capref l1pd;
-    struct capref l2pd;
-    struct capref l3pd[PTABLE_ENTRIES];
-    bool is_mapped[PTABLE_ENTRIES][PTABLE_ENTRIES];
+    struct capref cap_l0;
+    collections_hash_table *l0pt;
 };
 
 
