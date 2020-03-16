@@ -490,8 +490,8 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         return LIB_ERR_PAGING_SIZE_INVALID;
     }
 
-    struct vaddr_region *region = NULL;
-    err = alloc_vaddr_region(st, vaddr, bytes, &region);
+    struct vaddr_region *vaddr_region = NULL;
+    err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
     if (err_is_fail(err)) { return err; }
 
     struct capref l3pd;
@@ -502,25 +502,38 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         debug_printf("paging_create_pd failed: %s\n", err_getstring(err));
         return err;
     }
+    assert(l3entry != NULL);
 
-    assert(l3entry->entries[VMSAv8_64_L3_INDEX(vaddr)] == NULL);
+    const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
+    assert(l3entry->entries[l3_idx] == NULL);
 
-    struct capref mapping;
-    err = st->slot_alloc->alloc(st->slot_alloc, &mapping);
+    struct paging_region *paging_region = malloc(sizeof(struct paging_region));
+    if (paging_region == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    l3entry->entries[l3_idx] = paging_region;
+
+    err = st->slot_alloc->alloc(st->slot_alloc, &paging_region->cap_mapping);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc failed: %s\n", err_getstring(err));
         return err;
     }
 
-    err = vnode_map(l3pd, frame, l3_idx, flags, 0, pte_count, mapping);
+    // TODO: cover case to create multiple l3 mappings
+    uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
+    err = vnode_map(paging_region->cap, frame, l3_idx, flags, 0, pte_count, paging_region->cap_mapping);
     if (err_is_fail(err)) {
         debug_printf("vnode_map failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_VNODE_MAP);
+        err_push(err, LIB_ERR_VNODE_MAP);
+        goto error_recovery;
     }
 
-    st->is_mapped[l2_idx][l3_idx] = true;
-
     return SYS_ERR_OK;
+
+    error_recovery:
+    st->slot_alloc->free(st->slot_alloc, paging_region->cap_mapping);
+    return err;
+
 }
 
 /**
