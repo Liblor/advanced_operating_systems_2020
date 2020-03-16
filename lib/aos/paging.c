@@ -14,6 +14,7 @@
 
 #include <aos/aos.h>
 #include <aos/paging.h>
+#include <aos/paging_regions.h>
 #include <aos/except.h>
 #include <aos/slab.h>
 #include "threads_priv.h"
@@ -82,6 +83,10 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
+
+    st->slot_alloc = ca;
+    // TODO
+
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
@@ -124,25 +129,10 @@ errval_t paging_init(void)
     // TIP: it might be a good idea to call paging_init_state() from here to
     // avoid code duplication.
 
+    // TODO check parameters
+    struct capref pdir;     // TODO find out where we get pdir from
+    paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
     set_current_paging_state(&current);
-
-    current.slot_alloc = NULL;
-
-    struct capref root_pagetable = {
-        .cnode = cnode_page,
-        .slot  = 0,
-    };
-
-    current.l0pd = root_pagetable;
-    current.l1pd = NULL_CAP;
-    current.l2pd = NULL_CAP;
-
-    for (size_t i = 0; i < ARRAY_LENGTH(current.l3pd); i++)
-        current.l3pd[i] = NULL_CAP;
-
-    for (size_t i = 0; i < ARRAY_LENGTH(current.is_mapped); i++)
-        for (size_t j = 0; j < ARRAY_LENGTH(current.is_mapped[i]); j++)
-            current.is_mapped[i][j] = false;
 
     return SYS_ERR_OK;
 }
@@ -244,6 +234,7 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
+
 /**
  * TODO(M2): Implement this function.
  * \brief Find a bit of free virtual address space that is large enough to accomodate a
@@ -264,7 +255,11 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
      * \brief Find a bit of free virtual address space that is large enough to
      *        accomodate a buffer of size `bytes`.
      */
+
     *buf = NULL;
+    errval_t err = find_region(st, buf, bytes, alignment);
+    if (err_is_fail(err)) { return err; }
+
     return SYS_ERR_OK;
 }
 
@@ -289,11 +284,15 @@ errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes
                                struct capref frame, int flags, void *arg1, void *arg2)
 {
 
-    // TODO(M2): Implement me
+    // TODO(M2): Implement me (done, remove todo after review)
     // - Call paging_alloc to get a free virtual address region of the requested size
     // - Map the user provided frame at the free virtual address
 
-    return LIB_ERR_NOT_IMPLEMENTED;
+    slab_ensure_threshold(&st->slabs, 10);      // TODO macro
+    errval_t err = paging_alloc(st, buf, bytes, BASE_PAGE_SIZE);
+    if (err_is_fail(err)) { return err; }
+
+    return paging_map_fixed_attr(st, (lvaddr_t)(*buf), frame, bytes, flags);
 
 }
 
@@ -386,15 +385,22 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
     assert(st != NULL);
-
     errval_t err;
 
     debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ...)\n", st, vaddr);
 
-    if (bytes == 0)
+    if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
-    else if ((bytes % BASE_PAGE_SIZE) != 0)
+    } else if ((bytes % BASE_PAGE_SIZE) != 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
+    }
+
+
+    struct paging_region *region = NULL;
+    err = alloc_region(st, vaddr, bytes, region);
+    if (err_is_fail(err)) { return err; }
+
+    // TODO(M2) reimplement from here
 
     const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);

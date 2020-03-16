@@ -15,6 +15,7 @@
 #ifndef PAGING_TYPES_H_
 #define PAGING_TYPES_H_ 1
 
+#include <aos/slab.h>
 #include <aos/solution.h>
 
 #define MCN_COUNT DIVIDE_ROUND_UP(PTABLE_ENTRIES, L2_CNODE_SLOTS)
@@ -51,11 +52,20 @@
 typedef int paging_flags_t;
 
 
+enum nodetype {
+    NodeType_Free,      ///< This region exists and is free
+    NodeType_Allocated  ///< This region exists and is allocated
+};
+
 struct paging_region {
     lvaddr_t base_addr;
+    // TODO: investigate
     lvaddr_t current_addr;
     size_t region_size;
     paging_flags_t flags;
+    struct paging_region *next;
+    struct paging_region *prev;
+    enum nodetype type;
     // TODO: if needed add struct members for tracking state
 };
 
@@ -63,6 +73,9 @@ struct paging_region {
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
+    struct slab_allocator slabs;
+    struct paging_region *head;
+    struct paging_region *tail;
     struct capref l0pd;
     struct capref l1pd;
     struct capref l2pd;
