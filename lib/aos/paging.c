@@ -99,18 +99,18 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
  * \param st The struct to be initialized, must not be NULL.
  * \param start_vaddr Virtual address allocation should start at
  *        this address.
- * \param pdir Reference to the cap of the L1 VNode.
+ * \param cap_l0 Reference to the cap of the L1 VNode.
  * \param ca The slot_allocator to be used by the paging state.
  * \return Either SYS_ERR_OK if no error occured or an error
  * indicating what went wrong otherwise.
  */
 errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr,
-                           struct capref pdir, struct slot_allocator *ca)
+                                   struct capref cap_l0, struct slot_allocator *ca)
 {
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
-    paging_init_state(st, VADDR_OFFSET, pdir, get_default_slot_allocator());
+    paging_init_state(st, VADDR_OFFSET, cap_l0, get_default_slot_allocator());
     return SYS_ERR_OK;
 }
 
