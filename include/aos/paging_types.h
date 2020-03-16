@@ -68,7 +68,7 @@ struct paging_region {
 struct pt_entry {
     struct capref cap;
     struct capref cap_mapping;
-    collections_hash_table *pt;
+    struct _collections_hash_table *pt;
 };
 
 struct pt_l3_entry {
@@ -84,7 +84,7 @@ struct paging_state {
     struct vaddr_region *head;
     struct vaddr_region *tail;
     struct capref cap_l0;
-    collections_hash_table *l0pt;
+    struct _collections_hash_table *l0pt;
 };
 
 
