@@ -33,19 +33,28 @@ static int32_t match_key(void *data, void *arg)
 /*
  * Create a hash table.
  */
-static void collections_hash_create_core(collections_hash_table **t, int num_buckets, collections_hash_data_free data_free)
+static void collections_hash_create_core(collections_hash_table **t, int num_buckets, collections_hash_data_free data_free,
+                                         collections_hash_memory_alloc memory_alloc,
+                                         collections_hash_memory_free memory_free)
 {
-	int i;
+    assert(memory_alloc != NULL);
+    assert(memory_free != NULL);
 
-	*t = (collections_hash_table *) malloc (sizeof(collections_hash_table));
-	memset(*t, 0, sizeof(collections_hash_table));
+    int i;
+    *t = (collections_hash_table *) memory_alloc (sizeof(collections_hash_table));
+    if (*t == NULL){
+        return;
+    }
+    memset(*t, 0, sizeof(collections_hash_table));
 
-	(*t)->num_buckets = num_buckets;
+    (*t)->memory_alloc = memory_alloc;
+    (*t)->memory_free = memory_free;
+    (*t)->num_buckets = num_buckets;
 
 	// create a linked list node for each bucket
-	(*t)->buckets = (collections_listnode **) malloc(sizeof(collections_listnode *) * num_buckets);
+	(*t)->buckets = (collections_listnode **) (*t)->memory_alloc(sizeof(collections_listnode *) * num_buckets);
 	for (i = 0; i < num_buckets; i ++) {
-		collections_list_create(&(*t)->buckets[i], NULL);
+		collections_list_create_with_memory_func(&(*t)->buckets[i], NULL, memory_alloc, memory_free);
 	}
 
 	(*t)->num_elems = 0;
@@ -56,14 +65,24 @@ static void collections_hash_create_core(collections_hash_table **t, int num_buc
 	return;
 }
 
+
 void collections_hash_create(collections_hash_table **t, collections_hash_data_free elem_free)
 {
-	collections_hash_create_core(t, NUM_BUCKETS, elem_free);
+	collections_hash_create_core(t, NUM_BUCKETS, elem_free, malloc, free);
 }
 
 void collections_hash_create_with_buckets(collections_hash_table **t, int num_buckets, collections_hash_data_free elem_free)
 {
-	collections_hash_create_core(t, num_buckets, elem_free);
+	collections_hash_create_core(t, num_buckets, elem_free, malloc, free);
+}
+
+void collections_hash_create_with_buckets_and_memory_functions(collections_hash_table **t,
+                                                   int buckets,
+                                                   collections_hash_data_free f,
+                                                   collections_hash_memory_alloc memory_alloc,
+                                                   collections_hash_memory_free memory_free)
+{
+    collections_hash_create_core(t, buckets, f, memory_alloc, memory_free);
 }
 
 static int collections_hash_release_elem(void* elem, void * arg)
@@ -74,7 +93,7 @@ static int collections_hash_release_elem(void* elem, void * arg)
     {
         t->data_free(he->data);
     }
-    free(he);
+    t->memory_free(he);
 
 	t->num_elems--;
 
@@ -102,8 +121,9 @@ void collections_hash_release(collections_hash_table *t)
 	}
     assert(t->num_elems == 0);
 
-	free(t->buckets);
-	free(t);
+    t->memory_free(t->buckets);
+    collections_memory_free f = t->memory_free;
+	f(t);
 }
 
 static collections_hash_elem* collections_hash_find_elem(collections_hash_table *t, uint64_t key)
@@ -137,7 +157,7 @@ void collections_hash_insert(collections_hash_table *t, uint64_t key, void *data
 
 	bucket_num = key % t->num_buckets;
 	bucket = t->buckets[bucket_num];
-	elem = (collections_hash_elem *) malloc(sizeof(collections_hash_elem));
+	elem = (collections_hash_elem *) t->memory_alloc(sizeof(collections_hash_elem));
 	elem->key = key;
 	elem->data = data;
 	collections_list_insert(bucket, (void *)elem);
