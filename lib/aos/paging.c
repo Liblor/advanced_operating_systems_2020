@@ -85,7 +85,8 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
 
     st->slot_alloc = ca;
     st->cap_l0 = pdir;
-    add_region(st, start_vaddr, 0xffffffffffff);
+    struct paging_region *pr = malloc(sizeof(struct paging_region));
+    add_region(st, start_vaddr, 0xffffffffffff, pr);
     return SYS_ERR_OK;
 }
 
@@ -449,8 +450,8 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         return LIB_ERR_PAGING_SIZE_INVALID;
     }
 
-    struct paging_region *region = NULL;
-    err = alloc_region(st, vaddr, bytes, &region);
+    struct vaddr_region *region = NULL;
+    err = alloc_vaddr_region(st, vaddr, bytes, &region);
     if (err_is_fail(err)) { return err; }
 
     struct capref l3pd;

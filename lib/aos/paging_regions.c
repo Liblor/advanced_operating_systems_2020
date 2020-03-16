@@ -77,7 +77,7 @@ static inline void merge_with_prev_node(struct paging_state *st, struct vaddr_re
 static inline errval_t split_off(struct paging_state *st, struct vaddr_region *region, size_t size) {
     // create new node
     struct vaddr_region *new_region;
-    errval_t err = create_new_region(st, &new_region, region->base_addr, size, NodeType_Free);
+    errval_t err = create_new_region(st, &new_region, region->base_addr, size, NULL, NodeType_Free);
     if (err_is_fail(err)) { return err; }
 
     // Update node
@@ -115,7 +115,7 @@ static inline bool is_region_free(struct vaddr_region *region, gensize_t size, g
 
 errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size, struct paging_region *paging_region) {
     struct vaddr_region *region;
-    errval_t err = create_new_region(st, &region, base, size, NodeType_Free);
+    errval_t err = create_new_region(st, &region, base, size, paging_region, NodeType_Free);
     if (err_is_fail(err)) { return err; }
 
     // append node
@@ -132,7 +132,7 @@ errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size, struct 
     return SYS_ERR_OK;
 }
 
-errval_t alloc_region(struct paging_state *st, lvaddr_t addr, size_t size, struct vaddr_region **ret) {
+errval_t alloc_vaddr_region(struct paging_state *st, lvaddr_t addr, size_t size, struct vaddr_region **ret) {
     errval_t err;
     *ret = NULL;
     struct vaddr_region *curr = st->head;
