@@ -494,8 +494,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
     if (err_is_fail(err)) { return err; }
 
-    struct capref l3pd;
-
     struct pt_l3_entry *l3entry;
     err = paging_create_pd(st, vaddr, &l3entry);
     if (err_is_fail(err)) {
@@ -512,6 +510,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         return LIB_ERR_MALLOC_FAIL;
     }
     l3entry->entries[l3_idx] = paging_region;
+    vaddr_region->region = paging_region;
 
     err = st->slot_alloc->alloc(st->slot_alloc, &paging_region->cap_mapping);
     if (err_is_fail(err)) {
@@ -527,7 +526,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         err_push(err, LIB_ERR_VNODE_MAP);
         goto error_recovery;
     }
-
     return SYS_ERR_OK;
 
     error_recovery:
