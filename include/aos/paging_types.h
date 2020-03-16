@@ -79,7 +79,7 @@ struct pt_l3_entry {
     struct paging_region *entries[PTABLE_ENTRIES];
 };
 
-#define PAGING_HASHMAP_BUCKETS 1024
+#define PAGING_HASHMAP_BUCKETS 100
 #define PAGING_HASHMAP_SLAB_SIZE (24 * PAGING_HASHMAP_BUCKETS)
 
 // TODO: this does not compile, fix sizeof() to get more accurate number
@@ -108,7 +108,7 @@ struct paging_state {
     struct capref cap_l0;
     struct _collections_hash_table *l0pt;
 
-    char slab_paging_buf[64 * (PAGING_MEM_SLAB_BLOCKSIZE)];
+    char slab_paging_buf[1000  * (PAGING_MEM_SLAB_BLOCKSIZE)];
     struct slab_allocator slab_paging;
 
     // TODO: should be 64*sizeof(struct vaddr_region), but circular deps
