@@ -4,8 +4,8 @@
  */
 
 #include <aos/aos.h>
-#include <aos/vaddr_regions.h>
 #include <aos/paging_types.h>
+#include <aos/vaddr_regions.h>
 #include <aos/debug.h>
 
 
@@ -15,7 +15,9 @@ static inline errval_t create_new_region(struct paging_state *st,
                                          size_t size,
                                          struct paging_region *paging_region,
                                          enum nodetype type) {
-    void *block = malloc(sizeof(struct vaddr_region));
+    assert(st->slabs.blocksize >= sizeof(struct vaddr_region));
+    slab_ensure_threshold(&st->slabs, 10);
+    void *block = slab_alloc(&st->slabs);
     if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
 
     *new_region = (struct vaddr_region *)block;
@@ -71,7 +73,7 @@ static inline void merge_with_prev_node(struct paging_state *st, struct vaddr_re
 
     struct vaddr_region *to_delete = region->prev;
     remove_node(st, to_delete);
-    free(to_delete);
+    slab_free(&st->slabs, to_delete);
 }
 
 static inline errval_t split_off(struct paging_state *st, struct vaddr_region *region, size_t size) {

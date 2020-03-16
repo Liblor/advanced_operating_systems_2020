@@ -16,7 +16,7 @@
 #define PAGING_TYPES_H_ 1
 
 #include <aos/slab.h>
-#include <aos/vaddr_regions.h>
+//#include <aos/vaddr_regions.h>
 #include <aos/solution.h>
 #include <collections/hash_table.h>
 
@@ -96,9 +96,12 @@ struct paging_state {
     struct vaddr_region *tail;
     struct capref cap_l0;
     struct _collections_hash_table *l0pt;
-    char buf[64*sizeof(struct vaddr_region)];
+
     char slab_buf_hashmap[64* PAGING_HASHMAP_SLAB_SIZE];
     struct slab_allocator slabs_hashmap;
+
+    // TODO: should be 64*sizeof(struct vaddr_region), but circular deps
+    char buf[64*64];
 };
 
 
