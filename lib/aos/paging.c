@@ -86,8 +86,37 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     st->cap_l0 = cap_l0;
     slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
     slab_grow(&st->slabs, st->buf, sizeof(st->buf));
+
+    slab_init(&st->slabs_hashmap, PAGING_HASHMAP_SLAB_SIZE, slab_default_refill);
+    slab_grow(&st->slabs_hashmap, st->slab_buf_hashmap, sizeof(st->slab_buf_hashmap));
+
     add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
     return SYS_ERR_OK;
+}
+
+// function is called from within hashmap to allocate new memory
+__attribute__((__unused__)) static
+void* hashtable_alloc(size_t size) {
+    struct paging_state *st = get_current_paging_state();
+    assert(size <= st->slabs_hashmap.blocksize);
+    return slab_alloc(&st->slabs_hashmap);
+}
+
+// function is called from within hashmap to free memory
+__attribute__((__unused__))
+static
+void hashtable_free(void* ptr) {
+    struct paging_state *st = get_current_paging_state();
+    return slab_free(&st->slabs_hashmap, ptr);
+}
+
+__attribute__((__unused__))
+static inline
+void init_hashtable(struct paging_state *st, collections_hash_table **hashmap) {
+
+//    collections_hash_create_with_buckets_and_memory_functions(hashmap, init_buckets, NULL, hashtable_alloc,
+//                                                              hashtable_free);
+
 }
 
 /**

@@ -78,6 +78,16 @@ struct pt_l3_entry {
     struct paging_region *entries[PTABLE_ENTRIES];
 };
 
+#define PAGING_HASHMAP_BUCKETS 1024
+
+#define PAGING_HASHMAP_SLAB_SIZE \
+   (MAX(sizeof(collections_hash_table), \
+    MAX((sizeof(collections_listnode *) * PAGING_HASHMAP_BUCKETS), \
+    MAX(sizeof(collections_hash_elem), \
+    MAX(sizeof(collections_hash_elem), \
+    MAX(sizeof(collections_listnode), \
+    sizeof(collections_header_data)))))))
+
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
@@ -86,6 +96,10 @@ struct paging_state {
     struct vaddr_region *tail;
     struct capref cap_l0;
     struct _collections_hash_table *l0pt;
+
+    char slab_buf_hashmap[64* PAGING_HASHMAP_SLAB_SIZE];
+    struct slab_allocator slabs_hashmap;
+
     // TODO: should be 64*sizeof(struct vaddr_region), but circular deps
     char buf[64*64];
 };
