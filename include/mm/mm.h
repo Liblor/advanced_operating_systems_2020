@@ -28,7 +28,7 @@ enum nodetype {
     NodeType_Free,      ///< This region exists and is free
     NodeType_Allocated  ///< This region exists and is allocated
 };
-ke
+
 struct capinfo {
     struct capref cap;
     genpaddr_t base;
