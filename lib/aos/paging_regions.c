@@ -6,7 +6,6 @@
 #include <aos/aos.h>
 #include <aos/paging_regions.h>
 #include <aos/paging_types.h>
-#include <aos/slab.h>
 #include <aos/debug.h>
 
 
@@ -15,7 +14,7 @@ static inline errval_t create_new_region(struct paging_state *st,
                                          lvaddr_t base,
                                          size_t size,
                                          enum nodetype type) {
-    void *block = slab_alloc(&st->slabs);
+    void *block = malloc(sizeof(struct paging_region));
     if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
 
     *new_region = (struct paging_region *)block;
@@ -71,7 +70,7 @@ static inline void merge_with_prev_node(struct paging_state *st, struct paging_r
 
     struct paging_region *to_delete = region->prev;
     remove_node(st, to_delete);
-    slab_free(&st->slabs, to_delete);
+    free(to_delete);
 }
 
 static inline errval_t split_off(struct paging_state *st, struct paging_region *region, size_t size) {
@@ -114,13 +113,8 @@ static inline bool is_region_free(struct paging_region *region, gensize_t size, 
 
 
 errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size) {
-    assert(st->slabs.blocksize >= sizeof(struct paging_region));
-
-    errval_t err = slab_ensure_threshold(&st->slabs, 10); // TODO macro
-    if (err_is_fail(err)) { return err; }
-
     struct paging_region *region;
-    err = create_new_region(st, &region, base, size, NodeType_Free);
+    errval_t err = create_new_region(st, &region, base, size, NodeType_Free);
     if (err_is_fail(err)) { return err; }
 
     // append node
