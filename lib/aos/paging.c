@@ -389,8 +389,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
     errval_t err;
 
-    debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ...)\n", st, vaddr);
-
     if (bytes == 0)
         return LIB_ERR_PAGING_SIZE_INVALID;
     else if ((bytes % BASE_PAGE_SIZE) != 0)
