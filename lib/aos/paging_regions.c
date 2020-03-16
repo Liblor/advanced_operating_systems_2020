@@ -131,9 +131,9 @@ errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size) {
     return SYS_ERR_OK;
 }
 
-errval_t alloc_region(struct paging_state *st, lvaddr_t addr, size_t size, struct paging_region *ret) {
+errval_t alloc_region(struct paging_state *st, lvaddr_t addr, size_t size, struct paging_region **ret) {
     errval_t err;
-    ret = NULL;
+    *ret = NULL;
     struct paging_region *curr = st->head;
     while (curr != NULL && is_in_free_region(curr, addr, size)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_OUT_OF_VIRTUAL_ADDR; }
@@ -149,8 +149,8 @@ errval_t alloc_region(struct paging_state *st, lvaddr_t addr, size_t size, struc
         err = split_off(st, curr, size);
         if (err_is_fail(err)) { return err; }
     }
-    ret = curr->prev;
-    ret->type = NodeType_Allocated;
+    *ret = curr->prev;
+    (*ret)->type = NodeType_Allocated;
 
     return SYS_ERR_OK;
 }
