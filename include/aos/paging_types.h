@@ -89,7 +89,6 @@ struct pt_l3_entry {
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
-    struct slab_allocator slabs;
     struct paging_region *head;
     struct paging_region *tail;
     struct capref cap_l0;

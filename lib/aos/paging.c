@@ -80,14 +80,13 @@ __attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, st
 errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
                            struct capref pdir, struct slot_allocator *ca)
 {
-    // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
 
     st->slot_alloc = ca;
-    // TODO
-
-    return LIB_ERR_NOT_IMPLEMENTED;
+    st->cap_l0 = pdir;
+    add_region(st, start_vaddr, 0xffffffffffff);
+    return SYS_ERR_OK;
 }
 
 /**
@@ -110,6 +109,7 @@ errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
+    paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
     return SYS_ERR_OK;
 }
 
@@ -130,7 +130,10 @@ errval_t paging_init(void)
     // avoid code duplication.
 
     // TODO check parameters
-    struct capref pdir;     // TODO find out where we get pdir from
+    struct capref pdir = (struct capref) {
+            .cnode = cnode_page,
+            .slot = 0,
+    };
     paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
     set_current_paging_state(&current);
 
@@ -452,11 +455,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 {
     assert(st != NULL);
     errval_t err;
-
-    // TODO(M2): Move this into the initialization function.
-    if (st->slot_alloc == NULL)
-        st->slot_alloc = get_default_slot_allocator();
-
 
     debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ...)\n", st, vaddr);
 
