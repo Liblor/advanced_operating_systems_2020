@@ -1,0 +1,9 @@
+include Makefile.include
+
+.PHONY: hake
+hake:
+	./tools/bfdocker.sh /source/hake/hake.sh -s /source/ -a armv8
+
+.PHONY: build
+build:
+	./tools/bfdocker.sh make -j7 imx8x
