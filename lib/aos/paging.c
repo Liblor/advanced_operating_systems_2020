@@ -339,7 +339,10 @@ static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype
     return err;
 }
 
+
 // create pd entry consisting of caps for mapping and child shadow page table
+// TODO: use this instead of paging_create_pd
+__attribute__((unused))
 static inline
 errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, collections_hash_table *parent_pt,
         struct capref *parent_cap, const uint16_t idx, struct pt_entry **lookup) {
