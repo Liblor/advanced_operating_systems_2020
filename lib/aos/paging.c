@@ -109,7 +109,7 @@ errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
-    paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
+    paging_init_state(st, VADDR_OFFSET, pdir, get_default_slot_allocator());
     return SYS_ERR_OK;
 }
 
@@ -121,7 +121,6 @@ errval_t paging_init(void)
 {
     debug_printf("paging_init\n");
 
-    // TODO (M2): Call paging_init_state for &current
     // TODO (M4): initialize self-paging handler
     // TIP: use thread_set_exception_handler() to setup a page fault handler
     // TIP: Think about the fact that later on, you'll have to make sure that
