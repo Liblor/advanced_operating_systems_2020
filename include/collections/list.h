@@ -45,6 +45,12 @@ typedef int32_t (*collections_list_predicate)(void *data, void *arg);
  */
 typedef void (*collections_release_data)(void *data);
 
+
+// generic functions for memory allocation/ free
+typedef void (* collections_memory_free)(void *);
+typedef void * (* collections_memory_alloc)(size_t);
+
+
 /*
  * structure of each element in the
  * linked list.
@@ -75,8 +81,10 @@ typedef struct _collections_header_data {
     // total number of elements.
     uint32_t                 size;
 
-    // comparison function provided by the user.
+
     collections_release_data data_free;
+    collections_memory_alloc memory_alloc;
+    collections_memory_free memory_free;
 
     // a pointer to keep track of
     // traversing the list.
@@ -90,6 +98,12 @@ typedef struct _collections_header_data {
 
 void      collections_list_create(collections_listnode **start,
                                   collections_release_data func);
+
+void      collections_list_create_with_memory_func(collections_listnode **start,
+                                                   collections_release_data release_func, collections_memory_alloc mem_alloc,
+                                                   collections_memory_free mem_free);
+
+
 void      collections_list_release(collections_listnode *start);
 int32_t   collections_list_insert(collections_listnode *start, void *data);
 int32_t   collections_list_insert_tail(collections_listnode *start, void *data);
