@@ -496,12 +496,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         debug_printf("paging_create_pd failed: %s\n", err_getstring(err));
         return err;
     }
-//
-//    for (int i = 0; i < pte_count; i++) {
-//        if (st->is_mapped[l2_idx][l3_idx + i])
-//            return LIB_ERR_PAGING_ADDR_ALREADY_MAPPED;
-//    }
-
 
     assert(l3entry->entries[VMSAv8_64_L3_INDEX(vaddr)] == NULL);
 
