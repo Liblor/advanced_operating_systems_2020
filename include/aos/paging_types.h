@@ -53,11 +53,6 @@
 typedef int paging_flags_t;
 
 
-enum nodetype {
-    NodeType_Free,      ///< This region exists and is free
-    NodeType_Allocated  ///< This region exists and is allocated
-};
-
 struct paging_region {
     lvaddr_t base_addr;
     // TODO: investigate
@@ -66,9 +61,6 @@ struct paging_region {
     paging_flags_t flags;
     struct capref cap;
     struct capref cap_mapping;
-    struct paging_region *next;
-    struct paging_region *prev;
-    enum nodetype type;
     // TODO: if needed add struct members for tracking state
 };
 
@@ -89,8 +81,8 @@ struct pt_l3_entry {
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
-    struct paging_region *head;
-    struct paging_region *tail;
+    struct vaddr_region *head;
+    struct vaddr_region *tail;
     struct capref cap_l0;
     collections_hash_table *l0pt;
 };
