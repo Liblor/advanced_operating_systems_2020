@@ -86,7 +86,7 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     st->cap_l0 = cap_l0;
     slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
     slab_grow(&st->slabs, st->buf, sizeof(st->buf));
-    add_region(st, start_vaddr, 0xffffffffffff, NULL);
+    add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
     return SYS_ERR_OK;
 }
 
