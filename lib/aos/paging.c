@@ -165,6 +165,9 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
     //will return non-overlapping regions.
     struct vaddr_region *ret;
     errval_t err = alloc_vaddr_region(st, pr->base_addr, size, &ret);
+    if (err_is_fail(err)) {
+        return err;
+    }
     ret->region = pr;
     return SYS_ERR_OK;
 }
