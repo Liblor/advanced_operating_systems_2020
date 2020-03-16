@@ -75,7 +75,6 @@ struct pt_entry {
 struct pt_l3_entry {
     struct capref cap;
     struct capref cap_mapping;
-
     struct paging_region *entries[PTABLE_ENTRIES];
 };
 

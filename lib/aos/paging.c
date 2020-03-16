@@ -136,7 +136,7 @@ errval_t paging_init(void)
     };
     paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
     set_current_paging_state(&current);
-
+    debug_printf("end paging init\n");
     return SYS_ERR_OK;
 }
 
