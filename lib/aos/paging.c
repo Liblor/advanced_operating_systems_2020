@@ -87,34 +87,32 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
     slab_grow(&st->slabs, st->buf, sizeof(st->buf));
 
-    slab_init(&st->slabs_hashmap, PAGING_HASHMAP_SLAB_SIZE, slab_default_refill);
-    slab_grow(&st->slabs_hashmap, st->slab_buf_hashmap, sizeof(st->slab_buf_hashmap));
+    slab_init(&st->slab_paging, PAGING_HASHMAP_SLAB_SIZE, slab_default_refill);
+    slab_grow(&st->slab_paging, st->slab_paging_buf, sizeof(st->slab_paging_buf));
 
     add_region(st, start_vaddr, 0xffffffffffff, NULL);
     return SYS_ERR_OK;
 }
 
-// function is called from within hashmap to allocate new memory
 __attribute__((__unused__)) static
-void* hashtable_alloc(size_t size) {
+void* paging_slab_alloc(size_t size) {
     struct paging_state *st = get_current_paging_state();
-    assert(size <= st->slabs_hashmap.blocksize);
-    return slab_alloc(&st->slabs_hashmap);
+    assert(size <= st->slab_paging.blocksize);
+    return slab_alloc(&st->slab_paging);
 }
 
-// function is called from within hashmap to free memory
 __attribute__((__unused__))
 static
-void hashtable_free(void* ptr) {
+void paging_slab_free(void* ptr) {
     struct paging_state *st = get_current_paging_state();
-    return slab_free(&st->slabs_hashmap, ptr);
+    return slab_free(&st->slab_paging, ptr);
 }
 
 __attribute__((__unused__))
 static inline
 void create_hashtable(collections_hash_table **hashmap) {
-    collections_hash_create_with_buckets_and_memory_functions(hashmap, PAGING_HASHMAP_BUCKETS, NULL, hashtable_alloc,
-                                                              hashtable_free);
+    collections_hash_create_with_buckets_and_memory_functions(hashmap, PAGING_HASHMAP_BUCKETS, NULL,
+            paging_slab_alloc, paging_slab_free);
 }
 
 /**
@@ -380,7 +378,7 @@ errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, col
 
     struct pt_entry *entry = collections_hash_find(parent_pt, idx);
     if (entry == NULL) {
-        entry = malloc(sizeof(struct pt_entry));
+        entry = paging_slab_alloc(sizeof(struct pt_entry));
         if (entry == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -422,7 +420,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
     struct pt_entry *l0entry = collections_hash_find(st->l0pt, l0_idx);
     if (l0entry == NULL) {
-        l0entry = malloc(sizeof(struct pt_entry));
+        l0entry = paging_slab_alloc(sizeof(struct pt_entry));
         if (l0entry == NULL) {
             // TODO: do we recover from alloc errors with free of resources?
             return LIB_ERR_MALLOC_FAIL;
@@ -445,7 +443,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     const uint16_t l1_idx = VMSAv8_64_L1_INDEX(vaddr);
     struct pt_entry *l1entry = collections_hash_find(l0entry->pt, l1_idx);
     if (l1entry == NULL) {
-        l1entry = malloc(sizeof(struct pt_entry));
+        l1entry = paging_slab_alloc(sizeof(struct pt_entry));
         if (l1entry == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -467,7 +465,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
     struct pt_entry *l2entry = collections_hash_find(l1entry->pt, l2_idx);
     if (l2entry == NULL) {
-        l2entry = malloc(sizeof(struct pt_entry));
+        l2entry = paging_slab_alloc(sizeof(struct pt_entry));
         if (l2entry == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -488,7 +486,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
     *l3entry = collections_hash_find(l2entry->pt, l3_idx);
     if (*l3entry == NULL) {
-        *l3entry = malloc(sizeof(struct pt_l3_entry));
+        *l3entry = paging_slab_alloc(sizeof(struct pt_l3_entry));
         if (*l3entry == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -531,7 +529,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
     assert(l3entry->entries[l3_idx] == NULL);
 
-    struct paging_region *paging_region = malloc(sizeof(struct paging_region));
+    struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
     if (paging_region == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
