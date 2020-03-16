@@ -16,6 +16,7 @@
 #define PAGING_TYPES_H_ 1
 
 #include <aos/slab.h>
+#include <aos/vaddr_regions.h>
 #include <aos/solution.h>
 #include <collections/hash_table.h>
 
@@ -81,10 +82,12 @@ struct pt_l3_entry {
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
+    struct slab_allocator slabs;
     struct vaddr_region *head;
     struct vaddr_region *tail;
     struct capref cap_l0;
     struct _collections_hash_table *l0pt;
+    char buf[64*sizeof(struct vaddr_region)];
 };
 
 
