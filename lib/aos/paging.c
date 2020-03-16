@@ -94,26 +94,36 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
 
     debug_printf("add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);\n");
     add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
+    debug_printf("###bean: &st->slab_paging: %p\n", &st->slab_paging);
+    debug_printf("###bean: &st->slabs: %p\n", &st->slabs);
     return SYS_ERR_OK;
 }
 
 __attribute__((__unused__)) static
 void* paging_slab_alloc(size_t size) {
-//    DEBUG_BEGIN;
-//    struct paging_state *st = get_current_paging_state();
-//    assert(size <= st->slab_paging.blocksize);
-//    void *ptr = slab_alloc(&st->slab_paging);
-//    slab_ensure_threshold(&st->slab_paging, 10);
-    return malloc(size);
+    debug_printf("%d\n", size);
+    debug_printf("A\n");
+    struct paging_state *st = get_current_paging_state();
+    debug_printf("B\n");
+    debug_printf("B\n");
+    assert(size <= st->slab_paging.blocksize);
+    debug_printf("C:\n");
+
+    slab_ensure_threshold(&st->slab_paging, 30);
+    void *ptr = slab_alloc(&st->slab_paging);
+    debug_printf("D\n");
+    debug_printf("return\n");
+    return ptr;
+//    return malloc(size);
 }
 
 __attribute__((__unused__))
 static
 void paging_slab_free(void* ptr) {
-//    DEBUG_BEGIN;
-//    struct paging_state *st = get_current_paging_state();
-//    return slab_free(&st->slab_paging, ptr);
-    free(ptr);
+    DEBUG_BEGIN;
+    struct paging_state *st = get_current_paging_state();
+    return slab_free(&st->slab_paging, ptr);
+//    free(ptr);
 }
 
 __attribute__((__unused__))
@@ -360,6 +370,7 @@ static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype
         struct capref *ret, const uint16_t index, struct capref *mapping)
 {
     DEBUG_BEGIN;
+    debug_printf("paging_create vnode for type: %d\n", type);
     errval_t err;
     const int flags = VREGION_FLAGS_READ_WRITE;
 

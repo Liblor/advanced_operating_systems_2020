@@ -90,24 +90,30 @@ void *slab_alloc(struct slab_allocator *slabs)
     /* find a slab with free blocks */
     struct slab_head *sh;
     for (sh = slabs->slabs; sh != NULL && sh->free == 0; sh = sh->next);
+    debug_printf("slabs: %p, refillfunc: %p, is refilling: %d, free: %d\n,",
+            slabs, slabs->refill_func, slabs->is_refilling, slab_freecount(slabs));
+
 
     if (sh == NULL) {
         /* out of memory. try refill function if we have one */
         if (!slabs->refill_func) {
             return NULL;
         } else {
+//            debug_printf("2\n");
             err = slabs->refill_func(slabs);
             if (err_is_fail(err)) {
                 DEBUG_ERR(err, "slab refill_func failed");
                 return NULL;
             }
+            debug_printf("3\n");
             for (sh = slabs->slabs; sh != NULL && sh->free == 0; sh = sh->next);
+            debug_printf("4\n");
             if (sh == NULL) {
                 return NULL;
             }
         }
     }
-
+    debug_printf("5\n");
     /* dequeue top block from freelist */
     assert(sh != NULL);
     struct block_head *bh = sh->blocks;
@@ -180,6 +186,7 @@ size_t slab_freecount(struct slab_allocator *slabs)
  */
 static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
 {
+    DEBUG_BEGIN;
     errval_t err;
     struct capref frame_cap;
 

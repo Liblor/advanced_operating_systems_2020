@@ -69,6 +69,7 @@ void mm_print_state(struct mm *mm) {
 
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
 {
+    DEBUG_BEGIN;
     assert(mm != NULL);
 
     errval_t err;
@@ -109,6 +110,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
 
 errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct capref *retcap)
 {
+    DEBUG_BEGIN;
     assert(mm != NULL);
 
     errval_t err;
@@ -231,6 +233,7 @@ errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap)
 
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size)
 {
+    DEBUG_BEGIN;
     assert(mm != NULL);
 
     errval_t err;
