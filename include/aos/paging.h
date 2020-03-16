@@ -28,7 +28,7 @@ struct paging_region;
 
 struct thread;
 errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
-        struct capref pdir, struct slot_allocator * ca);
+                           struct capref cap_l0, struct slot_allocator * ca);
 errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr,
         struct capref pdir, struct slot_allocator * ca);
 /// initialize self-paging module
