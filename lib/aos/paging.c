@@ -112,11 +112,9 @@ void hashtable_free(void* ptr) {
 
 __attribute__((__unused__))
 static inline
-void init_hashtable(struct paging_state *st, collections_hash_table **hashmap) {
-
-//    collections_hash_create_with_buckets_and_memory_functions(hashmap, init_buckets, NULL, hashtable_alloc,
-//                                                              hashtable_free);
-
+void create_hashtable(collections_hash_table **hashmap) {
+    collections_hash_create_with_buckets_and_memory_functions(hashmap, PAGING_HASHMAP_BUCKETS, NULL, hashtable_alloc,
+                                                              hashtable_free);
 }
 
 /**
@@ -379,7 +377,6 @@ static inline
 errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, collections_hash_table *parent_pt,
         struct capref *parent_cap, const uint16_t idx, struct pt_entry **lookup) {
     errval_t err;
-    const uint64_t hashmap_buckets = 1024; // TODO decide on bucket size
 
     struct pt_entry *entry = collections_hash_find(parent_pt, idx);
     if (entry == NULL) {
@@ -388,7 +385,7 @@ errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, col
             return LIB_ERR_MALLOC_FAIL;
         }
         collections_hash_table **entry_pt = &entry->pt;
-        collections_hash_create_with_buckets(entry_pt, hashmap_buckets, NULL);
+        create_hashtable(entry_pt);
         if (*entry_pt == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
