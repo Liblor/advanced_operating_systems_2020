@@ -4,8 +4,8 @@
  */
 
 #include <aos/aos.h>
-#include <aos/vaddr_regions.h>
 #include <aos/paging_types.h>
+#include <aos/vaddr_regions.h>
 #include <aos/debug.h>
 
 
@@ -115,6 +115,7 @@ static inline bool is_region_free(struct vaddr_region *region, gensize_t size, g
 
 
 errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size, struct paging_region *paging_region) {
+    slab_ensure_threshold(&st->slabs, 10);
     struct vaddr_region *region;
     errval_t err = create_new_region(st, &region, base, size, paging_region, NodeType_Free);
     if (err_is_fail(err)) { return err; }
