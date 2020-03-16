@@ -161,8 +161,11 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
     pr->region_size = size;
     pr->flags = flags;
 
-    //TODO(M2): Add the region to a datastructure and ensure paging_alloc
+    //Add the region to a datastructure and ensure paging_alloc
     //will return non-overlapping regions.
+    struct vaddr_region *ret;
+    errval_t err = alloc_vaddr_region(st, pr->base_addr, size, &ret);
+    ret->region = pr;
     return SYS_ERR_OK;
 }
 
