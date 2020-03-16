@@ -19,6 +19,7 @@
 //#include <aos/vaddr_regions.h>
 #include <aos/solution.h>
 #include <collections/hash_table.h>
+#include <collections/list.h>
 
 #define MCN_COUNT DIVIDE_ROUND_UP(PTABLE_ENTRIES, L2_CNODE_SLOTS)
 
@@ -79,21 +80,24 @@ struct pt_l3_entry {
 };
 
 #define PAGING_HASHMAP_BUCKETS 1024
-#define PAGING_HASHMAP_SLAB_SIZE \
-   (MAX(sizeof(collections_hash_table), \
-    MAX((sizeof(collections_listnode *) * PAGING_HASHMAP_BUCKETS), \
-    MAX(sizeof(collections_hash_elem), \
-    MAX(sizeof(collections_hash_elem), \
-    MAX(sizeof(collections_listnode), \
-    sizeof(collections_header_data)))))))
+#define PAGING_HASHMAP_SLAB_SIZE (24 * PAGING_HASHMAP_BUCKETS)
+
+// TODO: this does not compile, fix sizeof() to get more accurate number
+/*MAX(sizeof(struct _collections_hash_table), \
+   (MAX((sizeof(struct _collections_listnode *) * PAGING_HASHMAP_BUCKETS), \
+   (MAX(sizeof(struct _collections_hash_elem), \
+   (MAX(sizeof(struct _collections_listnode), \
+        sizeof(struct _collections_header_data))))))))
+*/
 
 // TODO: we currently only have one slab allocator
 // for all chunks of memory requested by paging.
 // Split it into multiple to decrease internal fragmentation
+
 #define PAGING_MEM_SLAB_BLOCKSIZE \
     (MAX(sizeof(struct paging_region), \
-    MAX(sizeof(struct pt_entry), \
-    MAX(sizeof(struct pt_l3_entry), PAGING_HASHMAP_SLAB_SIZE))))
+    (MAX(sizeof(struct pt_entry), \
+    (MAX(sizeof(struct pt_l3_entry), (PAGING_HASHMAP_SLAB_SIZE)))))))
 
 // struct to store the paging status of a process
 struct paging_state {

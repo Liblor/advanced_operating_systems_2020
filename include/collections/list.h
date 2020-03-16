@@ -55,9 +55,7 @@ typedef void * (* collections_memory_alloc)(size_t);
  * structure of each element in the
  * linked list.
  */
-struct          _collections_listnode;
-
-typedef struct	_collections_listnode {
+struct	_collections_listnode {
     //
     // pointer to the previous node.
     //
@@ -72,12 +70,14 @@ typedef struct	_collections_listnode {
     // an abstract data value to store.
     //
     void                         *data;
-} collections_listnode;
+};
+
+typedef struct _collections_listnode collections_listnode;
 
 /*
  * a header to the linked list
  */
-typedef struct _collections_header_data {
+struct _collections_header_data {
     // total number of elements.
     uint32_t                 size;
 
@@ -89,8 +89,9 @@ typedef struct _collections_header_data {
     // a pointer to keep track of
     // traversing the list.
     collections_listnode    *cur_item;
-} collections_header_data;
+};
 
+typedef struct _collections_header_data collections_header_data;
 
 /*
  * functions ...

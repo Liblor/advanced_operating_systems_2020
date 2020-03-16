@@ -98,7 +98,9 @@ __attribute__((__unused__)) static
 void* paging_slab_alloc(size_t size) {
     struct paging_state *st = get_current_paging_state();
     assert(size <= st->slab_paging.blocksize);
-    return slab_alloc(&st->slab_paging);
+    void *ptr = slab_alloc(&st->slab_paging);
+    slab_ensure_threshold(&st->slab_paging, 10);
+    return ptr;
 }
 
 __attribute__((__unused__))
@@ -407,8 +409,6 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     assert(st != NULL);
     errval_t err;
 
-    const uint64_t hashmap_buckets = 1024; // TODO decide on bucket size
-
     if (st->l0pt == NULL) {
         create_hashtable(&st->l0pt);
         if (st->l0pt == NULL ) {
@@ -416,6 +416,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         }
     }
 
+    // TODO: use paging_create_pd_entry instead
     // mapping l0 -> l1
     const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
     struct pt_entry *l0entry = collections_hash_find(st->l0pt, l0_idx);
