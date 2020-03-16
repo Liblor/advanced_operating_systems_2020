@@ -519,6 +519,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     }
 
     // TODO: cover case to create multiple l3 mappings
+    // TODO: offset != 0? possible
     uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
     err = vnode_map(paging_region->cap, frame, l3_idx, flags, 0, pte_count, paging_region->cap_mapping);
     if (err_is_fail(err)) {

@@ -18,7 +18,6 @@ struct vaddr_region {
     struct paging_region *region;
 };
 
-
 errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size, struct paging_region *paging_region);
 errval_t alloc_vaddr_region(struct paging_state *st, lvaddr_t addr, size_t size, struct vaddr_region **ret);
 errval_t free_region(struct paging_state *st, struct vaddr_region *region);
