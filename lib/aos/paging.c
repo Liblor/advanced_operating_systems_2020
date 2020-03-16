@@ -14,7 +14,7 @@
 
 #include <aos/aos.h>
 #include <aos/paging.h>
-#include <aos/paging_regions.h>
+#include <aos/vaddr_regions.h>
 #include <aos/except.h>
 #include <aos/slab.h>
 #include "threads_priv.h"

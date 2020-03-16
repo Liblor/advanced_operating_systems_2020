@@ -4,7 +4,7 @@
  */
 
 #include <aos/aos.h>
-#include <aos/paging_regions.h>
+#include <aos/vaddr_regions.h>
 #include <aos/paging_types.h>
 #include <aos/debug.h>
 
