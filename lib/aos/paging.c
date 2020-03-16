@@ -334,8 +334,39 @@ static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype
     return err;
 }
 
+// create pd entry consisting of caps for mapping and child shadow page table
+static inline
+errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, collections_hash_table *parent_pt,
+        struct capref *parent_cap, const uint16_t idx, struct pt_entry **lookup) {
+    errval_t err;
+    const uint64_t hashmap_buckets = 1024; // TODO decide on bucket size
+
+    struct pt_entry *entry = collections_hash_find(parent_pt, idx);
+    if (entry == NULL) {
+        entry = malloc(sizeof(struct pt_entry));
+        if (entry == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        collections_hash_table **entry_pt = &entry->pt;
+        collections_hash_create_with_buckets(entry_pt, hashmap_buckets, NULL);
+        if (*entry_pt == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        err = paging_create_vnode(st, type, parent_cap, &entry->cap,
+                                  idx, &entry->cap_mapping);
+        if (err_is_fail(err)) {
+            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+            return err;
+        }
+        collections_hash_insert(*entry_pt, idx, entry);
+    }
+    *lookup = entry;
+    return SYS_ERR_OK;
+}
+
+
+
 // create paging directory
-// TODO: capref_is_null
 static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l3_entry **l3entry)
 {
     assert(st != NULL);
