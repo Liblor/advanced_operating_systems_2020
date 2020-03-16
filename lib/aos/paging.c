@@ -33,6 +33,7 @@ static struct paging_state current;
 static errval_t pt_alloc(struct paging_state * st, enum objtype type,
                          struct capref *ret)
 {
+    DEBUG_BEGIN;
     errval_t err;
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
     if (err_is_fail(err)) {
@@ -80,6 +81,7 @@ __attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, st
 errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
                            struct capref cap_l0, struct slot_allocator *ca)
 {
+    DEBUG_BEGIN;
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
     st->slot_alloc = ca;
@@ -97,6 +99,7 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
 
 __attribute__((__unused__)) static
 void* paging_slab_alloc(size_t size) {
+//    DEBUG_BEGIN;
 //    struct paging_state *st = get_current_paging_state();
 //    assert(size <= st->slab_paging.blocksize);
 //    void *ptr = slab_alloc(&st->slab_paging);
@@ -107,6 +110,7 @@ void* paging_slab_alloc(size_t size) {
 __attribute__((__unused__))
 static
 void paging_slab_free(void* ptr) {
+//    DEBUG_BEGIN;
 //    struct paging_state *st = get_current_paging_state();
 //    return slab_free(&st->slab_paging, ptr);
     free(ptr);
@@ -136,6 +140,7 @@ void create_hashtable(collections_hash_table **hashmap) {
 errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr,
                                    struct capref cap_l0, struct slot_allocator *ca)
 {
+    DEBUG_BEGIN;
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
@@ -149,6 +154,7 @@ errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr
  */
 errval_t paging_init(void)
 {
+    DEBUG_BEGIN;
     debug_printf("paging_init\n");
 
     // TODO (M4): initialize self-paging handler
@@ -175,6 +181,7 @@ errval_t paging_init(void)
  */
 void paging_init_onthread(struct thread *t)
 {
+    DEBUG_BEGIN;
     // TODO (M4): setup exception handler for thread `t'.
 }
 
@@ -185,6 +192,7 @@ void paging_init_onthread(struct thread *t)
 errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region *pr,
                                   lvaddr_t base, size_t size, paging_flags_t flags)
 {
+    DEBUG_BEGIN;
     pr->base_addr = (lvaddr_t)base;
     pr->current_addr = pr->base_addr;
     pr->region_size = size;
@@ -211,6 +219,7 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
 errval_t paging_region_init_aligned(struct paging_state *st, struct paging_region *pr,
                                     size_t size, size_t alignment, paging_flags_t flags)
 {
+    DEBUG_BEGIN;
     void *base;
     errval_t err = paging_alloc(st, &base, size, alignment);
     if (err_is_fail(err)) {
@@ -242,6 +251,7 @@ errval_t paging_region_init(struct paging_state *st, struct paging_region *pr,
 errval_t paging_region_map(struct paging_region *pr, size_t req_size, void **retbuf,
                            size_t *ret_size)
 {
+    DEBUG_BEGIN;
     lvaddr_t end_addr = pr->base_addr + pr->region_size;
     ssize_t rem = end_addr - pr->current_addr;
     if (rem > req_size) {
@@ -291,6 +301,7 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
  */
 errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t alignment)
 {
+    DEBUG_BEGIN;
     /**
      * TODO(M2): Implement this function
      * \brief Find a bit of free virtual address space that is large enough to
@@ -324,6 +335,7 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
 errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes,
                                struct capref frame, int flags, void *arg1, void *arg2)
 {
+    DEBUG_BEGIN;
 
     // TODO(M2): Implement me (done, remove todo after review)
     // - Call paging_alloc to get a free virtual address region of the requested size
@@ -339,6 +351,7 @@ errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes
 errval_t slab_refill_no_pagefault(struct slab_allocator *slabs, struct capref frame,
                                   size_t minbytes)
 {
+    DEBUG_BEGIN;
     // Refill the two-level slot allocator without causing a page-fault
     return SYS_ERR_OK;
 }
@@ -346,6 +359,7 @@ errval_t slab_refill_no_pagefault(struct slab_allocator *slabs, struct capref fr
 static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype type, struct capref *parent,
         struct capref *ret, const uint16_t index, struct capref *mapping)
 {
+    DEBUG_BEGIN;
     errval_t err;
     const int flags = VREGION_FLAGS_READ_WRITE;
 
@@ -383,6 +397,7 @@ errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, col
         struct capref *parent_cap, const uint16_t idx, struct pt_entry **lookup) {
     errval_t err;
 
+    DEBUG_BEGIN;
     struct pt_entry *entry = collections_hash_find(parent_pt, idx);
     if (entry == NULL) {
         entry = paging_slab_alloc(sizeof(struct pt_entry));
@@ -406,11 +421,10 @@ errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, col
     return SYS_ERR_OK;
 }
 
-
-
 // create paging directory
 static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l3_entry **l3entry)
 {
+    DEBUG_BEGIN;
     assert(st != NULL);
     errval_t err;
 
@@ -509,6 +523,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
+    DEBUG_BEGIN;
     assert(st != NULL);
     errval_t err;
 
