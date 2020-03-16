@@ -327,6 +327,7 @@ static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype
     return SYS_ERR_OK;
 }
 
+// create paging directory
 static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l3_entry **l3entry)
 {
     assert(st != NULL);
@@ -453,6 +454,11 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     assert(st != NULL);
     errval_t err;
 
+    // TODO(M2): Move this into the initialization function.
+    if (st->slot_alloc == NULL)
+        st->slot_alloc = get_default_slot_allocator();
+
+
     debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ...)\n", st, vaddr);
 
     if (bytes == 0) {
@@ -465,33 +471,24 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     err = alloc_region(st, vaddr, bytes, region);
     if (err_is_fail(err)) { return err; }
 
-    // TODO(M2) reimplement from here
-
-
-//    // TODO(M2): For M1 we could assume that the frame will always fit into L3.
-//    if ((l3_idx + pte_count) > PTABLE_ENTRIES)
-//        return LIB_ERR_PAGING_SIZE_INVALID;
-
     struct capref l3pd;
 
-    // TODO(M2): Move this into the initialization function.
-    if (st->slot_alloc == NULL)
-        st->slot_alloc = get_default_slot_allocator();
-
-    err = paging_create_pd(st, vaddr, &l3pd);
-
+    struct pt_l3_entry *l3entry;
+    err = paging_create_pd(st, vaddr, &l3entry);
     if (err_is_fail(err)) {
-        debug_printf("paging_prepare_l1l2 failed: %s\n", err_getstring(err));
+        debug_printf("paging_create_pd failed: %s\n", err_getstring(err));
         return err;
     }
+//
+//    for (int i = 0; i < pte_count; i++) {
+//        if (st->is_mapped[l2_idx][l3_idx + i])
+//            return LIB_ERR_PAGING_ADDR_ALREADY_MAPPED;
+//    }
 
-    for (int i = 0; i < pte_count; i++) {
-        if (st->is_mapped[l2_idx][l3_idx + i])
-            return LIB_ERR_PAGING_ADDR_ALREADY_MAPPED;
-    }
+
+    assert(l3entry->entries[VMSAv8_64_L3_INDEX(vaddr)] == NULL);
 
     struct capref mapping;
-
     err = st->slot_alloc->alloc(st->slot_alloc, &mapping);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc failed: %s\n", err_getstring(err));
