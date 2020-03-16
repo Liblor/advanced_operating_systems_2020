@@ -90,24 +90,26 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     slab_init(&st->slab_paging, PAGING_HASHMAP_SLAB_SIZE, slab_default_refill);
     slab_grow(&st->slab_paging, st->slab_paging_buf, sizeof(st->slab_paging_buf));
 
+    debug_printf("add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);\n");
     add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
     return SYS_ERR_OK;
 }
 
 __attribute__((__unused__)) static
 void* paging_slab_alloc(size_t size) {
-    struct paging_state *st = get_current_paging_state();
-    assert(size <= st->slab_paging.blocksize);
-    void *ptr = slab_alloc(&st->slab_paging);
-    slab_ensure_threshold(&st->slab_paging, 10);
-    return ptr;
+//    struct paging_state *st = get_current_paging_state();
+//    assert(size <= st->slab_paging.blocksize);
+//    void *ptr = slab_alloc(&st->slab_paging);
+//    slab_ensure_threshold(&st->slab_paging, 10);
+    return malloc(size);
 }
 
 __attribute__((__unused__))
 static
 void paging_slab_free(void* ptr) {
-    struct paging_state *st = get_current_paging_state();
-    return slab_free(&st->slab_paging, ptr);
+//    struct paging_state *st = get_current_paging_state();
+//    return slab_free(&st->slab_paging, ptr);
+    free(ptr);
 }
 
 __attribute__((__unused__))
@@ -191,10 +193,13 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
     //Add the region to a datastructure and ensure paging_alloc
     //will return non-overlapping regions.
     struct vaddr_region *ret;
+    debug_printf("base_addr: %p, start vaddr: %p, size %d\n");
     errval_t err = alloc_vaddr_region(st, pr->base_addr, size, &ret);
+    debug_printf("alloc_vaddr_region\n");
     if (err_is_fail(err)) {
         return err;
     }
+    debug_printf("alloc_vaddr_region ok\n");
     ret->region = pr;
     return SYS_ERR_OK;
 }
