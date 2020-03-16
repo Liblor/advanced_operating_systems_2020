@@ -16,6 +16,7 @@ static inline errval_t create_new_region(struct paging_state *st,
                                          struct paging_region *paging_region,
                                          enum nodetype type) {
     assert(st->slabs.blocksize >= sizeof(struct vaddr_region));
+    slab_ensure_threshold(&st->slabs, 10);
     void *block = slab_alloc(&st->slabs);
     if (block == NULL) { return LIB_ERR_SLAB_ALLOC_FAIL; }
 
@@ -115,7 +116,6 @@ static inline bool is_region_free(struct vaddr_region *region, gensize_t size, g
 
 
 errval_t add_region(struct paging_state *st, lvaddr_t base, size_t size, struct paging_region *paging_region) {
-    slab_ensure_threshold(&st->slabs, 10);
     struct vaddr_region *region;
     errval_t err = create_new_region(st, &region, base, size, paging_region, NodeType_Free);
     if (err_is_fail(err)) { return err; }
