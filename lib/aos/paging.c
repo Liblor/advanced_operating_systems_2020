@@ -312,47 +312,57 @@ static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype
     err = pt_alloc(st, type, ret);
     if (err_is_fail(err)) {
         debug_printf("pt_alloc failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_VNODE_CREATE);
+        err_push(err, LIB_ERR_VNODE_CREATE);
+        goto error_cleanup;
     }
     err = st->slot_alloc->alloc(st->slot_alloc, mapping);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc failed: %s\n", err_getstring(err));
-        return err;
+        goto error_cleanup;
     }
     err = vnode_map(*parent, *ret, index, flags, 0, 1, *mapping);
     if (err_is_fail(err)) {
         debug_printf("vnode_map failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_VNODE_MAP);
+        err_push(err, LIB_ERR_VNODE_MAP);
+        goto error_cleanup;
     }
     return SYS_ERR_OK;
+
+    error_cleanup:
+    st->slot_alloc->free(st->slot_alloc, *ret);
+    st->slot_alloc->free(st->slot_alloc, *mapping);
+    return err;
 }
 
 // create paging directory
+// TODO: capref_is_null
 static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l3_entry **l3entry)
 {
     assert(st != NULL);
-
     errval_t err;
 
-    const uint64_t buckets = 1024; // TODO
+    const uint64_t hashmap_buckets = 1024; // TODO decide on bucket size
+
     if (st->l0pt == NULL) {
-        collections_hash_create_with_buckets(&st->l0pt, buckets, NULL);
+        collections_hash_create_with_buckets(&st->l0pt, hashmap_buckets, NULL);
         if (st->l0pt == NULL ) {
-            // TODO error
+            return LIB_ERR_MALLOC_FAIL;
         }
     }
 
+    // mapping l0 -> l1
     const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
     struct pt_entry *l0entry = collections_hash_find(st->l0pt, l0_idx);
     if (l0entry == NULL) {
         l0entry = malloc(sizeof(struct pt_entry));
         if (l0entry == NULL) {
-            // TODO error
+            // TODO: do we recover from alloc errors with free of resources?
+            return LIB_ERR_MALLOC_FAIL;
         }
         collections_hash_table **l1pt = &l0entry->pt;
-        collections_hash_create_with_buckets(l1pt, buckets, NULL);
+        collections_hash_create_with_buckets(l1pt, hashmap_buckets, NULL);
         if (*l1pt == NULL) {
-            // TODO error
+            return LIB_ERR_MALLOC_FAIL;
         }
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l1, &st->cap_l0, &l0entry->cap,
                 l0_idx, &l0entry->cap_mapping);
@@ -363,17 +373,18 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         collections_hash_insert(*l1pt, l0_idx, l0entry);
     }
 
+    // mapping l1 -> l2
     const uint16_t l1_idx = VMSAv8_64_L1_INDEX(vaddr);
     struct pt_entry *l1entry = collections_hash_find(l0entry->pt, l1_idx);
     if (l1entry == NULL) {
         l1entry = malloc(sizeof(struct pt_entry));
         if (l1entry == NULL) {
-            // TODO error
+            return LIB_ERR_MALLOC_FAIL;
         }
         collections_hash_table **l2pt = &l1entry->pt;
-        collections_hash_create_with_buckets(&l0entry->pt, buckets, NULL);
+        collections_hash_create_with_buckets(&l0entry->pt, hashmap_buckets, NULL);
         if (*l2pt == NULL) {
-            // TODO error
+            return LIB_ERR_MALLOC_FAIL;
         }
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &l0entry->cap, &l1entry->cap,
                                   l1_idx, &l1entry->cap_mapping);
@@ -384,17 +395,18 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         collections_hash_insert(*l2pt, l1_idx, l1entry);
     }
 
+    // mapping l2 -> l3
     const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
     struct pt_entry *l2entry = collections_hash_find(l1entry->pt, l2_idx);
     if (l2entry == NULL) {
         l2entry = malloc(sizeof(struct pt_entry));
         if (l2entry == NULL) {
-            // TODO error
+            return LIB_ERR_MALLOC_FAIL;
         }
         collections_hash_table **l3pt = &l2entry->pt;
-        collections_hash_create_with_buckets(l3pt, buckets, NULL);
+        collections_hash_create_with_buckets(l3pt, hashmap_buckets, NULL);
         if (*l3pt == NULL) {
-            // TODO error
+            return LIB_ERR_MALLOC_FAIL;
         }
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &l1entry->cap, &l2entry->cap,
                                   l2_idx, &l2entry->cap_mapping);
@@ -410,36 +422,10 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     if (*l3entry == NULL) {
         *l3entry = malloc(sizeof(struct pt_l3_entry));
         if (*l3entry == NULL) {
-            // TODO error
+            return LIB_ERR_MALLOC_FAIL;
         }
         memset(*l3entry, 0, sizeof(struct pt_l3_entry));
     }
-
-//    if (capref_is_null(st->l1pd)) {
-//
-//    }
-//
-//    assert(!capref_is_null(st->l1pd));
-//
-//    if (capref_is_null(st->l2pd)) {
-//        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &st->l1pd, &st->l2pd, l1_idx);
-//        if (err_is_fail(err)) {
-//            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
-//            return err;
-//        }
-//    }
-//
-//    assert(!capref_is_null(st->l2pd));
-//
-//    if (capref_is_null(st->l3pd[l2_idx])) {
-//        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &st->l2pd, &st->l3pd[l2_idx], l2_idx);
-//        if (err_is_fail(err)) {
-//            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
-//            return err;
-//        }
-//    }
-//
-//    *l3pd = st->l3pd[l2_idx];
     return SYS_ERR_OK;
 }
 
@@ -468,7 +454,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     }
 
     struct paging_region *region = NULL;
-    err = alloc_region(st, vaddr, bytes, region);
+    err = alloc_region(st, vaddr, bytes, &region);
     if (err_is_fail(err)) { return err; }
 
     struct capref l3pd;
