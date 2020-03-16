@@ -120,26 +120,31 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
     // Initialize ram_alloc state
     ram_alloc_init();
     /* All domains use smallcn to initialize */
+
+    debug_printf("err = ram_alloc_set(ram_alloc_fixed);\n");
     err = ram_alloc_set(ram_alloc_fixed);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_RAM_ALLOC_SET);
     }
-
+    debug_printf("err = paging_init();\n");
     err = paging_init();
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_VSPACE_INIT);
     }
 
+    debug_printf("err = slot_alloc_init();\n");
     err = slot_alloc_init();
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_SLOT_ALLOC_INIT);
     }
 
+    debug_printf("err = morecore_init(BASE_PAGE_SIZE);\n");
     err = morecore_init(BASE_PAGE_SIZE);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_MORECORE_INIT);
     }
 
+    debug_printf("lmp_endpoint_init();\n");
     lmp_endpoint_init();
 
     // HINT: Use init_domain to check if we are the init domain.
