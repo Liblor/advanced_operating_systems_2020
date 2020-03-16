@@ -412,7 +412,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     const uint64_t hashmap_buckets = 1024; // TODO decide on bucket size
 
     if (st->l0pt == NULL) {
-        collections_hash_create_with_buckets(&st->l0pt, hashmap_buckets, NULL);
+        create_hashtable(&st->l0pt);
         if (st->l0pt == NULL ) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -428,7 +428,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
             return LIB_ERR_MALLOC_FAIL;
         }
         collections_hash_table **l1pt = &l0entry->pt;
-        collections_hash_create_with_buckets(l1pt, hashmap_buckets, NULL);
+        create_hashtable(l1pt);
         if (*l1pt == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -450,7 +450,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
             return LIB_ERR_MALLOC_FAIL;
         }
         collections_hash_table **l2pt = &l1entry->pt;
-        collections_hash_create_with_buckets(&l0entry->pt, hashmap_buckets, NULL);
+        create_hashtable(&l0entry->pt);
         if (*l2pt == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -472,7 +472,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
             return LIB_ERR_MALLOC_FAIL;
         }
         collections_hash_table **l3pt = &l2entry->pt;
-        collections_hash_create_with_buckets(l3pt, hashmap_buckets, NULL);
+        create_hashtable(l3pt);
         if (*l3pt == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
