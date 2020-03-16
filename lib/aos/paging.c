@@ -327,7 +327,7 @@ static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype
     return SYS_ERR_OK;
 }
 
-static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct capref *l3pd)
+static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l3_entry **l3entry)
 {
     assert(st != NULL);
 
@@ -404,48 +404,41 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         collections_hash_insert(*l3pt, l2_idx, l2entry);
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    if (capref_is_null(st->l1pd)) {
-
-    }
-
-    assert(!capref_is_null(st->l1pd));
-
-    if (capref_is_null(st->l2pd)) {
-        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &st->l1pd, &st->l2pd, l1_idx);
-        if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
-            return err;
+    const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
+    *l3entry = collections_hash_find(l2entry->pt, l3_idx);
+    if (*l3entry == NULL) {
+        *l3entry = malloc(sizeof(struct pt_l3_entry));
+        if (*l3entry == NULL) {
+            // TODO error
         }
+        memset(*l3entry, 0, sizeof(struct pt_l3_entry));
     }
 
-    assert(!capref_is_null(st->l2pd));
-
-    if (capref_is_null(st->l3pd[l2_idx])) {
-        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &st->l2pd, &st->l3pd[l2_idx], l2_idx);
-        if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
-            return err;
-        }
-    }
-
-    *l3pd = st->l3pd[l2_idx];
-
+//    if (capref_is_null(st->l1pd)) {
+//
+//    }
+//
+//    assert(!capref_is_null(st->l1pd));
+//
+//    if (capref_is_null(st->l2pd)) {
+//        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &st->l1pd, &st->l2pd, l1_idx);
+//        if (err_is_fail(err)) {
+//            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+//            return err;
+//        }
+//    }
+//
+//    assert(!capref_is_null(st->l2pd));
+//
+//    if (capref_is_null(st->l3pd[l2_idx])) {
+//        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &st->l2pd, &st->l3pd[l2_idx], l2_idx);
+//        if (err_is_fail(err)) {
+//            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+//            return err;
+//        }
+//    }
+//
+//    *l3pd = st->l3pd[l2_idx];
     return SYS_ERR_OK;
 }
 
@@ -486,6 +479,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         st->slot_alloc = get_default_slot_allocator();
 
     err = paging_create_pd(st, vaddr, &l3pd);
+
     if (err_is_fail(err)) {
         debug_printf("paging_prepare_l1l2 failed: %s\n", err_getstring(err));
         return err;
