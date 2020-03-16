@@ -96,6 +96,7 @@ static inline bool is_in_free_region(struct vaddr_region *region, lvaddr_t addr,
     bool no_overflow = addr + size > addr;
     bool end = addr + size <= region->base_addr + region->size;
     bool is_free = region->type == NodeType_Free;
+    debug_printf("%i, %i, %i, %i\n", addr_start, no_overflow, end, is_free);
     return addr_start && no_overflow && end && is_free;
 }
 
@@ -108,7 +109,6 @@ static inline bool is_region_free(struct vaddr_region *region, gensize_t size, g
     bool no_overflow = aligned_base >= region->base_addr;
     bool in_range = region->base_addr + region->size > aligned_base;
     bool enough_space = region->size - (aligned_base - region->base_addr) >= size;
-
     return region->type == NodeType_Free && no_overflow && in_range && enough_space;
 }
 
@@ -138,7 +138,7 @@ errval_t alloc_vaddr_region(struct paging_state *st, lvaddr_t addr, size_t size,
     errval_t err;
     *ret = NULL;
     struct vaddr_region *curr = st->head;
-    while (curr != NULL && is_in_free_region(curr, addr, size)) { curr = curr->next; }
+    while (curr != NULL && !is_in_free_region(curr, addr, size)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_OUT_OF_VIRTUAL_ADDR; }
 
     if (addr == curr->base_addr) {
