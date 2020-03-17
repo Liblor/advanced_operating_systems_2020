@@ -450,7 +450,9 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     // mapping l0 -> l1
     debug_printf("// mapping l0 -> l1\n");
     const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
+    debug_printf("// l0_idx: %d \n", l0_idx);
     struct pt_entry *l0entry = collections_hash_find(st->l0pt, l0_idx);
+    debug_printf("// found?: %d \n", l0entry);
     if (l0entry == NULL) {
         debug_printf("l0entry = paging_slab_alloc(sizeof(struct pt_entry));");
         l0entry = paging_slab_alloc(sizeof(struct pt_entry));
@@ -469,7 +471,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
             debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
             return err;
         }
-        collections_hash_insert(*l1pt, l0_idx, l0entry);
+        collections_hash_insert(st->l0pt, l0_idx, l0entry);
     }
 
     // mapping l1 -> l2
