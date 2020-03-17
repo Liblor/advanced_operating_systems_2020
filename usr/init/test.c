@@ -214,15 +214,15 @@ static bool test_paging_multiple(const lvaddr_t base, lvaddr_t *newbase, const i
     return true;
 }
 
-void test_paging_bean(void) {
-        debug_printf("test_paging_bean");
-        print_test_begin("test_paging_bean");
+void test_paging_multi_pagetable(void) {
+    print_test_begin("test_paging_multi_pagetable");
 
-        errval_t err;
-        uint64_t size = 1024 * 1024 * 1024;
+    errval_t err;
+    uint64_t size = 1024 * 1024 * 1024;
 
-        lvaddr_t *vaddr;
-        lvaddr_t base;
+    lvaddr_t *vaddr;
+    lvaddr_t base;
+    // MAP 1 GB
     for(int i = 0; i < 1; i ++) {
         struct capref frame_cap;
         size_t bytes = size;
@@ -249,8 +249,6 @@ void test_paging_bean(void) {
             debug_printf("paging_map_fixed_attr failed: %s\n", err_getstring(err));
             assert(false);
         }
-
-        debug_printf("test buffer\n");
         for (uint32_t *buf = (uint32_t *) base; (lvaddr_t) buf < (base + bytes); buf++)
             *buf = 0xAAAAAAAA;
     }
@@ -268,7 +266,8 @@ void test_paging(void)
     // We may not start from VADDR_OFFSET currenty, since the
     // slab_refill_pages() function claims virtual address space starting from
     // there.
-    lvaddr_t vaddr = VADDR_OFFSET + 128 * BASE_PAGE_SIZE;
+
+    lvaddr_t vaddr = ((lvaddr_t)512UL*1024*1024*1024 * 16); // 16GB
 
     bool success;
 

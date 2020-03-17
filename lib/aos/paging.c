@@ -518,7 +518,7 @@ errval_t do_paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     ret_region->flags = flags;
     ret_region->region_size = bytes;
 
-#ifdef CONFIG_PAGGING_DEBUG
+#ifdef CONFIG_PAGING_DEBUG
      ensure_correct_pagetable_mapping(st, vaddr);
 #endif
 
