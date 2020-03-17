@@ -474,6 +474,11 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
     if (err_is_fail(err)) { return err; }
 
+    struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
+    if (paging_region == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+
     struct pt_l2_entry *l2entry;
     err = paging_create_pd(st, vaddr, &l2entry);
     if (err_is_fail(err)) {
@@ -483,10 +488,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     assert(l2entry != NULL);
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
 
-    struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
-    if (paging_region == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
     l2entry->l3_entries[l3_idx] = paging_region;
     vaddr_region->region = paging_region;
 
