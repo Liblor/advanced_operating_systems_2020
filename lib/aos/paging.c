@@ -482,11 +482,11 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     return SYS_ERR_OK;
 }
 
-// do mapping on a single lvl3 page table
+/** map a single lvl3 page table into page table directory */
 static inline
-errval_t do_paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
-                                  struct capref frame, size_t pte_count, size_t bytes,
-                                          int flags, struct paging_region* ret_region) {
+errval_t paging_map_fixed_single_pt3(struct paging_state *st, lvaddr_t vaddr,
+                                     struct capref frame, size_t pte_count, size_t bytes,
+                                     int flags, struct paging_region* ret_region) {
     errval_t err;
 
     struct pt_l2_entry *l2entry;
@@ -561,7 +561,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
     while (pte_count > 0) {
         /* find how many remaining entries in current lvl 3 pagetable
-         * for a single call of do_paging_map_fixed_attr */
+         * for a single call of paging_map_fixed_single_pt3 */
         const int64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
         const int64_t free_entries_pt = 0x1FF - l3pt_idx + 1;
         int64_t curr_pte_count = 0;
@@ -589,10 +589,10 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 //        debug_printf("vaddr: %p, l3pt_idx: %p, pte_count: %d, free_entries_pt: %d, curr_pte_count: %d, bytes: %p\n",
 //                     vaddr, l3pt_idx, pte_count, free_entries_pt, curr_pte_count, bytes);
 
-       err = do_paging_map_fixed_attr(st, vaddr, frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags,
-                                      paging_region);
+       err = paging_map_fixed_single_pt3(st, vaddr, frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags,
+                                         paging_region);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "do_paging_map_fixed_attr failed\n");
+            DEBUG_ERR(err, "paging_map_fixed_single_pt3 failed\n");
             return err;
             // TODO: undo mappings on error?
             // TODO free all slots on error
