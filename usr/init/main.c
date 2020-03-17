@@ -50,19 +50,19 @@ bsp_main(int argc, char *argv[]) {
     }
 
     // TODO: Remove.
-    test_libmm();
+    //test_libmm();
 //    test_paging();
     //test_paging_bean();
 
     // TODO: initialize mem allocator, vspace management here
 
     // Grading
-    //grading_test_early();
+    grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
 
     // Grading
-    //grading_test_late();
+    grading_test_late();
 
     debug_printf("Message handler loop\n");
     // Hang around

@@ -241,7 +241,6 @@ errval_t slab_ensure_threshold(struct slab_allocator *slabs, const size_t thresh
         return SYS_ERR_OK;
 
     slabs->is_refilling = true;
-
     const size_t count = slab_freecount(slabs);
 
     if (count < threshold) {
