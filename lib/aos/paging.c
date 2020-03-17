@@ -398,38 +398,37 @@ static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype
     return err;
 }
 
-
-// create pd entry consisting of caps for mapping and child shadow page table
-// TODO: use this instead of paging_create_pd
-__attribute__((unused))
-static inline
-errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, collections_hash_table *parent_pt,
-        struct capref *parent_cap, const uint16_t idx, struct pt_entry **lookup) {
-    errval_t err;
-
-    DEBUG_BEGIN;
-    struct pt_entry *entry = collections_hash_find(parent_pt, idx);
-    if (entry == NULL) {
-        entry = paging_slab_alloc(sizeof(struct pt_entry));
-        if (entry == NULL) {
-            return LIB_ERR_MALLOC_FAIL;
-        }
-        collections_hash_table **entry_pt = &entry->pt;
-        create_hashtable(entry_pt);
-        if (*entry_pt == NULL) {
-            return LIB_ERR_MALLOC_FAIL;
-        }
-        err = paging_create_vnode(st, type, parent_cap, &entry->cap,
-                                  idx, &entry->cap_mapping);
-        if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
-            return err;
-        }
-        collections_hash_insert(*entry_pt, idx, entry);
-    }
-    *lookup = entry;
-    return SYS_ERR_OK;
-}
+//// create pd entry consisting of caps for mapping and child shadow page table
+//// TODO: use this instead of paging_create_pd
+//__attribute__((unused))
+//static inline
+//errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, collections_hash_table *parent_pt,
+//        struct capref *parent_cap, const uint16_t idx, struct pt_entry **lookup) {
+//    errval_t err;
+//
+//    DEBUG_BEGIN;
+//    struct pt_entry *entry = collections_hash_find(parent_pt, idx);
+//    if (entry == NULL) {
+//        entry = paging_slab_alloc(sizeof(struct pt_entry));
+//        if (entry == NULL) {
+//            return LIB_ERR_MALLOC_FAIL;
+//        }
+//        collections_hash_table **entry_pt = &entry->pt;
+//        create_hashtable(entry_pt);
+//        if (*entry_pt == NULL) {
+//            return LIB_ERR_MALLOC_FAIL;
+//        }
+//        err = paging_create_vnode(st, type, parent_cap, &entry->cap,
+//                                  idx, &entry->cap_mapping);
+//        if (err_is_fail(err)) {
+//            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+//            return err;
+//        }
+//        collections_hash_insert(*entry_pt, idx, entry);
+//    }
+//    *lookup = entry;
+//    return SYS_ERR_OK;
+//}
 
 // create paging directory
 static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l2_entry **ret_l2entry)
@@ -536,7 +535,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     assert(st != NULL);
     errval_t err;
 
-    debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ...)\n", st, vaddr);
+    debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", bytes=%zu...)\n", st, vaddr, bytes);
 
     if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
@@ -555,9 +554,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         return err;
     }
     assert(l2entry != NULL);
-
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
-    assert(l2entry->l3_entries[l3_idx] == NULL);
 
     struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
     if (paging_region == NULL) {
@@ -565,6 +562,11 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     }
     l2entry->l3_entries[l3_idx] = paging_region;
     vaddr_region->region = paging_region;
+
+
+
+
+
 
     err = st->slot_alloc->alloc(st->slot_alloc, &paging_region->cap_mapping);
     if (err_is_fail(err)) {
@@ -575,7 +577,13 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     // TODO: cover case to create multiple l3 mappings
     // TODO: offset != 0? possible
     uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
+
     debug_printf("before vmap\n");
+    debug_printf("vnode_map: dest: %p, source %p, \n");
+
+//    err = vnode_map(pt3_entry->cap, *frame, pt3_index, flags,
+//                    frame_offset, ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE, mapping_frame);
+
     err = vnode_map(l2entry->cap, frame, l3_idx, flags, 0, pte_count, paging_region->cap_mapping);
     debug_printf("after vmap\n");
     if (err_is_fail(err)) {
@@ -583,7 +591,55 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         err_push(err, LIB_ERR_VNODE_MAP);
         goto error_recovery;
     }
+
+    {
+        debug_printf("$$$$$ test mapping %p, bytes: %zu\n", vaddr, bytes);
+        for (uint32_t *buf = (uint32_t *) vaddr; (lvaddr_t) buf < (vaddr + bytes); buf++) {
+            *buf = 0x0;
+        }
+
+    }
+
+
     paging_region->frame_cap = frame;
+    debug_printf("$$$$$ paging_map_fixed_attr end \n");
+
+    {
+        // st->l0pt: pagetable key: VMSAv8_64_L0_INDEX => pt_entry: pagetable lvl1:  l0entry
+        // l0entry->pt: pagetable key: VMSAv8_64_L1_INDEX => pt_entry: pagetable lvl2 l1entry
+        // l1entry->pt key VMSAv8_64_L2_INDEX => pt_l2_entry: pagetabel for level3,l2entry,  this is array
+
+        const uint16_t _l0_idx = VMSAv8_64_L0_INDEX(vaddr);
+        const uint16_t _l1_idx = VMSAv8_64_L1_INDEX(vaddr);
+        const uint16_t _l2_idx = VMSAv8_64_L2_INDEX(vaddr);
+        const uint16_t _l3_idx = VMSAv8_64_L3_INDEX(vaddr);
+        // asserts
+        assert(!capref_is_null(st->cap_l0));
+        struct pt_entry *pt_l1 = collections_hash_find(st->l0pt, _l0_idx);
+        assert(pt_l1!= NULL);
+        assert(!capref_is_null(pt_l1->cap_mapping));
+        assert(!capref_is_null(pt_l1->cap));
+
+        struct pt_entry *pt_l2 = collections_hash_find(pt_l1->pt, _l1_idx);
+        assert(pt_l2!= NULL);
+        assert(!capref_is_null(pt_l2->cap_mapping));
+        assert(!capref_is_null(pt_l2->cap));
+
+        struct pt_l2_entry *pt_l3 = collections_hash_find(pt_l2->pt, _l2_idx);
+        assert(pt_l3!= NULL);
+        assert(!capref_is_null(pt_l3->cap_mapping));
+        assert(!capref_is_null(pt_l3->cap));
+
+        struct paging_region *l3_entry = pt_l3->l3_entries[_l3_idx];
+        assert(l3_entry != NULL);
+        assert(!capref_is_null(l3_entry->frame_cap));
+        assert(!capref_is_null(l3_entry->cap_mapping));
+        debug_printf("all mappings correcdt\n");
+    }
+
+
+
+
     return SYS_ERR_OK;
 
     error_recovery:

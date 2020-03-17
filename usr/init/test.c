@@ -206,12 +206,52 @@ static bool test_paging_multiple(const lvaddr_t base, lvaddr_t *newbase, const i
 
         vaddr += bytes;
     }
-
     for (uint32_t *buf = (uint32_t *) base; (lvaddr_t) buf < vaddr; buf++)
         *buf = 0xAAAAAAAA;
 
     return true;
 }
+
+void test_paging_bean(void) {
+        debug_printf("test_paging_bean");
+        print_test_begin("test_paging_bean");
+
+        errval_t err;
+        uint64_t size = BASE_PAGE_SIZE;
+
+        lvaddr_t *vaddr;
+        lvaddr_t base;
+    for(int i = 0; i < 16; i ++) {
+        struct capref frame_cap;
+        size_t bytes = size;
+
+
+        err = frame_alloc(&frame_cap, bytes, &bytes);
+        if (err_is_fail(err)) {
+            debug_printf("frame_alloc failed: %s\n", err_getstring(err));
+            assert(false);
+        }
+
+        debug_printf("mapping %zu at vaddr %p\n", bytes, vaddr);
+        err = paging_alloc(get_current_paging_state(), (void **) &vaddr, bytes, BASE_PAGE_SIZE);
+        if (err_is_fail(err)) {
+            assert(false);
+        }
+        base = *vaddr;
+        err = paging_map_fixed_attr(get_current_paging_state(), *vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+        if (err_is_fail(err)) {
+            debug_printf("paging_map_fixed_attr failed: %s\n", err_getstring(err));
+            assert(false);
+        }
+
+        debug_printf("test buffer\n");
+        for (uint32_t *buf = (uint32_t *) base; (lvaddr_t) buf < (base + bytes); buf++)
+            *buf = 0xAAAAAAAA;
+    }
+
+    assert(true);
+}
+
 
 void test_paging(void)
 {
