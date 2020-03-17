@@ -73,10 +73,10 @@ struct pt_entry {
     struct _collections_hash_table *pt;
 };
 
-struct pt_l3_entry {
+struct pt_l2_entry {
     struct capref cap;
     struct capref cap_mapping;
-    struct paging_region *entries[PTABLE_ENTRIES];
+    struct paging_region *l3_entries[PTABLE_ENTRIES];
 };
 
 #define PAGING_HASHMAP_BUCKETS 100

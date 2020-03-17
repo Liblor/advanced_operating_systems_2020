@@ -106,7 +106,6 @@ void* paging_slab_alloc(size_t size) {
     struct paging_state *st = get_current_paging_state();
 //    debug_printf("B\n");
 //    debug_printf("B\n");
-    assert(size <= st->slab_paging.blocksize);
 //    debug_printf("C:\n");
 
     slab_ensure_threshold(&st->slab_paging, 100);
@@ -433,7 +432,7 @@ errval_t paging_create_pd_entry (struct paging_state *st, enum objtype type, col
 }
 
 // create paging directory
-static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l3_entry **l3entry)
+static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l2_entry **ret_l2entry)
 {
     DEBUG_BEGIN;
     debug_printf("$$$begin");
@@ -499,15 +498,11 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     debug_printf("// mapping l2 -> l3\n");
     // mapping l2 -> l3
     const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
-    struct pt_entry *l2entry = collections_hash_find(l1entry->pt, l2_idx);
+    struct pt_l2_entry *l2entry = collections_hash_find(l1entry->pt, l2_idx);
     if (l2entry == NULL) {
-        l2entry = paging_slab_alloc(sizeof(struct pt_entry));
+        // TODO size of pt_l2_entry
+        l2entry = paging_slab_alloc(sizeof(struct pt_l2_entry));
         if (l2entry == NULL) {
-            return LIB_ERR_MALLOC_FAIL;
-        }
-        collections_hash_table **l3pt = &l2entry->pt;
-        create_hashtable(l3pt);
-        if (*l3pt == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &l1entry->cap, &l2entry->cap,
@@ -516,19 +511,10 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
             debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
             return err;
         }
-        collections_hash_insert(*l3pt, l2_idx, l2entry);
     }
 
-    debug_printf("const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);\n");
-    const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
-    *l3entry = collections_hash_find(l2entry->pt, l3_idx);
-    if (*l3entry == NULL) {
-        *l3entry = paging_slab_alloc(sizeof(struct pt_l3_entry));
-        if (*l3entry == NULL) {
-            return LIB_ERR_MALLOC_FAIL;
-        }
-        memset(*l3entry, 0, sizeof(struct pt_l3_entry));
-    }
+    *ret_l2entry = l2entry;
+
     debug_printf("$$$end");
     DEBUG_END;
     return SYS_ERR_OK;
@@ -585,7 +571,9 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     // TODO: cover case to create multiple l3 mappings
     // TODO: offset != 0? possible
     uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
-    err = vnode_map(paging_region->cap, frame, l3_idx, flags, 0, pte_count, paging_region->cap_mapping);
+    debug_printf("before vmap\n");
+    err = vnode_map(l3entry->cap, frame, l3_idx, flags, 0, pte_count, paging_region->cap_mapping);
+    debug_printf("after vmap\n");
     if (err_is_fail(err)) {
         debug_printf("vnode_map failed: %s\n", err_getstring(err));
         err_push(err, LIB_ERR_VNODE_MAP);
