@@ -50,8 +50,9 @@ bsp_main(int argc, char *argv[]) {
     }
 
     // TODO: Remove.
-    test_libmm();
+    //test_libmm();
 //    test_paging();
+    //test_paging_bean();
 
     // TODO: initialize mem allocator, vspace management here
 

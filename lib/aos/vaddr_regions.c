@@ -96,7 +96,6 @@ static inline bool is_in_free_region(struct vaddr_region *region, lvaddr_t addr,
     bool no_overflow = addr + size > addr;
     bool end = addr + size <= region->base_addr + region->size;
     bool is_free = region->type == NodeType_Free;
-    debug_printf("%i, %i, %i, %i\n", addr_start, no_overflow, end, is_free);
     return addr_start && no_overflow && end && is_free;
 }
 

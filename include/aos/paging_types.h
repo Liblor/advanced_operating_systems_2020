@@ -61,7 +61,7 @@ struct paging_region {
     lvaddr_t current_addr;
     size_t region_size;
     paging_flags_t flags;
-    struct capref cap;
+    struct capref frame_cap;
     struct capref cap_mapping;
     // TODO: if needed add struct members for tracking state
 };
@@ -73,31 +73,13 @@ struct pt_entry {
     struct _collections_hash_table *pt;
 };
 
-struct pt_l3_entry {
+struct pt_l2_entry {
     struct capref cap;
     struct capref cap_mapping;
-    struct paging_region *entries[PTABLE_ENTRIES];
+    struct paging_region *l3_entries[PTABLE_ENTRIES];
 };
 
-#define PAGING_HASHMAP_BUCKETS 1024
-#define PAGING_HASHMAP_SLAB_SIZE (24 * PAGING_HASHMAP_BUCKETS)
-
-// TODO: this does not compile, fix sizeof() to get more accurate number
-/*MAX(sizeof(struct _collections_hash_table), \
-   (MAX((sizeof(struct _collections_listnode *) * PAGING_HASHMAP_BUCKETS), \
-   (MAX(sizeof(struct _collections_hash_elem), \
-   (MAX(sizeof(struct _collections_listnode), \
-        sizeof(struct _collections_header_data))))))))
-*/
-
-// TODO: we currently only have one slab allocator
-// for all chunks of memory requested by paging.
-// Split it into multiple to decrease internal fragmentation
-
-#define PAGING_MEM_SLAB_BLOCKSIZE \
-    (MAX(sizeof(struct paging_region), \
-    (MAX(sizeof(struct pt_entry), \
-    (MAX(sizeof(struct pt_l3_entry), (PAGING_HASHMAP_SLAB_SIZE)))))))
+#define PAGING_HASHMAP_BUCKETS 100
 
 // struct to store the paging status of a process
 struct paging_state {
@@ -107,10 +89,6 @@ struct paging_state {
     struct vaddr_region *tail;
     struct capref cap_l0;
     struct _collections_hash_table *l0pt;
-
-    char slab_paging_buf[64 * (PAGING_MEM_SLAB_BLOCKSIZE)];
-    struct slab_allocator slab_paging;
-
     // TODO: should be 64*sizeof(struct vaddr_region), but circular deps
     char buf[64*64];
 };

@@ -64,7 +64,7 @@ void user_panic_fn(const char *file, const char *func, int line,
                       __FILE__, __func__, __LINE__)
 #endif
 
-#define DEBUG_BEGIN printf("\033[0;36m%s %s\033[0m\n",  __PRETTY_FUNCTION__,  "begin")
+#define DEBUG_BEGIN ((void)0)//printf("\033[0;36m%s %s\033[0m\n",  __PRETTY_FUNCTION__,  "begin")
 #define DEBUG_END   printf("\033[0;36m%s %s\033[0m\n",  __PRETTY_FUNCTION__,  "end")
 
 
