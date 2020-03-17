@@ -90,24 +90,18 @@ void *slab_alloc(struct slab_allocator *slabs)
     /* find a slab with free blocks */
     struct slab_head *sh;
     for (sh = slabs->slabs; sh != NULL && sh->free == 0; sh = sh->next);
-//    debug_printf("slabs: %p, refillfunc: %p, is refilling: %d, free: %d\n,",
-//            slabs, slabs->refill_func, slabs->is_refilling, slab_freecount(slabs));
-
 
     if (sh == NULL) {
         /* out of memory. try refill function if we have one */
         if (!slabs->refill_func) {
             return NULL;
         } else {
-//            debug_printf("2\n");
             err = slabs->refill_func(slabs);
             if (err_is_fail(err)) {
                 DEBUG_ERR(err, "slab refill_func failed");
                 return NULL;
             }
-//            debug_printf("3\n");
             for (sh = slabs->slabs; sh != NULL && sh->free == 0; sh = sh->next);
-//            debug_printf("4\n");
             if (sh == NULL) {
                 return NULL;
             }
@@ -194,9 +188,7 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
         return err_push(err, LIB_ERR_FRAME_CREATE);
     }
 
-    static lvaddr_t vaddr = VADDR_OFFSET;
-    void *buf = (void *) vaddr;
-
+    void *buf;
     err = paging_map_frame(get_current_paging_state(), &buf, bytes,
             frame_cap, NULL, NULL);
     if (err_is_fail(err)) {
@@ -212,8 +204,6 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
     */
 
     slab_grow(slabs, buf, bytes);
-
-    vaddr += bytes;
 
     return SYS_ERR_OK;
 }
