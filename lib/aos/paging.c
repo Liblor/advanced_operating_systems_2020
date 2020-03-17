@@ -494,7 +494,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
             debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
             return err;
         }
-        collections_hash_insert(*l2pt, l1_idx, l1entry);
+        collections_hash_insert(l0entry->pt, l1_idx, l1entry);
     }
 
     debug_printf("// mapping l2 -> l3\n");
@@ -514,6 +514,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
             debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
             return err;
         }
+        collections_hash_insert(l1entry->pt, l2_idx, l2entry);
     }
 
     *ret_l2entry = l2entry;
