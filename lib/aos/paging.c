@@ -482,9 +482,11 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     return SYS_ERR_OK;
 }
 
+// do mapping on a single lvl3 page table
 static inline
 errval_t do_paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
-                                  struct capref frame, size_t pte_count, size_t bytes, int flags, struct paging_region* ret_region) {
+                                  struct capref frame, size_t pte_count, size_t bytes,
+                                          int flags, struct paging_region* ret_region) {
     errval_t err;
 
     struct pt_l2_entry *l2entry;
@@ -519,7 +521,7 @@ errval_t do_paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     ret_region->region_size = bytes;
 
 #ifdef CONFIG_PAGING_DEBUG
-     ensure_correct_pagetable_mapping(st, vaddr);
+    ensure_correct_pagetable_mapping(st, vaddr);
 #endif
 
     return SYS_ERR_OK;
