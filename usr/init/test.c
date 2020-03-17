@@ -158,6 +158,7 @@ static void test_add(const uint32_t count, const size_t size)
     }
 }
 
+// there are some mistakes with this testsuite, use grading.c version
 void test_libmm(void)
 {
     print_test_begin("libmm");
