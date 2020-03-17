@@ -61,7 +61,7 @@ struct paging_region {
     lvaddr_t current_addr;
     size_t region_size;
     paging_flags_t flags;
-    struct capref cap;
+    struct capref frame_cap;
     struct capref cap_mapping;
     // TODO: if needed add struct members for tracking state
 };
@@ -97,7 +97,7 @@ struct pt_l2_entry {
 #define PAGING_MEM_SLAB_BLOCKSIZE \
     (MAX(sizeof(struct paging_region), \
     (MAX(sizeof(struct pt_entry), \
-    (MAX(sizeof(struct pt_l3_entry), (PAGING_HASHMAP_SLAB_SIZE)))))))
+    (MAX(sizeof(struct pt_l2_entry), (PAGING_HASHMAP_SLAB_SIZE)))))))
 
 // struct to store the paging status of a process
 struct paging_state {

@@ -501,7 +501,8 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     struct pt_l2_entry *l2entry = collections_hash_find(l1entry->pt, l2_idx);
     if (l2entry == NULL) {
         // TODO size of pt_l2_entry
-        l2entry = paging_slab_alloc(sizeof(struct pt_l2_entry));
+        //l2entry = paging_slab_alloc(sizeof(struct pt_l2_entry));
+        l2entry = paging_slab_alloc(PTABLE_ENTRIES * 8 + 64);
         if (l2entry == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -544,22 +545,22 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
     if (err_is_fail(err)) { return err; }
 
-    struct pt_l3_entry *l3entry;
-    err = paging_create_pd(st, vaddr, &l3entry);
+    struct pt_l2_entry *l2entry;
+    err = paging_create_pd(st, vaddr, &l2entry);
     if (err_is_fail(err)) {
         debug_printf("paging_create_pd failed: %s\n", err_getstring(err));
         return err;
     }
-    assert(l3entry != NULL);
+    assert(l2entry != NULL);
 
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
-    assert(l3entry->entries[l3_idx] == NULL);
+    assert(l2entry->l3_entries[l3_idx] == NULL);
 
     struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
     if (paging_region == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    l3entry->entries[l3_idx] = paging_region;
+    l2entry->l3_entries[l3_idx] = paging_region;
     vaddr_region->region = paging_region;
 
     err = st->slot_alloc->alloc(st->slot_alloc, &paging_region->cap_mapping);
@@ -572,13 +573,14 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     // TODO: offset != 0? possible
     uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
     debug_printf("before vmap\n");
-    err = vnode_map(l3entry->cap, frame, l3_idx, flags, 0, pte_count, paging_region->cap_mapping);
+    err = vnode_map(l2entry->cap, frame, l3_idx, flags, 0, pte_count, paging_region->cap_mapping);
     debug_printf("after vmap\n");
     if (err_is_fail(err)) {
         debug_printf("vnode_map failed: %s\n", err_getstring(err));
         err_push(err, LIB_ERR_VNODE_MAP);
         goto error_recovery;
     }
+    paging_region->frame_cap = frame;
     return SYS_ERR_OK;
 
     error_recovery:
