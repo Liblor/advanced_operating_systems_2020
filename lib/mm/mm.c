@@ -162,8 +162,10 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     // Only create a leftover node if there is space left.
     if (best_padding_size + size < best_size) {
         leftover = slab_alloc(&mm->slabs);
-        if (leftover == NULL)
-            return MM_ERR_MM_ADD;
+        if (leftover == NULL) {
+            err = MM_ERR_MM_ADD;
+            goto error_recovery;
+        }
     }
 
     struct mmnode *padding = NULL;
@@ -172,8 +174,10 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     // Only create a padding node if padding is necessary.
     if (best_padding_size > 0) {
         padding = slab_alloc(&mm->slabs);
-        if (padding == NULL)
-            return MM_ERR_MM_ADD;
+        if (padding == NULL) {
+            err = MM_ERR_MM_ADD;
+            goto error_recovery;
+        }
     }
 
     best->type = NodeType_Allocated;
@@ -204,24 +208,57 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         padding->next = best;
     }
 
-    err = slab_ensure_threshold(&mm->slabs, 10);
-    if (err_is_fail(err))
-        return err;
-
     // Retype the aligned part of the node with the requested size.
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
-    if (err_is_fail(err))
-        return err_push(err, LIB_ERR_SLOT_ALLOC);
-
-    err = mm->slot_refill(mm->slot_alloc_inst);
-    if (err_is_fail(err))
-        return err_push(err, MM_ERR_SLOT_REFILL);
+    if (err_is_fail(err)) {
+        err = err_push(err, LIB_ERR_SLOT_ALLOC);
+        goto error_recovery;
+    }
 
     err = cap_retype(*retcap, best->cap.cap, best_base + best_padding_size - best->cap.base, mm->objtype, size, 1);
-    if (err_is_fail(err))
-        return err_push(err, LIB_ERR_CAP_RETYPE);
+    if (err_is_fail(err)) {
+        // TODO: Is this the right error code?
+        err = err_push(err, LIB_ERR_CAP_RETYPE);
+
+        // We have to throw away potential erros, since the main reason for
+        // failure is the failed retyping.
+        slot_free(*retcap);
+
+        goto error_recovery;
+    }
+
+    // The slot refilling happens after retyping, since this way the caller
+    // gets their memory block but knows that subsequent calls might fail.
+    err = mm->slot_refill(mm->slot_alloc_inst);
+    if (err_is_fail(err)) {
+        return err_push(err, MM_ERR_SLOT_REFILL);
+    }
+
+    // We refill at the very end, so all other mandatory tasks are already done
+    // in case of any error.
+    err = slab_ensure_threshold(&mm->slabs, 10);
+    if (err_is_fail(err)) {
+        return err;
+    }
 
     return SYS_ERR_OK;
+
+error_recovery:
+    if (leftover != NULL) {
+        slab_free(&mm->slabs, leftover);
+    }
+
+    if (padding != NULL) {
+        // GCC says that the variable might be uninitialized. That cannot be
+        // the case, since it is initialized as NULL, and set using
+        // slab_alloc().
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+        slab_free(&mm->slabs, padding);
+        #pragma GCC diagnostic pop
+    }
+
+    return err;
 }
 
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap)
@@ -258,6 +295,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     //if (err_is_fail(err))
     //    return err_push(err, MM_ERR_MM_FREE);
 
+    // TODO: Make use of cap_destroy() here.
     // TODO Maybe use an explicit error for NULL_CAP.
     err = cap_delete(cap);
     if (err_is_fail(err))
