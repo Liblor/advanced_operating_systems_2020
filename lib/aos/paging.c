@@ -371,6 +371,36 @@ static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype
     return err;
 }
 
+__attribute__((__unused__))
+static inline void
+ensure_correct_pagetable_mapping(struct paging_state *st, lvaddr_t vaddr) {
+    const uint16_t _l0_idx = VMSAv8_64_L0_INDEX(vaddr);
+    const uint16_t _l1_idx = VMSAv8_64_L1_INDEX(vaddr);
+    const uint16_t _l2_idx = VMSAv8_64_L2_INDEX(vaddr);
+    const uint16_t _l3_idx = VMSAv8_64_L3_INDEX(vaddr);
+    // asserts
+    assert(!capref_is_null(st->cap_l0));
+    struct pt_entry *pt_l1 = collections_hash_find(st->l0pt, _l0_idx);
+    assert(pt_l1!= NULL);
+    assert(!capref_is_null(pt_l1->cap_mapping));
+    assert(!capref_is_null(pt_l1->cap));
+
+    struct pt_entry *pt_l2 = collections_hash_find(pt_l1->pt, _l1_idx);
+    assert(pt_l2!= NULL);
+    assert(!capref_is_null(pt_l2->cap_mapping));
+    assert(!capref_is_null(pt_l2->cap));
+
+    struct pt_l2_entry *pt_l3 = collections_hash_find(pt_l2->pt, _l2_idx);
+    assert(pt_l3!= NULL);
+    assert(!capref_is_null(pt_l3->cap_mapping));
+    assert(!capref_is_null(pt_l3->cap));
+
+    struct paging_region *l3_entry = pt_l3->l3_entries[_l3_idx];
+    assert(l3_entry != NULL);
+    assert(!capref_is_null(l3_entry->frame_cap));
+    assert(!capref_is_null(l3_entry->cap_mapping));
+}
+
 // create paging directory
 static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l2_entry **ret_l2entry)
 {
@@ -401,7 +431,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l1, &st->cap_l0, &l0entry->cap,
                 l0_idx, &l0entry->cap_mapping);
         if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+            debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l1 failed: %s\n", err_getstring(err));
             return err;
         }
         collections_hash_insert(st->l0pt, l0_idx, l0entry);
@@ -423,7 +453,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &l0entry->cap, &l1entry->cap,
                                   l1_idx, &l1entry->cap_mapping);
         if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+            debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l2 failed: %s\n", err_getstring(err));
             return err;
         }
         collections_hash_insert(l0entry->pt, l1_idx, l1entry);
@@ -442,7 +472,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &l1entry->cap, &l2entry->cap,
                                   l2_idx, &l2entry->cap_mapping);
         if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
+            debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l3 failed: %s\n", err_getstring(err));
             return err;
         }
         collections_hash_insert(l1entry->pt, l2_idx, l2entry);
@@ -453,8 +483,8 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
 }
 
 static inline
-errval_t do_paging_map_fixxed_attr(struct paging_state *st, lvaddr_t vaddr,
-                                    struct capref frame, size_t pte_count, size_t bytes, int flags, struct paging_region* ret_region) {
+errval_t do_paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
+                                  struct capref frame, size_t pte_count, size_t bytes, int flags, struct paging_region* ret_region) {
     errval_t err;
 
     struct pt_l2_entry *l2entry;
@@ -466,14 +496,13 @@ errval_t do_paging_map_fixxed_attr(struct paging_state *st, lvaddr_t vaddr,
     assert(l2entry != NULL);
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
 
-    l2entry->l3_entries[l3_idx] = ret_region; // is this useful?
+    l2entry->l3_entries[l3_idx] = ret_region; // TODO: is this useful, store regions in here even if whole mappings spawns multipe tables
     err = st->slot_alloc->alloc(st->slot_alloc, &ret_region->cap_mapping);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc failed: %s\n", err_getstring(err));
         return err;
     }
 
-    // TODO: cover case to create multiple l3 mappings
     // TODO: offset != 0? possible
 
     err = vnode_map(l2entry->cap, frame, l3_idx, flags, 0, pte_count, ret_region->cap_mapping);
@@ -489,34 +518,9 @@ errval_t do_paging_map_fixxed_attr(struct paging_state *st, lvaddr_t vaddr,
     ret_region->flags = flags;
     ret_region->region_size = bytes;
 
-    {
-        // TODO remove
-        const uint16_t _l0_idx = VMSAv8_64_L0_INDEX(vaddr);
-        const uint16_t _l1_idx = VMSAv8_64_L1_INDEX(vaddr);
-        const uint16_t _l2_idx = VMSAv8_64_L2_INDEX(vaddr);
-        const uint16_t _l3_idx = VMSAv8_64_L3_INDEX(vaddr);
-        // asserts
-        assert(!capref_is_null(st->cap_l0));
-        struct pt_entry *pt_l1 = collections_hash_find(st->l0pt, _l0_idx);
-        assert(pt_l1!= NULL);
-        assert(!capref_is_null(pt_l1->cap_mapping));
-        assert(!capref_is_null(pt_l1->cap));
-
-        struct pt_entry *pt_l2 = collections_hash_find(pt_l1->pt, _l1_idx);
-        assert(pt_l2!= NULL);
-        assert(!capref_is_null(pt_l2->cap_mapping));
-        assert(!capref_is_null(pt_l2->cap));
-
-        struct pt_l2_entry *pt_l3 = collections_hash_find(pt_l2->pt, _l2_idx);
-        assert(pt_l3!= NULL);
-        assert(!capref_is_null(pt_l3->cap_mapping));
-        assert(!capref_is_null(pt_l3->cap));
-
-        struct paging_region *l3_entry = pt_l3->l3_entries[_l3_idx];
-        assert(l3_entry != NULL);
-        assert(!capref_is_null(l3_entry->frame_cap));
-        assert(!capref_is_null(l3_entry->cap_mapping));
-    }
+#ifdef CONFIG_PAGGING_DEBUG
+     ensure_correct_pagetable_mapping(st, vaddr);
+#endif
 
     return SYS_ERR_OK;
 
@@ -538,58 +542,64 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
     if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
-    } else if ((bytes % BASE_PAGE_SIZE) != 0) {
+    }
+    if ((bytes % BASE_PAGE_SIZE) != 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
     }
 
     struct vaddr_region *vaddr_region = NULL;
     err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
-
     if (err_is_fail(err)) { return err; }
 
+    /* how many lvl3 mappings needed in total */
     int64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
 
-    struct paging_region *last_paging_region = NULL;
-    struct paging_region *first_paging_region = NULL;
+    struct paging_region *next_region = NULL;
+    struct paging_region *head_region = NULL;
 
     while (pte_count > 0) {
+        /* find how many remaining entries  lvl 3 table
+         * for a single call of do_paging_map_fixed_attr */
         const int64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
-        const int64_t free_slots_pt = 0x1FF - l3pt_idx + 1;
+        const int64_t free_entries_pt = 0x1FF - l3pt_idx + 1;
         int64_t curr_pte_count = 0;
-        if (pte_count <= free_slots_pt) {
+        if (pte_count <= free_entries_pt) {
             curr_pte_count = pte_count;
         } else {
-            curr_pte_count = free_slots_pt;
+            curr_pte_count = free_entries_pt;
         }
 
         struct paging_region *paging_region =
                 paging_slab_alloc(sizeof(struct paging_region));
         if (paging_region == NULL) {
-            // TODO
+            // TODO unmap everything on error (extension)
             return LIB_ERR_MALLOC_FAIL;
         }
 
-        if (last_paging_region == NULL) {
-            last_paging_region = paging_region;
-            first_paging_region = paging_region;
+        if (next_region == NULL) {
+            next_region = paging_region;
+            head_region = paging_region;
         } else {
-            last_paging_region->next = paging_region;
-            last_paging_region = paging_region;
+            next_region->next = paging_region;
+            next_region = paging_region;
         }
 
-        // do map
-        debug_printf("vaddr: %p, l3pt_idx: %p, pte_count: %d, free_slots_pt: %d, curr_pte_count: %d, bytes: %p\n",
-                vaddr, l3pt_idx, pte_count, free_slots_pt, curr_pte_count, bytes);
-       err =  do_paging_map_fixxed_attr(st, vaddr,frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags, paging_region);
+//        debug_printf("vaddr: %p, l3pt_idx: %p, pte_count: %d, free_entries_pt: %d, curr_pte_count: %d, bytes: %p\n",
+//                     vaddr, l3pt_idx, pte_count, free_entries_pt, curr_pte_count, bytes);
+
+       err = do_paging_map_fixed_attr(st, vaddr, frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags,
+                                      paging_region);
         if (err_is_fail(err)) {
-            assert(false);
+            DEBUG_ERR(err, "do_paging_map_fixed_attr failed\n");
+            return err;
+            // TODO: undo mappings on error?
+            // TODO free all slots on error
         }
 
         pte_count = pte_count - curr_pte_count;
-        vaddr += curr_pte_count * BASE_PAGE_SIZE; // overflow ?
+        vaddr += curr_pte_count * BASE_PAGE_SIZE;
     }
-    vaddr_region->region = first_paging_region;
-
+    vaddr_region->region = head_region;
     return err;
 }
 
