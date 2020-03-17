@@ -452,27 +452,10 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     return SYS_ERR_OK;
 }
 
-/**
- * \brief map a user provided frame at user provided VA.
- * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
- * TODO(M2): General case
- */
-errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
-                               struct capref frame, size_t bytes, int flags)
-{
+static inline
+errval_t do_paging_map_fixxed_attr(struct paging_state *st, lvaddr_t vaddr,
+                                    struct capref frame, size_t pte_count, size_t bytes, int flags, struct paging_region* ret_region) {
     errval_t err;
-
-    debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", bytes=%zu...)\n", st, vaddr, bytes);
-
-    if (bytes == 0) {
-        return LIB_ERR_PAGING_SIZE_INVALID;
-    } else if ((bytes % BASE_PAGE_SIZE) != 0) {
-        return LIB_ERR_PAGING_SIZE_INVALID;
-    }
-
-    struct vaddr_region *vaddr_region = NULL;
-    err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
-    if (err_is_fail(err)) { return err; }
 
     struct pt_l2_entry *l2entry;
     err = paging_create_pd(st, vaddr, &l2entry);
@@ -483,14 +466,8 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     assert(l2entry != NULL);
     const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
 
-    struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
-    if (paging_region == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    l2entry->l3_entries[l3_idx] = paging_region;
-    vaddr_region->region = paging_region;
-
-    err = st->slot_alloc->alloc(st->slot_alloc, &paging_region->cap_mapping);
+    l2entry->l3_entries[l3_idx] = ret_region; // is this useful?
+    err = st->slot_alloc->alloc(st->slot_alloc, &ret_region->cap_mapping);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc failed: %s\n", err_getstring(err));
         return err;
@@ -498,19 +475,19 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
     // TODO: cover case to create multiple l3 mappings
     // TODO: offset != 0? possible
-    uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
-    err = vnode_map(l2entry->cap, frame, l3_idx, flags, 0, pte_count, paging_region->cap_mapping);
+
+    err = vnode_map(l2entry->cap, frame, l3_idx, flags, 0, pte_count, ret_region->cap_mapping);
     if (err_is_fail(err)) {
         debug_printf("vnode_map failed: %s\n", err_getstring(err));
         err_push(err, LIB_ERR_VNODE_MAP);
         goto error_recovery;
     }
 
-    paging_region->frame_cap = frame;
-    paging_region->base_addr = vaddr;
-    paging_region->current_addr = vaddr;
-    paging_region->flags = flags;
-    paging_region->region_size = bytes;
+    ret_region->frame_cap = frame;
+    ret_region->base_addr = vaddr;
+    ret_region->current_addr = vaddr;
+    ret_region->flags = flags;
+    ret_region->region_size = bytes;
 
     {
         // TODO remove
@@ -544,7 +521,75 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     return SYS_ERR_OK;
 
     error_recovery:
-    st->slot_alloc->free(st->slot_alloc, paging_region->cap_mapping);
+    st->slot_alloc->free(st->slot_alloc, ret_region->cap_mapping);
+    return err;
+}
+
+/**
+ * \brief map a user provided frame at user provided VA.
+ * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
+ * TODO(M2): General case
+ */
+errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
+                               struct capref frame, size_t bytes, int flags)
+{
+    errval_t err;
+    debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", bytes=%zu...)\n", st, vaddr, bytes);
+
+    if (bytes == 0) {
+        return LIB_ERR_PAGING_SIZE_INVALID;
+    } else if ((bytes % BASE_PAGE_SIZE) != 0) {
+        return LIB_ERR_PAGING_SIZE_INVALID;
+    }
+
+    struct vaddr_region *vaddr_region = NULL;
+    err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
+
+    if (err_is_fail(err)) { return err; }
+
+    int64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
+
+    struct paging_region *last_paging_region = NULL;
+    struct paging_region *first_paging_region = NULL;
+
+    while (pte_count > 0) {
+        const int64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
+        const int64_t free_slots_pt = 0x1FF - l3pt_idx + 1;
+        int64_t curr_pte_count = 0;
+        if (pte_count <= free_slots_pt) {
+            curr_pte_count = pte_count;
+        } else {
+            curr_pte_count = free_slots_pt;
+        }
+
+        struct paging_region *paging_region =
+                paging_slab_alloc(sizeof(struct paging_region));
+        if (paging_region == NULL) {
+            // TODO
+            return LIB_ERR_MALLOC_FAIL;
+        }
+
+        if (last_paging_region == NULL) {
+            last_paging_region = paging_region;
+            first_paging_region = paging_region;
+        } else {
+            last_paging_region->next = paging_region;
+            last_paging_region = paging_region;
+        }
+
+        // do map
+        debug_printf("vaddr: %p, l3pt_idx: %p, pte_count: %d, free_slots_pt: %d, curr_pte_count: %d, bytes: %p\n",
+                vaddr, l3pt_idx, pte_count, free_slots_pt, curr_pte_count, bytes);
+       err =  do_paging_map_fixxed_attr(st, vaddr,frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags, paging_region);
+        if (err_is_fail(err)) {
+            assert(false);
+        }
+
+        pte_count = pte_count - curr_pte_count;
+        vaddr += curr_pte_count * BASE_PAGE_SIZE; // overflow ?
+    }
+    vaddr_region->region = first_paging_region;
+
     return err;
 }
 

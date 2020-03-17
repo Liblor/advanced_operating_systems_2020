@@ -64,6 +64,7 @@ struct paging_region {
     struct capref frame_cap;
     struct capref cap_mapping;
     // TODO: if needed add struct members for tracking state
+    struct paging_region *next;
 };
 
 
