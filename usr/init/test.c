@@ -232,13 +232,14 @@ void test_paging_bean(void) {
             assert(false);
         }
 
+        debug_printf("========================================\n");
         debug_printf("mapping %zu at vaddr %p\n", bytes, vaddr);
         err = paging_alloc(get_current_paging_state(), (void **) &vaddr, bytes, BASE_PAGE_SIZE);
         if (err_is_fail(err)) {
             assert(false);
         }
-        base = *vaddr;
-        err = paging_map_fixed_attr(get_current_paging_state(), *vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+        base = (lvaddr_t ) vaddr;
+        err = paging_map_fixed_attr(get_current_paging_state(), base, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
         if (err_is_fail(err)) {
             debug_printf("paging_map_fixed_attr failed: %s\n", err_getstring(err));
             assert(false);

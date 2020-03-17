@@ -206,7 +206,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         padding->next = best;
     }
 
-    err = slab_ensure_threshold(&mm->slabs, 10);
+    err = slab_ensure_threshold(&mm->slabs, 16);
     if (err_is_fail(err))
         return err;
 

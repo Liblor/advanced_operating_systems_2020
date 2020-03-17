@@ -101,6 +101,7 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
 
 __attribute__((__unused__)) static
 void* paging_slab_alloc(size_t size) {
+    /*
 //    debug_printf("%d\n", size);
 //    debug_printf("A\n");
     struct paging_state *st = get_current_paging_state();
@@ -112,15 +113,19 @@ void* paging_slab_alloc(size_t size) {
     void *ptr = slab_alloc(&st->slab_paging);
 //    debug_printf("D\n");
     return ptr;
+    */
+    return malloc(size);
 }
 
 __attribute__((__unused__))
 static
 void paging_slab_free(void* ptr) {
     DEBUG_BEGIN;
+    /*
     struct paging_state *st = get_current_paging_state();
     return slab_free(&st->slab_paging, ptr);
-//    free(ptr);
+    */
+    free(ptr);
 }
 
 __attribute__((__unused__))
