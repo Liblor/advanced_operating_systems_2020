@@ -17,10 +17,6 @@
 extern struct bootinfo *bi;
 extern coreid_t my_core_id;
 
-
-
-
-
 /**
  * \brief Set the base address of the .got (Global Offset Table) section of the ELF binary
  *
@@ -46,7 +42,7 @@ static void armv8_set_registers(void *arch_load_info,
     disabled_area->regs[REG_OFFSET(PIC_REGISTER)] = got_base;
 }
 
-static inline errval_t fill_taskcn(struct capref dp, struct capref dp_frame, struct cnoderef taskcn, struct capref cnode_l1)
+static inline errval_t fill_taskcn(struct capref dp, struct capref dp_frame_parent, struct capref *dp_frame_child, struct cnoderef taskcn, struct capref cnode_l1)
 {
     errval_t err;
 
@@ -78,11 +74,10 @@ static inline errval_t fill_taskcn(struct capref dp, struct capref dp_frame, str
     assert(err_is_ok(err));
 
     // Capability to the dispatcher frame.
-    struct capref slot_dp_frame = {
-        .cnode = taskcn,
-        .slot = TASKCN_SLOT_DISPFRAME,
-    };
-    err = cap_copy(slot_dp_frame, dp_frame);
+    dp_frame_child->cnode = taskcn;
+    dp_frame_child->slot = TASKCN_SLOT_DISPFRAME;
+
+    err = cap_copy(*dp_frame_child, dp_frame_parent);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
@@ -111,7 +106,7 @@ static errval_t elf_allocator_func(void *state, genvaddr_t base, size_t size, ui
 
     // Map the new memory into the VSpace of the parent.
     void *mapped_parent;
-    err = paging_map_frame_attr(get_current_paging_state(), &mapped_parent, size, portion_frame, flags, NULL, NULL);
+    err = paging_map_frame_attr(get_current_paging_state(), &mapped_parent, size, portion_frame, VREGION_FLAGS_READ_WRITE, NULL, NULL);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
@@ -121,37 +116,32 @@ static errval_t elf_allocator_func(void *state, genvaddr_t base, size_t size, ui
     return SYS_ERR_OK;
 }
 
-static inline errval_t load_module(char *name, struct mem_region **module, void **module_data)
+static inline errval_t load_module(struct spawninfo *si, void **module_data)
 {
     errval_t err;
-
-    // Get the module from the multiboot image.
-    *module = multiboot_find_module(bi, name);
-    // TODO: Return an error instead.
-    assert(*module != NULL);
 
     // Map the module.
     struct capref child_frame = {
         .cnode = cnode_module,
-        .slot = (*module)->mrmod_slot,
+        .slot = si->module->mrmod_slot,
     };
     err = paging_map_frame_attr(
         get_current_paging_state(),
         module_data,
-        (*module)->mrmod_size,
+        si->module->mrmod_size,
         child_frame,
         VREGION_FLAGS_READ,
         NULL,
         NULL
     );
     // TODO: Return an error instead.
-    assert((*module) != NULL);
+    assert(err_is_ok(err));
     assert(IS_ELF(**(struct Elf64_Ehdr **) module_data));
 
     return SYS_ERR_OK;
 }
 
-static inline errval_t setup_cspace(struct capref dp_child, struct capref dp_frame, struct capref *cap_cnode_l1, struct capref *l0_table_child, struct cnoderef *taskcn)
+static inline errval_t setup_cspace(struct capref dp_child, struct capref dp_frame_parent, struct capref *dp_frame_child, struct capref *cap_cnode_l1, struct capref *l0_table_child, struct cnoderef *taskcn)
 {
     errval_t err;
 
@@ -170,7 +160,7 @@ static inline errval_t setup_cspace(struct capref dp_child, struct capref dp_fra
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
-    err = fill_taskcn(dp_child, dp_frame, *cnode_l2_rootcn_slot_taskcn, *cap_cnode_l1);
+    err = fill_taskcn(dp_child, dp_frame_parent, dp_frame_child, *cnode_l2_rootcn_slot_taskcn, *cap_cnode_l1);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
@@ -211,11 +201,18 @@ static inline errval_t setup_vspace(struct capref l0_table_child, struct paging_
 {
     errval_t err;
 
-    err = vnode_create(l0_table_child, ObjType_VNode_AARCH64_l0);
+    struct capref l0_table_parent;
+    err = slot_alloc(&l0_table_parent);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
-    err = paging_init_state_foreign(paging_state_child, VADDR_OFFSET, l0_table_child, get_default_slot_allocator());
+    err = vnode_create(l0_table_parent, ObjType_VNode_AARCH64_l0);
+    // TODO: Return an error instead.
+    assert(err_is_ok(err));
+
+    cap_copy(l0_table_child, l0_table_parent);
+
+    err = paging_init_state_foreign(paging_state_child, VADDR_OFFSET, l0_table_parent, get_default_slot_allocator());
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
@@ -316,7 +313,7 @@ static inline errval_t setup_arguments(struct paging_state *paging_state_child, 
     return SYS_ERR_OK;
 }
 
-static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, struct capref dp_child, struct capref dp_frame, size_t dp_frame_bytes, void *got_section_addr, genvaddr_t entry_point_addr)
+static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, struct capref dp_child, struct capref dp_frame_parent, size_t dp_frame_bytes, void *got_section_addr, genvaddr_t entry_point_addr)
 {
     errval_t err;
 
@@ -326,7 +323,7 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         get_current_paging_state(),
         &dp_page_parent,
         dp_frame_bytes,
-        dp_frame,
+        dp_frame_parent,
         VREGION_FLAGS_READ_WRITE,
         NULL,
         NULL
@@ -340,7 +337,7 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         ps,
         &dp_page_child,
         dp_frame_bytes,
-        dp_frame,
+        dp_frame_parent,
         VREGION_FLAGS_READ_WRITE,
         NULL,
         NULL
@@ -358,7 +355,7 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     disp_child->udisp = (lvaddr_t) dp_page_child;
     disp_child->disabled = 1;
     strncpy(disp_child->name, name, DISP_NAME_LEN);
-    disabled_area->named.pc = (uint64_t) entry_point_addr;
+    disabled_area->named.pc = entry_point_addr;
     armv8_set_registers(got_section_addr, handle_child, enabled_area, disabled_area);
     disp_gen->eh_frame = 0;
     disp_gen->eh_frame_size = 0;
@@ -393,15 +390,13 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     si->next = NULL;
     si->binary_name = argv[0];
 
-    struct mem_region *module;
     void *module_data;
-
-    err = load_module(si->binary_name, &module, &module_data);
+    err = load_module(si, &module_data);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
     struct capref dp_child;
-    struct capref dp_frame;
+    struct capref dp_frame_parent;
     struct capref cap_cnode_l1;
     struct capref l0_table_child;
     struct cnoderef taskcn_child;
@@ -410,16 +405,19 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     err = slot_alloc(&dp_child);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
+
     err = dispatcher_create(dp_child);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
-    err = frame_alloc(&dp_frame, DISPATCHER_FRAME_SIZE, &dp_bytes);
+    err = frame_alloc(&dp_frame_parent, DISPATCHER_FRAME_SIZE, &dp_bytes);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
     assert(dp_bytes >= DISPATCHER_FRAME_SIZE);
 
-    err = setup_cspace(dp_child, dp_frame, &cap_cnode_l1, &l0_table_child, &taskcn_child);
+    struct capref dp_frame_child;
+
+    err = setup_cspace(dp_child, dp_frame_parent, &dp_frame_child, &cap_cnode_l1, &l0_table_child, &taskcn_child);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
@@ -432,7 +430,7 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     genvaddr_t entry_point_addr;
     void *got_section_addr;
 
-    err = parse_elf(module, module_data, &as, &entry_point_addr, &got_section_addr);
+    err = parse_elf(si->module, module_data, &as, &entry_point_addr, &got_section_addr);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
@@ -444,11 +442,12 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
-    err = setup_dispatcher(&as.paging_state_child, si->binary_name, dp_child, dp_frame, dp_bytes, got_section_addr, entry_point_addr);
+    err = setup_dispatcher(&as.paging_state_child, si->binary_name, dp_child, dp_frame_parent, dp_bytes, got_section_addr, entry_point_addr);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
-    invoke_dispatcher(dp_child, cap_dispatcher, cap_cnode_l1, l0_table_child, dp_frame, true);
+    // TODO Use l0_table_parent instead?
+    invoke_dispatcher(dp_child, cap_dispatcher, cap_cnode_l1, l0_table_child, dp_frame_child, true);
 
     return SYS_ERR_OK;
 }
@@ -473,11 +472,11 @@ errval_t spawn_load_by_name(char *binary_name, struct spawninfo * si, domainid_t
     errval_t err;
 
     // Get the mem_region from the multiboot image.
-    struct mem_region *module = multiboot_find_module(bi, binary_name);
+    si->module = multiboot_find_module(bi, binary_name);
     // TODO: Return an error instead.
-    assert(module != NULL);
+    assert(si->module != NULL);
 
-    const char *opts = multiboot_module_opts(module);
+    const char *opts = multiboot_module_opts(si->module);
     // TODO: Return an error instead.
     assert(opts != NULL);
 

@@ -27,11 +27,7 @@ struct spawninfo {
     // Information about the binary
     char * binary_name;     // Name of the binary
 
-    // TODO(M2): Add fields you need to store state
-    //           when spawning a new dispatcher,
-    //           e.g. references to the child's
-    //           capabilities or paging state
-
+    struct mem_region *module;
 };
 
 struct elf_allocator_state {
