@@ -20,20 +20,32 @@
  * a simple hash table.
  */
 
+// free data entry
 typedef void (* collections_hash_data_free)(void *);
+
+
+// free memory
+typedef void (* collections_hash_memory_free)(void *);
+
+// alloc memory
+typedef void * (* collections_hash_memory_alloc)(size_t);
 
 typedef struct	_collections_hash_table {
 	// number of buckets in the table.
 	int			num_buckets;
 
 	// pointer to the buckets.
-	collections_listnode	**buckets;
+	struct _collections_listnode	**buckets;
 
 	// total number of elements in the table.
 	uint32_t	num_elems;
 
     // function that knows how to free inserted data resources
     collections_hash_data_free data_free;
+
+
+    collections_hash_memory_alloc memory_alloc;
+    collections_hash_memory_free memory_free;
 
 	// a pointer to keep track of
 	// traversing the hash table
@@ -62,6 +74,13 @@ extern "C" {
  */
 void		collections_hash_create(collections_hash_table **t, collections_hash_data_free f);
 void		collections_hash_create_with_buckets(collections_hash_table **t, int num_buckets, collections_hash_data_free f);
+
+void		collections_hash_create_with_buckets_and_memory_functions(collections_hash_table **t, int num_buckets,
+                                                                      collections_hash_data_free f,
+                                                                      collections_hash_memory_alloc memory_alloc,
+                                                                      collections_hash_memory_free memory_free);
+
+
 void		collections_hash_release(collections_hash_table *t);
 void		collections_hash_insert(collections_hash_table *t, uint64_t key, void *data);
 void*		collections_hash_find(collections_hash_table *t, uint64_t key);

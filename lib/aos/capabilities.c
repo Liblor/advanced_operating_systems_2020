@@ -689,6 +689,7 @@ errval_t vnode_create(struct capref dest, enum objtype type)
  */
 errval_t frame_create(struct capref dest, size_t bytes, size_t *retbytes)
 {
+    DEBUG_BEGIN;
     assert(bytes > 0);
     errval_t err;
 
@@ -703,7 +704,6 @@ errval_t frame_create(struct capref dest, size_t bytes, size_t *retbytes)
         }
         return err_push(err, LIB_ERR_RAM_ALLOC);
     }
-
     err = cap_retype(dest, ram, 0, ObjType_Frame, bytes, 1);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_CAP_RETYPE);

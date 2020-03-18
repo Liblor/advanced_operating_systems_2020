@@ -158,6 +158,7 @@ static void test_add(const uint32_t count, const size_t size)
     }
 }
 
+// there are some mistakes with this testsuite, use grading.c version
 void test_libmm(void)
 {
     print_test_begin("libmm");
@@ -192,6 +193,7 @@ static bool test_paging_multiple(const lvaddr_t base, lvaddr_t *newbase, const i
 
         err = frame_alloc(&frame_cap, bytes, &bytes);
         if (err_is_fail(err)) {
+            DEBUG_ERR(err, "frame alloc");
             debug_printf("frame_alloc failed: %s\n", err_getstring(err));
             return false;
         }
@@ -200,18 +202,61 @@ static bool test_paging_multiple(const lvaddr_t base, lvaddr_t *newbase, const i
 
         err = paging_map_fixed_attr(get_current_paging_state(), vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
         if (err_is_fail(err)) {
+            DEBUG_ERR(err, "paging_map_fixed_attr");
             debug_printf("paging_map_fixed_attr failed: %s\n", err_getstring(err));
             return false;
         }
 
         vaddr += bytes;
     }
-
     for (uint32_t *buf = (uint32_t *) base; (lvaddr_t) buf < vaddr; buf++)
         *buf = 0xAAAAAAAA;
 
     return true;
 }
+
+void test_paging_multi_pagetable(void) {
+    print_test_begin("test_paging_multi_pagetable");
+
+    errval_t err;
+    uint64_t size = 1024 * 1024 * 1024;
+
+    lvaddr_t *vaddr;
+    lvaddr_t base;
+    // MAP 1 GB
+    for(int i = 0; i < 1; i ++) {
+        struct capref frame_cap;
+        size_t bytes = size;
+
+
+        err = frame_alloc(&frame_cap, bytes, &bytes);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "frame_alloc\n");
+            debug_printf("frame_alloc failed: %s\n", err_getstring(err));
+            assert(false);
+        }
+
+        debug_printf("========================================\n");
+        debug_printf("mapping %zu at vaddr %p\n", bytes, vaddr);
+        err = paging_alloc(get_current_paging_state(), (void **) &vaddr, bytes, BASE_PAGE_SIZE);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "paging_alloc failed\n");
+            assert(false);
+        }
+        base = (lvaddr_t ) vaddr;
+        err = paging_map_fixed_attr(get_current_paging_state(), base, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "paging_map_fixed_attr failed\n");
+            debug_printf("paging_map_fixed_attr failed: %s\n", err_getstring(err));
+            assert(false);
+        }
+        for (uint32_t *buf = (uint32_t *) base; (lvaddr_t) buf < (base + bytes); buf++)
+            *buf = 0xAAAAAAAA;
+    }
+
+    assert(true);
+}
+
 
 void test_paging(void)
 {
@@ -222,7 +267,8 @@ void test_paging(void)
     // We may not start from VADDR_OFFSET currenty, since the
     // slab_refill_pages() function claims virtual address space starting from
     // there.
-    lvaddr_t vaddr = VADDR_OFFSET + 32 * BASE_PAGE_SIZE;
+
+    lvaddr_t vaddr = ((lvaddr_t)512UL*1024*1024*1024 * 16); // 16GB
 
     bool success;
 

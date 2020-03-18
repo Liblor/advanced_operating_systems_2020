@@ -45,13 +45,17 @@ typedef int32_t (*collections_list_predicate)(void *data, void *arg);
  */
 typedef void (*collections_release_data)(void *data);
 
+
+// generic functions for memory allocation/ free
+typedef void (* collections_memory_free)(void *);
+typedef void * (* collections_memory_alloc)(size_t);
+
+
 /*
  * structure of each element in the
  * linked list.
  */
-struct          _collections_listnode;
-
-typedef struct	_collections_listnode {
+struct	_collections_listnode {
     //
     // pointer to the previous node.
     //
@@ -66,23 +70,28 @@ typedef struct	_collections_listnode {
     // an abstract data value to store.
     //
     void                         *data;
-} collections_listnode;
+};
+
+typedef struct _collections_listnode collections_listnode;
 
 /*
  * a header to the linked list
  */
-typedef struct _collections_header_data {
+struct _collections_header_data {
     // total number of elements.
     uint32_t                 size;
 
-    // comparison function provided by the user.
+
     collections_release_data data_free;
+    collections_memory_alloc memory_alloc;
+    collections_memory_free memory_free;
 
     // a pointer to keep track of
     // traversing the list.
     collections_listnode    *cur_item;
-} collections_header_data;
+};
 
+typedef struct _collections_header_data collections_header_data;
 
 /*
  * functions ...
@@ -90,6 +99,12 @@ typedef struct _collections_header_data {
 
 void      collections_list_create(collections_listnode **start,
                                   collections_release_data func);
+
+void      collections_list_create_with_memory_func(collections_listnode **start,
+                                                   collections_release_data release_func, collections_memory_alloc mem_alloc,
+                                                   collections_memory_free mem_free);
+
+
 void      collections_list_release(collections_listnode *start);
 int32_t   collections_list_insert(collections_listnode *start, void *data);
 int32_t   collections_list_insert_tail(collections_listnode *start, void *data);

@@ -15,7 +15,11 @@
 #ifndef PAGING_TYPES_H_
 #define PAGING_TYPES_H_ 1
 
+#include <aos/slab.h>
+//#include <aos/vaddr_regions.h>
 #include <aos/solution.h>
+#include <collections/hash_table.h>
+#include <collections/list.h>
 
 #define MCN_COUNT DIVIDE_ROUND_UP(PTABLE_ENTRIES, L2_CNODE_SLOTS)
 
@@ -53,21 +57,41 @@ typedef int paging_flags_t;
 
 struct paging_region {
     lvaddr_t base_addr;
+    // TODO: investigate
     lvaddr_t current_addr;
     size_t region_size;
     paging_flags_t flags;
+    struct capref frame_cap;
+    struct capref cap_mapping;
     // TODO: if needed add struct members for tracking state
+    struct paging_region *next;
 };
 
+
+struct pt_entry {
+    struct capref cap;
+    struct capref cap_mapping;
+    struct _collections_hash_table *pt;
+};
+
+struct pt_l2_entry {
+    struct capref cap;
+    struct capref cap_mapping;
+    struct paging_region *l3_entries[PTABLE_ENTRIES];
+};
+
+#define PAGING_HASHMAP_BUCKETS 100
 
 // struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
-    struct capref l0pd;
-    struct capref l1pd;
-    struct capref l2pd;
-    struct capref l3pd[PTABLE_ENTRIES];
-    bool is_mapped[PTABLE_ENTRIES][PTABLE_ENTRIES];
+    struct slab_allocator slabs;
+    struct vaddr_region *head;
+    struct vaddr_region *tail;
+    struct capref cap_l0;
+    struct _collections_hash_table *l0pt;
+    // TODO: should be 64*sizeof(struct vaddr_region), but circular deps
+    char buf[64*64];
 };
 
 
