@@ -21,6 +21,7 @@
 #include <aos/waitset.h>
 #include <aos/aos_rpc.h>
 #include <mm/mm.h>
+#include <spawn/spawn.h>
 #include <grading.h>
 
 #include "mem_alloc.h"
@@ -56,9 +57,19 @@ bsp_main(int argc, char *argv[]) {
     // TODO: initialize mem allocator, vspace management here
 
     // Grading
-    grading_test_early();
+    //grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
+
+    char *binary_name = "hello";
+    struct spawninfo si;
+    domainid_t pid;
+
+    err = spawn_load_by_name(binary_name, &si, &pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in event_dispatch");
+        abort();
+    }
 
     // Grading
     grading_test_late();
