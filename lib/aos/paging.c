@@ -590,9 +590,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
             curr_pte_count = free_entries_pt;
         }
 
-//        debug_printf("vaddr: %p, l3pt_idx: %p, pte_count: %d, free_entries_pt: %d, curr_pte_count: %d, bytes: %p\n",
-//                     vaddr, l3pt_idx, pte_count, free_entries_pt, curr_pte_count, bytes);
-
         err = paging_map_fixed_single_pt3(st, vaddr, frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags,
                                           offset, paging_region);
         if (err_is_fail(err)) {
