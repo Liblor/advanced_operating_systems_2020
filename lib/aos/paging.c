@@ -491,7 +491,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
 static inline
 errval_t paging_map_fixed_single_pt3(struct paging_state *st, lvaddr_t vaddr,
                                      struct capref frame, size_t pte_count, size_t bytes,
-                                     int flags, struct paging_region* ret_region) {
+                                     int flags, uint64_t offset, struct paging_region* ret_region) {
     errval_t err;
 
     struct pt_l2_entry *l2entry;
@@ -511,9 +511,8 @@ errval_t paging_map_fixed_single_pt3(struct paging_state *st, lvaddr_t vaddr,
         return err;
     }
 
-    // TODO: offset != 0? possible
+    err = vnode_map(l2entry->cap, frame, l3_idx, flags, offset, pte_count, ret_region->cap_mapping[curr_idx]);
 
-    err = vnode_map(l2entry->cap, frame, l3_idx, flags, 0, pte_count, ret_region->cap_mapping[curr_idx]);
     if (err_is_fail(err)) {
         debug_printf("vnode_map failed: %s\n", err_getstring(err));
         err_push(err, LIB_ERR_VNODE_MAP);
@@ -557,9 +556,10 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     if (err_is_fail(err)) { return err; }
 
     /* how many lvl3 mappings needed in total */
-    int64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
+    uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
     /* Upper bound on how many different level 3 pages we need */
     uint64_t upper_bound_single_lvl3 = pte_count / VMSAv8_64_PTABLE_NUM_ENTRIES + 2;
+    uint64_t offset = 0;
 
     struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
     if (paging_region == NULL) {
@@ -582,9 +582,9 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         assert (paging_region->num_caps < upper_bound_single_lvl3);
         /* find how many remaining entries in current lvl 3 pagetable
          * for a single call of paging_map_fixed_single_pt3 */
-        const int64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
-        const int64_t free_entries_pt = 0x1FF - l3pt_idx + 1;
-        int64_t curr_pte_count = 0;
+        const uint64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
+        const uint64_t free_entries_pt = 0x1FF - l3pt_idx + 1;
+        uint64_t curr_pte_count = 0;
         if (pte_count <= free_entries_pt) {
             curr_pte_count = pte_count;
         } else {
@@ -594,8 +594,8 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 //        debug_printf("vaddr: %p, l3pt_idx: %p, pte_count: %d, free_entries_pt: %d, curr_pte_count: %d, bytes: %p\n",
 //                     vaddr, l3pt_idx, pte_count, free_entries_pt, curr_pte_count, bytes);
 
-       err = paging_map_fixed_single_pt3(st, vaddr, frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags,
-                                         paging_region);
+        err = paging_map_fixed_single_pt3(st, vaddr, frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags,
+                                          offset, paging_region);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "paging_map_fixed_single_pt3 failed\n");
             return err;
@@ -605,6 +605,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
         pte_count = pte_count - curr_pte_count;
         vaddr += curr_pte_count * BASE_PAGE_SIZE;
+        offset += curr_pte_count * BASE_PAGE_SIZE;
     }
     return err;
 }
