@@ -93,22 +93,9 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     return SYS_ERR_OK;
 }
 
-__attribute__((__unused__)) static
-void* paging_slab_alloc(size_t size) {
-    return malloc(size);
-}
-
-__attribute__((__unused__))
-static
-void paging_slab_free(void* ptr) {
-    free(ptr);
-}
-
-__attribute__((__unused__))
 static inline
 void create_hashtable(collections_hash_table **hashmap) {
-    collections_hash_create_with_buckets_and_memory_functions(hashmap, PAGING_HASHMAP_BUCKETS, NULL,
-            paging_slab_alloc, paging_slab_free);
+    collections_hash_create_with_buckets(hashmap, PAGING_HASHMAP_BUCKETS, NULL);
 }
 
 /**
@@ -423,7 +410,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
     struct pt_entry *l0entry = collections_hash_find(st->l0pt, l0_idx);
     if (l0entry == NULL) {
-        l0entry = paging_slab_alloc(sizeof(struct pt_entry));
+        l0entry = malloc(sizeof(struct pt_entry));
         if (l0entry == NULL) {
             // TODO: do we recover from alloc errors with free of resources?
             return LIB_ERR_MALLOC_FAIL;
@@ -446,7 +433,7 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     const uint16_t l1_idx = VMSAv8_64_L1_INDEX(vaddr);
     struct pt_entry *l1entry = collections_hash_find(l0entry->pt, l1_idx);
     if (l1entry == NULL) {
-        l1entry = paging_slab_alloc(sizeof(struct pt_entry));
+        l1entry = malloc(sizeof(struct pt_entry));
         if (l1entry == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -469,8 +456,8 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
     struct pt_l2_entry *l2entry = collections_hash_find(l1entry->pt, l2_idx);
     if (l2entry == NULL) {
         // TODO size of pt_l2_entry
-        //l2entry = paging_slab_alloc(sizeof(struct pt_l2_entry));
-        l2entry = paging_slab_alloc(PTABLE_ENTRIES * 8 + 64);
+        //l2entry = malloc(sizeof(struct pt_l2_entry));
+        l2entry = malloc(PTABLE_ENTRIES * 8 + 64);
         if (l2entry == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -560,7 +547,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     const uint64_t upper_bound_single_lvl3 = pte_count / VMSAv8_64_PTABLE_NUM_ENTRIES + 2;
     uint64_t offset = 0;
 
-    struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
+    struct paging_region *paging_region = malloc(sizeof(struct paging_region));
     if (paging_region == NULL) {
         // TODO free vaddr_region
         return LIB_ERR_MALLOC_FAIL;

@@ -54,7 +54,7 @@ static collections_listnode *list_create_node(collections_listnode *start,
 {
     collections_header_data* header = get_header(start);
     collections_listnode *newnode = (collections_listnode *)
-                                    header->memory_alloc(sizeof(collections_listnode));
+            header->memory_alloc(sizeof(collections_listnode));
     newnode->data = data;
 
     list_push(where, newnode);
@@ -221,7 +221,7 @@ void *collections_list_remove_if(collections_listnode *start,
  * \return The number of items removed.
  */
 uint32_t collections_list_remove_if_all(collections_listnode *start,
-                                    collections_list_predicate p, void *arg)
+                                        collections_list_predicate p, void *arg)
 {
     uint32_t items_removed = 0;
 
