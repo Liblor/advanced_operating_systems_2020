@@ -218,7 +218,7 @@ static inline errval_t setup_vspace(struct capref l0_table_child, struct paging_
     return SYS_ERR_OK;
 }
 
-static inline errval_t parse_elf(struct mem_region *module, void *module_data, struct elf_allocator_state *as, genvaddr_t *retentry, void **got_section_addr)
+static inline errval_t parse_elf(struct mem_region *module, void *module_data, struct elf_allocator_state *as, genvaddr_t *entry_point_addr, void **got_section_addr)
 {
     errval_t err;
 
@@ -228,7 +228,7 @@ static inline errval_t parse_elf(struct mem_region *module, void *module_data, s
         as,
         (lvaddr_t) module_data,
         module->mrmod_size,
-        retentry
+        entry_point_addr
     );
     // TODO: Return an error instead.
     assert(err_is_ok(err));
