@@ -23,21 +23,21 @@
 typedef void (* collections_hash_data_free)(void *);
 
 typedef struct	_collections_hash_table {
-    // number of buckets in the table.
-    int			num_buckets;
+	// number of buckets in the table.
+	int			num_buckets;
 
-    // pointer to the buckets.
-    collections_listnode	**buckets;
+	// pointer to the buckets.
+	collections_listnode	**buckets;
 
-    // total number of elements in the table.
-    uint32_t	num_elems;
+	// total number of elements in the table.
+	uint32_t	num_elems;
 
     // function that knows how to free inserted data resources
     collections_hash_data_free data_free;
 
-    // a pointer to keep track of
-    // traversing the hash table
-    int32_t		cur_bucket_num;
+	// a pointer to keep track of
+	// traversing the hash table
+	int32_t		cur_bucket_num;
 } collections_hash_table;
 
 /*
@@ -45,9 +45,9 @@ typedef struct	_collections_hash_table {
  */
 typedef struct	_collections_hash_elem {
 
-    uint64_t	key;
+	uint64_t	key;
 
-    void	*data;
+	void	*data;
 } collections_hash_elem;
 
 #define NUM_BUCKETS	1013

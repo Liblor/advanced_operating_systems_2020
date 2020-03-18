@@ -18,11 +18,6 @@
  * a simple linked list implementation.
  ******************************************************/
 
-static inline
-collections_header_data* get_header(collections_listnode *start) {
-    return ((collections_header_data*)start->data);
-}
-
 /*
  * private functions.
  */
@@ -52,9 +47,8 @@ static collections_listnode *list_create_node(collections_listnode *start,
                                               collections_listnode *where,
                                               void *data)
 {
-    collections_header_data* header = get_header(start);
     collections_listnode *newnode = (collections_listnode *)
-            header->memory_alloc(sizeof(collections_listnode));
+                                    malloc(sizeof(collections_listnode));
     newnode->data = data;
 
     list_push(where, newnode);
@@ -65,10 +59,8 @@ static collections_listnode *list_create_node(collections_listnode *start,
 static void list_destroy_node(collections_listnode *start,
                               collections_listnode *node)
 {
-    collections_header_data* header = get_header(start);
-
     list_pop(node);
-    header->memory_free(node);
+    free(node);
     ((collections_header_data*)start->data)->size--;
 }
 
@@ -83,30 +75,18 @@ static void list_destroy_node(collections_listnode *start,
 void collections_list_create(collections_listnode **start,
                              collections_release_data func)
 {
-    collections_list_create_with_memory_func(start, func, malloc, free);
-}
-
-void collections_list_create_with_memory_func(collections_listnode **start,
-                                              collections_release_data release_func, collections_memory_alloc mem_alloc,
-                                              collections_memory_free mem_free) {
     collections_listnode *t;
 
-    //
-    // this is an empty list containing only the header.
-    //
-    t = (collections_listnode *) mem_alloc(sizeof(collections_listnode));
-    if (t == NULL) return;
-
-    collections_header_data *h = (collections_header_data *)
-            mem_alloc(sizeof(collections_header_data));
-    if (h == NULL) return;
-
+	//
+	// this is an empty list containing only the header.
+	//
+    t = (collections_listnode *)malloc(sizeof(collections_listnode));
     t->next = t->prev = t;
+    collections_header_data *h = (collections_header_data *)
+                                 malloc(sizeof(collections_header_data));
     h->size = 0;
-    h->data_free = release_func;
-    h->memory_alloc = mem_alloc;
-    h->memory_free = mem_free;
-    h->cur_item = NULL;
+	h->data_free = func;
+	h->cur_item = NULL;
     t->data = (void *)h;
 
     *start = t;
@@ -117,10 +97,8 @@ void collections_list_create_with_memory_func(collections_listnode **start,
  */
 void collections_list_release(collections_listnode *start)
 {
-    collections_header_data* header = get_header(start);
     collections_release_data data_free =
-            header->data_free;
-
+        ((collections_header_data*)start->data)->data_free;
     collections_listnode *cur = start->next;
 
     //
@@ -141,9 +119,8 @@ void collections_list_release(collections_listnode *start)
     //
     // release the header.
     //
-    collections_memory_free free_func = header->memory_free;
-    free_func(start->data);
-    free_func(start);
+    free(start->data);
+    free(start);
 
     return;
 }
@@ -221,7 +198,7 @@ void *collections_list_remove_if(collections_listnode *start,
  * \return The number of items removed.
  */
 uint32_t collections_list_remove_if_all(collections_listnode *start,
-                                        collections_list_predicate p, void *arg)
+                                    collections_list_predicate p, void *arg)
 {
     uint32_t items_removed = 0;
 
