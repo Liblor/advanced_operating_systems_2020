@@ -547,9 +547,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
     }
-    if ((bytes % BASE_PAGE_SIZE) != 0) {
-        return LIB_ERR_PAGING_SIZE_INVALID;
-    }
+    bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
     struct vaddr_region *vaddr_region = NULL;
     err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
