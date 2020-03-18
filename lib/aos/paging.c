@@ -557,8 +557,9 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
     /* how many lvl3 mappings needed in total */
     uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
-    /* Upper bound on how many different level 3 pages we need */
-    uint64_t upper_bound_single_lvl3 = pte_count / VMSAv8_64_PTABLE_NUM_ENTRIES + 2;
+    /* Upper bound on how many different level 3 pages we need
+     * the +2 is to account for a not full level 3 before and a not full level 3 table after */
+    const uint64_t upper_bound_single_lvl3 = pte_count / VMSAv8_64_PTABLE_NUM_ENTRIES + 2;
     uint64_t offset = 0;
 
     struct paging_region *paging_region = paging_slab_alloc(sizeof(struct paging_region));
