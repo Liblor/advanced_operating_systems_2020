@@ -22,8 +22,6 @@ errval_t mm_init(struct mm *mm,
     assert(slot_alloc_func != NULL);
     assert(slot_refill_func != NULL);
 
-    debug_printf("mm_init(mm=%p, objtype=%d, ...)\n", mm, objtype);
-
     if (slab_refill_func == NULL)
         slab_refill_func = slab_default_refill;
 
@@ -49,39 +47,24 @@ void mm_destroy(struct mm *mm)
     assert(!"NYI");
 }
 
-static inline void print_node(struct mm *mm, char *buffer, size_t length, struct mmnode *node)
-{
-    assert(buffer != NULL);
-    assert(node != NULL);
+static void print_mmnodes(struct mm *mm) {
+    if (mm->head == NULL) {
+        debug_printf("        [empty list]\n");
+    } else {
+        struct mmnode *current = mm->head;
+        struct mmnode *last = mm->head;
 
-    if (node == &mm->mm_head)
-        snprintf(buffer, 16, "head");
-    else if (node == &mm->mm_tail)
-        snprintf(buffer, 16, "tail");
-    else if (node->type == NodeType_Free)
-        snprintf(buffer, 16, "%p*", node);
-    else
-        snprintf(buffer, 16, "%p", node);
-
-    buffer[length - 1] = '\0';
+        while (current != NULL) {
+            debug_printf("%s%p <- %p -> %p (base=%p, last=%p, size=%u)\n", current->type == NodeType_Allocated ? "       *" : "        ", current->prev, current, current->next, current->base, current->base + current->size - 1, current->size);
+            if (current->next == NULL)
+                last = current;
+            current = current->next;
+        }
+    }
 }
 
-static inline void print_list(struct mm *mm)
-{
-    printf("Forward: ");
-
-    struct mmnode *node;
-    for (node = mm->head; node != NULL; node = node->next) {
-        char buffer[16];
-        print_node(mm, buffer, 16, node);
-
-        if (node->next == NULL)
-            printf("[%s]", buffer);
-        else
-            printf("[%s] <--> ", buffer);
-    }
-
-    printf("\n");
+void mm_print_state(struct mm *mm) {
+    print_mmnodes(mm);
 }
 
 errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
@@ -89,8 +72,6 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
     assert(mm != NULL);
 
     errval_t err;
-
-    debug_printf("mm_add(mm=%p, &cap=%p, base=0x%"PRIxGENPADDR", size=0x%zx)\n", mm, &cap, base, size);
 
     struct mmnode *next;
     for (next = mm->head->next; next != &mm->mm_tail; next = next->next) {
@@ -119,8 +100,6 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
     next->prev = node;
     node->next = next;
 
-    debug_printf("Inserted new node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", node, node->base, node->size);
-
     err = slab_ensure_threshold(&mm->slabs, 10);
     if (err_is_fail(err))
         return err;
@@ -134,8 +113,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     errval_t err;
 
-    debug_printf("mm_alloc_aligned(mm=%p, size=0x%zx, alignment=0x%zx, retcap=%p)\n", mm, size, alignment, retcap);
-
     if (size == 0)
         return MM_ERR_INVALID_SIZE;
 
@@ -146,7 +123,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     size_t best_size = 0;
     size_t best_padding_size = 0;
 
-    // Find the smallest node that is still free and can hold the requested size.
+    // Find the largest node that is still free and can hold the requested size.
     for (struct mmnode *next = mm->head->next; next != &mm->mm_tail; next = next->next) {
         size_t padding_size = (next->base % alignment > 0) ? (alignment - (next->base % alignment)) : 0;
 
@@ -167,10 +144,9 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         }
     }
 
-    if (best == NULL)
-        return MM_ERR_NOT_FOUND;
-
-    debug_printf("Found free node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", best, best->base, best->size);
+    if (best == NULL) {
+        return MM_ERR_OUT_OF_MEMORY;
+    }
 
     const genpaddr_t best_base = best->base;
 
@@ -204,8 +180,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     best->base = best_base + best_padding_size;
     best->size = size;
 
-    debug_printf("Splitting node %p: new base is 0x%"PRIxGENPADDR", new size is 0x%"PRIxGENSIZE"\n", best, best->base, best->size);
-
     if (leftover != NULL) {
         leftover->cap = best->cap;
         leftover->type = NodeType_Free;
@@ -216,8 +190,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         leftover->next = best->next;
         best->next = leftover;
         leftover->prev = best;
-
-        debug_printf("Inserted leftover node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", leftover, leftover->base, leftover->size);
     }
 
     if (padding != NULL) {
@@ -230,27 +202,24 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
         padding->prev = best->prev;
         best->prev = padding;
         padding->next = best;
-
-        debug_printf("Inserted padding node %p at base 0x%"PRIxGENPADDR" with size 0x%"PRIxGENSIZE"\n", padding, padding->base, padding->size);
     }
 
-    err = slab_ensure_threshold(&mm->slabs, 10);
+    err = slab_ensure_threshold(&mm->slabs, 16);
     if (err_is_fail(err))
         return err;
 
     // Retype the aligned part of the node with the requested size.
     err = mm->slot_alloc(mm->slot_alloc_inst, 1, retcap);
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_NEW_NODE);
+        return err_push(err, LIB_ERR_SLOT_ALLOC);
 
     err = mm->slot_refill(mm->slot_alloc_inst);
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_SLOT_MM_ALLOC);
+        return err_push(err, MM_ERR_SLOT_REFILL);
 
     err = cap_retype(*retcap, best->cap.cap, best_base + best_padding_size - best->cap.base, mm->objtype, size, 1);
-    // TODO: Return the correct error code.
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_MISSING_CAPS);
+        return err_push(err, LIB_ERR_CAP_RETYPE);
 
     return SYS_ERR_OK;
 }
@@ -265,8 +234,6 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     assert(mm != NULL);
 
     errval_t err;
-
-    debug_printf("mm_free(mm=%p, &cap=%p, base=0x%"PRIxGENPADDR", size=0x%"PRIxGENSIZE")\n", mm, &cap, base, size);
 
     struct mmnode *node;
 
@@ -291,13 +258,14 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     //if (err_is_fail(err))
     //    return err_push(err, MM_ERR_MM_FREE);
 
+    // TODO Maybe use an explicit error for NULL_CAP.
     err = cap_delete(cap);
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_MM_FREE);
+        return err_push(err, LIB_ERR_CAP_DELETE);
 
     err = slot_free(cap);
     if (err_is_fail(err))
-        return err_push(err, MM_ERR_MM_FREE);
+        return err_push(err, LIB_ERR_SLOT_FREE);
 
     node->type = NodeType_Free;
 

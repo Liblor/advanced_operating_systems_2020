@@ -715,10 +715,12 @@ errors libmm MM_ERR_ {
     failure SLOT_MM_ALLOC       "Nested failure in slot allocator calling mm_alloc",
     failure SLOT_NOSLOTS        "Slot allocator has run out of slots",
     failure SLOT_ALLOC_INIT     "Failure initialising slot allocator",
+    failure SLOT_REFILL         "Failure during refill of slot allocator",
     failure MM_INIT             "Failure in mm_init()",
     failure MM_ADD              "Failure in mm_add()",
     failure MM_ADD_MULTI        "Failure in mm_add_multi()",
     failure MM_FREE             "Failure in mm_free()",
+    failure OUT_OF_MEMORY       "Not enough free space left to allocate requested size",
     failure NEW_NODE            "Failed allocating new node from slot allocator",
     failure OUT_OF_BOUNDS       "Given memory base address / size exceeds bounds of allocator",
     failure ALREADY_PRESENT     "Node already present in add_node()",
@@ -1359,5 +1361,6 @@ errors vas VAS_ERR_ {
 errors aos AOS_ERR_ {
     failure LMP_SEND_FAILURE        "Failure while sending AOS LMP message",
     failure LMP_MSGTYPE_UNKNOWN     "Unknown message type for AOS LMP implementation",
+    failure INVALID_ALIGNMENT       "The alignment given is invalid",
 };
 
