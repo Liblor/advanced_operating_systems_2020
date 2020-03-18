@@ -61,10 +61,10 @@ struct paging_region {
     lvaddr_t current_addr;
     size_t region_size;
     paging_flags_t flags;
+    size_t num_caps;
     struct capref frame_cap;
-    struct capref cap_mapping;
+    struct capref *cap_mapping;
     // TODO: if needed add struct members for tracking state
-    struct paging_region *next;
 };
 
 
