@@ -584,7 +584,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         /* find how many remaining entries in current lvl 3 pagetable
          * for a single call of paging_map_fixed_single_pt3 */
         const uint64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
-        const uint64_t free_entries_pt = 0x1FF - l3pt_idx + 1;
+        const uint64_t free_entries_pt = MASK(VMSAv8_64_PTABLE_BITS) - l3pt_idx + 1;
         uint64_t curr_pte_count = 0;
         if (pte_count <= free_entries_pt) {
             curr_pte_count = pte_count;
