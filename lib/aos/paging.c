@@ -552,7 +552,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     if (err_is_fail(err)) { return err; }
 
     /* how many lvl3 mappings needed in total */
-    int64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
+    uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
     uint64_t offset = 0;
 
     struct paging_region *next_region = NULL;
@@ -561,9 +561,9 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     while (pte_count > 0) {
         /* find how many remaining entries in current lvl 3 pagetable
          * for a single call of paging_map_fixed_single_pt3 */
-        const int64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
-        const int64_t free_entries_pt = 0x1FF - l3pt_idx + 1;
-        int64_t curr_pte_count = 0;
+        const uint64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
+        const uint64_t free_entries_pt = 0x1FF - l3pt_idx + 1;
+        uint64_t curr_pte_count = 0;
         if (pte_count <= free_entries_pt) {
             curr_pte_count = pte_count;
         } else {
