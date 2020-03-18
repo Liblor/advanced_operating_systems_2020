@@ -99,8 +99,7 @@ static errval_t elf_allocator_func(void *state, genvaddr_t base, size_t size, ui
     assert(portion_bytes >= size);
 
     // Map the new memory into the VSpace of the child.
-    void *mapped_child;
-    err = paging_map_frame_attr(&as->paging_state_child, &mapped_child, size, portion_frame, flags, NULL, NULL);
+    err = paging_map_fixed_attr(&as->paging_state_child, base, portion_frame, size, flags);
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
@@ -212,7 +211,7 @@ static inline errval_t setup_vspace(struct capref l0_table_child, struct paging_
 
     cap_copy(l0_table_child, l0_table_parent);
 
-    err = paging_init_state_foreign(paging_state_child, VADDR_OFFSET, l0_table_parent, get_default_slot_allocator());
+    err = paging_init_state_foreign(paging_state_child, BASE_PAGE_SIZE, l0_table_parent, get_default_slot_allocator());
     // TODO: Return an error instead.
     assert(err_is_ok(err));
 
