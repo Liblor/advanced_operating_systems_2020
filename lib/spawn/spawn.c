@@ -48,34 +48,53 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
 
     struct elf_allocator_state *as = (struct elf_allocator_state *) state;
 
-    // Allocate memory.
-    struct capref portion_frame;
-    size_t portion_bytes;
-    err = frame_alloc(&portion_frame, size, &portion_bytes);
+    /*
+     * The base is not necessarily aligned, and neither is the end of the
+     * segment. We have to choose base and corresponding size so that the
+     * original bounds are included in our mapping, but the start and the end
+     * of the mapping are aligned with BASE_PAGE_SIZE. In other words, we must
+     * make sure that
+     * - base_rounded is a multiple of BASE_PAGE_SIZE,
+     * - base_rounded is less than the original base,
+     * - end_rounded is a multiple of BASE_PAGE_SIZE, and
+     * - end_rounded is greater than base + size.
+     */
+
+    const genvaddr_t base_rounded = ROUND_DOWN(base, BASE_PAGE_SIZE);
+    const genvaddr_t end_rounded = ROUND_UP(base + size, BASE_PAGE_SIZE);
+    const size_t size_rounded = end_rounded - base_rounded;
+
+    // Allocate memory for the segment.
+    struct capref segment_frame;
+    size_t segment_bytes;
+    err = frame_alloc(&segment_frame, size_rounded, &segment_bytes);
     if (err_is_fail(err)) {
         debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_FRAME_ALLOC);
     }
 
-    assert(portion_bytes >= size);
+    assert(segment_bytes >= size);
 
-    // Map the new memory into the VSpace of the child.
-    err = paging_map_fixed_attr(&as->paging_state_child, base, portion_frame, size, flags);
+    // Map the new memory into the VSpace of the child. Without mappings, the
+    // child will die due to a page fault.
+    err = paging_map_fixed_attr(&as->paging_state_child, base_rounded, segment_frame, size_rounded, flags);
     if (err_is_fail(err)) {
         debug_printf("paging_map_fixed_attr() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
 
-    // Map the new memory into the VSpace of the parent.
+    // Map the new memory into the VSpace of the parent. We need this for
+    // writing the sections into the segments.
     void *mapped_parent;
-    err = paging_map_frame_attr(get_current_paging_state(), &mapped_parent, size, portion_frame, VREGION_FLAGS_READ_WRITE, NULL, NULL);
+    err = paging_map_frame_attr(get_current_paging_state(), &mapped_parent, size, segment_frame, VREGION_FLAGS_READ_WRITE, NULL, NULL);
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
 
-    // Return a pointer to the mapped memory.
-    *ret = mapped_parent;
+    // Return a pointer to the mapped memory. This is where the ELF loader will
+    // write the section content. Note that we may deal with unaligned bases.
+    *ret = mapped_parent + (base - base_rounded);
 
     return SYS_ERR_OK;
 }
