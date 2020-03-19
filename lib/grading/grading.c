@@ -10,6 +10,7 @@
 #include <mm/mm.h>
 
 #include "../../usr/init/mem_alloc.h"
+#include "paging_tests.h"
 
 
 
