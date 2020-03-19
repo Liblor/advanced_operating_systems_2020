@@ -397,6 +397,7 @@ ensure_correct_pagetable_mapping(struct paging_state *st, lvaddr_t vaddr) {
 static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l2_entry **ret_l2entry)
 {
     errval_t err;
+    assert(vaddr % BASE_PAGE_SIZE == 0);
 
     if (st->l0pt == NULL) {
         create_hashtable(&st->l0pt);
@@ -481,6 +482,9 @@ errval_t paging_map_fixed_single_pt3(struct paging_state *st, lvaddr_t vaddr,
                                      int flags, uint64_t offset, struct paging_region* ret_region) {
     errval_t err;
 
+    assert(vaddr % BASE_PAGE_SIZE == 0);
+    assert(bytes % BASE_PAGE_SIZE == 0);
+
     struct pt_l2_entry *l2entry;
     err = paging_create_pd(st, vaddr, &l2entry);
     if (err_is_fail(err)) {
@@ -522,8 +526,11 @@ errval_t paging_map_fixed_single_pt3(struct paging_state *st, lvaddr_t vaddr,
 
 /**
  * \brief map a user provided frame at user provided VA.
- * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
- * TODO(M2): General case
+ *
+ * Assumptions:
+ * - caller must pass vaddr which is base page aligned.
+ * - bytes may not be base page aligned.
+ *
  */
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
@@ -533,6 +540,9 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
     if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
+    }
+    if (vaddr % BASE_PAGE_SIZE != 0) {
+        return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 

@@ -275,6 +275,7 @@ errors libaos LIB_ERR_ {
 
     failure PAGING_ADDR_ALREADY_MAPPED "The virtual address is already mapped into the process space",
     failure PAGING_SIZE_INVALID "The given size is invalid",
+    failure PAGING_VADDR_NOT_ALIGNED "The virtual address is not aligned",
 
     failure VSPACE_PINNED_INIT  "Failure in vspace_pinned_init()",
     failure VSPACE_PINNED_ALLOC "Failure in vspace_pinned_alloc()",
