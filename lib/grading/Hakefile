@@ -15,7 +15,8 @@
     target = "grading",
     cFiles = [
         "rpc.c",
-        "grading.c"
+        "grading.c",
+        "paging_tests.c"
     ]
   }
 ]

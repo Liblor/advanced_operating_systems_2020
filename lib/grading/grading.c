@@ -517,6 +517,7 @@ grading_test_mm(struct mm * test) {
 
 void
 grading_test_early(void) {
+    run_paging_tests();
     MU_RUN_SUITE(test_suite);
     MU_REPORT();
 }
