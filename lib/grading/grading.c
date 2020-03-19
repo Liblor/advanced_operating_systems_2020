@@ -472,18 +472,25 @@ MU_TEST(test_alloc_stress) {
 MU_TEST_SUITE(test_suite) {
     test_mm = &aos_mm;
 
-    // This is the base address of the first and only region added to the
-    // memory manager at boot.
-    default_region_base = bi->regions[4].mr_base;
+    // Find empty region from the bootinfo. This is the region that has been
+    // added to the memory manager at boot and we need its base address and
+    // size for the following tests.
+    default_region_base = 0;
+    for (int i = 0; i < bi->regions_length; i++) {
+        if (bi->regions[i].mr_type == RegionType_Empty) {
+            default_region_base = bi->regions[i].mr_base;
+            default_total_size = bi->regions[i].mr_bytes;
+        }
+    }
+    if (default_region_base == 0) {
+        assert(!"No empty region found in bootinfo");
+    }
+
     debug_printf("default_region_base=%p\n", default_region_base);
 
     // This is the size of the first allocation that happens when the memory
     // regions are added at boot.
     default_allocated = 4 * BASE_PAGE_SIZE;
-
-    // This is the amount of free memory that is left after the memory
-    // initialization at boot.
-    default_total_size = bi->regions[4].mr_bytes;
 
     MU_SUITE_CONFIGURE(&test_setup, &test_teardown);
 
