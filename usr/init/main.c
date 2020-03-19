@@ -58,10 +58,11 @@ bsp_main(int argc, char *argv[]) {
     // TODO: initialize mem allocator, vspace management here
 
     // Grading
-    //grading_test_early();
+    grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
 
+    /*
     char *binary_name1 = "hello";
     struct spawninfo si1;
     domainid_t pid1;
@@ -81,6 +82,7 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
+    */
 
     // Grading
     grading_test_late();
