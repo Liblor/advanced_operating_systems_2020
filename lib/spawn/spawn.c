@@ -462,7 +462,12 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     disp_child->disabled = 1;
     strncpy(disp_child->name, name, DISP_NAME_LEN);
     registers_set_entry(disabled_area, entry_point_addr);
+
+    // The args are currently read from the enabled area. I believe this is a
+    // bug, so we write the arguments page in both areas for now.
+    registers_set_param(enabled_area, (uint64_t) args_page_child);
     registers_set_param(disabled_area, (uint64_t) args_page_child);
+
     armv8_set_registers(got_section_addr, handle_child, enabled_area, disabled_area);
     disp_gen->eh_frame = 0;
     disp_gen->eh_frame_size = 0;
