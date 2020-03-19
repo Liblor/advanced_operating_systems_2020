@@ -77,7 +77,7 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
 
     // Map the new memory into the VSpace of the child. Without mappings, the
     // child will die due to a page fault.
-    err = paging_map_fixed_attr(&as->paging_state_child, base_rounded, segment_frame, size_rounded, flags);
+    err = paging_map_fixed_attr(as->paging_state_child, base_rounded, segment_frame, size_rounded, flags);
     if (err_is_fail(err)) {
         debug_printf("paging_map_fixed_attr() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_VSPACE_MAP);
@@ -521,8 +521,9 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     }
 
     struct elf_allocator_state as;
+    as.paging_state_child = malloc(sizeof(struct paging_state));
 
-    err = setup_vspace(l0_table_child, &as.paging_state_child);
+    err = setup_vspace(l0_table_child, as.paging_state_child);
     if (err_is_fail(err)) {
         debug_printf("setup_vspace() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_VSPACE_INIT);
@@ -539,7 +540,7 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
 
     void *args_page_child;
 
-    err = setup_arguments(&as.paging_state_child, argc, argv, taskcn_child, &args_page_child);
+    err = setup_arguments(as.paging_state_child, argc, argv, taskcn_child, &args_page_child);
     if (err_is_fail(err)) {
         debug_printf("setup_arguments() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_SETUP_ENV);
@@ -548,7 +549,7 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     struct capref dp_child;
     struct capref dp_frame_child;
 
-    err = setup_dispatcher(&as.paging_state_child, si->binary_name, &dp_child, got_section_addr, entry_point_addr, args_page_child, &dp_frame_child, taskcn_child);
+    err = setup_dispatcher(as.paging_state_child, si->binary_name, &dp_child, got_section_addr, entry_point_addr, args_page_child, &dp_frame_child, taskcn_child);
     if (err_is_fail(err)) {
         debug_printf("setup_dispatcher() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_SETUP_DISPATCHER);

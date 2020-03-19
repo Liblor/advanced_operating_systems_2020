@@ -31,7 +31,7 @@ struct spawninfo {
 };
 
 struct elf_allocator_state {
-    struct paging_state paging_state_child; ///< Paging state of the child.
+    struct paging_state *paging_state_child; ///< Paging state of the child.
 };
 
 // Start a child process using the multiboot command line. Fills in si.
