@@ -10,9 +10,9 @@
 --
 --------------------------------------------------------------------------
 
-let 
+let
     -- Default list of modules to build/install
-    modules_common = [ "/sbin/" ++ f | f <- [ "init"
+    modules_common = [ "/sbin/" ++ f | f <- [ "init", "hello"
       ] ]
   in
   [
@@ -91,7 +91,7 @@ let
     ]
     "Boot QEMU in 64-bit ARM mode emulating a ARM Virtual Machine using UEFI",
 
-    boot "qemu_a57_debug" [ "armv8" ] 
+    boot "qemu_a57_debug" [ "armv8" ]
     [
       In SrcTree "tools" "/tools/qemu-wrapper.sh",
       Str "--image", In BuildTree "root" "/armv8_a57_qemu_image",
@@ -101,7 +101,7 @@ let
     ]
     "Boot QEMU in 64-bit ARM mode emulating a ARM Virtual Machine using UEFI with debugging enabled",
 
-    boot "qemu_a57_uboot" [ "armv8" ] 
+    boot "qemu_a57_uboot" [ "armv8" ]
     [
       Str "MEMORY=3G",
       In SrcTree "tools" "/tools/qemu-wrapper.sh",
@@ -111,19 +111,19 @@ let
     ]
     "Boot QEMU in 64-bit ARM mode emulating a ARM Virtual Machine using U-Boot",
 
-    boot_fastmodels "ARM_FastModels_Base_A57x1" [ "armv8" ] 
+    boot_fastmodels "ARM_FastModels_Base_A57x1" [ "armv8" ]
       "armv8_a57_fvp_base_image"
       "ARM_FastModels/ARMv8_Base_A57x1/ARMv8_Base_A57x1"
       fvp_simargs
       "Boot on a ARM FastModels Base A57x1 Platform",
 
-    boot_fastmodels_lisa "ARM_FastModels_Barebones" [ "armv8" ] 
+    boot_fastmodels_lisa "ARM_FastModels_Barebones" [ "armv8" ]
       "armv8_a57_fvp_base_image"
       "barebones"
       barebones_simargs
       "Boot on a ARM FastModels based on Sven's Barebones",
 
-    boot_fastmodels "ARM_FastModels_Base_A57x4" [ "armv8" ] 
+    boot_fastmodels "ARM_FastModels_Base_A57x4" [ "armv8" ]
       "armv8_a57_fvp_base_image"
       "ARM_FastModels/ARMv8_Base_A57x4"
       fvp_simargs
