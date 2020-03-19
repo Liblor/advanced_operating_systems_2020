@@ -14,6 +14,7 @@
 
 #include <aos/aos.h>
 #include <aos/paging.h>
+#include <aos/vaddr_regions.h>
 #include <aos/except.h>
 #include <aos/slab.h>
 #include "threads_priv.h"
@@ -32,6 +33,7 @@ static struct paging_state current;
 static errval_t pt_alloc(struct paging_state * st, enum objtype type,
                          struct capref *ret)
 {
+    DEBUG_BEGIN;
     errval_t err;
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
     if (err_is_fail(err)) {
@@ -71,18 +73,29 @@ __attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, st
  * \param st The struct to be initialized, must not be NULL.
  * \param start_vaddr Virtual address allocation should start at
  *        this address.
- * \param pdir Reference to the cap of the L1 VNode.
+ * \param cap_l0 Reference to the cap of the L0 VNode.
  * \param ca The slot_allocator to be used by the paging state.
  * \return Either SYS_ERR_OK if no error occured or an error
  * indicating what went wrong otherwise.
  */
 errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
-                           struct capref pdir, struct slot_allocator *ca)
+                           struct capref cap_l0, struct slot_allocator *ca)
 {
-    // TODO (M2): Implement state struct initialization
+    DEBUG_BEGIN;
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
-    return LIB_ERR_NOT_IMPLEMENTED;
+    st->slot_alloc = ca;
+    st->cap_l0 = cap_l0;
+    slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
+    slab_grow(&st->slabs, st->buf, sizeof(st->buf));
+
+    add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
+    return SYS_ERR_OK;
+}
+
+static inline
+void create_hashtable(collections_hash_table **hashmap) {
+    collections_hash_create_with_buckets(hashmap, PAGING_HASHMAP_BUCKETS, NULL);
 }
 
 /**
@@ -94,17 +107,19 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
  * \param st The struct to be initialized, must not be NULL.
  * \param start_vaddr Virtual address allocation should start at
  *        this address.
- * \param pdir Reference to the cap of the L1 VNode.
+ * \param cap_l0 Reference to the cap of the L1 VNode.
  * \param ca The slot_allocator to be used by the paging state.
  * \return Either SYS_ERR_OK if no error occured or an error
  * indicating what went wrong otherwise.
  */
 errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr,
-                           struct capref pdir, struct slot_allocator *ca)
+                                   struct capref cap_l0, struct slot_allocator *ca)
 {
+    DEBUG_BEGIN;
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
+    paging_init_state(st, start_vaddr, cap_l0, ca);
     return SYS_ERR_OK;
 }
 
@@ -114,9 +129,7 @@ errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr
  */
 errval_t paging_init(void)
 {
-    debug_printf("paging_init\n");
-
-    // TODO (M2): Call paging_init_state for &current
+    DEBUG_BEGIN;
     // TODO (M4): initialize self-paging handler
     // TIP: use thread_set_exception_handler() to setup a page fault handler
     // TIP: Think about the fact that later on, you'll have to make sure that
@@ -124,26 +137,13 @@ errval_t paging_init(void)
     // TIP: it might be a good idea to call paging_init_state() from here to
     // avoid code duplication.
 
-    set_current_paging_state(&current);
-
-    current.slot_alloc = NULL;
-
-    struct capref root_pagetable = {
-        .cnode = cnode_page,
-        .slot  = 0,
+    // TODO check parameters
+    struct capref pdir = (struct capref) {
+            .cnode = cnode_page,
+            .slot = 0,
     };
-
-    current.l0pd = root_pagetable;
-    current.l1pd = NULL_CAP;
-    current.l2pd = NULL_CAP;
-
-    for (size_t i = 0; i < ARRAY_LENGTH(current.l3pd); i++)
-        current.l3pd[i] = NULL_CAP;
-
-    for (size_t i = 0; i < ARRAY_LENGTH(current.is_mapped); i++)
-        for (size_t j = 0; j < ARRAY_LENGTH(current.is_mapped[i]); j++)
-            current.is_mapped[i][j] = false;
-
+    paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
+    set_current_paging_state(&current);
     return SYS_ERR_OK;
 }
 
@@ -153,6 +153,7 @@ errval_t paging_init(void)
  */
 void paging_init_onthread(struct thread *t)
 {
+    DEBUG_BEGIN;
     // TODO (M4): setup exception handler for thread `t'.
 }
 
@@ -163,13 +164,20 @@ void paging_init_onthread(struct thread *t)
 errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region *pr,
                                   lvaddr_t base, size_t size, paging_flags_t flags)
 {
+    DEBUG_BEGIN;
     pr->base_addr = (lvaddr_t)base;
     pr->current_addr = pr->base_addr;
     pr->region_size = size;
     pr->flags = flags;
 
-    //TODO(M2): Add the region to a datastructure and ensure paging_alloc
+    //Add the region to a datastructure and ensure paging_alloc
     //will return non-overlapping regions.
+    struct vaddr_region *ret;
+    errval_t err = alloc_vaddr_region(st, pr->base_addr, size, &ret);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    ret->region = pr;
     return SYS_ERR_OK;
 }
 
@@ -180,6 +188,7 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
 errval_t paging_region_init_aligned(struct paging_state *st, struct paging_region *pr,
                                     size_t size, size_t alignment, paging_flags_t flags)
 {
+    DEBUG_BEGIN;
     void *base;
     errval_t err = paging_alloc(st, &base, size, alignment);
     if (err_is_fail(err)) {
@@ -211,6 +220,7 @@ errval_t paging_region_init(struct paging_state *st, struct paging_region *pr,
 errval_t paging_region_map(struct paging_region *pr, size_t req_size, void **retbuf,
                            size_t *ret_size)
 {
+    DEBUG_BEGIN;
     lvaddr_t end_addr = pr->base_addr + pr->region_size;
     ssize_t rem = end_addr - pr->current_addr;
     if (rem > req_size) {
@@ -241,8 +251,14 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
 {
     // XXX: should free up some space in paging region, however need to track
     //      holes for non-trivial case
+
+    // TODO
+    // split vaddr_region if necessary
+    // split paging_region or keep track by other means?
+    // how to keep track of mappings?
     return LIB_ERR_NOT_IMPLEMENTED;
 }
+
 
 /**
  * TODO(M2): Implement this function.
@@ -259,12 +275,18 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
  */
 errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t alignment)
 {
+    DEBUG_BEGIN;
     /**
      * TODO(M2): Implement this function
      * \brief Find a bit of free virtual address space that is large enough to
      *        accomodate a buffer of size `bytes`.
      */
+
     *buf = NULL;
+    slab_ensure_threshold(&st->slabs, 12);
+    errval_t err = find_region(st, buf, bytes, alignment);
+    if (err_is_fail(err)) { return err; }
+
     return SYS_ERR_OK;
 }
 
@@ -288,155 +310,297 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
 errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes,
                                struct capref frame, int flags, void *arg1, void *arg2)
 {
+    DEBUG_BEGIN;
 
-    // TODO(M2): Implement me
+    // TODO(M2): Implement me (done, remove todo after review)
     // - Call paging_alloc to get a free virtual address region of the requested size
     // - Map the user provided frame at the free virtual address
 
-    return LIB_ERR_NOT_IMPLEMENTED;
+    errval_t err = paging_alloc(st, buf, bytes, BASE_PAGE_SIZE);
+    if (err_is_fail(err)) { return err; }
+
+    return paging_map_fixed_attr(st, (lvaddr_t)(*buf), frame, bytes, flags);
 
 }
 
 errval_t slab_refill_no_pagefault(struct slab_allocator *slabs, struct capref frame,
                                   size_t minbytes)
 {
+    DEBUG_BEGIN;
     // Refill the two-level slot allocator without causing a page-fault
     return SYS_ERR_OK;
 }
 
-static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype type, struct capref *parent, struct capref *ret, const uint16_t index)
+static inline errval_t paging_create_vnode(struct paging_state *st, enum objtype type, struct capref *parent,
+        struct capref *ret, const uint16_t index, struct capref *mapping)
 {
+    DEBUG_BEGIN;
     errval_t err;
-
     const int flags = VREGION_FLAGS_READ_WRITE;
 
     err = pt_alloc(st, type, ret);
     if (err_is_fail(err)) {
-        debug_printf("pt_alloc_l1 failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_VNODE_CREATE);
+        debug_printf("pt_alloc failed: %s\n", err_getstring(err));
+        err_push(err, LIB_ERR_VNODE_CREATE);
+        goto error_cleanup;
+    }
+    err = st->slot_alloc->alloc(st->slot_alloc, mapping);
+    if (err_is_fail(err)) {
+        debug_printf("slot_alloc failed: %s\n", err_getstring(err));
+        goto error_cleanup;
+    }
+    err = vnode_map(*parent, *ret, index, flags, 0, 1, *mapping);
+    if (err_is_fail(err)) {
+        debug_printf("vnode_map failed: %s\n", err_getstring(err));
+        err_push(err, LIB_ERR_VNODE_MAP);
+        goto error_cleanup;
+    }
+    return SYS_ERR_OK;
+
+    error_cleanup:
+    st->slot_alloc->free(st->slot_alloc, *ret);
+    st->slot_alloc->free(st->slot_alloc, *mapping);
+    return err;
+}
+
+__attribute__((__unused__))
+static inline void
+ensure_correct_pagetable_mapping(struct paging_state *st, lvaddr_t vaddr) {
+    const uint16_t _l0_idx = VMSAv8_64_L0_INDEX(vaddr);
+    const uint16_t _l1_idx = VMSAv8_64_L1_INDEX(vaddr);
+    const uint16_t _l2_idx = VMSAv8_64_L2_INDEX(vaddr);
+    const uint16_t _l3_idx = VMSAv8_64_L3_INDEX(vaddr);
+    // asserts
+    assert(!capref_is_null(st->cap_l0));
+    struct pt_entry *pt_l1 = collections_hash_find(st->l0pt, _l0_idx);
+    assert(pt_l1!= NULL);
+    assert(!capref_is_null(pt_l1->cap_mapping));
+    assert(!capref_is_null(pt_l1->cap));
+
+    struct pt_entry *pt_l2 = collections_hash_find(pt_l1->pt, _l1_idx);
+    assert(pt_l2!= NULL);
+    assert(!capref_is_null(pt_l2->cap_mapping));
+    assert(!capref_is_null(pt_l2->cap));
+
+    struct pt_l2_entry *pt_l3 = collections_hash_find(pt_l2->pt, _l2_idx);
+    assert(pt_l3!= NULL);
+    assert(!capref_is_null(pt_l3->cap_mapping));
+    assert(!capref_is_null(pt_l3->cap));
+
+    struct paging_region *l3_entry = pt_l3->l3_entries[_l3_idx];
+    assert(l3_entry != NULL);
+    assert(!capref_is_null(l3_entry->frame_cap));
+    assert(!capref_is_null(l3_entry->cap_mapping[l3_entry->num_caps - 1]));
+}
+
+// create paging directory
+static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct pt_l2_entry **ret_l2entry)
+{
+    errval_t err;
+    assert(vaddr % BASE_PAGE_SIZE == 0);
+
+    if (st->l0pt == NULL) {
+        create_hashtable(&st->l0pt);
+        if (st->l0pt == NULL ) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
     }
 
-    struct capref mapping;
-    err = st->slot_alloc->alloc(st->slot_alloc, &mapping);
+    // TODO: refactor
+    // mapping l0 -> l1
+    const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
+    struct pt_entry *l0entry = collections_hash_find(st->l0pt, l0_idx);
+    if (l0entry == NULL) {
+        l0entry = malloc(sizeof(struct pt_entry));
+        if (l0entry == NULL) {
+            // TODO: do we recover from alloc errors with free of resources?
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        collections_hash_table **l1pt = &l0entry->pt;
+        create_hashtable(l1pt);
+        if (*l1pt == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l1, &st->cap_l0, &l0entry->cap,
+                l0_idx, &l0entry->cap_mapping);
+        if (err_is_fail(err)) {
+            debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l1 failed: %s\n", err_getstring(err));
+            return err;
+        }
+        collections_hash_insert(st->l0pt, l0_idx, l0entry);
+    }
+
+    // mapping l1 -> l2
+    const uint16_t l1_idx = VMSAv8_64_L1_INDEX(vaddr);
+    struct pt_entry *l1entry = collections_hash_find(l0entry->pt, l1_idx);
+    if (l1entry == NULL) {
+        l1entry = malloc(sizeof(struct pt_entry));
+        if (l1entry == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        collections_hash_table **l2pt = &l1entry->pt;
+        create_hashtable(l2pt);
+        if (*l2pt == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &l0entry->cap, &l1entry->cap,
+                                  l1_idx, &l1entry->cap_mapping);
+        if (err_is_fail(err)) {
+            debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l2 failed: %s\n", err_getstring(err));
+            return err;
+        }
+        collections_hash_insert(l0entry->pt, l1_idx, l1entry);
+    }
+
+    // mapping l2 -> l3
+    const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
+    struct pt_l2_entry *l2entry = collections_hash_find(l1entry->pt, l2_idx);
+    if (l2entry == NULL) {
+        // TODO size of pt_l2_entry
+        //l2entry = malloc(sizeof(struct pt_l2_entry));
+        l2entry = malloc(PTABLE_ENTRIES * 8 + 64);
+        if (l2entry == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &l1entry->cap, &l2entry->cap,
+                                  l2_idx, &l2entry->cap_mapping);
+        if (err_is_fail(err)) {
+            debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l3 failed: %s\n", err_getstring(err));
+            return err;
+        }
+        collections_hash_insert(l1entry->pt, l2_idx, l2entry);
+    }
+    *ret_l2entry = l2entry;
+
+    return SYS_ERR_OK;
+}
+
+/** map a single lvl3 page table into page table directory */
+static inline
+errval_t paging_map_fixed_single_pt3(struct paging_state *st, lvaddr_t vaddr,
+                                     struct capref frame, size_t pte_count, size_t bytes,
+                                     int flags, uint64_t offset, struct paging_region* ret_region) {
+    errval_t err;
+
+    assert(vaddr % BASE_PAGE_SIZE == 0);
+    assert(bytes % BASE_PAGE_SIZE == 0);
+
+    struct pt_l2_entry *l2entry;
+    err = paging_create_pd(st, vaddr, &l2entry);
+    if (err_is_fail(err)) {
+        debug_printf("paging_create_pd failed: %s\n", err_getstring(err));
+        return err;
+    }
+    assert(l2entry != NULL);
+    const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
+
+    uint64_t curr_idx = ret_region->num_caps;
+    l2entry->l3_entries[l3_idx] = ret_region;
+    err = st->slot_alloc->alloc(st->slot_alloc, &ret_region->cap_mapping[curr_idx]);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc failed: %s\n", err_getstring(err));
         return err;
     }
 
-    err = vnode_map(*parent, *ret, index, flags, 0, 1, mapping);
+    err = vnode_map(l2entry->cap, frame, l3_idx, flags, offset, pte_count, ret_region->cap_mapping[curr_idx]);
+
     if (err_is_fail(err)) {
         debug_printf("vnode_map failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_VNODE_MAP);
+        err_push(err, LIB_ERR_VNODE_MAP);
+        goto error_recovery;
     }
+
+    ret_region->frame_cap = frame;
+    ret_region->num_caps++;
+
+#ifdef CONFIG_PAGING_DEBUG
+    ensure_correct_pagetable_mapping(st, vaddr);
+#endif
 
     return SYS_ERR_OK;
-}
 
-static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t vaddr, struct capref *l3pd)
-{
-    assert(st != NULL);
-
-    errval_t err;
-
-    const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
-    const uint16_t l1_idx = VMSAv8_64_L1_INDEX(vaddr);
-    const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
-
-    assert(!capref_is_null(st->l0pd));
-
-    if (capref_is_null(st->l1pd)) {
-        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l1, &st->l0pd, &st->l1pd, l0_idx);
-        if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
-            return err;
-        }
-    }
-
-    assert(!capref_is_null(st->l1pd));
-
-    if (capref_is_null(st->l2pd)) {
-        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &st->l1pd, &st->l2pd, l1_idx);
-        if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
-            return err;
-        }
-    }
-
-    assert(!capref_is_null(st->l2pd));
-
-    if (capref_is_null(st->l3pd[l2_idx])) {
-        err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &st->l2pd, &st->l3pd[l2_idx], l2_idx);
-        if (err_is_fail(err)) {
-            debug_printf("paging_create_vnode failed: %s\n", err_getstring(err));
-            return err;
-        }
-    }
-
-    *l3pd = st->l3pd[l2_idx];
-
-    return SYS_ERR_OK;
+    error_recovery:
+    st->slot_alloc->free(st->slot_alloc, ret_region->cap_mapping[curr_idx]);
+    return err;
 }
 
 /**
  * \brief map a user provided frame at user provided VA.
- * TODO(M1): Map a frame assuming all mappings will fit into one last level pt
- * TODO(M2): General case
+ *
+ * Assumptions:
+ * - caller must pass vaddr which is base page aligned.
+ * - bytes may not be base page aligned.
+ *
  */
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
-    assert(st != NULL);
-
     errval_t err;
+    debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", bytes=%zu...)\n", st, vaddr, bytes);
 
-    if (bytes == 0)
+    if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
-    else if ((bytes % BASE_PAGE_SIZE) != 0)
-        return LIB_ERR_PAGING_SIZE_INVALID;
-
-    const uint16_t l2_idx = VMSAv8_64_L2_INDEX(vaddr);
-    const uint16_t l3_idx = VMSAv8_64_L3_INDEX(vaddr);
-
-    const uint32_t pte_count = bytes / BASE_PAGE_SIZE;
-
-    // TODO(M2): For M1 we could assume that the frame will always fit into L3.
-    if ((l3_idx + pte_count) > PTABLE_ENTRIES)
-        return LIB_ERR_PAGING_SIZE_INVALID;
-
-    struct capref l3pd;
-
-    // TODO(M2): Move this into the initialization function.
-    if (st->slot_alloc == NULL)
-        st->slot_alloc = get_default_slot_allocator();
-
-    err = paging_create_pd(st, vaddr, &l3pd);
-    if (err_is_fail(err)) {
-        debug_printf("paging_prepare_l1l2 failed: %s\n", err_getstring(err));
-        return err;
     }
-
-    for (int i = 0; i < pte_count; i++) {
-        if (st->is_mapped[l2_idx][l3_idx + i])
-            return LIB_ERR_PAGING_ADDR_ALREADY_MAPPED;
+    if (vaddr % BASE_PAGE_SIZE != 0) {
+        return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
+    bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
-    struct capref mapping;
+    struct vaddr_region *vaddr_region = NULL;
+    err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
+    if (err_is_fail(err)) { return err; }
 
-    err = st->slot_alloc->alloc(st->slot_alloc, &mapping);
-    if (err_is_fail(err)) {
-        debug_printf("slot_alloc failed: %s\n", err_getstring(err));
-        return err;
+    /* how many lvl3 mappings needed in total */
+    uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
+    /* Upper bound on how many different level 3 pages we need
+     * the +2 is to account for a not full level 3 before and a not full level 3 table after */
+    const uint64_t upper_bound_single_lvl3 = pte_count / VMSAv8_64_PTABLE_NUM_ENTRIES + 2;
+    uint64_t offset = 0;
+
+    struct paging_region *paging_region = malloc(sizeof(struct paging_region));
+    if (paging_region == NULL) {
+        // TODO free vaddr_region
+        return LIB_ERR_MALLOC_FAIL;
     }
-
-    err = vnode_map(l3pd, frame, l3_idx, flags, 0, pte_count, mapping);
-    if (err_is_fail(err)) {
-        debug_printf("vnode_map failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_VNODE_MAP);
+    paging_region->cap_mapping = malloc(upper_bound_single_lvl3 * sizeof(struct capref));
+    if (paging_region->cap_mapping == NULL) {
+        // TODO free vaddr_region
+        return LIB_ERR_MALLOC_FAIL;
     }
+    paging_region->base_addr = vaddr;
+    paging_region->current_addr = paging_region->base_addr;
+    paging_region->region_size = bytes;
+    paging_region->flags = flags;
+    paging_region->num_caps = 0;
+    vaddr_region->region = paging_region;
 
-    st->is_mapped[l2_idx][l3_idx] = true;
+    while (pte_count > 0) {
+        assert (paging_region->num_caps < upper_bound_single_lvl3);
+        /* find how many remaining entries in current lvl 3 pagetable
+         * for a single call of paging_map_fixed_single_pt3 */
+        const uint64_t l3pt_idx = VMSAv8_64_L3_INDEX(vaddr);
+        const uint64_t free_entries_pt = MASK(VMSAv8_64_PTABLE_BITS) - l3pt_idx + 1;
+        uint64_t curr_pte_count = 0;
+        if (pte_count <= free_entries_pt) {
+            curr_pte_count = pte_count;
+        } else {
+            curr_pte_count = free_entries_pt;
+        }
 
-    return SYS_ERR_OK;
+        err = paging_map_fixed_single_pt3(st, vaddr, frame, curr_pte_count, curr_pte_count * BASE_PAGE_SIZE, flags,
+                                          offset, paging_region);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "paging_map_fixed_single_pt3 failed\n");
+            return err;
+            // TODO: undo mappings on error?
+            // TODO free all slots on error
+        }
+
+        pte_count = pte_count - curr_pte_count;
+        vaddr += curr_pte_count * BASE_PAGE_SIZE;
+        offset += curr_pte_count * BASE_PAGE_SIZE;
+    }
+    return err;
 }
 
 /**

@@ -62,3 +62,5 @@ bfdocker.sh
 # There are two possible Makefile to use. One uses Podman, the other uses
 # Docker. Please set up a symbolic link to the file that suits your needs.
 Makefile
+bfpodman.bandrin.sh
+CMakeLists.txt

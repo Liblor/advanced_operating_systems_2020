@@ -27,7 +27,7 @@ typedef struct	_collections_hash_table {
 	int			num_buckets;
 
 	// pointer to the buckets.
-	collections_listnode	**buckets;
+	struct _collections_listnode	**buckets;
 
 	// total number of elements in the table.
 	uint32_t	num_elems;
