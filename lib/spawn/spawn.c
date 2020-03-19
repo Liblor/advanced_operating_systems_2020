@@ -343,8 +343,8 @@ static inline errval_t setup_arguments(struct paging_state *paging_state_child, 
     for (int i = 0; i < argc; i++) {
         strcpy(argv_data, argv[i]);
         int n = strlen(argv[i]) + 1;
-        argv_data += n;
         params->argv[i] = argv_data - (char *)args_page_parent + *args_page_child;
+        argv_data += n;
     }
 
     params->argc = argc;
