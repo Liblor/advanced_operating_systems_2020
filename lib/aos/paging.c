@@ -119,7 +119,7 @@ errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr
     // TODO (M2): Implement state struct initialization
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
-    paging_init_state(st, VADDR_OFFSET, cap_l0, get_default_slot_allocator());
+    paging_init_state(st, start_vaddr, cap_l0, ca);
     return SYS_ERR_OK;
 }
 
