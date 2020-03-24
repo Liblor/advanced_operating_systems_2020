@@ -21,6 +21,10 @@ void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
 
 static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
 {
+    if (msg->cap == NULL) {
+        msg->cap = &NULL_CAP;
+    }
+
     uint32_t size_sent = 0;
     const uint64_t lmp_msg_length_bytes = sizeof(uint64_t ) * LMP_MSG_LENGTH;
     const uint64_t msg_size = sizeof(msg->method) + sizeof(msg->length) + msg->length;
@@ -28,11 +32,10 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
     uintptr_t buf[LMP_MSG_LENGTH];
 
     errval_t err = SYS_ERR_OK;
-
     while(size_sent < msg_size) {
         uint64_t to_send = MIN(lmp_msg_length_bytes, msg_size - size_sent);
         memcpy(buf, msg, to_send);
-        memset(buf + to_send, 0, (lmp_msg_length_bytes - to_send));
+        memset((char *) buf + to_send, 0, (lmp_msg_length_bytes - to_send));
         err = lmp_chan_send4(c, flags, (first ? *msg->cap : NULL_CAP), buf[0], buf[1], buf[2], buf[3]);
         if (err_is_fail(err)) {
             break;
