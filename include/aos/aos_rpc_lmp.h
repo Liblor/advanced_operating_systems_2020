@@ -10,6 +10,17 @@ struct rpc_lmp_segment {
     uintptr_t chunk[4]; ///< Bytes that can be sent at a time.
 };
 
+struct aos_rpc_lmp_recv_state {
+    struct rpc_message msg;
+    uint32_t count;
+};
+
+struct aos_rpc_lmp {
+    struct lmp_chan *lc;
+    struct waitset *ws;
+    struct aos_rpc_lmp_recv_state state;
+};
+
 /**
  * \brief Call this handler on the receive side for grading
  */

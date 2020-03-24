@@ -21,6 +21,16 @@
 struct aos_rpc {
     struct lmp_chan rpc_lmp_chan;
     // TODO(M3): Add state
+    union {
+        struct aos_rpc_lmp lmp;
+    } shared;
+};
+
+enum rpc_message_type {
+    RPC_MESSAGE_TYPE_UNKNOWN,
+    RPC_MESSAGE_TYPE_ACK,
+    RPC_MESSAGE_TYPE_NUMBER,
+    RPC_MESSAGE_TYPE_STRING,
 };
 
 enum rpc_message_method {

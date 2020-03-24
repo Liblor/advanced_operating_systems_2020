@@ -398,6 +398,46 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         return err_push(err, LIB_ERR_CAP_RETYPE);
     }
 
+    struct capref chan_init_child = {
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_CHAN_INIT,
+    };
+    err = cap_copy(chan_init_child, cap_chan_init);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+
+    struct capref chan_memory_child = {
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_CHAN_MEMORY,
+    };
+    err = cap_copy(chan_memory_child, cap_chan_memory);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+
+    struct capref chan_serial_child = {
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_CHAN_SERIAL,
+    };
+    err = cap_copy(chan_serial_child, cap_chan_serial);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+
+    struct capref chan_process_child = {
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_CHAN_PROCESS,
+    };
+    err = cap_copy(chan_process_child, cap_process_serial);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+
     // Dispatcher capability.
     struct capref slot_dp = {
         .cnode = taskcn_child,

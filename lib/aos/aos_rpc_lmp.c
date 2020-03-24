@@ -19,6 +19,13 @@ void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
     }
 }
 
+errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
+{
+    reset_recv_state(&rpc->shared.lmp.state);
+
+    return SYS_ERR_OK;
+}
+
 static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
 {
     if (msg->cap == NULL) {
@@ -47,14 +54,69 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
     return err;
 }
 
-
-errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
+static void recv_cb(void *arg)
 {
-    return LIB_ERR_NOT_IMPLEMENTED;
+    struct aos_rpc *rpc = (struct aos_rpc *) arg;
+    struct aos_rpc_lmp_recv_state *recv_state = &rpc->shared.lmp.state;
+    struct lmp_chan *lc = rpc->shared.lmp.lc;
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+    struct capref cap;
+
+    err = lmp_chan_recv(lc, &msg, &cap);
+    if (err_is_fail(err) && lmp_err_is_transient(err)) {
+        // reregister
+        lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, arg));
+        return;
+    }
+
+    // TODO: Realloc payload to fit more data.
+
+    recv_state->count += msg.buf.msglen;
+    memcpy(recv_state->msg.payload, msg.buf.words, msg.buf.msglen);
+
+    debug_printf("msg buflen %zu\n", msg.buf.msglen);
+    debug_printf("msg->words[0] = 0x%lx\n", msg.words[0]);
+
+    if (recv_state->count >= recv_state->msg->length) {
+        // All segments received
+        // TODO: Call our callback
+    } else {
+        lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, arg));
+    }
 }
 
-errval_t
-aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
+static inline errval_t wait_for_ack(struct aos_rpc *rpc, struct aos_rpc_lmp_recv_state *s)
+{
+    errval_t err;
+
+    while (s->count < s->msg->length) {
+        err = event_dispatch(rpc->ws);
+        // TODO: Handle error.
+    }
+}
+
+static inline void reset_recv_state(struct aos_rpc_lmp_recv_state *s)
+{
+    s->msg.method = RPC_MESSAGE_TYPE_UNKNOWN;
+    s->msg.length = 0;
+    s->msg.payload = NULL;
+    s->count = 0;
+}
+
+static inline errval_t wait_for_response(struct aos_rpc *rpc)
+{
+    errval_t err;
+
+    reset_recv_state(&rpc->shared.lmp.state);
+
+    err = lmp_chan_register_recv(rpc->shared.lc, rpc->shared.ws, MKCLOSURE(recv_cb, rpc));
+    // TODO: Handle error.
+
+    err = wait_for_ack(&rpc->shared.lmp.state);
+    // TODO: Handle error.
+}
+
+errval_t aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(num));
     if (msg == NULL) {
@@ -213,6 +275,10 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
     //TODO: Return channel to talk to init process
     debug_printf("aos_rpc_lmp_get_init_channel NYI\n");
+    //lmp_chan_init(struct lmp_chan *lc);
+    //errval_t lmp_chan_alloc_recv_slot(struct lmp_chan *lc)
+    //errval_t lmp_chan_accept(struct lmp_chan *lc,
+                         //size_t buflen_words, struct capref endpoint)
     return NULL;
 }
 

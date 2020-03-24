@@ -90,27 +90,31 @@
 #define EARLY_CNODE_ALLOCATED_SLOTS (1ULL << EARLY_CNODE_ALLOCATED_BITS)
 
 /* Task CNode */
-#define TASKCN_SLOT_TASKCN      0   ///< Task CNode in itself (XXX)
-#define TASKCN_SLOT_DISPATCHER  1   ///< Dispatcher cap in task cnode
-#define TASKCN_SLOT_ROOTCN      2   ///< RootCN slot in task cnode
-#define TASKCN_SLOT_DISPFRAME   4   ///< Dispatcher frame cap in task cnode
-#define TASKCN_SLOT_IRQ         5   ///< IRQ cap in task cnode
-#define TASKCN_SLOT_IO          6   ///< IO cap in task cnode
-#define TASKCN_SLOT_BOOTINFO    7   ///< Bootinfo frame slot in task cnode
-#define TASKCN_SLOT_KERNELCAP   8   ///< Kernel cap in task cnode
-#define TASKCN_SLOT_TRACEBUF    9   ///< Trace buffer cap in task cnode
-#define TASKCN_SLOT_ARGSPAGE    10  ///< Cap for the page containing a list of command line arguments
-#define TASKCN_SLOT_MON_URPC    11  ///< Frame cap for urpc comm.
-#define TASKCN_SLOT_SESSIONID   12  ///< Session ID domain belongs to
-#define TASKCN_SLOT_FDSPAGE     13  ///< cap for inherited file descriptors
-#define TASKCN_SLOT_PERF_MON    14  ///< cap for performance monitoring
-#define TASKCN_SLOT_SYSMEM      15  ///< ???
-#define TASKCN_SLOT_COREBOOT    16  ///< Copy of realmode section used to bootstrap a core
-#define TASKCN_SLOT_IPI         17  ///< Copy of IPI cap
-#define TASKCN_SLOT_PROC_MNG    18  ///< Cap for the process manager
-#define TASKCN_SLOT_DOMAINID    19  ///< Domain ID cap
-#define TASKCN_SLOT_DEVMAN      20  ///< DeviceID manager capability
-#define TASKCN_SLOTS_USER       21  ///< First free slot in taskcn for user
+#define TASKCN_SLOT_TASKCN        0  ///< Task CNode in itself (XXX)
+#define TASKCN_SLOT_DISPATCHER    1  ///< Dispatcher cap in task cnode
+#define TASKCN_SLOT_ROOTCN        2  ///< RootCN slot in task cnode
+#define TASKCN_SLOT_DISPFRAME     4  ///< Dispatcher frame cap in task cnode
+#define TASKCN_SLOT_IRQ           5  ///< IRQ cap in task cnode
+#define TASKCN_SLOT_IO            6  ///< IO cap in task cnode
+#define TASKCN_SLOT_BOOTINFO      7  ///< Bootinfo frame slot in task cnode
+#define TASKCN_SLOT_KERNELCAP     8  ///< Kernel cap in task cnode
+#define TASKCN_SLOT_TRACEBUF      9  ///< Trace buffer cap in task cnode
+#define TASKCN_SLOT_ARGSPAGE     10  ///< Cap for the page containing a list of command line arguments
+#define TASKCN_SLOT_MON_URPC     11  ///< Frame cap for urpc comm.
+#define TASKCN_SLOT_SESSIONID    12  ///< Session ID domain belongs to
+#define TASKCN_SLOT_FDSPAGE      13  ///< cap for inherited file descriptors
+#define TASKCN_SLOT_PERF_MON     14  ///< cap for performance monitoring
+#define TASKCN_SLOT_SYSMEM       15  ///< ???
+#define TASKCN_SLOT_COREBOOT     16  ///< Copy of realmode section used to bootstrap a core
+#define TASKCN_SLOT_IPI          17  ///< Copy of IPI cap
+#define TASKCN_SLOT_PROC_MNG     18  ///< Cap for the process manager
+#define TASKCN_SLOT_DOMAINID     19  ///< Domain ID cap
+#define TASKCN_SLOT_DEVMAN       20  ///< DeviceID manager capability
+#define TASKCN_SLOT_CHAN_INIT    21  ///< Cap to the endpoint of the init process
+#define TASKCN_SLOT_CHAN_MEMORY  22  ///< Cap to the endpoint of the memory server
+#define TASKCN_SLOT_CHAN_SERIAL  23  ///< Cap to the endpoint of the serial server
+#define TASKCN_SLOT_CHAN_PROCESS 24  ///< Cap to the endpoint of the spawn server
+#define TASKCN_SLOTS_USER        25  ///< First free slot in taskcn for user
 
 /* Page CNode */
 #define PAGECN_SLOT_VROOT       0 ///< First slot of page cnode is root page table
