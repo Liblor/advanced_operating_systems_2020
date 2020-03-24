@@ -18,7 +18,7 @@
 
 errval_t aos_rpc_init(struct aos_rpc *rpc)
 {
-
+    return LIB_ERR_NOT_IMPLEMENTED;
 }
 
 void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)

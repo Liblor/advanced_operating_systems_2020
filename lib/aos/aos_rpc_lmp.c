@@ -50,7 +50,7 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
 
 errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
 {
-
+    return LIB_ERR_NOT_IMPLEMENTED;
 }
 
 errval_t
@@ -94,8 +94,8 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     msg->method = Method_Request_Ram_Cap;
     msg->payload_length = payload_length;
     msg->cap = &NULL_CAP;
-    memcpy(msg->payload, bytes, sizeof(bytes));
-    memcpy(msg->payload + sizeof(bytes), alignment, sizeof(alignment));
+    memcpy(msg->payload, &bytes, sizeof(bytes));
+    memcpy(msg->payload + sizeof(bytes), &alignment, sizeof(alignment));
 
     // TODO: implement functionality to request a RAM capability over the
     // given channel and wait until it is delivered.
