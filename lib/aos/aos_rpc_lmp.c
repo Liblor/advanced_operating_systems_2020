@@ -65,7 +65,9 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     memcpy(msg->payload, &num, sizeof(num));
 
    // TODO: init channel
-    return lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    free(msg);
+    return err;
 }
 
 errval_t
