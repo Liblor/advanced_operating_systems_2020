@@ -31,7 +31,7 @@ enum rpc_message_method {
 
 struct rpc_message {
     uint8_t method;   ///< Method identifier, see enum rpc_message_method
-    uint32_t length; ///< The length of the message.
+    uint32_t payload_length; ///< The length of the message.
     struct capref *cap; ///< Optional cap to exchange, NULL if not set
     char payload[0]; ///< The total payload data of the message.
 };
