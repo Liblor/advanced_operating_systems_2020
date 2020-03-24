@@ -99,6 +99,8 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 
     // TODO: implement functionality to request a RAM capability over the
     // given channel and wait until it is delivered.
+
+    free(msg);
     return SYS_ERR_OK;
 }
 
