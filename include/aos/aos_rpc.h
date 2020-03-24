@@ -27,7 +27,8 @@ enum rpc_message_method {
     Method_Send_Number, // TODO: assign numbers
     Method_Request_Ram_Cap,
     Method_Send_String,
-    Method_Serial_Putchar
+    Method_Serial_Putchar,
+    Method_Serial_Getchar
 };
 
 struct rpc_message {

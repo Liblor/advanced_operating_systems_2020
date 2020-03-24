@@ -128,9 +128,34 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 errval_t
 aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
-    // TODO implement functionality to request a character from
-    // the serial driver.
-    return SYS_ERR_OK;
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Serial_Getchar;
+    msg->payload_length = 0;
+    msg->cap = NULL;
+
+    // TODO: init channel
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+    err = event_dispatch(get_default_waitset());
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+
+    // TODO: how to get result
+    // read from rpc state and return result
+    *retc = -1; // TODO
+
+    err = SYS_ERR_OK;
+    goto clean_up;
+
+    clean_up:
+    free(msg);
+    return err;
 }
 
 errval_t
