@@ -27,7 +27,7 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
 
     uint32_t size_sent = 0;
     const uint64_t lmp_msg_length_bytes = sizeof(uint64_t ) * LMP_MSG_LENGTH;
-    const uint64_t msg_size = sizeof(msg->method) + sizeof(msg->length) + msg->length;
+    const uint64_t msg_size = sizeof(msg->method) + sizeof(msg->payload_length) + msg->payload_length;
     bool first = true;
     uintptr_t buf[LMP_MSG_LENGTH];
 
@@ -61,7 +61,7 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
         return LIB_ERR_MALLOC_FAIL;
     }
     msg->method = Method_Send_Number;
-    msg->length = sizeof(num);
+    msg->payload_length = sizeof(num);
     msg->cap = &NULL_CAP;
     memcpy(msg->payload, &num, sizeof(num));
 
@@ -77,7 +77,7 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 
     struct rpc_message msg = {
             .method = Method_Send_String,
-            .length = sizeof(string),
+            .payload_length = sizeof(string),
             .cap = NULL,
             .payload = &string
     };
@@ -89,10 +89,10 @@ errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                     struct capref *ret_cap, size_t *ret_bytes)
 {
-    const size_t payload_size = sizeof(bytes) + sizeof(alignment);
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_size);
+    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
     msg->method = Method_Request_Ram_Cap;
-    msg->length = payload_size;
+    msg->payload_length = payload_length;
     msg->cap = &NULL_CAP;
     memcpy(msg->payload, bytes, sizeof(bytes));
     memcpy(msg->payload + sizeof(bytes), alignment, sizeof(alignment));
