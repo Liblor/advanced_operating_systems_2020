@@ -61,6 +61,7 @@ static void recv_cb(void *arg)
     struct lmp_chan *lc = rpc->shared.lmp.lc;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
     struct capref cap;
+    errval_t err;
 
     err = lmp_chan_recv(lc, &msg, &cap);
     if (err_is_fail(err) && lmp_err_is_transient(err)) {
@@ -77,7 +78,7 @@ static void recv_cb(void *arg)
     debug_printf("msg buflen %zu\n", msg.buf.msglen);
     debug_printf("msg->words[0] = 0x%lx\n", msg.words[0]);
 
-    if (recv_state->count >= recv_state->msg->length) {
+    if (recv_state->count >= recv_state->msg.payload_length) {
         // All segments received
         // TODO: Call our callback
     } else {
@@ -89,7 +90,7 @@ static inline errval_t wait_for_ack(struct aos_rpc *rpc, struct aos_rpc_lmp_recv
 {
     errval_t err;
 
-    while (s->count < s->msg->length) {
+    while (s->count < s->msg.payload_length) {
         err = event_dispatch(rpc->ws);
         // TODO: Handle error.
     }
@@ -98,8 +99,8 @@ static inline errval_t wait_for_ack(struct aos_rpc *rpc, struct aos_rpc_lmp_recv
 static inline void reset_recv_state(struct aos_rpc_lmp_recv_state *s)
 {
     s->msg.method = RPC_MESSAGE_TYPE_UNKNOWN;
-    s->msg.length = 0;
-    s->msg.payload = NULL;
+    s->msg.payload_length = 0;
+//    s->msg.payload;
     s->count = 0;
 }
 
