@@ -19,11 +19,71 @@ void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
     }
 }
 
+
+
+static send_message(struct lmp_chan *c, uintptr_t *msgbuf,
+                    size_t msg_words, size_t *words_sent) {
+    uintptr_t buf[LMP_MSG_LENGTH];
+    if (msg_words > LMP_MSG_LENGTH) {
+        msg_words = LMP_MSG_LENGTH;
+    }
+    memcpy(buf, msgbuf, msg_words * sizeof(uintptr_t));
+    memset(buf + msg_words, 0, (LMP_MSG_LENGTH - msg_words));
+    if (words_sent) {
+        *words_sent = msg_words;
+    }
+    return lmp_chan_send4(c, LMP_SEND_FLAGS_DEFAULT, NULL_CAP, buf[0], buf[1], buf[2], buf[3]);
+
+}
+
+//struct rpc_lmp_segment {
+//    uintptr_t chunk[4]; ///< Bytes that can be sent at a time.
+//};
+
+
+//struct rpc_message {
+//    uint8_t method;   ///< Method identifier, i.e., "send an int".
+//    uint32_t length; ///< The length of the message.
+//    uintptr_t *payload; ///< The total payload data of the message.
+//};
+
+
+static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
+{
+    uint32_t size_sent = 0;
+    const uint64_t lmp_msg_length_bytes = sizeof(uint64_t ) * LMP_MSG_LENGTH;
+    const uint64_t msg_size = sizeof(msg->method) + sizeof(msg->length) + msg->length;
+    bool first = true;
+    uintptr_t buf[LMP_MSG_LENGTH];
+
+    errval_t err = SYS_ERR_OK;
+
+    while(size_sent < msg_size) {
+        uint64_t to_send = MIN(lmp_msg_length_bytes, msg_size - size_sent);
+        memcpy(buf, msg, to_send);
+        memset(buf + to_send, 0, (lmp_msg_length_bytes - to_send));
+        err = lmp_chan_send4(c, flags, (first ? *msg->cap : NULL_CAP), buf[0], buf[1], buf[2], buf[3]);
+        if (err_is_fail(err)) {
+            break;
+        }
+        size_sent += to_send;
+        first = false;
+    }
+    return err;
+}
+
 errval_t
 aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
-    // TODO: implement functionality to send a number over the channel
-    // given channel and wait until the ack gets returned.
+
+    struct rpc_message msg = {
+        .method = Method_Send_Number,
+        .length = sizeof(num),
+        .cap = &NULL_CAP,
+        .payload = &num
+    };
+
+//    return lmp_send_message(&msg, );
     return SYS_ERR_OK;
 }
 

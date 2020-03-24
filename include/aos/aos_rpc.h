@@ -22,9 +22,14 @@ struct aos_rpc {
     // TODO(M3): Add state
 };
 
+enum rpc_message_method {
+    Method_Send_Number // TODO: assign numbers
+};
+
 struct rpc_message {
-    uint8_t method;   ///< Method identifier, i.e., "send an int".
+    uint8_t method;   ///< Method identifier, see enum rpc_message_method
     uint32_t length; ///< The length of the message.
+    struct capref *cap; ///< Optional cap to exchange, NULL if not set
     uintptr_t *payload; ///< The total payload data of the message.
 };
 
