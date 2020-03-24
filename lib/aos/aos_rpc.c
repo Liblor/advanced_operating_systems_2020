@@ -14,109 +14,64 @@
 
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
-
+#include <aos/aos_rpc_lmp.h>
 
 void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
-    if (string) {
-        debug_printf("||TEST %s length %zu \n", string, strlen(string));
-    }
-
-    if (val) {
-        debug_printf("||TEST %d \n", *val);
-    }
-
-
-    if (cap && !capref_is_null(*cap)) {
-        char buf[256];
-        debug_print_cap_at_capref(buf, 256, *cap);
-        debug_printf("||TEST %s \n", buf);
-    }
+    aos_rpc_lmp_handler_print(string, val, cap);
 }
 
-
-
-
-
-
-errval_t
-aos_rpc_send_number(struct aos_rpc *rpc, uintptr_t num) {
-    // TODO: implement functionality to send a number over the channel
-    // given channel and wait until the ack gets returned.
-    return SYS_ERR_OK;
+errval_t aos_rpc_send_number(struct aos_rpc *rpc, uintptr_t num)
+{
+    return aos_rpc_lmp_send_number(rpc, num);
 }
 
-errval_t
-aos_rpc_send_string(struct aos_rpc *rpc, const char *string) {
-    // TODO: implement functionality to send a string over the given channel
-    // and wait for a response.
-    return SYS_ERR_OK;
+errval_t aos_rpc_send_string(struct aos_rpc *rpc, const char *string)
+{
+    return aos_rpc_lmp_send_string(rpc, string);
 }
 
-errval_t
-aos_rpc_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
-                    struct capref *ret_cap, size_t *ret_bytes) {
-    // TODO: implement functionality to request a RAM capability over the
-    // given channel and wait until it is delivered.
-    return SYS_ERR_OK;
+errval_t aos_rpc_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment, struct capref *ret_cap, size_t *ret_bytes)
+{
+    return aos_rpc_lmp_get_ram_cap(rpc, bytes, alignment, ret_cap, ret_bytes);
 }
 
-
-errval_t
-aos_rpc_serial_getchar(struct aos_rpc *rpc, char *retc) {
-    // TODO implement functionality to request a character from
-    // the serial driver.
-    return SYS_ERR_OK;
+errval_t aos_rpc_serial_getchar(struct aos_rpc *rpc, char *retc)
+{
+    return aos_rpc_lmp_serial_getchar(rpc, retc);
 }
 
-
-errval_t
-aos_rpc_serial_putchar(struct aos_rpc *rpc, char c) {
-    // TODO implement functionality to send a character to the
-    // serial port.
-    return SYS_ERR_OK;
+errval_t aos_rpc_serial_putchar(struct aos_rpc *rpc, char c)
+{
+    return aos_rpc_lmp_serial_putchar(rpc, c);
 }
 
-errval_t
-aos_rpc_process_spawn(struct aos_rpc *rpc, char *cmdline,
-                      coreid_t core, domainid_t *newpid) {
-    // TODO (M5): implement spawn new process rpc
-    return SYS_ERR_OK;
+errval_t aos_rpc_process_spawn(struct aos_rpc *rpc, char *cmdline, coreid_t core, domainid_t *newpid)
+{
+    return aos_rpc_lmp_process_spawn(rpc, cmdline, core, newpid);
 }
 
-
-
-errval_t
-aos_rpc_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
-    // TODO (M5): implement name lookup for process given a process id
-    return SYS_ERR_OK;
+errval_t aos_rpc_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
+{
+    return aos_rpc_lmp_process_get_name(rpc, pid, name);
 }
 
-
-errval_t
-aos_rpc_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
-                             size_t *pid_count) {
-    // TODO (M5): implement process id discovery
-    return SYS_ERR_OK;
+errval_t aos_rpc_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids, size_t *pid_count)
+{
+    return aos_rpc_lmp_process_get_all_pids(rpc, pids, pid_count);
 }
 
-
-errval_t
-aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
-                       struct capref *ret_cap) {
-    return LIB_ERR_NOT_IMPLEMENTED;
+errval_t aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes, struct capref *ret_cap)
+{
+    return aos_rpc_lmp_get_device_cap(rpc, paddr, bytes, ret_cap);
 }
-
-
 
 /**
  * \brief Returns the RPC channel to init.
  */
 struct aos_rpc *aos_rpc_get_init_channel(void)
 {
-    //TODO: Return channel to talk to init process
-    debug_printf("aos_rpc_get_init_channel NYI\n");
-    return NULL;
+    return aos_rpc_lmp_get_init_channel();
 }
 
 /**
@@ -124,10 +79,7 @@ struct aos_rpc *aos_rpc_get_init_channel(void)
  */
 struct aos_rpc *aos_rpc_get_memory_channel(void)
 {
-    //TODO: Return channel to talk to memory server process (or whoever
-    //implements memory server functionality)
-    debug_printf("aos_rpc_get_memory_channel NYI\n");
-    return NULL;
+    return aos_rpc_lmp_get_memory_channel();
 }
 
 /**
@@ -135,10 +87,7 @@ struct aos_rpc *aos_rpc_get_memory_channel(void)
  */
 struct aos_rpc *aos_rpc_get_process_channel(void)
 {
-    //TODO: Return channel to talk to process server process (or whoever
-    //implements process server functionality)
-    debug_printf("aos_rpc_get_process_channel NYI\n");
-    return NULL;
+    return aos_rpc_lmp_get_process_channel();
 }
 
 /**
@@ -146,9 +95,5 @@ struct aos_rpc *aos_rpc_get_process_channel(void)
  */
 struct aos_rpc *aos_rpc_get_serial_channel(void)
 {
-    //TODO: Return channel to talk to serial driver/terminal process (whoever
-    //implements print/read functionality)
-    debug_printf("aos_rpc_get_serial_channel NYI\n");
-    return NULL;
+    return aos_rpc_lmp_get_serial_channel();
 }
-
