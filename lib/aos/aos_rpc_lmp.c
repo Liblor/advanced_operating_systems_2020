@@ -120,9 +120,19 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
-    // TODO implement functionality to send a character to the
-    // serial port.
-    return SYS_ERR_OK;
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Serial_Putchar;
+    msg->payload_length = sizeof(c);
+    msg->cap = NULL;
+    memcpy(msg->payload, &c, sizeof(c));
+
+    // TODO: init channel
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    free(msg);
+    return err;
 }
 
 errval_t
