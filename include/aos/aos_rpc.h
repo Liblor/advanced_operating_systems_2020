@@ -19,6 +19,7 @@
 
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
+    struct lmp_chan rpc_lmp_chan;
     // TODO(M3): Add state
 };
 
