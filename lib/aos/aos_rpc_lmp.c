@@ -19,45 +19,161 @@ void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
     }
 }
 
+static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
+{
+    if (msg->cap == NULL) {
+        msg->cap = &NULL_CAP;
+    }
+
+    uint32_t size_sent = 0;
+    const uint64_t lmp_msg_length_bytes = sizeof(uint64_t ) * LMP_MSG_LENGTH;
+    const uint64_t msg_size = sizeof(msg->method) + sizeof(msg->payload_length) + msg->payload_length;
+    bool first = true;
+    uintptr_t buf[LMP_MSG_LENGTH];
+
+    errval_t err = SYS_ERR_OK;
+    while(size_sent < msg_size) {
+        uint64_t to_send = MIN(lmp_msg_length_bytes, msg_size - size_sent);
+        // TODO copy payload!
+        memcpy(buf, msg, to_send);
+        memset((char *) buf + to_send, 0, (lmp_msg_length_bytes - to_send));
+        err = lmp_chan_send4(c, flags, (first ? *msg->cap : NULL_CAP), buf[0], buf[1], buf[2], buf[3]);
+        if (err_is_fail(err)) {
+            break;
+        }
+        size_sent += to_send;
+        first = false;
+    }
+    return err;
+}
+
+
+errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
+{
+    return LIB_ERR_NOT_IMPLEMENTED;
+}
+
 errval_t
 aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
-    // TODO: implement functionality to send a number over the channel
-    // given channel and wait until the ack gets returned.
-    return SYS_ERR_OK;
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(num));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Send_Number;
+    msg->payload_length = sizeof(num);
+    msg->cap = &NULL_CAP;
+    memcpy(msg->payload, &num, sizeof(num));
+
+   // TODO: init channel
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    free(msg);
+    return err;
 }
 
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 {
-    // TODO: implement functionality to send a string over the given channel
-    // and wait for a response.
-    return SYS_ERR_OK;
+    const uint32_t str_len = MIN(strlen(string), RPC_LMP_MAX_STR_LEN);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + str_len);
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Send_String;
+    msg->payload_length = str_len;
+    msg->cap = NULL;
+    strncpy(msg->payload, string, str_len);
+
+    // TODO: init channel
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    free(msg);
+    return err;
 }
 
 errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                     struct capref *ret_cap, size_t *ret_bytes)
 {
+    errval_t err;
+    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Request_Ram_Cap;
+    msg->payload_length = payload_length;
+    msg->cap = &NULL_CAP;
+    memcpy(msg->payload, &bytes, sizeof(bytes));
+    memcpy(msg->payload + sizeof(bytes), &alignment, sizeof(alignment));
+
+    err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+    err = event_dispatch(get_default_waitset());
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
     // TODO: implement functionality to request a RAM capability over the
     // given channel and wait until it is delivered.
-    return SYS_ERR_OK;
+
+    err = SYS_ERR_OK;
+    goto clean_up;
+
+    clean_up:
+    free(msg);
+    return err;
 }
 
 errval_t
 aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
-    // TODO implement functionality to request a character from
-    // the serial driver.
-    return SYS_ERR_OK;
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Serial_Getchar;
+    msg->payload_length = 0;
+    msg->cap = NULL;
+
+    // TODO: init channel
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+    err = event_dispatch(get_default_waitset());
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+
+    // TODO: how to get result
+    // read from rpc state and return result
+    *retc = -1; // TODO
+
+    err = SYS_ERR_OK;
+    goto clean_up;
+
+    clean_up:
+    free(msg);
+    return err;
 }
 
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
-    // TODO implement functionality to send a character to the
-    // serial port.
-    return SYS_ERR_OK;
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Serial_Putchar;
+    msg->payload_length = sizeof(c);
+    msg->cap = NULL;
+    memcpy(msg->payload, &c, sizeof(c));
+
+    // TODO: init channel
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    free(msg);
+    return err;
 }
 
 errval_t

@@ -19,13 +19,23 @@
 
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
+    struct lmp_chan rpc_lmp_chan;
     // TODO(M3): Add state
 };
 
+enum rpc_message_method {
+    Method_Send_Number, // TODO: assign numbers
+    Method_Request_Ram_Cap,
+    Method_Send_String,
+    Method_Serial_Putchar,
+    Method_Serial_Getchar
+};
+
 struct rpc_message {
-    uint8_t method;   ///< Method identifier, i.e., "send an int".
-    uint32_t length; ///< The length of the message.
-    uintptr_t *payload; ///< The total payload data of the message.
+    uint8_t method;   ///< Method identifier, see enum rpc_message_method
+    uint32_t payload_length; ///< The length of the message.
+    struct capref *cap; ///< Optional cap to exchange, NULL if not set
+    char payload[0]; ///< The total payload data of the message.
 };
 
 /**

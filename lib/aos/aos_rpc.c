@@ -16,6 +16,11 @@
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
 
+errval_t aos_rpc_init(struct aos_rpc *rpc)
+{
+    return LIB_ERR_NOT_IMPLEMENTED;
+}
+
 void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
     aos_rpc_lmp_handler_print(string, val, cap);
