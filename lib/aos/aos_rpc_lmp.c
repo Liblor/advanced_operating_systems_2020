@@ -94,7 +94,7 @@ errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                     struct capref *ret_cap, size_t *ret_bytes)
 {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
     if (msg == NULL) {
@@ -107,21 +107,20 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     memcpy(msg->payload + sizeof(bytes), &alignment, sizeof(alignment));
 
     err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
-
-    struct waitset *default_ws = get_default_waitset();
-    while (true) {
-        err = event_dispatch(default_ws);
-        if (err_is_fail(err)) {
-            goto clean_up;
-        }
+    if (err_is_fail(err)) {
+        goto clean_up;
     }
-
+    err = event_dispatch(get_default_waitset());
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
     // TODO: implement functionality to request a RAM capability over the
     // given channel and wait until it is delivered.
 
+    // fall through to clean up
     clean_up:
     free(msg);
-    return SYS_ERR_OK;
+    return err;
 }
 
 errval_t
