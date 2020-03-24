@@ -34,6 +34,7 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
     errval_t err = SYS_ERR_OK;
     while(size_sent < msg_size) {
         uint64_t to_send = MIN(lmp_msg_length_bytes, msg_size - size_sent);
+        // TODO copy payload!
         memcpy(buf, msg, to_send);
         memset((char *) buf + to_send, 0, (lmp_msg_length_bytes - to_send));
         err = lmp_chan_send4(c, flags, (first ? *msg->cap : NULL_CAP), buf[0], buf[1], buf[2], buf[3]);
@@ -77,6 +78,14 @@ errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                     struct capref *ret_cap, size_t *ret_bytes)
 {
+    const size_t payload_size = sizeof(bytes) + sizeof(alignment);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_size);
+    msg->method = Method_Request_Ram_Cap;
+    msg->length = payload_size;
+    msg->cap = &NULL_CAP;
+    memcpy(msg->payload, bytes, sizeof(bytes));
+    memcpy(msg->payload+ sizeof(bytes), alignment, sizeof(alignment));
+
     // TODO: implement functionality to request a RAM capability over the
     // given channel and wait until it is delivered.
     return SYS_ERR_OK;

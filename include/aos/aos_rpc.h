@@ -24,7 +24,8 @@ struct aos_rpc {
 };
 
 enum rpc_message_method {
-    Method_Send_Number // TODO: assign numbers
+    Method_Send_Number, // TODO: assign numbers
+    Method_Request_Ram_Cap,
 };
 
 struct rpc_message {
