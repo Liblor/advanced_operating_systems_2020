@@ -26,13 +26,14 @@ struct aos_rpc {
 enum rpc_message_method {
     Method_Send_Number, // TODO: assign numbers
     Method_Request_Ram_Cap,
+    Method_Send_String
 };
 
 struct rpc_message {
     uint8_t method;   ///< Method identifier, see enum rpc_message_method
     uint32_t length; ///< The length of the message.
     struct capref *cap; ///< Optional cap to exchange, NULL if not set
-    uintptr_t *payload; ///< The total payload data of the message.
+    char payload[0]; ///< The total payload data of the message.
 };
 
 /**

@@ -56,22 +56,33 @@ errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
 errval_t
 aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
-    struct rpc_message msg = {
-        .method = Method_Send_Number,
-        .length = sizeof(num),
-        .cap = &NULL_CAP,
-        .payload = &num
-    };
-    // TODO: init channel
-    return lmp_send_message(&rpc->rpc_lmp_chan, &msg, LMP_SEND_FLAGS_DEFAULT);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(num));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Send_Number;
+    msg->length = sizeof(num);
+    msg->cap = &NULL_CAP;
+    memcpy(msg->payload, &num, sizeof(num));
+
+   // TODO: init channel
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    free(msg);
+    return err;
 }
 
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 {
-    // TODO: implement functionality to send a string over the given channel
-    // and wait for a response.
-    return SYS_ERR_OK;
+
+    struct rpc_message msg = {
+            .method = Method_Send_String,
+            .length = sizeof(string),
+            .cap = NULL,
+            .payload = &string
+    };
+    // TODO: init channel
+    return lmp_send_message(&rpc->rpc_lmp_chan, &msg, LMP_SEND_FLAGS_DEFAULT);
 }
 
 errval_t
