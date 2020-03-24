@@ -74,15 +74,20 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 {
+    const uint32_t str_len = MIN(strlen(string), RPC_LMP_MAX_STR_LEN);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + str_len);
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->method = Method_Send_String;
+    msg->payload_length = str_len;
+    msg->cap = NULL;
+    strncpy(msg->payload, string, str_len);
 
-    struct rpc_message msg = {
-            .method = Method_Send_String,
-            .payload_length = sizeof(string),
-            .cap = NULL,
-            .payload = &string
-    };
     // TODO: init channel
-    return lmp_send_message(&rpc->rpc_lmp_chan, &msg, LMP_SEND_FLAGS_DEFAULT);
+    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
+    free(msg);
+    return err;
 }
 
 errval_t

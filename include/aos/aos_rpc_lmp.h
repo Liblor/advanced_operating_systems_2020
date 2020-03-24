@@ -4,6 +4,8 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 
+#define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
+
 struct rpc_lmp_segment {
     uintptr_t chunk[4]; ///< Bytes that can be sent at a time.
 };
