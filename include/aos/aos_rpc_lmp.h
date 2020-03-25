@@ -4,12 +4,10 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 
-
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 
 enum rpc_message_status {
     Status_Ok = 0
-
 };
 
 struct rpc_message_part {
@@ -29,12 +27,10 @@ struct rpc_message_part {
 //    char *payload; ///< The total payload data of the message.
 //};
 
-
 struct rpc_message {
     struct capref *cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
 };
-
 
 struct aos_rpc_lmp_recv_state {
     struct rpc_message msg;

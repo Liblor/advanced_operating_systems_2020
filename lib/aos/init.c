@@ -33,8 +33,6 @@
 /// Are we the init domain (and thus need to take some special paths)?
 static bool init_domain;
 
-static struct aos_rpc rpc;
-
 extern size_t (*_libc_terminal_read_func)(char *, size_t);
 extern size_t (*_libc_terminal_write_func)(const char *, size_t);
 extern void (*_libc_exit_func)(int);
@@ -100,11 +98,6 @@ void barrelfish_libc_glue_init(void)
     setvbuf(stdout, buf, _IOLBF, sizeof(buf));
 }
 
-static void recv_cb(void *arg)
-{
-    debug_printf("recv_cb()\n");
-}
-
 /** \brief Initialise libbarrelfish.
  *
  * This runs on a thread in every domain, after the dispatcher is setup but
@@ -159,7 +152,7 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         }
     } else {
         struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
-        set_init_rpc(&rpc);
+        set_init_rpc(init_rpc);
     }
 
     // TODO MILESTONE 3:

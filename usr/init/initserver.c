@@ -20,6 +20,8 @@ static void service_recv_cb(void *arg)
     debug_printf("service_recv_cb()\n");
 
     struct callback_state *state = (struct callback_state *) arg;
+    struct aos_rpc *rpc = &state->rpc;
+    struct lmp_chan *lc = &rpc->lc;
 
     // accumulate message until full message was transmitted
     // check which message type was sent -> call corresponding callback
@@ -128,14 +130,31 @@ static void open_recv_cb(void *arg)
         return;
     }
 
-    struct lmp_chan *service_chan = malloc(sizeof(struct lmp_chan));
+    struct callback_state *state = malloc(sizeof(struct callback_state));
+    aos_rpc_lmp_init(&state->rpc);
+
+    struct lmp_chan *service_chan = &state->rpc.lc;
+
     lmp_chan_init(service_chan);
     service_chan->local_cap = service_ep;
-    service_chan->remote_cap = client_cap;
     service_chan->endpoint = service_lmp_ep;
 
     // We want the channel to be registered persistently.
     service_chan->send_waitset.persistent = true;
+
+    // We have to allocate a new slot, since the current slot may be used for
+    // other transmissions.
+    err = slot_alloc(&service_chan->remote_cap);
+    if (err_is_fail(err)) {
+        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
+        return;
+    }
+
+    err = cap_copy(service_chan->remote_cap, client_cap);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return;
+    }
 
     // TODO: Initialize struct aos_rpc.
     // TODO: Use custom waitset?
@@ -147,13 +166,13 @@ static void open_recv_cb(void *arg)
 
     err = lmp_chan_register_recv(service_chan, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_chan_register_recv()");
+        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return;
     }
 
     err = lmp_chan_send0(service_chan, LMP_SEND_FLAGS_DEFAULT, service_ep);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_chan_send0()");
+        debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
         return;
     }
 }

@@ -29,13 +29,12 @@
 #include "initserver.h"
 #include "test.h"
 
-
-
 struct bootinfo *bi;
 
 coreid_t my_core_id;
 
-static errval_t init_caps(void) {
+static errval_t init_caps(void)
+{
     errval_t err;
 
     /*
@@ -68,8 +67,15 @@ static errval_t init_caps(void) {
     return SYS_ERR_OK;
 }
 
-static int
-bsp_main(int argc, char *argv[]) {
+static errval_t number_cb(uintptr_t num)
+{
+    printf("Received number %"PRIuPTR"\n", num);
+
+    return SYS_ERR_OK;
+}
+
+static int bsp_main(int argc, char *argv[])
+{
     errval_t err;
 
     // Grading
@@ -96,7 +102,7 @@ bsp_main(int argc, char *argv[]) {
 
     // TODO: Spawn system processes, boot second core etc. here
 
-    err = initserver_init();
+    err = initserver_init(number_cb, NULL);
     if (err_is_fail(err)) {
         debug_printf("initserver_init() failed: %s\n", err_getstring(err));
         abort();
@@ -135,8 +141,8 @@ bsp_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
-static int
-app_main(int argc, char *argv[]) {
+static int app_main(int argc, char *argv[])
+{
     // Implement me in Milestone 5
     // Remember to call
     // - grading_setup_app_init(..);
@@ -148,7 +154,6 @@ app_main(int argc, char *argv[]) {
 int main(int argc, char *argv[])
 {
     errval_t err;
-
 
     /* Set the core id in the disp_priv struct */
     err = invoke_kernel_get_core_id(cap_kernel, &my_core_id);
