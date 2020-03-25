@@ -736,6 +736,11 @@ errors libmm MM_ERR_ {
     failure INVALID_ALIGNMENT   "The alignment given is invalid",
 };
 
+// errors from rpc server library
+errors libmm RPC_ERR_ {
+    failure INITIALIZATION   "The initialization of the server failed",
+};
+
 // errors in init
 errors init INIT_ERR_ {
     failure SPAWN_MEM_SERV      "Failed to spawn mem_serv",

@@ -13,8 +13,7 @@ enum pending_state {
     StringTransmit = 1,
 };
 
-struct callback_state {
-    struct aos_rpc rpc;
+struct initserver_cb_state {
     uint32_t bytes_received; ///< How much was read from the client already.
     uint32_t total_length;
     enum pending_state pending_state;
