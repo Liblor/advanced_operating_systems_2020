@@ -63,6 +63,21 @@ static void service_recv_cb(void *arg)
                 break;
             }
             case Method_Send_String: {
+                state->string = malloc(rpc_msg_part->payload_length);
+                if (state->string == NULL) {
+                    // TODO Error handling
+                }
+                uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, rpc_msg_part->payload_length);
+                strncpy(state->string, rpc_msg_part->payload, to_copy);
+                state->bytes_received += to_copy;
+                state->total_length = rpc_msg_part->payload_length;
+                if (state->bytes_received < state->total_length) {
+                    state->pending_state = StringTransmit;
+                } else {
+                    recv_string_cb(lc, state->string);
+                    state->pending_state = EmptyState;
+                    free(state->string);        // TODO discuss
+                }
                 break;
             }
             default: break;

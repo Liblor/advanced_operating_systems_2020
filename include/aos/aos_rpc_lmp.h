@@ -8,15 +8,15 @@
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 
 
-struct rpc_lmp_segment {
-    uintptr_t chunk[4]; ///< Bytes that can be sent at a time.
-};
-
 struct rpc_message_part {
     uint8_t method;   ///< Method identifier, see enum rpc_message_method
     uint32_t payload_length; ///< The length of the message.
+    uint16_t status; ///< status / errors
     char payload[0]; ///< The total payload data of the message.
 };
+
+#define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH*sizeof(uint64_t) - sizeof(rpc_message_part))
+
 //
 //struct rpc_message {
 //    uint8_t method;   ///< Method identifier, see enum rpc_message_method
