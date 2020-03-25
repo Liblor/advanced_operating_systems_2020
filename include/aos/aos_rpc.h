@@ -31,11 +31,10 @@ struct init_state {
 
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
-    struct mem_server_state mem_server_state;
-    struct init_state init_state;
-    // TODO(M3): Add state
+    struct lmp_chan *lc;
 };
 
+// TODO: Remove.
 enum rpc_message_type {
     RPC_MESSAGE_TYPE_UNKNOWN,
     RPC_MESSAGE_TYPE_NUMBER,

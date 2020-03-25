@@ -3,6 +3,11 @@
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
 
+static struct aos_rpc *init_channel = NULL;
+static struct aos_rpc *memory_channel = NULL;
+static struct aos_rpc *process_channel = NULL;
+static struct aos_rpc *serial_channel = NULL;
+
 void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
     if (string) {
@@ -20,15 +25,50 @@ void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
     }
 }
 
+// TODO: Properly handle errors.
 errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
 {
-    // TODO
+    errval_t err;
 
-//    lmp_chan_init(&rpc->mem_server_state.rpc_lmp_chan_mem_server);
-    lmp_chan_init(&rpc->init_state.rpc_lmp_chan_init);
+    struct lmp_chan *lc = malloc(sizeof(struct lmp_chan));
 
-    lmp_chan_accept(&rpc->init_state.rpc_lmp_chan_init, DEFAULT_LMP_BUF_WORDS, cap_chan_init);
-//    rpc->rpc_lmp_chan_mem_server.endpoint = endpoint_create()
+    lmp_chan_init(lc);
+
+    struct capref cap_ep;
+    err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &cap_ep, &lc->endpoint);
+    if (err_is_fail(err)) {
+        debug_printf("endpoint_create() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_ENDPOINT_CREATE);
+    }
+
+    lc->local_cap = cap_ep;
+    lc->remote_cap = cap_chan_init;
+
+    err = lmp_chan_alloc_recv_slot(lc);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, &lc));
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = event_dispatch(get_default_waitset());
+    if (err_is_fail(err)) {
+        debug_printf("event_dispatch() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    // TODO: Upgrade to service channel.
 
     return SYS_ERR_OK;
 }
@@ -264,49 +304,102 @@ aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
+static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
+{
+    errval_t err;
+
+    debug_printf("Setting up a new channel to %s.\n", service_name);
+
+    struct aos_rpc *rpc = malloc(sizeof(struct aos_rpc));
+    aos_rpc_init(&rpc);
+
+    struct lmp_chan *lc = malloc(sizeof(struct lmp_chan));
+    lmp_chan_init(lc);
+
+    struct capref cap_ep;
+    err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &cap_ep, &lc->endpoint);
+    if (err_is_fail(err)) {
+        debug_printf("endpoint_create() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_ENDPOINT_CREATE);
+    }
+
+    lc->local_cap = cap_ep;
+    lc->remote_cap = remote_cap;
+
+    err = lmp_chan_alloc_recv_slot(lc);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, &lc));
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = event_dispatch(get_default_waitset());
+    if (err_is_fail(err)) {
+        debug_printf("event_dispatch() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
 /**
  * \brief Returns the RPC channel to init.
  */
 struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
-    //TODO: Return channel to talk to init process
-    debug_printf("aos_rpc_lmp_get_init_channel NYI\n");
-    //lmp_chan_init(struct lmp_chan *lc);
-    //errval_t lmp_chan_alloc_recv_slot(struct lmp_chan *lc)
-    //errval_t lmp_chan_accept(struct lmp_chan *lc,
-                         //size_t buflen_words, struct capref endpoint)
-    return NULL;
+    if (init_channel == NULL) {
+        init_channel = aos_rpc_lmp_setup_channel(cap_chan_init, "init");
+    }
+
+    return init_channel;
 }
 
 /**
- * \brief Returns the channel to the memory server
+ * \brief Returns the channel to the memory server.
  */
 struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
-    //TODO: Return channel to talk to memory server process (or whoever
-    //implements memory server functionality)
-    debug_printf("aos_rpc_lmp_get_memory_channel NYI\n");
-    return NULL;
+    if (memory_channel == NULL) {
+        debug_printf("Setting up a new channel to memory.\n");
+        memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
+    }
+
+    return memory_channel;
 }
 
 /**
- * \brief Returns the channel to the process manager
+ * \brief Returns the channel to the process manager.
  */
 struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
-    //TODO: Return channel to talk to process server process (or whoever
-    //implements process server functionality)
-    debug_printf("aos_rpc_lmp_get_process_channel NYI\n");
-    return NULL;
+    if (process_channel == NULL) {
+        debug_printf("Setting up a new channel to process.\n");
+        process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
+    }
+
+    return process_channel;
 }
 
 /**
- * \brief Returns the channel to the serial console
+ * \brief Returns the channel to the serial console.
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-    //TODO: Return channel to talk to serial driver/terminal process (whoever
-    //implements print/read functionality)
-    debug_printf("aos_rpc_lmp_get_serial_channel NYI\n");
-    return NULL;
+    if (serial_channel == NULL) {
+        debug_printf("Setting up a new channel to serial.\n");
+        serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
+    }
+
+    return serial_channel;
 }

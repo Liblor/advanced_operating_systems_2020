@@ -157,42 +157,8 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
             debug_printf("cap_retype() failed: %s\n", err_getstring(err));
             return err_push(err, LIB_ERR_CAP_RETYPE);
         }
-    }
-
-    struct lmp_chan *lc = (struct lmp_chan*) malloc(sizeof(struct lmp_chan));
-
-    if (init_domain) {
-        lmp_chan_accept(lc, DEFAULT_LMP_BUF_WORDS, NULL_CAP);
-        lmp_chan_alloc_recv_slot(lc);
-        cap_copy(cap_chan_init, lc->local_cap);
-
-        err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, &lc));
-        DEBUG_ERR(err, "lmp_chan_register_recv()");
     } else {
-        lmp_chan_init(lc);
-
-        struct capref cap_ep;
-        err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &cap_ep, &lc->endpoint);
-        DEBUG_ERR(err, "endpoint_create()");
-
-        lc->local_cap = cap_ep;
-        lc->remote_cap = cap_chan_init;
-
-        err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, &lc));
-        DEBUG_ERR(err, "lmp_chan_register_recv()");
-
-        err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
-        DEBUG_ERR(err, "lmp_chan_send0()");
-        if (lmp_err_is_transient(err)) {
-            debug_printf("error is transient\n");
-        } else {
-            debug_printf("error is NOT transient\n");
-        }
-
-        err = event_dispatch(get_default_waitset());
-        DEBUG_ERR(err, "event_dispatch()");
-
-        aos_rpc_init(&rpc);
+        struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
         set_init_rpc(&rpc);
     }
 
