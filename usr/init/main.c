@@ -28,6 +28,8 @@
 #include "mem_alloc.h"
 #include "initserver.h"
 #include "memoryserver.h"
+#include "serialserver.h"
+#include "processserver.h"
 #include "test.h"
 
 struct bootinfo *bi;
@@ -87,6 +89,18 @@ static int bsp_main(int argc, char *argv[])
     err = memoryserver_init(ram_cap_cb);
     if (err_is_fail(err)) {
         debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = serialserver_init(NULL, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = processserver_init(NULL, NULL, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
 

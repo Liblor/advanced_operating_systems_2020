@@ -20,6 +20,9 @@ struct initserver_cb_state {
     char *string;
 };
 
-errval_t initserver_init(recv_number_callback_t new_recv_number_cb, recv_string_callback_t new_recv_string_cb);
+errval_t initserver_init(
+    recv_number_callback_t recv_number_cb,
+    recv_string_callback_t recv_string_cb
+);
 
 #endif

@@ -121,7 +121,10 @@ static void state_free_cb(void *arg)
 {
 }
 
-errval_t initserver_init(recv_number_callback_t new_recv_number_cb, recv_string_callback_t new_recv_string_cb)
+errval_t initserver_init(
+    recv_number_callback_t new_recv_number_cb,
+    recv_string_callback_t new_recv_string_cb
+)
 {
     errval_t err;
 

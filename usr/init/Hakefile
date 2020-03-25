@@ -16,6 +16,8 @@
                         "mem_alloc.c",
                         "initserver.c",
                         "memoryserver.c",
+                        "serialserver.c",
+                        "processserver.c",
                         "test.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init
