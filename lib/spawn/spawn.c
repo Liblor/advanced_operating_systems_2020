@@ -432,7 +432,7 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         .cnode = taskcn_child,
         .slot = TASKCN_SLOT_CHAN_PROCESS,
     };
-    err = cap_copy(chan_process_child, cap_process_serial);
+    err = cap_copy(chan_process_child, cap_chan_process);
     if (err_is_fail(err)) {
         debug_printf("cap_copy() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_CAP_COPY);
