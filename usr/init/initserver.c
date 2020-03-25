@@ -26,8 +26,6 @@ static void service_recv_cb(void *arg)
     // accumulate message until full message was transmitted
     // check which message type was sent -> call corresponding callback
     // check if callback is null
-
-    struct lmp_chan *lc = state->rpc.lc;
     struct capref cap;
     struct lmp_recv_msg msg;
     memset(&msg, 0, sizeof(struct lmp_recv_msg));
@@ -91,7 +89,7 @@ static void service_recv_cb(void *arg)
         }
     } else if (state->pending_state == StringTransmit) {
         uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, state->total_length - state->bytes_received);
-        strncpy(state->string, msg.words, to_copy);
+        strncpy(state->string, (char *) &msg.words[0], to_copy);
         state->bytes_received += to_copy;
         if (state->bytes_received < state->total_length) {
             state->pending_state = StringTransmit;
