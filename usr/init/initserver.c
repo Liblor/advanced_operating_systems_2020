@@ -9,12 +9,8 @@
 static recv_number_callback_t recv_number_cb = NULL;
 static recv_string_callback_t recv_string_cb = NULL;
 
-// TODO: When another process terminates, free the associated channel.
-
 static void service_recv_cb(void *arg)
 {
-    debug_printf("service_recv_cb()\n");
-
     struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
     struct aos_rpc *rpc = &common_state->rpc;
     struct lmp_chan *lc = &rpc->lc;
@@ -132,7 +128,7 @@ errval_t initserver_init(recv_number_callback_t new_recv_number_cb, recv_string_
     recv_number_cb = new_recv_number_cb;
     recv_string_cb = new_recv_string_cb;
 
-    err = rpc_lmp_server_init(service_recv_cb, state_init_cb, state_free_cb);
+    err = rpc_lmp_server_init(cap_chan_init, service_recv_cb, state_init_cb, state_free_cb);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);

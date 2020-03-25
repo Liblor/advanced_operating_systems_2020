@@ -31,12 +31,10 @@ static void open_recv_cb(void *arg)
 {
     errval_t err;
 
-    struct lmp_chan *open_chan = (struct lmp_chan *) arg;
-
     struct capref client_cap;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
-    err = lmp_chan_recv(open_chan, &msg, &client_cap);
+    err = lmp_chan_recv(&open_lc, &msg, &client_cap);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_recv()");
         return;
@@ -96,7 +94,7 @@ static void open_recv_cb(void *arg)
 }
 
 // Initialize the channel that accepts incoming binding requests.
-static errval_t rpc_lmp_server_setup_open_channel(void)
+static errval_t rpc_lmp_server_setup_open_channel(struct capref cap_chan)
 {
     errval_t err;
 
@@ -117,13 +115,13 @@ static errval_t rpc_lmp_server_setup_open_channel(void)
 
     open_ep = open_lc.local_cap;
 
-    err = cap_copy(cap_chan_init, open_ep);
+    err = cap_copy(cap_chan, open_ep);
     if (err_is_fail(err)) {
         debug_printf("cap_copy() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_CAP_COPY);
     }
 
-    err = lmp_chan_register_recv(&open_lc, get_default_waitset(), MKCLOSURE(open_recv_cb, &open_lc));
+    err = lmp_chan_register_recv(&open_lc, get_default_waitset(), MKCLOSURE(open_recv_cb, NULL));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_LMP_CHAN_RECV);
@@ -134,6 +132,7 @@ static errval_t rpc_lmp_server_setup_open_channel(void)
 
 // Initialize the server.
 errval_t rpc_lmp_server_init(
+    struct capref cap_chan,
     service_recv_handler_t new_service_recv_handler,
     state_init_handler_t new_state_init_handler,
     state_free_handler_t new_state_free_handler
@@ -151,7 +150,7 @@ errval_t rpc_lmp_server_init(
         return err_push(err, LIB_ERR_ENDPOINT_CREATE);
     }
 
-    err = rpc_lmp_server_setup_open_channel();
+    err = rpc_lmp_server_setup_open_channel(cap_chan);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_setup_open_channel() failed: %s\n", err_getstring(err));
         return err;

@@ -13,6 +13,7 @@ typedef void (* state_init_handler_t)(void *arg);
 typedef void (* state_free_handler_t)(void *arg);
 
 errval_t rpc_lmp_server_init(
+    struct capref cap_chan,
     service_recv_handler_t service_recv_handler,
     state_init_handler_t state_init_handler,
     state_free_handler_t state_free_handler
