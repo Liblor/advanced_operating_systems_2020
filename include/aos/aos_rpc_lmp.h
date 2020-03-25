@@ -41,10 +41,8 @@ struct aos_rpc_lmp {
 
 
 /** internal state for aos lmp impl. to receive serial getchar **/
-struct client_serial_getchar_state {
-    struct aos_rpc *rpc;
-    errval_t err;
-    char c;        ///< Char to receive
+struct client_serial_state {
+    char c_recv;        ///< Char to receive
 };
 
 
