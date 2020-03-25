@@ -25,10 +25,17 @@ void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
     }
 }
 
-// TODO: Properly handle errors.
 errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
 {
     lmp_chan_init(&rpc->lc);
+    struct aos_rpc_lmp *rpc_lmp = malloc(sizeof(struct aos_rpc_lmp));
+    if (rpc_lmp == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    memset(rpc_lmp, 0, sizeof(struct aos_rpc_lmp));
+    waitset_init(&rpc_lmp->ws);
+    rpc_lmp->err = SYS_ERR_OK;
+    rpc->lmp = rpc_lmp;
 
     return SYS_ERR_OK;
 }
@@ -337,7 +344,14 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
     debug_printf("Setting up a new channel to %s.\n", service_name);
 
     struct aos_rpc *rpc = malloc(sizeof(struct aos_rpc));
-    aos_rpc_lmp_init(rpc);
+    if (rpc == NULL) {
+        return NULL;
+    }
+    err = aos_rpc_lmp_init(rpc);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "error in aos_rpc_lmp_init");
+        return NULL;
+    }
 
     struct lmp_chan *lc = &rpc->lc;
 
