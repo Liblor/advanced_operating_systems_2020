@@ -26,6 +26,7 @@
 #include <grading.h>
 
 #include "mem_alloc.h"
+#include "initserver.h"
 #include "test.h"
 
 
@@ -83,12 +84,6 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-    err = init_caps();
-    if (err_is_fail(err)) {
-        debug_printf("init_caps() failed: %s\n", err_getstring(err));
-        abort();
-    }
-
     // TODO: Remove.
     //test_libmm();
     //test_paging();
@@ -100,6 +95,18 @@ bsp_main(int argc, char *argv[]) {
     //grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
+
+    err = initserver_init();
+    if (err_is_fail(err)) {
+        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = init_caps();
+    if (err_is_fail(err)) {
+        debug_printf("init_caps() failed: %s\n", err_getstring(err));
+        abort();
+    }
 
     char *binary_name1 = "hello";
     struct spawninfo si1;
