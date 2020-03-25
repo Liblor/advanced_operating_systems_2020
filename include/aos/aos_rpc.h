@@ -18,28 +18,11 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc_lmp.h>
 
-struct mem_server_state {
-    struct lmp_chan rpc_lmp_chan_mem_server;
-    struct capref received_cap;
-    size_t bytes;
-};
-
-struct init_state {
-    struct lmp_chan rpc_lmp_chan_init;
-    aos_rpc_lmp_recv_number_callback_t recv_number_cb;
-};
-
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
     struct lmp_chan *lc;
 };
 
-// TODO: Remove.
-enum rpc_message_type {
-    RPC_MESSAGE_TYPE_UNKNOWN,
-    RPC_MESSAGE_TYPE_NUMBER,
-    RPC_MESSAGE_TYPE_STRING,
-};
 
 enum rpc_message_method {
     Method_Send_Number, // TODO: assign numbers
