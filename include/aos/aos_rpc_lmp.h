@@ -8,7 +8,6 @@
 
 enum rpc_message_status {
     Status_Ok = 0,
-    Status_Response_Ok = 1,
 };
 
 struct rpc_message_part {

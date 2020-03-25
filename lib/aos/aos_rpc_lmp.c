@@ -131,7 +131,7 @@ static void client_ram_cb(void *arg) {
     }
     return_with_err(msg.buf.buflen < sizeof(struct rpc_message_part), rpc->lmp, "invalid buflen");
     struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
-    return_with_err(msg_part->status != Status_Response_Ok, rpc->lmp, "status not ok");
+    return_with_err(msg_part->status != Status_Ok, rpc->lmp, "status not ok");
     return_with_err(msg_part->method != Method_Get_Ram_Cap, rpc->lmp, "wrong method in response");
     return_with_err(msg_part->payload_length != sizeof(size_t), rpc->lmp, "invalid payload len");
 
