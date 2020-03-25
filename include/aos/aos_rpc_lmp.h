@@ -19,28 +19,15 @@ struct rpc_message_part {
 
 #define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH*sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
-//
-//struct rpc_message {
-//    uint8_t method;   ///< Method identifier, see enum rpc_message_method
-//    uint32_t payload_length; ///< The length of the message.
-//    struct capref *cap; ///< Optional cap to exchange, NULL if not set
-//    char *payload; ///< The total payload data of the message.
-//};
-
 struct rpc_message {
     struct capref *cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
 };
 
-struct aos_rpc_lmp_recv_state {
-    struct rpc_message msg;
-    uint32_t count;
-};
-
 struct aos_rpc_lmp {
-    struct lmp_chan *lc;
-    struct waitset *ws;
-    struct aos_rpc_lmp_recv_state state;
+    struct waitset ws;
+    errval_t err;
+    void *shared;
 };
 
 /**

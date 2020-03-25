@@ -28,6 +28,9 @@ struct mem_server_state {
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
     struct lmp_chan lc;
+    union {
+        struct aos_rpc_lmp *lmp;
+    };
 };
 
 
