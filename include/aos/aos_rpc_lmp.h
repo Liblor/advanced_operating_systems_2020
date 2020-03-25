@@ -27,6 +27,14 @@ struct rpc_message_part {
 //    char *payload; ///< The total payload data of the message.
 //};
 
+#define return_with_err(cond, state, msg) do { \
+        if (cond) { \
+            (state)->err = LIB_ERR_LMP_INVALID_RESPONSE; \
+            DEBUG_ERR(state->err, msg); \
+            return; \
+        } \
+    } while(0);
+
 struct rpc_message {
     struct capref *cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
@@ -41,6 +49,13 @@ struct aos_rpc_lmp {
     struct lmp_chan *lc;
     struct waitset *ws;
     struct aos_rpc_lmp_recv_state state;
+};
+
+struct aos_rpc_get_ram_state {
+    size_t bytes;
+    errval_t err;
+    struct aos_rpc *rpc;
+    struct capref cap;
 };
 
 /**

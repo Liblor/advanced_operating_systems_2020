@@ -60,9 +60,8 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
     return err;
 }
 
-
-
-errval_t aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
+errval_t
+aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(num));
     if (msg == NULL) {
@@ -78,7 +77,6 @@ errval_t aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     free(msg);
     return err;
 }
-
 
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
@@ -100,40 +98,99 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     return err;
 }
 
+static void get_ram_cap_recv(void *arg) {
+    debug_printf("get_ram_cap_recv(...)\n");
+    struct aos_rpc_get_ram_state *ram_state = arg;
+    struct aos_rpc *rpc = ram_state->rpc;
+    struct lmp_chan *lc = &rpc->lc;
+
+    struct capref cap;
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+
+    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+    if (err_is_fail(err) && lmp_err_is_transient(err)) {
+        // reregister
+        // TODO waitset
+        err = lmp_chan_register_recv(lc, get_default_waitset(),
+                                     MKCLOSURE(get_ram_cap_recv, arg));
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "");
+            ram_state->err = err;
+            return;
+        }
+    }
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "");
+        ram_state->err = err;
+        return;
+    }
+    struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
+    return_with_err(msg_part->status != Status_Ok, ram_state, "status not ok");
+    return_with_err(msg_part->method != Method_Send_Ram_Cap, ram_state, "wrong method in response");
+    return_with_err(msg_part->payload_length != sizeof(size_t), ram_state, "invalid payload len");
+
+    memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
+    ram_state->cap = cap;
+}
+
 errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                     struct capref *ret_cap, size_t *ret_bytes)
 {
-//    errval_t err;
-//    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
-//    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
-//    if (msg == NULL) {
-//        return LIB_ERR_MALLOC_FAIL;
-//    }
-//    msg->method = Method_Request_Ram_Cap;
-//    msg->payload_length = payload_length;
-//    msg->cap = &NULL_CAP;
-//    memcpy(msg->payload, &bytes, sizeof(bytes));
-//    memcpy(msg->payload + sizeof(bytes), &alignment, sizeof(alignment));
-//
-//    err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
-//    if (err_is_fail(err)) {
-//        goto clean_up;
-//    }
-//    err = event_dispatch(get_default_waitset());
-//    if (err_is_fail(err)) {
-//        goto clean_up;
-//    }
-//    // TODO: implement functionality to request a RAM capability over the
-//    // given channel and wait until it is delivered.
-//
-//    err = SYS_ERR_OK;
-//    goto clean_up;
-//
-//    clean_up:
-//    free(msg);
-//    return err;
-    return SYS_ERR_OK;
+    errval_t err;
+    // create request message
+    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->msg.method = Method_Request_Ram_Cap;
+    msg->msg.payload_length = payload_length;
+    msg->cap = NULL;
+    memcpy(msg->msg.payload, &bytes, sizeof(bytes));
+    memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
+
+    // prepare and register receive handler state
+    struct aos_rpc_get_ram_state *ram_state = malloc(sizeof(struct aos_rpc_get_ram_state));
+    if (ram_state == NULL) {
+        err = LIB_ERR_MALLOC_FAIL;
+        goto clean_up;
+    }
+    ram_state->rpc = rpc;
+    ram_state->err = SYS_ERR_OK;
+    err = lmp_chan_register_recv(&rpc->lc, get_default_waitset(),
+                                 MKCLOSURE(get_ram_cap_recv, &ram_state));
+    if (err_is_fail(err)) {
+        goto clean_up_all;
+    }
+
+    // send ram request
+    err = lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        goto clean_up_all;
+    }
+
+    // TODO change waiteset
+    // wait for response
+    err = event_dispatch(get_default_waitset());
+    if (err_is_fail(err)) {
+        goto clean_up_all;
+    }
+    if (err_is_fail(ram_state->err)) {
+        err = ram_state->err;
+        goto clean_up_all;
+    }
+
+    err = SYS_ERR_OK;
+    goto clean_up_all;
+
+    // XXX better names for labels
+    clean_up_all:
+    free(ram_state);
+
+    clean_up:
+    free(msg);
+    return err;
 }
 
 errval_t
