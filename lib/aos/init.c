@@ -98,11 +98,6 @@ void barrelfish_libc_glue_init(void)
     setvbuf(stdout, buf, _IOLBF, sizeof(buf));
 }
 
-static void recv_cb(void *arg)
-{
-    debug_printf("recv_cb()\n");
-}
-
 /** \brief Initialise libbarrelfish.
  *
  * This runs on a thread in every domain, after the dispatcher is setup but

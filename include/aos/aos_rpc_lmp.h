@@ -4,9 +4,7 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 
-
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
-
 
 struct rpc_lmp_segment {
     uintptr_t chunk[4]; ///< Bytes that can be sent at a time.
@@ -17,7 +15,7 @@ struct rpc_message_part {
     uint32_t payload_length; ///< The length of the message.
     char payload[0]; ///< The total payload data of the message.
 };
-//
+
 //struct rpc_message {
 //    uint8_t method;   ///< Method identifier, see enum rpc_message_method
 //    uint32_t payload_length; ///< The length of the message.
@@ -25,12 +23,10 @@ struct rpc_message_part {
 //    char *payload; ///< The total payload data of the message.
 //};
 
-
 struct rpc_message {
     struct capref *cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
 };
-
 
 struct aos_rpc_lmp_recv_state {
     struct rpc_message msg;
@@ -56,10 +52,7 @@ errval_t aos_rpc_lmp_init(struct aos_rpc *rpc);
 /**
  * \brief Send a number.
  */
-typedef errval_t (* aos_rpc_lmp_recv_number_callback_t)(uintptr_t num);
-
 errval_t aos_rpc_lmp_send_number(struct aos_rpc *chan, uintptr_t val);
-errval_t aos_rpc_lmp_recv_number(struct aos_rpc *rpc, aos_rpc_lmp_recv_number_callback_t callback);
 
 /**
  * \brief Send a string.

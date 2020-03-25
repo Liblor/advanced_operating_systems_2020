@@ -61,51 +61,6 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
     return err;
 }
 
-// Move this into the init server module.
-static void aos_rpc_lmp_recv_number_handler(void *rpc_arg)
-{
-    struct aos_rpc *rpc = (struct aos_rpc*)rpc_arg;
-    struct lmp_chan *lc = &rpc->lc;
-    struct capref cap;
-    struct lmp_recv_msg msg;
-    memset(&msg, 0, sizeof(struct lmp_recv_msg));
-
-    errval_t err = lmp_chan_recv(lc, &msg, &cap);
-    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-        // reregister
-        err = lmp_chan_register_recv(lc, get_default_waitset(),
-                                     MKCLOSURE(aos_rpc_lmp_recv_number_handler, rpc_arg));
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-            return;
-        }
-    }
-    err = lmp_chan_register_recv(lc, get_default_waitset(),
-                                 MKCLOSURE(aos_rpc_lmp_recv_number_handler, rpc_arg));
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "");
-        return;
-    }
-
-    // TODO handle received error
-    assert(msg.buf.buflen <= 4*sizeof(uint64_t));
-    assert(msg.buf.buflen >= 1*sizeof(uint64_t));
-
-    struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
-
-    uint64_t num;
-    memcpy(&num, rpc_msg_part->payload, sizeof(num));
-    rpc->init_state.recv_number_cb(num);
-}
-
-// Move this into the init server module.
-errval_t aos_rpc_lmp_recv_number(struct aos_rpc *rpc, aos_rpc_lmp_recv_number_callback_t callback) {
-    rpc->init_state.recv_number_cb = callback;
-    errval_t err = lmp_chan_register_recv(&rpc->init_state.rpc_lmp_chan_init, get_default_waitset(),
-            MKCLOSURE(aos_rpc_lmp_recv_number_handler, rpc));
-    return err;
-}
-
 errval_t aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(num));
@@ -118,11 +73,10 @@ errval_t aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     memcpy(msg->msg.payload, &num, sizeof(num));
 
     // TODO: init channel
-    errval_t err = lmp_send_message(&rpc->init_state.rpc_lmp_chan_init, msg, LMP_SEND_FLAGS_DEFAULT);
+    errval_t err = lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     free(msg);
     return err;
 }
-
 
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
@@ -263,6 +217,54 @@ aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
+static void client_recv_serivce_cb(void *args)
+{
+    debug_printf("client_recv_serivce_cb() was called!\n");
+}
+
+static void client_recv_open_cb(void *args)
+{
+    errval_t err;
+
+    struct aos_rpc *rpc = (struct aos_rpc *) args;
+    struct lmp_chan *lc = &rpc->lc;
+
+    struct capref server_cap;
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+
+    err = lmp_chan_recv(lc, &msg, &server_cap);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_recv() failed: %s\n", err_getstring(err));
+        return;
+    }
+
+    // In case no capability was sent, return.
+    if (capref_is_null(server_cap)) {
+        debug_printf("open_recv_cb() could not retrieve a capability.");
+        return;
+    }
+
+    // We have to allocate a new slot, since the current slot may be used for
+    // other transmissions.
+    err = slot_alloc(&lc->remote_cap);
+    if (err_is_fail(err)) {
+        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
+        return;
+    }
+
+    err = cap_copy(lc->remote_cap, server_cap);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return;
+    }
+
+    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(client_recv_serivce_cb, rpc));
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
+        return;
+    }
+}
+
 static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
 {
     errval_t err;
@@ -290,7 +292,8 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
         return NULL;
     }
 
-    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, &lc));
+    // The closure will be removed from the waitset after it has been executed once.
+    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(client_recv_open_cb, rpc));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return NULL;
@@ -302,13 +305,12 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
         return NULL;
     }
 
+    // Wait for the callback to be executed.
     err = event_dispatch(get_default_waitset());
     if (err_is_fail(err)) {
         debug_printf("event_dispatch() failed: %s\n", err_getstring(err));
         return NULL;
     }
-
-    // TODO: Upgrade to service channel.
 
     return rpc;
 }
