@@ -171,6 +171,7 @@ void serial_getchar_recv_cb(void *arg) {
 
     struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
 
+    // TODO: return different error status on not ok
     return_on_err(state, msg_part->status != Status_Ok, "status not ok");
     return_on_err(state, msg_part->method != Method_Serial_Getchar, "wrong method in response");
     return_on_err(state, msg_part->payload_length != 1, "invalid payload len");
