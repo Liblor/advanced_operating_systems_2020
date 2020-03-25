@@ -16,19 +16,28 @@
 #define _LIB_BARRELFISH_AOS_MESSAGES_H
 
 #include <aos/aos.h>
+#include <aos/aos_rpc_lmp.h>
+
+struct mem_server_state {
+    struct lmp_chan rpc_lmp_chan_mem_server;
+    struct capref received_cap;
+    size_t bytes;
+};
+
+struct init_state {
+    struct lmp_chan rpc_lmp_chan_init;
+    aos_rpc_lmp_recv_number_callback_t recv_number_cb;
+};
 
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
-    struct lmp_chan rpc_lmp_chan;
+    struct mem_server_state mem_server_state;
+    struct init_state init_state;
     // TODO(M3): Add state
-    union {
-        struct aos_rpc_lmp lmp;
-    } shared;
 };
 
 enum rpc_message_type {
     RPC_MESSAGE_TYPE_UNKNOWN,
-    RPC_MESSAGE_TYPE_ACK,
     RPC_MESSAGE_TYPE_NUMBER,
     RPC_MESSAGE_TYPE_STRING,
 };
@@ -41,12 +50,7 @@ enum rpc_message_method {
     Method_Serial_Getchar
 };
 
-struct rpc_message {
-    uint8_t method;   ///< Method identifier, see enum rpc_message_method
-    uint32_t payload_length; ///< The length of the message.
-    struct capref *cap; ///< Optional cap to exchange, NULL if not set
-    char payload[0]; ///< The total payload data of the message.
-};
+
 
 /**
  * \brief Call this handler on the receive side for grading

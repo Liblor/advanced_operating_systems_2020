@@ -20,6 +20,7 @@
 #include <aos/paging.h>
 #include <aos/waitset.h>
 #include <aos/aos_rpc.h>
+#include <aos/capabilities.h>
 #include <mm/mm.h>
 #include <spawn/spawn.h>
 #include <grading.h>
@@ -33,6 +34,38 @@ struct bootinfo *bi;
 
 coreid_t my_core_id;
 
+static errval_t init_caps(void) {
+    errval_t err;
+
+    /*
+    err = cap_copy(cap_chan_init, cap_selfep);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+    */
+
+    // TODO: These endpoints all point to init for now, even though not all servers will run in init.
+    err = cap_copy(cap_chan_memory, cap_chan_init);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+
+    err = cap_copy(cap_chan_process, cap_chan_init);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+
+    err = cap_copy(cap_chan_serial, cap_chan_init);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+
+    return SYS_ERR_OK;
+}
 
 static int
 bsp_main(int argc, char *argv[]) {
@@ -50,19 +83,24 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
+    err = init_caps();
+    if (err_is_fail(err)) {
+        debug_printf("init_caps() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     // TODO: Remove.
     //test_libmm();
-//    test_paging();
-//    test_paging_multi_pagetable();
+    //test_paging();
+    //test_paging_multi_pagetable();
 
     // TODO: initialize mem allocator, vspace management here
 
     // Grading
-    grading_test_early();
+    //grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
 
-    /*
     char *binary_name1 = "hello";
     struct spawninfo si1;
     domainid_t pid1;
@@ -72,17 +110,6 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
-
-    char *binary_name2 = "hello";
-    struct spawninfo si2;
-    domainid_t pid2;
-
-    err = spawn_load_by_name(binary_name2, &si2, &pid2);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in event_dispatch");
-        abort();
-    }
-    */
 
     // Grading
     grading_test_late();

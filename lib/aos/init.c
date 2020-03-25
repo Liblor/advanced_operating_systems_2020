@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 #include <aos/aos.h>
+#include <aos/aos_rpc.h>
 #include <aos/dispatch.h>
 #include <aos/curdispatcher_arch.h>
 #include <aos/dispatcher_arch.h>
@@ -31,6 +32,8 @@
 
 /// Are we the init domain (and thus need to take some special paths)?
 static bool init_domain;
+
+static struct aos_rpc rpc;
 
 extern size_t (*_libc_terminal_read_func)(char *, size_t);
 extern size_t (*_libc_terminal_write_func)(const char *, size_t);
@@ -97,6 +100,10 @@ void barrelfish_libc_glue_init(void)
     setvbuf(stdout, buf, _IOLBF, sizeof(buf));
 }
 
+static void recv_cb(void *arg)
+{
+    debug_printf("recv_cb()\n");
+}
 
 /** \brief Initialise libbarrelfish.
  *
@@ -140,19 +147,66 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         return err_push(err, LIB_ERR_MORECORE_INIT);
     }
 
+    // Initialize LMP endpoint subsystem.
     lmp_endpoint_init();
 
-    // HINT: Use init_domain to check if we are the init domain.
+    if (init_domain) {
+        // Endpoint to the dispatcher itself.
+        err = cap_retype(cap_selfep, cap_dispatcher, 0, ObjType_EndPointLMP, 0, 1);
+        if (err_is_fail(err)) {
+            debug_printf("cap_retype() failed: %s\n", err_getstring(err));
+            return err_push(err, LIB_ERR_CAP_RETYPE);
+        }
+    }
 
-    // TODO MILESTONE 3: register ourselves with init
-    /* allocate lmp channel structure */
-    /* create local endpoint */
-    /* set remote endpoint to init's endpoint */
-    /* set receive handler */
-    /* send local ep to init */
-    /* wait for init to acknowledge receiving the endpoint */
-    /* initialize init RPC client with lmp channel */
-    /* set init RPC client in our program state */
+    struct lmp_chan *lc = (struct lmp_chan*) malloc(sizeof(struct lmp_chan));
+
+    if (init_domain) {
+        lmp_chan_accept(lc, DEFAULT_LMP_BUF_WORDS, NULL_CAP);
+        lmp_chan_alloc_recv_slot(lc);
+        cap_copy(cap_chan_init, lc->local_cap);
+
+        err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, &lc));
+        DEBUG_ERR(err, "lmp_chan_register_recv()");
+    } else {
+        lmp_chan_init(lc);
+
+        struct capref cap_ep;
+        err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &cap_ep, &lc->endpoint);
+        DEBUG_ERR(err, "endpoint_create()");
+
+        lc->local_cap = cap_ep;
+        lc->remote_cap = cap_chan_init;
+
+        err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(recv_cb, &lc));
+        DEBUG_ERR(err, "lmp_chan_register_recv()");
+
+        err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
+        DEBUG_ERR(err, "lmp_chan_send0()");
+        if (lmp_err_is_transient(err)) {
+            debug_printf("error is transient\n");
+        } else {
+            debug_printf("error is NOT transient\n");
+        }
+
+        err = event_dispatch(get_default_waitset());
+        DEBUG_ERR(err, "event_dispatch()");
+
+        aos_rpc_init(&rpc);
+        set_init_rpc(&rpc);
+    }
+
+    // TODO MILESTONE 3:
+    /* register ourselves with init:
+     * [X] allocate lmp channel structure
+     * [X] create local endpoint
+     * [X] set remote endpoint to init's endpoint
+     * [X] set receive handler
+     * [X] send local ep to init
+     * [X] wait for init to acknowledge receiving the endpoint
+     * [X] initialize init RPC client with lmp channel
+     * [X] set init RPC client in our program state
+     */
 
     /* TODO MILESTONE 3: now we should have a channel with init set up and can
      * use it for the ram allocator */
