@@ -72,7 +72,7 @@ static void number_cb(struct lmp_chan *lc, uintptr_t num)
     printf("Received number %"PRIuPTR"\n", num);
 }
 
-static void string_cb(struct lmp_chan *lc, const char* c)
+static void string_cb(struct lmp_chan *lc, char *c)
 {
     printf("Received string %s\n", c);
 }
