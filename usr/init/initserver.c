@@ -6,6 +6,8 @@
 
 #include "initserver.h"
 
+static struct rpc_lmp_server server;
+
 static recv_number_callback_t recv_number_cb = NULL;
 static recv_string_callback_t recv_string_cb = NULL;
 
@@ -131,7 +133,7 @@ errval_t initserver_init(
     recv_number_cb = new_recv_number_cb;
     recv_string_cb = new_recv_string_cb;
 
-    err = rpc_lmp_server_init(cap_chan_init, service_recv_cb, state_init_cb, state_free_cb);
+    err = rpc_lmp_server_init(&server, cap_chan_init, service_recv_cb, state_init_cb, state_free_cb);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);

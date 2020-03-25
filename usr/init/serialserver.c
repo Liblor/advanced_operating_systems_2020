@@ -6,6 +6,8 @@
 
 #include "serialserver.h"
 
+static struct rpc_lmp_server server;
+
 static putchar_callback_t putchar_cb = NULL;
 static getchar_callback_t getchar_cb = NULL;
 
@@ -44,7 +46,7 @@ errval_t serialserver_init(
     putchar_cb = new_putchar_cb;
     getchar_cb = new_getchar_cb;
 
-    err = rpc_lmp_server_init(cap_chan_serial, service_recv_cb, state_init_cb, state_free_cb);
+    err = rpc_lmp_server_init(&server, cap_chan_serial, service_recv_cb, state_init_cb, state_free_cb);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
