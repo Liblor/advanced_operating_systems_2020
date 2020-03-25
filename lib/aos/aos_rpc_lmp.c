@@ -98,8 +98,8 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     return err;
 }
 
-static void get_ram_cap_recv(void *arg) {
-    debug_printf("get_ram_cap_recv(...)\n");
+static void get_ram_cap_recv_cb(void *arg) {
+    debug_printf("get_ram_cap_recv_cb(...)\n");
     struct aos_rpc_get_ram_state *ram_state = arg;
     struct aos_rpc *rpc = ram_state->rpc;
     struct lmp_chan *lc = &rpc->lc;
@@ -112,7 +112,7 @@ static void get_ram_cap_recv(void *arg) {
         // reregister
         // TODO waitset
         err = lmp_chan_register_recv(lc, get_default_waitset(),
-                                     MKCLOSURE(get_ram_cap_recv, arg));
+                                     MKCLOSURE(get_ram_cap_recv_cb, arg));
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "");
             ram_state->err = err;
@@ -124,6 +124,7 @@ static void get_ram_cap_recv(void *arg) {
         ram_state->err = err;
         return;
     }
+    return_with_err(msg.buf.buflen < sizeof(struct rpc_message_part), ram_state, "invalid buflen");
     struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
     return_with_err(msg_part->status != Status_Response_Ok, ram_state, "status not ok");
     return_with_err(msg_part->method != Method_Get_Ram_Cap, ram_state, "wrong method in response");
@@ -131,6 +132,7 @@ static void get_ram_cap_recv(void *arg) {
 
     memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
     ram_state->cap = cap;
+    ram_state->err = SYS_ERR_OK;
 }
 
 errval_t
@@ -160,7 +162,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     ram_state->rpc = rpc;
     ram_state->err = SYS_ERR_OK;
     err = lmp_chan_register_recv(&rpc->lc, get_default_waitset(),
-                                 MKCLOSURE(get_ram_cap_recv, &ram_state));
+                                 MKCLOSURE(get_ram_cap_recv_cb, &ram_state));
     if (err_is_fail(err)) {
         goto clean_up_all;
     }
@@ -181,6 +183,9 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
         err = ram_state->err;
         goto clean_up_all;
     }
+
+    *ret_cap = ram_state->cap;
+    *ret_bytes = ram_state->bytes;
 
     err = SYS_ERR_OK;
     goto clean_up_all;
