@@ -1,7 +1,6 @@
 #ifndef _USR_INIT_INITSERVER_H_
 #define _USR_INIT_INITSERVER_H_
 
-#include <aos/rpc.h>
 
 #define MAX_TOTAL_PAYLOAD_LENGTH 1024
 #define MAX_TOTAL_PAYLOAD_LENGTH 1024
