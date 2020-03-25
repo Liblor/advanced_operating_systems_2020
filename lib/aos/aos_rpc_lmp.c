@@ -125,8 +125,8 @@ static void get_ram_cap_recv(void *arg) {
         return;
     }
     struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
-    return_with_err(msg_part->status != Status_Ok, ram_state, "status not ok");
-    return_with_err(msg_part->method != Method_Send_Ram_Cap, ram_state, "wrong method in response");
+    return_with_err(msg_part->status != Status_Response_Ok, ram_state, "status not ok");
+    return_with_err(msg_part->method != Method_Get_Ram_Cap, ram_state, "wrong method in response");
     return_with_err(msg_part->payload_length != sizeof(size_t), ram_state, "invalid payload len");
 
     memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
@@ -144,8 +144,9 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    msg->msg.method = Method_Request_Ram_Cap;
+    msg->msg.method = Method_Get_Ram_Cap;
     msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
     msg->cap = NULL;
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));

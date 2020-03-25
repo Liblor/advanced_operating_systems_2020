@@ -7,7 +7,8 @@
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 
 enum rpc_message_status {
-    Status_Ok = 0
+    Status_Ok = 0,
+    Status_Response_Ok = 1,
 };
 
 struct rpc_message_part {
