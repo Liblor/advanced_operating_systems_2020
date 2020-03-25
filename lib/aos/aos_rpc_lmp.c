@@ -48,8 +48,8 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
     errval_t err = SYS_ERR_OK;
     while(size_sent < msg_size) {
         uint64_t to_send = MIN(lmp_msg_length_bytes, msg_size - size_sent);
-        memcpy(buf, &msg->msg, to_send);
-        memset((char *) buf + to_send, 0, (lmp_msg_length_bytes - to_send));
+        memcpy(buf, ((char *)&msg->msg)+size_sent, to_send);
+        //memset((char *) buf + to_send, 0, (lmp_msg_length_bytes - to_send));
         err = lmp_chan_send4(c, flags, (first ? *msg->cap : NULL_CAP), buf[0], buf[1], buf[2], buf[3]);
         if (err_is_fail(err)) {
             break;
