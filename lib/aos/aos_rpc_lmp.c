@@ -59,7 +59,9 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
         memcpy(buf, ((char *)&msg->msg)+size_sent, to_send);
         memset((char *) buf + to_send, 0, (lmp_msg_length_bytes - to_send));
         err = lmp_chan_send4(c, flags, (first ? *msg->cap : NULL_CAP), buf[0], buf[1], buf[2], buf[3]);
-        if (err_is_fail(err)) {
+        if (lmp_err_is_transient(err)) {
+            continue;
+        } else if (err_is_fail(err)) {
             break;
         }
         size_sent += to_send;

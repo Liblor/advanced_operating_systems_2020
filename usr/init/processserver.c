@@ -6,6 +6,8 @@
 
 #include "processserver.h"
 
+static struct rpc_lmp_server server;
+
 static spawn_callback_t spawn_cb = NULL;
 static get_name_callback_t get_name_cb = NULL;
 static get_all_pids_callback_t get_all_pids_cb = NULL;
@@ -47,7 +49,7 @@ errval_t processserver_init(
     get_name_cb = new_get_name_cb;
     get_all_pids_cb = new_get_all_pids_cb;
 
-    err = rpc_lmp_server_init(cap_chan_process, service_recv_cb, state_init_cb, state_free_cb);
+    err = rpc_lmp_server_init(&server, cap_chan_process, service_recv_cb, state_init_cb, state_free_cb);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);

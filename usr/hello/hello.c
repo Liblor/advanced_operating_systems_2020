@@ -42,7 +42,6 @@ static bool test_rpc(void)
         return false;
     }
 
-
     return true;
 }
 
