@@ -7,7 +7,8 @@
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 
 enum rpc_message_status {
-    Status_Ok = 0
+    Status_Ok = 0,
+    Status_Response_Ok = 1,
 };
 
 struct rpc_message_part {
@@ -18,6 +19,15 @@ struct rpc_message_part {
 } __attribute__((packed));      // due to correct ordering not necessary but explicit is better
 
 #define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH*sizeof(uint64_t) - sizeof(struct rpc_message_part))
+
+
+#define return_with_err(cond, state, msg) do { \
+        if (cond) { \
+            (state)->err = LIB_ERR_LMP_INVALID_RESPONSE; \
+            DEBUG_ERR(state->err, msg); \
+            return; \
+        } \
+    } while(0);
 
 struct rpc_message {
     struct capref *cap; ///< Optional cap to exchange, NULL if not set
@@ -38,6 +48,13 @@ struct client_serial_getchar_state {
     char c;        ///< Char to receive
 };
 
+
+struct aos_rpc_get_ram_state {
+    size_t bytes;
+    errval_t err;
+    struct aos_rpc *rpc;
+    struct capref cap;
+};
 
 /**
  * \brief Call this handler on the receive side for grading
