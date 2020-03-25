@@ -27,8 +27,7 @@ static void service_recv_cb(void *arg)
     // check which message type was sent -> call corresponding callback
     // check if callback is null
     struct capref cap;
-    struct lmp_recv_msg msg;
-    memset(&msg, 0, sizeof(struct lmp_recv_msg));
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
     if (err_is_fail(err) && lmp_err_is_transient(err)) {
