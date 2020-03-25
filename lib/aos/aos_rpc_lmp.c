@@ -245,6 +245,7 @@ void client_serial_cb(void *arg) {
 errval_t
 aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
+    assert(rpc->lmp->shared != NULL);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message));
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -259,7 +260,7 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
         DEBUG_ERR(err, "lmp_send_message failed\n");
         goto clean_up_msg;
     }
-    assert(rpc->lmp->shared != NULL);
+
     struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
     err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_serial_cb, rpc));
     if (err_is_fail(err)) {
@@ -289,20 +290,27 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
-//    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
-//    if (msg == NULL) {
-//        return LIB_ERR_MALLOC_FAIL;
-//    }
-//    msg->method = Method_Serial_Putchar;
-//    msg->payload_length = sizeof(c);
-//    msg->cap = NULL;
-//    memcpy(msg->payload, &c, sizeof(c));
-//
-//    // TODO: init channel
-//    errval_t err = lmp_send_message(&rpc->rpc_lmp_chan, msg, LMP_SEND_FLAGS_DEFAULT);
-//    free(msg);
-//    return err;
+    assert(rpc->lmp->shared != NULL);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->cap = NULL;
+    msg->msg.method = Method_Serial_Putchar;
+    msg->msg.payload_length = sizeof(c);
+    msg->msg.status = Status_Ok;
+    msg->msg.payload[0] = c;
+
+    errval_t err = lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "lmp_send_message failed\n");
+        goto clean_up_msg;
+    }
     return SYS_ERR_OK;
+
+    clean_up_msg:
+    free(msg);
+    return err;
 }
 
 errval_t
@@ -447,6 +455,7 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
     if (init_channel == NULL) {
         init_channel = aos_rpc_lmp_setup_channel(cap_chan_init, "init");
+        init_channel->lmp->shared = NULL; // we dont need state
     }
 
     return init_channel;
@@ -473,6 +482,7 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
     if (process_channel == NULL) {
         debug_printf("Setting up a new channel to process.\n");
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
+        process_channel->lmp->shared = NULL;
     }
 
     return process_channel;
@@ -493,5 +503,6 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
         }
         serial_channel->lmp->shared = state;
     }
+
     return serial_channel;
 }
