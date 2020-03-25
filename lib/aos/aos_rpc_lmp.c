@@ -335,7 +335,6 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
     if (memory_channel == NULL) {
-        debug_printf("Setting up a new channel to memory.\n");
         memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
     }
 
@@ -348,7 +347,6 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
     if (process_channel == NULL) {
-        debug_printf("Setting up a new channel to process.\n");
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
     }
 
@@ -361,7 +359,6 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
     if (serial_channel == NULL) {
-        debug_printf("Setting up a new channel to serial.\n");
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
     }
 
