@@ -135,6 +135,7 @@ static void client_ram_cb(void *arg) {
     return_with_err(msg_part->method != Method_Get_Ram_Cap, rpc->lmp, "wrong method in response");
     return_with_err(msg_part->payload_length != sizeof(size_t), rpc->lmp, "invalid payload len");
 
+    // TODO: do we need to allocate a slot?
     memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
     ram_state->cap = cap;
     rpc->lmp->err = SYS_ERR_OK;
