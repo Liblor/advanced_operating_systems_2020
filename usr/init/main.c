@@ -67,11 +67,14 @@ static errval_t init_caps(void)
     return SYS_ERR_OK;
 }
 
-static errval_t number_cb(uintptr_t num)
+static void number_cb(struct lmp_chan *lc, uintptr_t num)
 {
     printf("Received number %"PRIuPTR"\n", num);
+}
 
-    return SYS_ERR_OK;
+static void string_cb(struct lmp_chan *lc, const char* c)
+{
+    printf("Received string %s\n", c);
 }
 
 static int bsp_main(int argc, char *argv[])
@@ -102,7 +105,7 @@ static int bsp_main(int argc, char *argv[])
 
     // TODO: Spawn system processes, boot second core etc. here
 
-    err = initserver_init(number_cb, NULL);
+    err = initserver_init(number_cb, string_cb);
     if (err_is_fail(err)) {
         debug_printf("initserver_init() failed: %s\n", err_getstring(err));
         abort();
