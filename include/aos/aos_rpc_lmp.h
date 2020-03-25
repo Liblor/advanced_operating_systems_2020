@@ -7,6 +7,10 @@
 
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 
+enum rpc_message_status {
+    Status_Ok = 0
+
+};
 
 struct rpc_message_part {
     uint8_t method;   ///< Method identifier, see enum rpc_message_method
@@ -15,7 +19,7 @@ struct rpc_message_part {
     char payload[0]; ///< The total payload data of the message.
 };
 
-#define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH*sizeof(uint64_t) - sizeof(rpc_message_part))
+#define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH*sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
 //
 //struct rpc_message {

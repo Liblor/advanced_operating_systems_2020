@@ -1,5 +1,6 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
+#include <aos/aos_rpc_lmp.h>
 
 #include "initserver.h"
 
@@ -76,19 +77,32 @@ static void service_recv_cb(void *arg)
                 } else {
                     recv_string_cb(lc, state->string);
                     state->pending_state = EmptyState;
+                    state->bytes_received = 0;
+                    state->total_length = 0;
+
                     free(state->string);        // TODO discuss
+                    state->string = NULL;
                 }
                 break;
             }
             default: break;
         }
     } else if (state->pending_state == StringTransmit) {
+        uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, state->total_length - state->bytes_received);
+        strncpy(state->string, msg.words, to_copy);
+        state->bytes_received += to_copy;
+        if (state->bytes_received < state->total_length) {
+            state->pending_state = StringTransmit;
+        } else {
+            recv_string_cb(lc, state->string);
+            state->pending_state = EmptyState;
+            state->bytes_received = 0;
+            state->total_length = 0;
 
+            free(state->string);        // TODO discuss
+            state->string = NULL;
+        }
     }
-
-    uint64_t num;
-    memcpy(&num, rpc_msg_part->payload, sizeof(num));
-    rpc->init_state.recv_number_cb(num);
 }
 
 static void open_recv_cb(void *arg)
