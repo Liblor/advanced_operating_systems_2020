@@ -52,6 +52,11 @@ struct client_ram_state {
 };
 
 /**
+ * \brief Marshall rpc_message and send with LMP
+ */
+errval_t aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags);
+
+/**
  * \brief Call this handler on the receive side for grading
  */
 void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap);

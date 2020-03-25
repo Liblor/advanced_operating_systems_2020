@@ -40,7 +40,8 @@ errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
     return SYS_ERR_OK;
 }
 
-static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
+errval_t
+aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
 {
     if (msg->cap == NULL) {
         msg->cap = &NULL_CAP;
@@ -80,7 +81,7 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     msg->cap = NULL;
     memcpy(msg->msg.payload, &num, sizeof(num));
 
-    errval_t err = lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     free(msg);
     return err;
 }
@@ -99,7 +100,7 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     msg->msg.status = Status_Ok;
     strncpy(msg->msg.payload, string, str_len);
 
-    errval_t err = lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     free(msg);
     return err;
 }
@@ -167,7 +168,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     }
 
     // send ram request
-    err = lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         goto clean_up;
     }
@@ -245,7 +246,7 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;
 
-    errval_t err = lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_send_message failed\n");
         goto clean_up_msg;
@@ -291,7 +292,7 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     msg->msg.status = Status_Ok;
     msg->msg.payload[0] = c;
 
-    errval_t err = lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_send_message failed\n");
         goto clean_up_msg;
