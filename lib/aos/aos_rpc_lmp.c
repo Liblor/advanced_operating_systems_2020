@@ -415,8 +415,13 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
         return NULL;
     }
 
-    // The closure will be removed from the waitset after it has been executed once.
-    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(client_recv_open_cb, rpc));
+    struct waitset ws;
+    waitset_init(&ws);
+
+    // The closure will be removed from the waitset after it has been executed
+    // once. We don't use the default waitset, because we want to be able to
+    // wait on a specific response below.
+    err = lmp_chan_register_recv(lc, &ws, MKCLOSURE(client_recv_open_cb, rpc));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return NULL;
@@ -429,10 +434,16 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
     }
 
     // Wait for the callback to be executed.
-    err = event_dispatch(get_default_waitset());
+    err = event_dispatch(&ws);
     if (err_is_fail(err)) {
         debug_printf("event_dispatch() failed: %s\n", err_getstring(err));
         return NULL;
+    }
+
+    err = waitset_destroy(&ws);
+    if (err_is_fail(err)) {
+        debug_printf("waitset_destroy() failed: %s\n", err_getstring(err));
+        // We don't have to return NULL, this error is not critical.
     }
 
     return rpc;
@@ -457,7 +468,6 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
     if (memory_channel == NULL) {
-        debug_printf("Setting up a new channel to memory.\n");
         memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
 
         struct client_ram_state *ram_state = malloc(sizeof(struct client_ram_state));
@@ -477,7 +487,6 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
     if (process_channel == NULL) {
-        debug_printf("Setting up a new channel to process.\n");
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
         process_channel->lmp->shared = NULL;
     }
@@ -491,7 +500,6 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
     if (serial_channel == NULL) {
-        debug_printf("Setting up a new channel to serial.\n");
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
         struct client_serial_state *state = malloc(sizeof(struct client_serial_state));
         if (state == NULL) {

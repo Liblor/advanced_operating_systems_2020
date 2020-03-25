@@ -27,45 +27,14 @@
 
 #include "mem_alloc.h"
 #include "initserver.h"
+#include "memoryserver.h"
+#include "serialserver.h"
+#include "processserver.h"
 #include "test.h"
 
 struct bootinfo *bi;
 
 coreid_t my_core_id;
-
-static errval_t init_caps(void)
-{
-    errval_t err;
-
-    /*
-    err = cap_copy(cap_chan_init, cap_selfep);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
-    }
-    */
-
-    // TODO: These endpoints all point to init for now, even though not all servers will run in init.
-    err = cap_copy(cap_chan_memory, cap_chan_init);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
-    }
-
-    err = cap_copy(cap_chan_process, cap_chan_init);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
-    }
-
-    err = cap_copy(cap_chan_serial, cap_chan_init);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
-    }
-
-    return SYS_ERR_OK;
-}
 
 static void number_cb(struct lmp_chan *lc, uintptr_t num)
 {
@@ -75,6 +44,12 @@ static void number_cb(struct lmp_chan *lc, uintptr_t num)
 static void string_cb(struct lmp_chan *lc, char *c)
 {
     printf("Received string %s\n", c);
+}
+
+// We do not allocate RAM here. This should be done in the server itself.
+static void ram_cap_cb(const size_t bytes, const size_t align)
+{
+    printf("ram_cap_cb(bytes=0x%zx, align=0x%zx)\n", bytes, align);
 }
 
 static int bsp_main(int argc, char *argv[])
@@ -111,9 +86,21 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    err = init_caps();
+    err = memoryserver_init(ram_cap_cb);
     if (err_is_fail(err)) {
-        debug_printf("init_caps() failed: %s\n", err_getstring(err));
+        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = serialserver_init(NULL, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = processserver_init(NULL, NULL, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
 
