@@ -18,20 +18,16 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc_lmp.h>
 
+// TODO: Move to separate memory module.
 struct mem_server_state {
     struct lmp_chan rpc_lmp_chan_mem_server;
     struct capref received_cap;
     size_t bytes;
 };
 
-struct init_state {
-    struct lmp_chan rpc_lmp_chan_init;
-    aos_rpc_lmp_recv_number_callback_t recv_number_cb;
-};
-
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
-    struct lmp_chan *lc;
+    struct lmp_chan lc;
 };
 
 // TODO: Remove.

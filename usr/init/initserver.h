@@ -1,12 +1,13 @@
 #ifndef _USR_INIT_INITSERVER_H_
 #define _USR_INIT_INITSERVER_H_
 
-#include <aos/rpc.h>
+#include <aos/aos_rpc.h>
 
-struct {
+// Client-specific state.
+struct callback_state {
     struct aos_rpc rpc;
     uint32_t count; ///< How much was read from the client already.
-} callback_state;
+};
 
 errval_t initserver_init(void);
 
