@@ -36,6 +36,13 @@ static bool test_rpc(void)
         return false;
     }
 
+    err = aos_rpc_send_string(rpc, "hello world hello world whhhhhhhhh");
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
+        return false;
+    }
+
+
     return true;
 }
 

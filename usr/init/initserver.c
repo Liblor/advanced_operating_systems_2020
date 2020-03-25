@@ -88,7 +88,7 @@ static void service_recv_cb(void *arg)
         }
     } else if (state->pending_state == StringTransmit) {
         uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, state->total_length - state->bytes_received);
-        strncpy(state->string, (char *) &msg.words[0], to_copy);
+        memcpy(state->string + state->bytes_received, (char *) &msg.words[0], to_copy);
         state->bytes_received += to_copy;
         if (state->bytes_received < state->total_length) {
             state->pending_state = StringTransmit;
