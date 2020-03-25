@@ -379,7 +379,6 @@ errors libaos LIB_ERR_ {
     failure LMP_INVALID_RESPONSE "Invalid LMP response",
     failure LMP_CHAN_REGISTER_RECV "lmp_chan_register_recv failed",
 
-
     // IDC binding/export and Monitor client interface
     failure MONITOR_CLIENT_BIND "Error in monitor_client_lmp_bind()",
     failure MONITOR_CLIENT_ACCEPT "Error in monitor_client_lmp_accept()",
