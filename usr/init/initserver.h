@@ -9,8 +9,8 @@ typedef void (* recv_number_callback_t)(struct lmp_chan *, uint64_t numb);
 typedef void (* recv_string_callback_t)(struct lmp_chan *, char *string);
 
 enum pending_state {
-        EmptyState = 0,
-        StringTransmit = 1,
+    EmptyState = 0,
+    StringTransmit = 1,
 };
 
 struct callback_state {
