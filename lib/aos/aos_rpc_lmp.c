@@ -205,49 +205,50 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     return err;
 }
 
-/** client side callback to receive serial_getchar request **/
-static
-void serial_getchar_recv_cb(void *arg) {
-    debug_printf("serial_getchar_recv_cb()\n");
 
-    struct client_serial_getchar_state *state = (struct client_serial_getchar_state *) arg;
-    struct aos_rpc *rpc = state->rpc;
+static
+void client_serial_cb(void *arg) {
+    debug_printf("client_serial_cb()\n");
+
+    struct aos_rpc *rpc = (struct aos_rpc *) arg;
     struct lmp_chan *lc = &rpc->lc;
+    struct aos_rpc_lmp *lmp = rpc->lmp;
+    struct client_serial_state *state = (struct client_serial_state*) lmp->shared;
+
     struct capref cap;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
     if (err_is_fail(err) && lmp_err_is_transient(err)) {
         // reregister
-        // TODO use different waitset
-        err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(serial_getchar_recv_cb, arg));
+        err = lmp_chan_register_recv(lc, &lmp->ws, MKCLOSURE(client_serial_cb, arg));
         if (err_is_fail(err)) {
-            state->err = LIB_ERR_CHAN_REGISTER_RECV;
+            lmp->err = LIB_ERR_CHAN_REGISTER_RECV;
             return;
         }
     } else if (err_is_fail(err)) {
-        state->err = err;
+        lmp->err = err;
         return;
     }
     #define return_on_err(state, cond, msg) do { \
         if (cond) { \
-            state->err = LIB_ERR_LMP_INVALID_RESPONSE; \
+            (state)->err = LIB_ERR_LMP_INVALID_RESPONSE; \
             DEBUG_ERR(state->err, msg); \
             return; \
         } \
     } while(0);
 
-    return_on_err(state,msg.buf.buflen < sizeof(struct rpc_message_part), "invalid buflen");
+    return_on_err(lmp,msg.buf.buflen < sizeof(struct rpc_message_part), "invalid buflen");
 
     struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
 
     // TODO: return different error status on not ok
-    return_on_err(state, msg_part->status != Status_Ok, "status not ok");
-    return_on_err(state, msg_part->method != Method_Serial_Getchar, "wrong method in response");
-    return_on_err(state, msg_part->payload_length != 1, "invalid payload len");
+    return_on_err(lmp, msg_part->status != Status_Ok, "status not ok");
+    return_on_err(lmp, msg_part->method != Method_Serial_Getchar, "wrong method in response");
+    return_on_err(lmp, msg_part->payload_length != 1, "invalid payload len");
 
-    state->c = msg_part->payload[0];
-    state->err = SYS_ERR_OK;
+    state->c_recv = msg_part->payload[0];
+    lmp->err = SYS_ERR_OK;
 }
 
 errval_t
@@ -267,35 +268,26 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
         DEBUG_ERR(err, "lmp_send_message failed\n");
         goto clean_up_msg;
     }
-    struct client_serial_getchar_state *state = malloc(sizeof(struct client_serial_getchar_state));
-    if (state == NULL) {
-        err = LIB_ERR_MALLOC_FAIL;
-        goto clean_up_msg;
-    }
-    memset(state, 0, sizeof(struct client_serial_getchar_state));
-    state->rpc = rpc;
-
-    // TODO: different waitset
-    err = lmp_chan_register_recv(&rpc->lc, get_default_waitset(), MKCLOSURE(serial_getchar_recv_cb, state));
+    assert(rpc->lmp->shared != NULL);
+    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
+    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_serial_cb, rpc));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_register_recv failed");
-        goto clean_up_state;
+        goto clean_up_msg;
     }
-    err = event_dispatch(get_default_waitset()); // TODO: different waitset
+    err = event_dispatch(&lmp->ws);
     if (err_is_fail(err)) {
-        goto clean_up_state;
+        goto clean_up_msg;
     }
-    if (err_is_fail(state->err)) {
-        err = state->err;
-        goto clean_up_state;
+    if (err_is_fail(lmp->err)) {
+        err = lmp->err;
+        goto clean_up_msg;
     }
-    *retc = state->c;
-    err = SYS_ERR_OK;
-    goto clean_up_state;
+    struct client_serial_state *state = (struct client_serial_state *) rpc->lmp->shared;
+    *retc = state->c_recv;
 
-    // clean up:
-    clean_up_state:
-    free(state);
+    err = SYS_ERR_OK;
+    goto clean_up_msg;
 
     clean_up_msg:
     free(msg);
@@ -503,7 +495,12 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
     if (serial_channel == NULL) {
         debug_printf("Setting up a new channel to serial.\n");
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
+        struct client_serial_state *state = malloc(sizeof(struct client_serial_state));
+        if (state == NULL) {
+            DEBUG_ERR(LIB_ERR_MALLOC_FAIL, "malloc failed");
+            return NULL;
+        }
+        serial_channel->lmp->shared = state;
     }
-
     return serial_channel;
 }
