@@ -23,6 +23,57 @@ static void service_recv_cb(void *arg)
     // accumulate message until full message was transmitted
     // check which message type was sent -> call corresponding callback
     // check if callback is null
+
+    struct lmp_chan *lc = state->rpc.lc;
+    struct capref cap;
+    struct lmp_recv_msg msg;
+    memset(&msg, 0, sizeof(struct lmp_recv_msg));
+
+    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+    if (err_is_fail(err) && lmp_err_is_transient(err)) {
+        // reregister
+        err = lmp_chan_register_recv(lc, get_default_waitset(),
+                                     MKCLOSURE(service_recv_cb, arg));
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "");
+            return;
+        }
+    }
+    err = lmp_chan_register_recv(lc, get_default_waitset(),
+                                 MKCLOSURE(service_recv_cb, arg));
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "");
+        return;
+    }
+
+    // TODO handle received error
+    assert(msg.buf.buflen <= 4*sizeof(uint64_t));
+    //assert(msg.buf.buflen >= 1*sizeof(uint64_t));
+
+    // TODO message sanity check
+
+    if (state->pending_state == EmptyState) {
+        struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
+        switch (rpc_msg_part->method) {
+            case Method_Send_Number: {
+                uint64_t num;
+                memcpy(&num, rpc_msg_part->payload, sizeof(uint64_t));
+                assert(recv_number_cb != NULL);     // TODO err handling
+                recv_number_cb(lc, num);
+                break;
+            }
+            case Method_Send_String: {
+                break;
+            }
+            default: break;
+        }
+    } else if (state->pending_state == StringTransmit) {
+
+    }
+
+    uint64_t num;
+    memcpy(&num, rpc_msg_part->payload, sizeof(num));
+    rpc->init_state.recv_number_cb(num);
 }
 
 static void open_recv_cb(void *arg)
@@ -61,7 +112,9 @@ static void open_recv_cb(void *arg)
     // TODO: Use custom waitset?
 
     struct callback_state *state = malloc(sizeof(struct callback_state));
-    state->lp = service_chan;
+    // todo memset
+    state->rpc.lc = service_chan;
+    state->pending_state = EmptyState;
 
     err = lmp_chan_register_recv(service_chan, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
     if (err_is_fail(err)) {

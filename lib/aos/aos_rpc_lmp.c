@@ -103,41 +103,7 @@ static errval_t lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lm
 
 
 
-static void aos_rpc_lmp_recv_number_handler(void *rpc_arg)
-{
-    struct aos_rpc *rpc = (struct aos_rpc*)rpc_arg;
-    struct lmp_chan lc = rpc->init_state.rpc_lmp_chan_init;
-    struct capref cap;
-    struct lmp_recv_msg msg;
-    memset(&msg, 0, sizeof(struct lmp_recv_msg));
 
-    errval_t err = lmp_chan_recv(&lc, &msg, &cap);
-    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-        // reregister
-        err = lmp_chan_register_recv(&lc, get_default_waitset(),
-                                     MKCLOSURE(aos_rpc_lmp_recv_number_handler, rpc_arg));
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-            return;
-        }
-    }
-    err = lmp_chan_register_recv(&lc, get_default_waitset(),
-                                 MKCLOSURE(aos_rpc_lmp_recv_number_handler, rpc_arg));
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "");
-        return;
-    }
-
-    // TODO handle received error
-    assert(msg.buf.buflen <= 4*sizeof(uint64_t));
-    assert(msg.buf.buflen >= 1*sizeof(uint64_t));
-
-    struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
-
-    uint64_t num;
-    memcpy(&num, rpc_msg_part->payload, sizeof(num));
-    rpc->init_state.recv_number_cb(num);
-}
 
 
 errval_t aos_rpc_lmp_recv_number(struct aos_rpc *rpc, aos_rpc_lmp_recv_number_callback_t callback) {
