@@ -294,8 +294,13 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
         return NULL;
     }
 
-    // The closure will be removed from the waitset after it has been executed once.
-    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(client_recv_open_cb, rpc));
+    struct waitset ws;
+    waitset_init(&ws);
+
+    // The closure will be removed from the waitset after it has been executed
+    // once. We don't use the default waitset, because we want to be able to
+    // wait on a specific response below.
+    err = lmp_chan_register_recv(lc, &ws, MKCLOSURE(client_recv_open_cb, rpc));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return NULL;
@@ -308,10 +313,16 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
     }
 
     // Wait for the callback to be executed.
-    err = event_dispatch(get_default_waitset());
+    err = event_dispatch(&ws);
     if (err_is_fail(err)) {
         debug_printf("event_dispatch() failed: %s\n", err_getstring(err));
         return NULL;
+    }
+
+    err = waitset_destroy(&ws);
+    if (err_is_fail(err)) {
+        debug_printf("waitset_destroy() failed: %s\n", err_getstring(err));
+        // We don't have to return NULL, this error is not critical.
     }
 
     return rpc;
