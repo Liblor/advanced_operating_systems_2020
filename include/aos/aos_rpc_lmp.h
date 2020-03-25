@@ -11,11 +11,11 @@ enum rpc_message_status {
 };
 
 struct rpc_message_part {
-    uint8_t method;   ///< Method identifier, see enum rpc_message_method
     uint32_t payload_length; ///< The length of the message.
     uint16_t status; ///< status / errors
+    uint8_t method;   ///< Method identifier, see enum rpc_message_method
     char payload[0]; ///< The total payload data of the message.
-};
+} __attribute__((packed));      // due to correct ordering not necessary but explicit is better
 
 #define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH*sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
