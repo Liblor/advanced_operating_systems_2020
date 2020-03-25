@@ -157,9 +157,8 @@ static void open_recv_cb(void *arg)
     // TODO: Initialize struct aos_rpc.
     // TODO: Use custom waitset?
 
-    struct callback_state *state = malloc(sizeof(struct callback_state));
     // todo memset
-    state->rpc.lc = service_chan;
+    state->rpc.lc = *service_chan;
     state->pending_state = EmptyState;
 
     err = lmp_chan_register_recv(service_chan, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
