@@ -154,7 +154,6 @@ static void open_recv_cb(void *arg)
     }
 
     // TODO: Initialize struct aos_rpc.
-    // TODO: Use custom waitset?
 
     // todo memset
     state->rpc.lc = *service_chan;
@@ -181,10 +180,16 @@ static errval_t initserver_setup_open_channel(void)
     open_lc.send_waitset.persistent = true;
 
     err = lmp_chan_accept(&open_lc, DEFAULT_LMP_BUF_WORDS, NULL_CAP);
-    // TODO: Handle error.
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_accept() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_LMP_CHAN_ACCEPT);
+    }
 
     err = lmp_chan_alloc_recv_slot(&open_lc);
-    // TODO: Handle error.
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_LMP_ALLOC_RECV_SLOT);
+    }
 
     open_ep = open_lc.local_cap;
 
@@ -195,7 +200,10 @@ static errval_t initserver_setup_open_channel(void)
     }
 
     err = lmp_chan_register_recv(&open_lc, get_default_waitset(), MKCLOSURE(open_recv_cb, &open_lc));
-    // TODO: Handle error.
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_LMP_CHAN_RECV);
+    }
 
     return SYS_ERR_OK;
 }
