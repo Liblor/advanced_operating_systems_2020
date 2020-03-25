@@ -376,6 +376,9 @@ errors libaos LIB_ERR_ {
     failure MSGBUF_CANNOT_GROW  "Failed to grow message buffer while marshalling",
     failure RCK_NOTIFY          "Failure in rck_notify()",
     failure IPI_NOTIFY          "Failure in ipi_notify()",
+    failure LMP_INVALID_RESPONSE "Invalid LMP response",
+    failure LMP_CHAN_REGISTER_RECV "lmp_chan_register_recv failed",
+
 
     // IDC binding/export and Monitor client interface
     failure MONITOR_CLIENT_BIND "Error in monitor_client_lmp_bind()",

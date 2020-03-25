@@ -43,6 +43,15 @@ struct aos_rpc_lmp {
     struct aos_rpc_lmp_recv_state state;
 };
 
+
+/** internal state for aos lmp impl. to receive serial getchar **/
+struct client_serial_getchar_state {
+    struct aos_rpc *rpc;
+    errval_t err;
+    char c;        ///< Char to receive
+};
+
+
 /**
  * \brief Call this handler on the receive side for grading
  */
