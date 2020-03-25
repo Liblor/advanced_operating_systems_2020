@@ -158,9 +158,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
 
-    // prepare and register receive handler state
-    struct client_ram_state *ram_state = rpc->lmp->shared;
-    rpc->lmp->shared = ram_state;
+    // register receive handler state
     err = lmp_chan_register_recv(&rpc->lc, &rpc->lmp->ws,
                                  MKCLOSURE(client_ram_cb, rpc));
     if (err_is_fail(err)) {
@@ -183,6 +181,8 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
         goto clean_up;
     }
 
+    // save response
+    struct client_ram_state *ram_state = rpc->lmp->shared;
     *ret_cap = ram_state->cap;
     *ret_bytes = ram_state->bytes;
 
