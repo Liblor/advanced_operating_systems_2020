@@ -49,10 +49,8 @@ struct client_serial_getchar_state {
 };
 
 
-struct aos_rpc_get_ram_state {
+struct client_ram_state {
     size_t bytes;
-    errval_t err;
-    struct aos_rpc *rpc;
     struct capref cap;
 };
 
