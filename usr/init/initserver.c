@@ -9,8 +9,8 @@ static struct lmp_chan open_lc;
 static struct capref service_ep;
 static struct lmp_endpoint *service_lmp_ep;
 
-static aos_rpc_lmp_recv_number_callback_t recv_number_cb = NULL;
-static aos_rpc_lmp_recv_string_callback_t recv_string_cb = NULL;
+static recv_number_callback_t recv_number_cb = NULL;
+static recv_string_callback_t recv_string_cb = NULL;
 
 // TODO: When another process terminates, free the associated channel.
 
@@ -103,7 +103,7 @@ static errval_t initserver_setup_open_channel(void)
     return SYS_ERR_OK;
 }
 
-errval_t initserver_init(aos_rpc_lmp_recv_number_callback_t new_recv_number_cb, aos_rpc_lmp_recv_string_callback_t new_recv_string_cb)
+errval_t initserver_init(recv_number_callback_t new_recv_number_cb, recv_string_callback_t new_recv_string_cb)
 {
     errval_t err;
 

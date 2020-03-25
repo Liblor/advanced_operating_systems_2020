@@ -56,10 +56,8 @@ errval_t aos_rpc_lmp_init(struct aos_rpc *rpc);
 /**
  * \brief Send a number.
  */
-typedef errval_t (* aos_rpc_lmp_recv_number_callback_t)(uintptr_t num);
 
 errval_t aos_rpc_lmp_send_number(struct aos_rpc *chan, uintptr_t val);
-errval_t aos_rpc_lmp_recv_number(struct aos_rpc *rpc, aos_rpc_lmp_recv_number_callback_t callback);
 
 /**
  * \brief Send a string.
