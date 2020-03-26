@@ -75,17 +75,17 @@ static void service_recv_cb(void *arg)
     struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
 
     size_t bytes;
-    size_t align;
+    size_t alignment;
     struct capref retcap;
 
     switch (rpc_msg_part->method) {
         case Method_Get_Ram_Cap:
             memcpy(&bytes, rpc_msg_part->payload, sizeof(bytes));
-            memcpy(&align, rpc_msg_part->payload + sizeof(bytes), sizeof(align));
+            memcpy(&alignment, rpc_msg_part->payload + sizeof(bytes), sizeof(alignment));
 
             if (ram_cap_cb != NULL) {
                 size_t retbytes;
-                err = ram_cap_cb(bytes, align, &retcap, &retbytes);
+                err = ram_cap_cb(bytes, alignment, &retcap, &retbytes);
                 if (err_is_fail(err)) {
                     err = reply_error(lc);
                 }
