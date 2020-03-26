@@ -44,31 +44,34 @@ static bool test_rpc(void)
             return false;
         }
     }
-
     debug_printf("calling aos_rpc_process_spawn\n");
     rpc = aos_rpc_get_process_channel();
     {
-        char *binary_name1 = "hello";
-        domainid_t pid1;
-        coreid_t core = 0;
+        for(int i = 0; i < 1; i ++) {
+            char *binary_name1 = "hello";
+            domainid_t pid1;
+            coreid_t core = 0;
 
-        err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "aos_rpc_process_spawn()");
-            return false;
+            err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
+            if (err_is_fail(err)) {
+                DEBUG_ERR(err, "aos_rpc_process_spawn()");
+                return false;
+            }
+            debug_printf("spawned child: pid %d\n", pid1);
         }
-        debug_printf("spawned child: pid %d\n", pid1);
-
-//        struct spawninfo si1;
-//        char *binary_name2 = "memeater";
-//        domainid_t pid2;
-//
-//        err = spawn_load_by_name(binary_name2, &si1, &pid2);
-//        if (err_is_fail(err)) {
-//            DEBUG_ERR(err, "spawn_load_by_name()");
-//            return err;
-//        }
     }
+//    {
+//        for(int i = 0; i < 1; i ++) {
+//            char *name = NULL;
+//            domainid_t pid = 11;
+//            err = aos_rpc_lmp_process_get_name(rpc, pid, &name);
+//            if (err_is_fail(err)) {
+//                DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()");
+//                return false;
+//            }
+//            debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
+//        }
+//    }
 
     return true;
 }
