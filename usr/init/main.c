@@ -55,6 +55,16 @@ static void ram_cap_cb(const size_t bytes, const size_t align)
 static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 {
     printf("spawn_cb(name=%s...)\n", name);
+    // TODO: we currently ignore coreid, as we are single core
+
+    struct spawninfo si1;
+    domainid_t pid1;
+    errval_t err = spawn_load_by_name(name, &si1, &pid1);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "spawn_load_by_name()");
+        return err;
+    }
+    *ret_pid = pid1;
     return SYS_ERR_OK;
 }
 
