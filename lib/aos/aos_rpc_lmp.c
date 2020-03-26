@@ -108,7 +108,6 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 }
 
 static void client_ram_cb(void *arg) {
-    debug_printf("client_ram_cb(...)\n");
     struct aos_rpc *rpc = arg;
     struct client_ram_state *ram_state = rpc->lmp->shared;
     struct aos_rpc_lmp *lmp = rpc->lmp;
@@ -206,8 +205,6 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 
 static
 void client_serial_cb(void *arg) {
-    debug_printf("client_serial_cb()\n");
-
     struct aos_rpc *rpc = (struct aos_rpc *) arg;
     struct lmp_chan *lc = &rpc->lc;
     struct aos_rpc_lmp *lmp = rpc->lmp;
