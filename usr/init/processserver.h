@@ -14,6 +14,29 @@ struct processserver_cb_state {
     struct rpc_message_part *complete_msg;
 };
 
+// XXX: we should have some generic datastructure that is more efficient
+struct process_info {
+    char *name;
+    domainid_t pid;
+    struct process_info *next;
+    struct process_info *prev;
+};
+
+struct processserver_state {
+    struct process_info process_head;
+    struct process_info process_tail;
+    struct process_info *processlist;
+    uint64_t num_proc;
+};
+
+// TODO add remove_from_proc_list
+
+errval_t add_to_proc_list(struct processserver_state *ps, char *name, domainid_t pid);
+
+errval_t get_pid_array(struct processserver_state *ps, struct process_pid_array **ret_pid_array);
+
+errval_t get_name_by_pid(struct processserver_state *ps, domainid_t pid, char **ret_name);
+
 errval_t processserver_init(
     spawn_callback_t spawn_cb,
     get_name_callback_t get_name_cb,
