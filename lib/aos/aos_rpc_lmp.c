@@ -357,7 +357,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     msg->msg.payload_length = sizeof(core) + str_len;
     msg->cap = NULL;
     msg->msg.status = Status_Ok;
-    memcpy(msg->msg.payload, core, sizeof(core));
+    memcpy(msg->msg.payload, &core, sizeof(core));
     strncpy(msg->msg.payload + sizeof(core), cmdline, str_len);
 
     // register receive handler state
