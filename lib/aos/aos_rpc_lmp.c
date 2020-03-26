@@ -525,23 +525,25 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
         err = event_dispatch(&lmp->ws);
     } while (err_is_ok(err) && state->pending_state == DataInTransmit);
         if (err_is_fail(err)) {
-        goto clean_up_msg;
+        goto clean_up_name;
     }
     if (err_is_fail(lmp->err)) {
         err = lmp->err;
-        goto clean_up_msg;
+        goto clean_up_name;
     }
     assert(state->name != NULL);
     const size_t tot_str_len = MIN(RPC_LMP_MAX_STR_LEN, state->total_length);
     *name = malloc(tot_str_len);
     if (*name == NULL) {
-        goto clean_up_msg;
+        goto clean_up_name;
     }
-
     strncpy(*name, state->name, tot_str_len);
 
     err = SYS_ERR_OK;
-    goto clean_up_msg;
+    goto clean_up_name;
+
+    clean_up_name:
+    free(state->name);
 
     clean_up_msg:
     free(msg);
