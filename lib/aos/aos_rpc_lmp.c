@@ -43,31 +43,34 @@ errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
 errval_t
 aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
 {
-    if (msg->cap == NULL) {
-        msg->cap = &NULL_CAP;
-    }
+    errval_t err;
+
+    const uint64_t msg_size = sizeof(msg->msg) + msg->msg.payload_length;
+    struct capref cap = msg->cap == NULL ? NULL_CAP : *msg->cap;
+
+    uintptr_t words[LMP_MSG_LENGTH];
 
     uint32_t size_sent = 0;
-    const uint64_t lmp_msg_length_bytes = sizeof(uint64_t) * LMP_MSG_LENGTH;
-    const uint64_t msg_size = sizeof(msg->msg) + msg->msg.payload_length;
+    uint8_t *base = (uint8_t *) &msg->msg;
     bool first = true;
-    uintptr_t buf[LMP_MSG_LENGTH];
 
-    errval_t err = SYS_ERR_OK;
     while(size_sent < msg_size) {
-        uint64_t to_send = MIN(lmp_msg_length_bytes, msg_size - size_sent);
-        memcpy(buf, ((char *)&msg->msg)+size_sent, to_send);
-        memset((char *) buf + to_send, 0, (lmp_msg_length_bytes - to_send));
-        err = lmp_chan_send4(c, flags, (first ? *msg->cap : NULL_CAP), buf[0], buf[1], buf[2], buf[3]);
+        uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
+        memset(words, 0, sizeof(words));
+        memcpy(words, base + size_sent, to_send);
+
+        err = lmp_chan_send4(c, flags, (first ? cap : NULL_CAP), words[0], words[1], words[2], words[3]);
+
         if (lmp_err_is_transient(err)) {
             continue;
         } else if (err_is_fail(err)) {
-            break;
+            DEBUG_ERR(err, "lmp_chan_send4 failed");
+            return err;
         }
         size_sent += to_send;
         first = false;
     }
-    return err;
+    return SYS_ERR_OK;
 }
 
 errval_t
