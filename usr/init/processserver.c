@@ -71,8 +71,6 @@ static void service_recv_cb(void *arg)
             return;
         }
     }
-    err = lmp_chan_register_recv(lc, get_default_waitset(),
-                                 MKCLOSURE(service_recv_cb, arg));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "");
         return;
