@@ -11,9 +11,6 @@ struct rpc_lmp_server {
     struct capref open_ep;
     struct lmp_chan open_lc;
 
-    struct capref service_ep;
-    struct lmp_endpoint *service_lmp_ep;
-
     service_recv_handler_t service_recv_handler;
     state_init_handler_t state_init_handler;
     state_free_handler_t state_free_handler;

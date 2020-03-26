@@ -152,6 +152,16 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
+    char *binary_name2 = "hello";
+    struct spawninfo si2;
+    domainid_t pid2;
+
+    err = spawn_load_by_name(binary_name2, &si2, &pid2);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in event_dispatch");
+        abort();
+    }
+
     // Grading
     grading_test_late();
 
