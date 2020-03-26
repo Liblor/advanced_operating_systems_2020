@@ -7,13 +7,14 @@
 #include "processserver.h"
 
 static struct rpc_lmp_server server;
+struct processserver_state processserver_state;
 
 static spawn_callback_t spawn_cb = NULL;
 static get_name_callback_t get_name_cb = NULL;
 static get_all_pids_callback_t get_all_pids_cb = NULL;
 
 
-static errval_t  handle_complete_msg(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_complete_msg(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t err;
     switch (rpc_msg_part->method) {
         case Method_Spawn_Process: {
@@ -121,7 +122,6 @@ static void service_recv_cb(void *arg)
 }
 
 
-
 // Initialize channel-specific data.
 static void state_init_cb(void *arg)
 {
@@ -139,6 +139,59 @@ static void state_free_cb(void *arg)
 {
 }
 
+static void add_process_info(struct processserver_state *ps, struct process_info *process_info)
+{
+    ps->process_tail.prev->next = process_info;
+    process_info->prev = ps->process_tail.prev;
+    process_info->next = &ps->process_tail;
+    ps->process_tail.prev = process_info;
+    ps->num_proc++;
+}
+
+errval_t add_to_proc_list(struct processserver_state *ps, char *name, domainid_t pid)
+{
+    struct process_info *new_process = calloc(1, sizeof(struct process_info));
+    if (new_process == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    size_t name_size = strlen(name) + 1;    // strlen doesn't include '\0'
+    new_process->name = malloc(name_size);
+    if (new_process->name == NULL) {
+        free(new_process);
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    strncpy(new_process->name, name, name_size);
+    new_process->pid = pid;
+
+    add_process_info(ps, new_process);
+
+    return SYS_ERR_OK;
+}
+
+/**
+ * Packs the current running processes into a pid_array
+ *
+ * @param ret_pid_array contains all pids in this process server state
+ * @return errors
+ */
+errval_t get_pid_array(struct processserver_state *ps, struct process_pid_array **ret_pid_array)
+{
+    *ret_pid_array = calloc(1, sizeof(struct process_pid_array) + ps->num_proc * sizeof(domainid_t));
+    if (*ret_pid_array == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    (*ret_pid_array)->pid_count = ps->num_proc;
+    struct process_info *curr = ps->process_head.next;
+    size_t curr_idx = 0;
+    while (curr != &(ps->process_tail)) {
+        (*ret_pid_array)->pids[curr_idx] = curr->pid;
+        curr_idx++;
+        curr = curr->next;
+    }
+    assert(curr_idx == ps->num_proc);
+    return SYS_ERR_OK;
+}
+
 errval_t processserver_init(
     spawn_callback_t new_spawn_cb,
     get_name_callback_t new_get_name_cb,
@@ -147,6 +200,18 @@ errval_t processserver_init(
 {
     debug_printf("processserver_init()\n");
     errval_t err;
+
+    processserver_state.process_head.next = &processserver_state.process_tail;
+    processserver_state.process_head.prev = NULL;
+    processserver_state.process_tail.prev = &processserver_state.process_head;
+    processserver_state.process_tail.next = NULL;
+    processserver_state.processlist = &processserver_state.process_head;
+    processserver_state.process_head.name = NULL;
+    processserver_state.process_tail.name = NULL;
+    processserver_state.num_proc = 0;
+
+    // TODO is init 0?
+    add_to_proc_list(&processserver_state, "init", 0);
 
     spawn_cb = new_spawn_cb;
     get_name_cb = new_get_name_cb;
