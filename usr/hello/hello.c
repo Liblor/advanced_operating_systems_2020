@@ -49,7 +49,8 @@ static bool test_rpc(void)
     }
 
     /*
-    // This works
+    // Explicit test not necessary since printf is redirected to rpc during the
+    // execution of this entire program.
     err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
@@ -57,15 +58,12 @@ static bool test_rpc(void)
     }
     */
 
-    /*
-    // TODO This doesn't work yet
     char c;
     err = aos_rpc_lmp_serial_getchar(rpc_serial, &c);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
         return false;
     }
-    */
 
     debug_printf("Received char %c\n", c);
 
