@@ -41,6 +41,8 @@ static bool test_rpc(void)
         DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
         return false;
     }
+
+    debug_printf("calling aos_rpc_process_spawn\n");
     rpc = aos_rpc_get_process_channel();
     {
         char *binary_name1 = "hello";
@@ -49,11 +51,12 @@ static bool test_rpc(void)
 
         err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
+            DEBUG_ERR(err, "aos_rpc_process_spawn()");
             return false;
         }
         debug_printf("spawned child: pid %d\n", pid1);
     }
+
 
     return true;
 }
