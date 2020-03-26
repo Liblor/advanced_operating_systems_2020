@@ -107,7 +107,7 @@ void create_hashtable(collections_hash_table **hashmap) {
  * \param st The struct to be initialized, must not be NULL.
  * \param start_vaddr Virtual address allocation should start at
  *        this address.
- * \param cap_l0 Reference to the cap of the L1 VNode.
+ * \param cap_l0 Reference to the cap of the L0 VNode.
  * \param ca The slot_allocator to be used by the paging state.
  * \return Either SYS_ERR_OK if no error occured or an error
  * indicating what went wrong otherwise.

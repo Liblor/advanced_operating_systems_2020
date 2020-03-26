@@ -72,18 +72,21 @@ static errval_t ram_cap_cb(const size_t bytes, const size_t align, struct capref
 }
 
 static void putchar_cb(char c) {
-    // TODO Should we really still use the syscall here? Then what is the point
-    // in moving it here at all? It's one syscall for each char, how is that
-    // better than before?
-    sys_print((const char *)&c, 1);
-    //char r = '#';
-    //sys_print((const char *)&r, 1);
+    errval_t err;
+
+    err = sys_print((const char *)&c, 1);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "sys_print() failed");
+    }
 }
 
 static void getchar_cb(char *c) {
-    // TODO Where should we get this character from?
-    debug_printf("getchar_cb()\n");
-    *c = 'a';
+    errval_t err;
+
+    err = sys_getchar(c);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "sys_getchar() failed");
+    }
 }
 
 

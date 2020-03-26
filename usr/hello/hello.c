@@ -65,7 +65,7 @@ static bool test_rpc(void)
         return false;
     }
 
-    debug_printf("Received char %c\n", c);
+    debug_printf("Received %c\n", c);
 
     return true;
 }
