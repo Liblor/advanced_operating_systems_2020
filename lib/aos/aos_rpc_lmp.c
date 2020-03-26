@@ -338,11 +338,6 @@ aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
-static void client_recv_serivce_cb(void *args)
-{
-    debug_printf("client_recv_serivce_cb() was called!\n");
-}
-
 static void client_recv_open_cb(void *args)
 {
     errval_t err;
@@ -376,12 +371,6 @@ static void client_recv_open_cb(void *args)
     err = cap_copy(lc->remote_cap, server_cap);
     if (err_is_fail(err)) {
         debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return;
-    }
-
-    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(client_recv_serivce_cb, rpc));
-    if (err_is_fail(err)) {
-        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return;
     }
 }
