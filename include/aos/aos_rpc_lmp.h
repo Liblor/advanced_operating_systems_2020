@@ -8,6 +8,7 @@
 
 enum rpc_message_status {
     Status_Ok = 0,
+    Spawn_Failed = 1,
 };
 
 struct rpc_message_part {
@@ -54,7 +55,7 @@ struct client_ram_state {
     struct capref cap;
 };
 
-struct client_pid_array {
+struct process_pid_array {
     size_t pid_count;
     domainid_t pids[0];
 };
@@ -65,7 +66,7 @@ struct client_process_state {
     enum pending_state pending_state;
     union {
         char *name;
-        struct client_pid_array *pid_array;
+        struct process_pid_array *pid_array;
     };
 };
 
