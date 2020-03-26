@@ -52,6 +52,12 @@ static void ram_cap_cb(const size_t bytes, const size_t align)
     printf("ram_cap_cb(bytes=0x%zx, align=0x%zx)\n", bytes, align);
 }
 
+static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
+{
+    printf("spawn_cb(name=%s...)\n", name);
+    return SYS_ERR_OK;
+}
+
 static int bsp_main(int argc, char *argv[])
 {
     errval_t err;
@@ -98,7 +104,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    err = processserver_init(NULL, NULL, NULL);
+    err = processserver_init(spawn_cb, NULL, NULL);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
