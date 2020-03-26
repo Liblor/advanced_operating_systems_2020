@@ -39,6 +39,10 @@ struct aos_rpc_lmp {
     void *shared;
 };
 
+enum pending_state {
+    EmptyState = 0,
+    DataInTransmit = 1,
+};
 
 /** internal state for aos lmp impl. to receive serial getchar **/
 struct client_serial_state {
@@ -50,11 +54,6 @@ struct client_ram_state {
     struct capref cap;
 };
 
-enum process_pending_state {
-    EmptyState = 0,
-    DataInTransmit = 1,
-};
-
 struct client_pid_array {
     size_t pid_count;
     domainid_t pids[0];
@@ -63,7 +62,7 @@ struct client_pid_array {
 struct client_process_state {
     uint32_t bytes_received; ///< How much was read from the client already.
     uint32_t total_length;
-    enum process_pending_state pending_state;
+    enum pending_state pending_state;
     union {
         char *name;
         struct client_pid_array *pid_array;
