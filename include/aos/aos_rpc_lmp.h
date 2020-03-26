@@ -58,7 +58,7 @@ struct client_ram_state {
 struct process_pid_array {
     size_t pid_count;
     domainid_t pids[0];
-};
+} __packed ;
 
 struct client_process_state {
     uint32_t bytes_received; ///< How much was read from the client already.

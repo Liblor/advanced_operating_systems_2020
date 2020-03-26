@@ -12,6 +12,11 @@ static spawn_callback_t spawn_cb = NULL;
 static get_name_callback_t get_name_cb = NULL;
 static get_all_pids_callback_t get_all_pids_cb = NULL;
 
+static errval_t dummy_spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
+{
+    *ret_pid = 77;
+    return SYS_ERR_OK;
+}
 
 static errval_t  handle_complete_msg(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t err;
@@ -26,26 +31,46 @@ static errval_t  handle_complete_msg(struct rpc_message_part *rpc_msg_part, stru
             if (err_is_fail(err)) {
                 status = Spawn_Failed;
             }
-
+            HERE;
             const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
+
+            debug_printf("len: %d\n", payload_length);
             *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
             if (*ret_msg == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
             }
-            struct process_pid_array *pid_array = (struct process_pid_array *)&(*ret_msg)->msg.payload;
-            pid_array->pid_count = 1;
-            pid_array->pids[0] = pid;
+            struct process_pid_array *pid_array = (struct process_pid_array *) &(*ret_msg)->msg.payload;
+            (*ret_msg)->cap = NULL;
             (*ret_msg)->msg.payload_length = payload_length;
             (*ret_msg)->msg.method = Method_Spawn_Process;
-            (*ret_msg)->cap = NULL;
             (*ret_msg)->msg.status = status;
+            pid_array->pid_count = 1;
+            pid_array->pids[0] = pid;
             break;
         }
         default: break;
     }
-
     return SYS_ERR_OK;
 }
+
+static inline
+errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
+    if (msg == NULL) {
+        DEBUG_PRINTF("msg null\n");
+        return LIB_ERR_LMP_INVALID_RESPONSE; // TODO introduce new error
+    }
+    if (msg->buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part)) {
+        DEBUG_PRINTF("invalid buflen\n");
+        return LIB_ERR_LMP_INVALID_RESPONSE;
+    }
+    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+    if (msg_part->status != Status_Ok) {
+        DEBUG_PRINTF("status not ok\n");
+        return LIB_ERR_LMP_INVALID_RESPONSE;
+    }
+    return SYS_ERR_OK;
+}
+
 
 // TODO refactor ugly copy paste code
 static void service_recv_cb(void *arg)
@@ -55,18 +80,13 @@ static void service_recv_cb(void *arg)
     struct aos_rpc *rpc = &common_state->rpc;
     struct lmp_chan *lc = &rpc->lc;
     struct processserver_cb_state *state = common_state->shared;
-
-    // accumulate message until full message was transmitted
-    // check which message type was sent -> call corresponding callback
-    // check if callback is null
     struct capref cap;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
     if (err_is_fail(err) && lmp_err_is_transient(err)) {
         // reregister
-        err = lmp_chan_register_recv(lc, get_default_waitset(),
-                                     MKCLOSURE(service_recv_cb, arg));
+        err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(service_recv_cb, arg));
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "");
             return;
@@ -76,51 +96,56 @@ static void service_recv_cb(void *arg)
         DEBUG_ERR(err, "");
         return;
     }
-
-    // TODO handle received error
-    assert(msg.buf.buflen <= 4);
-
     if (state->pending_state == EmptyState) {
+        err = validate_lmp_header(&msg);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "invalid input data");
+        }
         struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
         const size_t complete_size = sizeof(struct rpc_message_part) + rpc_msg_part->payload_length;
-        // TODO message sanity check, also overflow
         state->total_length = complete_size;
         state->complete_msg = malloc(complete_size);
-        // TODO handle error
+        if (state->complete_msg == NULL) {
+            DEBUG_ERR(err, "malloc failed");
+            return;
+        }
         memset(state->complete_msg, 0, complete_size);
         uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), complete_size - state->bytes_received);
         memcpy(state->complete_msg, rpc_msg_part, sizeof(struct rpc_message_part) + to_copy);
         state->bytes_received = to_copy;
+
     } else if (state->pending_state == DataInTransmit) {
         uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
         memcpy(state->complete_msg->payload + state->bytes_received, (char *) &msg.words[0], to_copy);
         state->bytes_received += to_copy;
     }
+
     if (state->bytes_received < state->total_length) {
         state->pending_state = DataInTransmit;
     } else {
+        // clear state
         state->pending_state = EmptyState;
-        // TODO
+        state->bytes_received = 0;
+        state->total_length = 0;
 
-        // TODO: error handling, free malloc on err
-        
         struct rpc_message *ret = NULL;
         err = handle_complete_msg(state->complete_msg, &ret);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "cant invoke handle_complete_msg");
+            if (ret != NULL) {
+                free(ret);
+            }
             return;
         }
         err = aos_rpc_lmp_send_message(lc, ret, LMP_SEND_FLAGS_DEFAULT);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cant reply with message"); // TODO: what happens to waiting client when server fails to send
+            DEBUG_ERR(err, "cant reply with message");
         }
-
         free(ret);
         free(state->complete_msg);
+        state->complete_msg = NULL;
     }
 }
-
-
 
 // Initialize channel-specific data.
 static void state_init_cb(void *arg)
@@ -151,6 +176,9 @@ errval_t processserver_init(
     spawn_cb = new_spawn_cb;
     get_name_cb = new_get_name_cb;
     get_all_pids_cb = new_get_all_pids_cb;
+
+    // TODO: use dummy spawn
+    spawn_cb = dummy_spawn_cb;
 
     err = rpc_lmp_server_init(&server, cap_chan_process, service_recv_cb, state_init_cb, state_free_cb);
     if (err_is_fail(err)) {
