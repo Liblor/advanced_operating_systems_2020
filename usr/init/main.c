@@ -62,6 +62,7 @@ static void putchar_cb(char c) {
 }
 
 static void getchar_cb(char *c) {
+    // TODO Where should we get this character from?
     printf("getchar_cb()\n");
     *c = 'a';
 }
