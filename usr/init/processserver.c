@@ -19,62 +19,120 @@ static errval_t dummy_spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 }
 
 static errval_t dummy_get_name(domainid_t pid, char **ret_name) {
-    debug_printf("get name for pid: %d\n", pid);
+    debug_printf("get name for pid: %d ...\n", pid);
     *ret_name = malloc(100);
     (*ret_name) = "process name here";
     return SYS_ERR_OK;
 }
 
-static errval_t  handle_complete_msg(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t dummy_get_all_pids (size_t *ret_count, domainid_t **ret_pids) {
+    debug_printf("dummy_get_all_pids ... \n");
+    *ret_count = 2;
+    *ret_pids = malloc(*ret_count * sizeof(domainid_t));
+    if (*ret_pids == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    (*ret_pids)[0] = 69;
+    (*ret_pids)[1] = 96;
+    return SYS_ERR_OK;
+}
+
+inline
+static errval_t handle_spawn_process(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t err;
+
+    // TODO create struct for each msg type
+    char *name = rpc_msg_part->payload + sizeof(coreid_t);
+    coreid_t core = *((coreid_t *)rpc_msg_part->payload);
+    domainid_t pid;
+    enum rpc_message_status status = Status_Ok;
+    err = spawn_cb(name, core, &pid);
+    if (err_is_fail(err)) {
+        status = Spawn_Failed;
+    }
+    const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
+    *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
+    if (*ret_msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    struct process_pid_array *pid_array = (struct process_pid_array *) &(*ret_msg)->msg.payload;
+    (*ret_msg)->cap = NULL;
+    (*ret_msg)->msg.payload_length = payload_length;
+    (*ret_msg)->msg.method = Method_Spawn_Process;
+    (*ret_msg)->msg.status = status;
+    pid_array->pid_count = 1;
+    pid_array->pids[0] = pid;
+
+    return SYS_ERR_OK;
+}
+
+inline
+static errval_t handle_process_get_name(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+    errval_t  err;
+    domainid_t pid = (domainid_t) rpc_msg_part->payload[0];
+    enum rpc_message_status status = Status_Ok;
+    char *name = NULL;
+    err = get_name_cb(pid, &name);
+    if (err_is_fail(err)) {
+        status = Process_Get_Name_Failed;
+    }
+    const size_t payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1; // strnlen no \0
+    *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_length);
+    if (*ret_msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    char *result_name = (char *) &(*ret_msg)->msg.payload;
+    strncpy(result_name, name, payload_length);
+    free(name);
+    (*ret_msg)->cap = NULL;
+    (*ret_msg)->msg.payload_length = payload_length;
+    (*ret_msg)->msg.method = Method_Process_Get_Name;
+    (*ret_msg)->msg.status = status;
+
+    return SYS_ERR_OK;
+}
+
+inline
+static errval_t handle_process_get_all_pids(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+    errval_t  err;
+    size_t pid_count;
+    domainid_t *pids = NULL;
+    enum rpc_message_status status = Status_Ok;
+
+    err = get_all_pids_cb(&pid_count, &pids);
+    if (err_is_fail(err)) {
+        status = Process_Get_All_Pids_Failed;
+    }
+    // TODO: pid_count sanitation
+    const size_t payload_length = sizeof(struct rpc_message) + sizeof(domainid_t) * pid_count + sizeof(size_t);
+    *ret_msg = malloc(payload_length);
+    if (*ret_msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    struct process_pid_array *pid_array = (struct process_pid_array *) &(*ret_msg)->msg.payload;
+    pid_array->pid_count = pid_count;
+    memcpy(pid_array->pids, pids, sizeof(domainid_t) * pid_count);
+    free(pids);
+
+    (*ret_msg)->msg.payload_length = payload_length;
+    (*ret_msg)->msg.method = Method_Process_Get_All_Pids;
+    (*ret_msg)->msg.status = status;
+
+    return SYS_ERR_OK;
+}
+
+static errval_t handle_complete_msg(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     switch (rpc_msg_part->method) {
         case Method_Spawn_Process: {
-            // TODO create struct for each msg type
-            char *name = rpc_msg_part->payload + sizeof(coreid_t);
-            coreid_t core = *((coreid_t *)rpc_msg_part->payload);
-            domainid_t pid;
-            enum rpc_message_status status = Status_Ok;
-            err = spawn_cb(name, core, &pid);
-            if (err_is_fail(err)) {
-                status = Spawn_Failed;
-            }
-            const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
-            *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
-            if (*ret_msg == NULL) {
-                return LIB_ERR_MALLOC_FAIL;
-            }
-            struct process_pid_array *pid_array = (struct process_pid_array *) &(*ret_msg)->msg.payload;
-            (*ret_msg)->cap = NULL;
-            (*ret_msg)->msg.payload_length = payload_length;
-            (*ret_msg)->msg.method = Method_Spawn_Process;
-            (*ret_msg)->msg.status = status;
-            pid_array->pid_count = 1;
-            pid_array->pids[0] = pid;
-            break;
+            return handle_spawn_process(rpc_msg_part, ret_msg);
         }
-
         case Method_Process_Get_Name: {
-            domainid_t pid = (domainid_t) rpc_msg_part->payload[0];
-            enum rpc_message_status status = Status_Ok;
-            char *name = NULL;
-            err = get_name_cb(pid, &name);
-            if (err_is_fail(err)) {
-                status = Process_Get_Name_Failed;
-            }
-            const size_t payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1; // strnlen no \0
-            *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_length);
-            if (*ret_msg == NULL) {
-                return LIB_ERR_MALLOC_FAIL;
-            }
-            char *result_name = (char *) &(*ret_msg)->msg.payload;
-            strncpy(result_name, name, payload_length);
-            free(name);
-            (*ret_msg)->cap = NULL;
-            (*ret_msg)->msg.payload_length = payload_length;
-            (*ret_msg)->msg.method = Method_Process_Get_Name;
-            (*ret_msg)->msg.status = status;
-            break;
+            return handle_process_get_name(rpc_msg_part, ret_msg);
         }
+        case Method_Process_Get_All_Pids: {
+            return handle_process_get_all_pids(rpc_msg_part, ret_msg);
+        }
+        // TODO: error on unknown message, introduce new errcode
         default: break;
     }
     return SYS_ERR_OK;
@@ -95,7 +153,7 @@ errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
 }
 
 
-// TODO refactor ugly copy paste code
+// TODO make this more generic
 static void service_recv_cb(void *arg)
 {
     debug_printf("processserver service_recv_cb()\n");
@@ -153,13 +211,17 @@ static void service_recv_cb(void *arg)
             }
             return;
         }
+        HERE;
         err = aos_rpc_lmp_send_message(lc, ret, LMP_SEND_FLAGS_DEFAULT);
+        HERE;
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "cant reply with message");
         }
+        HERE;
         free(ret);
         free(state->complete_msg);
         state->complete_msg = NULL;
+        HERE;
     }
 }
 
@@ -200,6 +262,7 @@ errval_t processserver_init(
     // TODO: use dummy spawn
     spawn_cb = dummy_spawn_cb;
     get_name_cb = dummy_get_name;
+    get_all_pids_cb = dummy_get_all_pids;
 
     err = rpc_lmp_server_init(&server, cap_chan_process, service_recv_cb, state_init_cb, state_free_cb);
     if (err_is_fail(err)) {

@@ -632,7 +632,7 @@ errval_t
 aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
                              size_t *pid_count)
 {
-    debug_printf("aos_rpc_lmp_process_get_all_pids()");
+    debug_printf("aos_rpc_lmp_process_get_all_pids()\n");
     errval_t err;
     struct rpc_message *msg = malloc(sizeof(struct rpc_message));
     if (msg == NULL) {
@@ -666,7 +666,9 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     // wait until all response parts received
     do {
         err = event_dispatch(&lmp->ws);
+        DEBUG_PRINTF("receiving response from server\n");
     } while (err_is_ok(err) && state->pending_state == DataInTransmit);
+    HERE;
     if (err_is_fail(err)) {
         goto clean_up_msg;
     }
@@ -675,6 +677,7 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
         goto clean_up_msg;
     }
 
+    HERE;
     assert(state->pid_array != NULL);
     *pid_count = state->pid_array->pid_count;
 
