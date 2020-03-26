@@ -187,7 +187,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 
     // save response
     struct client_ram_state *ram_state = rpc->lmp->shared;
-    *ret_cap = ram_state->cap;
+    *ret_cap = ram_state->cap; // TODO: we allocate slot
     *ret_bytes = ram_state->bytes;
 
     err = SYS_ERR_OK;
@@ -314,11 +314,88 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
+static
+void client_process_get_name_cb(void *arg) {
+    debug_printf("client_process_get_name_cb()\n");
+
+    struct aos_rpc *rpc = (struct aos_rpc *) arg;
+    struct lmp_chan *lc = &rpc->lc;
+    struct aos_rpc_lmp *lmp = rpc->lmp;
+    // struct client_serial_state *state = (struct client_serial_state*) lmp->shared; TODO
+    void * state = NULL;
+
+    struct capref cap;
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+
+    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+    if (err_is_fail(err) && lmp_err_is_transient(err)) {
+        // reregister
+        err = lmp_chan_register_recv(lc, &lmp->ws, MKCLOSURE(client_process_get_name_cb, arg));
+        if (err_is_fail(err)) {
+            lmp->err = LIB_ERR_CHAN_REGISTER_RECV;
+            return;
+        }
+    } else if (err_is_fail(err)) {
+        lmp->err = err;
+        return;
+    }
+    return_with_err(msg.buf.buflen < sizeof(struct rpc_message_part), lmp, "invalid buflen");
+
+    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
+
+    return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
+    return_with_err(msg_part->method != Method_Process_Get_Name, lmp, "wrong method in response");
+
+//    state->c_recv = (char) msg_part->payload[0];
+    lmp->err = SYS_ERR_OK;
+}
+
 errval_t
 aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
 {
-    // TODO (M5): implement name lookup for process given a process id
-    return LIB_ERR_NOT_IMPLEMENTED;
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(pid));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->cap = NULL;
+    msg->msg.method = Method_Process_Get_Name;
+    msg->msg.payload_length = sizeof(pid);
+    msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, &pid, sizeof(pid));
+
+    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
+        goto clean_up_msg;
+    }
+
+    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
+    assert(rpc->lmp->shared != NULL);
+
+    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_process_get_name_cb, rpc));
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "lmp_chan_register_recv failed");
+        goto clean_up_msg;
+    }
+    err = event_dispatch(&lmp->ws);
+    if (err_is_fail(err)) {
+        goto clean_up_msg;
+    }
+    if (err_is_fail(lmp->err)) {
+        err = lmp->err;
+        goto clean_up_msg;
+    }
+
+//    struct client_serial_state *state = (struct client_serial_state *) rpc->lmp->shared;
+// save result
+
+    err = SYS_ERR_OK;
+    goto clean_up_msg;
+
+    clean_up_msg:
+    free(msg);
+    DEBUG_ERR(err, "aos_rpc_lmp_process_get_name failed");
+    return err;
 }
 
 errval_t
@@ -493,7 +570,6 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
         process_channel->lmp->shared = NULL;
     }
-
     return process_channel;
 }
 

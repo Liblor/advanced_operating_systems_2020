@@ -80,7 +80,7 @@ static void service_recv_cb(void *arg)
                     state->bytes_received = 0;
                     state->total_length = 0;
 
-                    free(state->string);        // TODO discuss
+                    free(state->string);
                     state->string = NULL;
                 }
                 break;
@@ -102,7 +102,7 @@ static void service_recv_cb(void *arg)
             state->bytes_received = 0;
             state->total_length = 0;
 
-            free(state->string);        // TODO discuss
+            free(state->string);
             state->string = NULL;
         }
     }
