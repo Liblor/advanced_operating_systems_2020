@@ -467,12 +467,75 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     return err;
 }
 
+static
+void client_process_get_all_pids_cb(void *arg) {
+    debug_printf("client_process_get_all_pids_cb\n");
+
+}
+
 errval_t
 aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
                              size_t *pid_count)
 {
-    // TODO (M5): implement process id discovery
-    return LIB_ERR_NOT_IMPLEMENTED;
+    debug_printf("aos_rpc_lmp_process_get_all_pids()");
+    errval_t err;
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->cap = NULL;
+    msg->msg.method = Method_Process_Get_All_Pids;
+    msg->msg.payload_length = 0;
+    msg->msg.status = Status_Ok;
+
+    // setup state for response
+    assert(rpc->lmp->shared != NULL);
+    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
+    struct client_process_state *state = lmp->shared;
+    memset(state, 0, sizeof(struct client_process_state));
+    lmp->err = SYS_ERR_OK;
+    state->pending_state = EmptyState;
+
+    // register response handler
+    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_process_get_all_pids_cb, rpc));
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "lmp_chan_register_recv failed");
+        goto clean_up_msg;
+    }
+    // send request
+    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
+        goto clean_up_msg;
+    }
+    // wait until all response parts received
+    do {
+        err = event_dispatch(&lmp->ws);
+    } while (err_is_ok(err) && state->pending_state == DataInTransmit);
+    if (err_is_fail(err)) {
+        goto clean_up_msg;
+    }
+    if (err_is_fail(lmp->err)) {
+        err = lmp->err;
+        goto clean_up_msg;
+    }
+
+    assert(state->pid_array != NULL);
+    *pid_count = state->pid_array->pid_count;
+
+    const size_t total_length = *pid_count * sizeof(domainid_t); // TODO: sanitize pid_count
+    *pids = malloc(total_length);
+    if (*pids == NULL) {
+        goto clean_up_msg;
+    }
+    memcpy(*pids, state->pid_array->pids, total_length);
+
+    err = SYS_ERR_OK;
+    goto clean_up_msg;
+
+    clean_up_msg:
+    free(msg);
+    return err;
 }
 
 errval_t
