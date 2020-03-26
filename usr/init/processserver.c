@@ -44,7 +44,7 @@ static errval_t  handle_complete_msg(struct rpc_message_part *rpc_msg_part, stru
         default: break;
     }
 
-    return err;
+    return SYS_ERR_OK;
 }
 
 // TODO refactor ugly copy paste code
@@ -103,7 +103,14 @@ static void service_recv_cb(void *arg)
     } else {
         state->pending_state = EmptyState;
         // TODO
-        handle_complete_msg(state->complete_msg);
+
+        struct rpc_message *ret = NULL;
+        err = handle_complete_msg(state->complete_msg, &ret);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "cant invoke handle_complete_msg");
+            return;
+        }
+        free(ret);
         free(state->complete_msg);
     }
 }
@@ -115,7 +122,7 @@ static void state_init_cb(void *arg)
 {
     struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
     common_state->shared = malloc(sizeof(struct processserver_cb_state));
-    struct processserver_cb_state *state = common_state->shared;
+    __unused struct processserver_cb_state *state = common_state->shared;
 }
 
 // Free channel-specific data.
