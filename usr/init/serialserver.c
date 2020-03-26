@@ -63,6 +63,11 @@ static void service_recv_cb(void *arg)
             break;
         case Method_Serial_Getchar:
             if (getchar_cb != NULL) {
+                // TODO Currently, if this callback blocks (which is does if
+                // the callback calls sys_getchar) the server cannot process
+                // other requests. This could be solved by giving this callback
+                // another callback to send the response, so that the server
+                // doesn't have to wait for this callback to complete.
                 getchar_cb(&c);
                 err = reply_char(lc, c);
                 if (err_is_fail(err)) {
