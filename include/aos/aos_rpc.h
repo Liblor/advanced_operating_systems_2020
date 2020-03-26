@@ -41,6 +41,7 @@ enum rpc_message_method {
     Method_Serial_Getchar
     Method_Process_Get_Name,
     Method_Process_Get_All_Pids,
+    Method_Spawn_Process,
 };
 
 
