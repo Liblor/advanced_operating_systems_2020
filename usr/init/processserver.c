@@ -110,6 +110,11 @@ static void service_recv_cb(void *arg)
             DEBUG_ERR(err, "cant invoke handle_complete_msg");
             return;
         }
+        err = aos_rpc_lmp_send_message(lc, ret, LMP_SEND_FLAGS_DEFAULT);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "cant reply with message"); // TODO: what happens to waiting client when server fails to send
+        }
+
         free(ret);
         free(state->complete_msg);
     }
