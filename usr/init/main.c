@@ -33,7 +33,7 @@
 #include "test.h"
 
 struct bootinfo *bi;
-struct processserver_state processserver_state;
+static struct processserver_state processserver_state;
 
 coreid_t my_core_id;
 
