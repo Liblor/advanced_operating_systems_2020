@@ -41,7 +41,7 @@ static void open_recv_cb(void *arg)
         return;
     }
 
-    struct rpc_lmp_handler_state *state = malloc(sizeof(struct rpc_lmp_handler_state));
+    struct rpc_lmp_handler_state *state = calloc(1, sizeof(struct rpc_lmp_handler_state));
 
     state->server = server;
 
@@ -53,23 +53,20 @@ static void open_recv_cb(void *arg)
 
     struct lmp_chan *service_chan = &state->rpc.lc;
 
-    service_chan->local_cap = server->service_ep;
-    service_chan->endpoint = server->service_lmp_ep;
+    err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &service_chan->local_cap, &service_chan->endpoint);
+    if (err_is_fail(err)) {
+        debug_printf("endpoint_create() failed: %s\n", err_getstring(err));
+        return;
+    }
 
     // We want the channel to be registered persistently.
     service_chan->endpoint->waitset_state.persistent = true;
 
-    // We have to allocate a new slot, since the current slot may be used for
-    // other transmissions.
-    err = slot_alloc(&service_chan->remote_cap);
-    if (err_is_fail(err)) {
-        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
-        return;
-    }
+    service_chan->remote_cap = client_cap;
 
-    err = cap_copy(service_chan->remote_cap, client_cap);
+    err = lmp_chan_alloc_recv_slot(&server->open_lc);
     if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
         return;
     }
 
@@ -83,7 +80,7 @@ static void open_recv_cb(void *arg)
         return;
     }
 
-    err = lmp_chan_send0(service_chan, LMP_SEND_FLAGS_DEFAULT, server->service_ep);
+    err = lmp_chan_send0(service_chan, LMP_SEND_FLAGS_DEFAULT, service_chan->local_cap);
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
         return;
@@ -141,12 +138,6 @@ errval_t rpc_lmp_server_init(
     server->service_recv_handler = new_service_recv_handler;
     server->state_init_handler = new_state_init_handler;
     server->state_free_handler = new_state_free_handler;
-
-    err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &server->service_ep, &server->service_lmp_ep);
-    if (err_is_fail(err)) {
-        debug_printf("endpoint_create() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_ENDPOINT_CREATE);
-    }
 
     err = rpc_lmp_server_setup_open_channel(server, cap_chan);
     if (err_is_fail(err)) {
