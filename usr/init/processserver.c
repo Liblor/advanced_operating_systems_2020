@@ -50,6 +50,7 @@ static errval_t  handle_complete_msg(struct rpc_message_part *rpc_msg_part, stru
 // TODO refactor ugly copy paste code
 static void service_recv_cb(void *arg)
 {
+    debug_printf("processserver service_recv_cb()\n");
     struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
     struct aos_rpc *rpc = &common_state->rpc;
     struct lmp_chan *lc = &rpc->lc;
@@ -78,7 +79,6 @@ static void service_recv_cb(void *arg)
 
     // TODO handle received error
     assert(msg.buf.buflen <= 4);
-
 
     if (state->pending_state == EmptyState) {
         struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
@@ -127,7 +127,11 @@ static void state_init_cb(void *arg)
 {
     struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
     common_state->shared = malloc(sizeof(struct processserver_cb_state));
-    __unused struct processserver_cb_state *state = common_state->shared;
+    struct processserver_cb_state *state = common_state->shared;
+    state->pending_state = EmptyState;
+    state->bytes_received = 0;
+    state->total_length = 0;
+    state->complete_msg = NULL;
 }
 
 // Free channel-specific data.
@@ -141,6 +145,7 @@ errval_t processserver_init(
     get_all_pids_callback_t new_get_all_pids_cb
 )
 {
+    debug_printf("processserver_init()\n");
     errval_t err;
 
     spawn_cb = new_spawn_cb;
