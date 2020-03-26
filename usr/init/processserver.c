@@ -171,7 +171,7 @@ errval_t add_to_proc_list(struct processserver_state *ps, char *name, domainid_t
 /**
  * Packs the current running processes into a pid_array
  *
- * @param ret_pid_array contains all pids in this process server state
+ * @param ret_pid_array contains all pids in this process server state, has to be delted by caller
  * @return errors
  */
 errval_t get_pid_array(struct processserver_state *ps, struct process_pid_array **ret_pid_array)
@@ -189,6 +189,26 @@ errval_t get_pid_array(struct processserver_state *ps, struct process_pid_array 
         curr = curr->next;
     }
     assert(curr_idx == ps->num_proc);
+    return SYS_ERR_OK;
+}
+
+errval_t get_name_by_pid(struct processserver_state *ps, domainid_t pid, char **ret_name) {
+    struct process_info *curr = ps->process_head.next;
+    char *found_name = NULL;
+    while (curr != &(ps->process_tail)) {
+        if (curr->pid == pid) {
+            found_name = curr->name;
+            break;
+        }
+        curr = curr->next;
+    }
+    if (found_name == NULL) {
+        return AOS_ERR_PID_NOT_FOUND;
+    }
+    const size_t name_size = strlen(found_name) + 1;
+    *ret_name = malloc(name_size);
+    strncpy(*ret_name, found_name, name_size);
+
     return SYS_ERR_OK;
 }
 
