@@ -33,9 +33,6 @@
 /// Are we the init domain (and thus need to take some special paths)?
 static bool init_domain;
 
-// TODO Should this be left here?
-struct aos_rpc *serial_rpc;
-
 extern size_t (*_libc_terminal_read_func)(char *, size_t);
 extern size_t (*_libc_terminal_write_func)(const char *, size_t);
 extern void (*_libc_exit_func)(int);
@@ -86,6 +83,8 @@ __attribute__((__used__))
 static size_t aos_terminal_write(const char *buf, size_t len)
 {
     errval_t err;
+
+    struct aos_rpc *serial_rpc = aos_rpc_get_serial_channel();
     size_t i = 0;
 
     for (i = 0; i < len; i++) {

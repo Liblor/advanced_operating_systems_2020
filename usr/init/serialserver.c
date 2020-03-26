@@ -55,15 +55,12 @@ static void service_recv_cb(void *arg)
         return;
     }
 
-    err = lmp_chan_register_recv(lc, get_default_waitset(),
-                                         MKCLOSURE(service_recv_cb, arg));
     struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
 
     char c;
     switch (rpc_msg_part->method) {
         case Method_Serial_Putchar:
             memcpy(&c, rpc_msg_part->payload, sizeof(char));
-            // TODO Read char from message
             if (putchar_cb != NULL) {
                 putchar_cb(c);
             }
@@ -71,7 +68,6 @@ static void service_recv_cb(void *arg)
         case Method_Serial_Getchar:
             if (getchar_cb != NULL) {
                 getchar_cb(&c);
-                // TODO Send char as response to client
                 err = reply_char(lc, c);
                 if (err_is_fail(err)) {
                     DEBUG_ERR(err, "reply_char() failed");
