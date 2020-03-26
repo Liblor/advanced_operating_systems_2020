@@ -33,7 +33,6 @@ struct aos_rpc {
     };
 };
 
-
 enum rpc_message_method {
     Method_Send_Number, // TODO: assign numbers
     Method_Get_Ram_Cap,
