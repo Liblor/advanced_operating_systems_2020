@@ -38,22 +38,28 @@ coreid_t my_core_id;
 
 static void number_cb(struct lmp_chan *lc, uintptr_t num)
 {
+    grading_rpc_handle_number(num);
+
     debug_printf("Received number %"PRIuPTR"\n", num);
 }
 
 static void string_cb(struct lmp_chan *lc, char *c)
 {
+    grading_rpc_handler_string(c);
+
     debug_printf("Received string %s\n", c);
 }
 
 // We do not allocate RAM here. This should be done in the server itself.
-static errval_t ram_cap_cb(const size_t bytes, const size_t align, struct capref *retcap, size_t *retbytes)
+static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct capref *retcap, size_t *retbytes)
 {
     errval_t err;
 
-    debug_printf("ram_cap_cb(bytes=0x%zx, align=0x%zx)\n", bytes, align);
+    grading_rpc_handler_ram_cap(bytes, alignment);
 
-    err = ram_alloc_aligned(retcap, bytes, align);
+    debug_printf("ram_cap_cb(bytes=0x%zx, alignment=0x%zx)\n", bytes, alignment);
+
+    err = ram_alloc_aligned(retcap, bytes, alignment);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "ram_alloc_aligned() failed");
         return err_push(err, LIB_ERR_RAM_ALLOC);
@@ -74,6 +80,8 @@ static errval_t ram_cap_cb(const size_t bytes, const size_t align, struct capref
 static void putchar_cb(char c) {
     errval_t err;
 
+    grading_rpc_handler_serial_putchar(c);
+
     err = sys_print((const char *)&c, 1);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "sys_print() failed");
@@ -83,6 +91,8 @@ static void putchar_cb(char c) {
 static void getchar_cb(char *c) {
     errval_t err;
 
+    grading_rpc_handler_serial_getchar();
+
     err = sys_getchar(c);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "sys_getchar() failed");
@@ -90,7 +100,7 @@ static void getchar_cb(char *c) {
 }
 
 
-static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
+__unused static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 {
     // TODO keep track of pids
     printf("spawn_cb(name=%s...)\n", name);
@@ -107,18 +117,19 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
     return SYS_ERR_OK;
 }
 
-static int bsp_main(int argc, char *argv[]) {
+static int bsp_main(int argc, char *argv[])
+{
     errval_t err;
 
     // Grading
     grading_setup_bsp_init(argc, argv);
 
     // First argument contains the bootinfo location, if it's not set
-    bi = (struct bootinfo *) strtol(argv[1], NULL, 10);
+    bi = (struct bootinfo*)strtol(argv[1], NULL, 10);
     assert(bi);
 
     err = initialize_ram_alloc();
-    if (err_is_fail(err)) {
+    if(err_is_fail(err)){
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
@@ -152,31 +163,30 @@ static int bsp_main(int argc, char *argv[]) {
         abort();
     }
 
-    err = processserver_init(spawn_cb, NULL, NULL);
+    err = processserver_init(NULL, NULL, NULL);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
-    {
-    char *binary_name1 = "hello";
+
+    char *binary_name1 = "memeater";
     struct spawninfo si1;
     domainid_t pid1;
 
-        err = spawn_load_by_name(binary_name1, &si1, &pid1);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in event_dispatch");
-            abort();
-        }
+    err = spawn_load_by_name(binary_name1, &si1, &pid1);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in event_dispatch");
+        abort();
     }
-    {
-//        struct spawninfo si2;
-//        char *binary_name2 = "hello";
-//        domainid_t pid2;
-//        err = spawn_load_by_name(binary_name2, &si2, &pid2);
-//        if (err_is_fail(err)) {
-//            DEBUG_ERR(err, "spawn_load_by_name()");
-//            return err;
-//        }
+
+    char *binary_name2 = "hello";
+    struct spawninfo si2;
+    domainid_t pid2;
+
+    err = spawn_load_by_name(binary_name2, &si2, &pid2);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in event_dispatch");
+        abort();
     }
 
     // Grading
