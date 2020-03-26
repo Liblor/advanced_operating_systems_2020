@@ -262,10 +262,12 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     }
     err = event_dispatch(&lmp->ws);
     if (err_is_fail(err)) {
+        DEBUG_ERR(err, "event_dispatch failed");
         goto clean_up_msg;
     }
     if (err_is_fail(lmp->err)) {
         err = lmp->err;
+        DEBUG_ERR(err, "error during receive");
         goto clean_up_msg;
     }
     struct client_serial_state *state = (struct client_serial_state *) rpc->lmp->shared;
@@ -276,7 +278,6 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 
     clean_up_msg:
     free(msg);
-    DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar failed");
     return err;
 }
 
@@ -284,6 +285,7 @@ errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
     assert(rpc->lmp->shared != NULL);
+    // TODO Why is a malloc used here?
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;

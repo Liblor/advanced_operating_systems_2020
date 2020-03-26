@@ -33,6 +33,9 @@
 /// Are we the init domain (and thus need to take some special paths)?
 static bool init_domain;
 
+// TODO Should this be left here?
+struct aos_rpc *serial_rpc;
+
 extern size_t (*_libc_terminal_read_func)(char *, size_t);
 extern size_t (*_libc_terminal_write_func)(const char *, size_t);
 extern void (*_libc_exit_func)(int);
@@ -77,6 +80,22 @@ static size_t dummy_terminal_read(char *buf, size_t len)
 {
     debug_printf("Terminal read NYI!\n");
     return len;
+}
+
+__attribute__((__used__))
+static size_t aos_terminal_write(const char *buf, size_t len)
+{
+    errval_t err;
+    size_t i = 0;
+
+    for (i = 0; i < len; i++) {
+        err = aos_rpc_serial_putchar(serial_rpc, buf[i]);
+        if (err_is_fail(err)) {
+            break;
+        }
+    }
+
+    return i;
 }
 
 /* Set libc function pointers */
@@ -153,6 +172,9 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
     } else {
         struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
         set_init_rpc(init_rpc);
+
+        serial_rpc = aos_rpc_get_serial_channel();
+        _libc_terminal_write_func = aos_terminal_write;
     }
 
     // TODO MILESTONE 3:

@@ -536,7 +536,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
     errval_t err;
-    debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", bytes=%zu...)\n", st, vaddr, bytes);
 
     if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;

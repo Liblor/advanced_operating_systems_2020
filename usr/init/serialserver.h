@@ -3,8 +3,8 @@
 
 #include <aos/aos_rpc.h>
 
-typedef void (* putchar_callback_t)(void);
-typedef void (* getchar_callback_t)(void);
+typedef void (* putchar_callback_t)(char c);
+typedef void (* getchar_callback_t)(char *c);
 
 struct serialserver_cb_state {
 };

@@ -52,6 +52,21 @@ static void ram_cap_cb(const size_t bytes, const size_t align)
     printf("ram_cap_cb(bytes=0x%zx, align=0x%zx)\n", bytes, align);
 }
 
+static void putchar_cb(char c) {
+    // TODO Should we really still use the syscall here? Then what is the point
+    // in moving it here at all? It's one syscall for each char, how is that
+    // better than before?
+    sys_print((const char *)&c, 1);
+    //char r = '#';
+    //sys_print((const char *)&r, 1);
+}
+
+static void getchar_cb(char *c) {
+    printf("getchar_cb()\n");
+    *c = 'a';
+}
+
+
 static int bsp_main(int argc, char *argv[])
 {
     errval_t err;
@@ -92,7 +107,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    err = serialserver_init(NULL, NULL);
+    err = serialserver_init(putchar_cb, getchar_cb);
     if (err_is_fail(err)) {
         debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
         abort();
