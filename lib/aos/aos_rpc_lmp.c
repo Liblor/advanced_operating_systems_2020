@@ -453,6 +453,10 @@ void client_process_get_name_cb(void *arg) {
         state->bytes_received = 0;
 
         state->name = malloc(state->total_length);
+        if (state->name == NULL) {
+            lmp->err = LIB_ERR_MALLOC_FAIL;
+            return;
+        }
 
         uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
         memcpy(state->name, msg_part->payload, to_copy);
@@ -532,12 +536,8 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
         goto clean_up_name;
     }
     assert(state->name != NULL);
-    const size_t tot_str_len = MIN(RPC_LMP_MAX_STR_LEN, state->total_length);
-    *name = malloc(tot_str_len);
-    if (*name == NULL) {
-        goto clean_up_name;
-    }
-    strncpy(*name, state->name, tot_str_len);
+    *name = state->name;
+    state->name = NULL;
 
     err = SYS_ERR_OK;
     goto clean_up_name;
