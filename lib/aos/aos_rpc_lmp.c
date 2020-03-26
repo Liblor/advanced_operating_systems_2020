@@ -8,7 +8,6 @@ static struct aos_rpc *memory_channel = NULL;
 static struct aos_rpc *process_channel = NULL;
 static struct aos_rpc *serial_channel = NULL;
 
-
 void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
     if (string) {
@@ -44,32 +43,34 @@ errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
 errval_t
 aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
 {
-    DEBUG_PRINTF("lmp_send_message: method: %d, sending %d bytes\n", msg->msg.method, msg->msg.payload_length);
-    if (msg->cap == NULL) {
-        msg->cap = &NULL_CAP;
-    }
+    errval_t err;
+
+    const uint64_t msg_size = sizeof(msg->msg) + msg->msg.payload_length;
+    struct capref cap = msg->cap == NULL ? NULL_CAP : *msg->cap;
+
+    uintptr_t words[LMP_MSG_LENGTH];
 
     uint32_t size_sent = 0;
-    const uint64_t lmp_msg_length_bytes = sizeof(uint64_t) * LMP_MSG_LENGTH;
-    const uint64_t msg_size = sizeof(msg->msg) + msg->msg.payload_length;
+    uint8_t *base = (uint8_t *) &msg->msg;
     bool first = true;
-    uintptr_t buf[LMP_MSG_LENGTH];
 
-    errval_t err = SYS_ERR_OK;
     while(size_sent < msg_size) {
-        uint64_t to_send = MIN(lmp_msg_length_bytes, msg_size - size_sent);
-        memcpy(buf, ((char *)&msg->msg)+size_sent, to_send);
-        memset((char *) buf + to_send, 0, (lmp_msg_length_bytes - to_send));
-        err = lmp_chan_send4(c, flags, (first ? *msg->cap : NULL_CAP), buf[0], buf[1], buf[2], buf[3]);
+        uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
+        memset(words, 0, sizeof(words));
+        memcpy(words, base + size_sent, to_send);
+
+        err = lmp_chan_send4(c, flags, (first ? cap : NULL_CAP), words[0], words[1], words[2], words[3]);
+
         if (lmp_err_is_transient(err)) {
             continue;
         } else if (err_is_fail(err)) {
-            break;
+            DEBUG_ERR(err, "lmp_chan_send4 failed");
+            return err;
         }
         size_sent += to_send;
         first = false;
     }
-    return err;
+    return SYS_ERR_OK;
 }
 
 errval_t
@@ -113,6 +114,8 @@ static void client_ram_cb(void *arg) {
     debug_printf("client_ram_cb(...)\n");
     struct aos_rpc *rpc = arg;
     struct client_ram_state *ram_state = rpc->lmp->shared;
+    struct aos_rpc_lmp *lmp = rpc->lmp;
+
     struct lmp_chan *lc = &rpc->lc;
 
     struct capref cap;
@@ -121,29 +124,32 @@ static void client_ram_cb(void *arg) {
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
     if (err_is_fail(err) && lmp_err_is_transient(err)) {
         // reregister
-        err = lmp_chan_register_recv(lc, &rpc->lmp->ws,
+        err = lmp_chan_register_recv(lc, &lmp->ws,
                                      MKCLOSURE(client_ram_cb, arg));
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "");
-            rpc->lmp->err = err;
+            lmp->err = err;
             return;
         }
     }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "");
-        rpc->lmp->err = err;
+        lmp->err = err;
         return;
     }
-    return_with_err(msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part), rpc->lmp, "invalid buflen");
-    struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
-    return_with_err(msg_part->status != Status_Ok, rpc->lmp, "status not ok");
-    return_with_err(msg_part->method != Method_Get_Ram_Cap, rpc->lmp, "wrong method in response");
-    return_with_err(msg_part->payload_length != sizeof(size_t), rpc->lmp, "invalid payload len");
+    bool buflen_invalid = msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part);
+    return_with_err(buflen_invalid, lmp, "invalid buflen");
 
-    // TODO: do we need to allocate a slot?
+    struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
+
+    return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
+    return_with_err(msg_part->method != Method_Get_Ram_Cap, lmp, "wrong method in response");
+    return_with_err(msg_part->payload_length != sizeof(size_t), lmp, "invalid payload len");
+
     memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
+    // TODO Free recv slot if cap is NULL_CAP
     ram_state->cap = cap;
-    rpc->lmp->err = SYS_ERR_OK;
+    lmp->err = SYS_ERR_OK;
 }
 
 errval_t
@@ -151,6 +157,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                     struct capref *ret_cap, size_t *ret_bytes)
 {
     errval_t err;
+
     // create request message
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
@@ -168,6 +175,13 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     err = lmp_chan_register_recv(&rpc->lc, &rpc->lmp->ws,
                                  MKCLOSURE(client_ram_cb, rpc));
     if (err_is_fail(err)) {
+        goto clean_up;
+    }
+
+    err = lmp_chan_alloc_recv_slot(&rpc->lc);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        err = LIB_ERR_LMP_ALLOC_RECV_SLOT;
         goto clean_up;
     }
 
@@ -189,8 +203,10 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 
     // save response
     struct client_ram_state *ram_state = rpc->lmp->shared;
-    *ret_cap = ram_state->cap; // TODO: we allocate slot
-    *ret_bytes = ram_state->bytes;
+    *ret_cap = ram_state->cap;
+    if (ret_bytes != NULL) {
+        *ret_bytes = ram_state->bytes;
+    }
 
     err = SYS_ERR_OK;
     goto clean_up;
@@ -203,8 +219,6 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 
 static
 void client_serial_cb(void *arg) {
-    debug_printf("client_serial_cb()\n");
-
     struct aos_rpc *rpc = (struct aos_rpc *) arg;
     struct lmp_chan *lc = &rpc->lc;
     struct aos_rpc_lmp *lmp = rpc->lmp;
@@ -225,8 +239,11 @@ void client_serial_cb(void *arg) {
         lmp->err = err;
         return;
     }
-    return_with_err(msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part), lmp, "invalid buflen");
+    bool buflen_invalid = msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part);
+    return_with_err(buflen_invalid, lmp, "invalid buflen");
+
     struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
+
     return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
     return_with_err(msg_part->method != Method_Serial_Getchar, lmp, "wrong method in response");
     return_with_err(msg_part->payload_length != 1, lmp, "invalid payload len");
@@ -238,7 +255,6 @@ void client_serial_cb(void *arg) {
 errval_t
 aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
-    errval_t err;
     assert(rpc->lmp->shared != NULL);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message));
     if (msg == NULL) {
@@ -249,29 +265,28 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;
 
-    // register response listener
+    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "lmp_send_message failed\n");
+        goto clean_up_msg;
+    }
+
     struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
     err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_serial_cb, rpc));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_register_recv failed");
         goto clean_up_msg;
     }
-    // send request
-    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_send_message failed\n");
-        goto clean_up_msg;
-    }
-    // wait for response
     err = event_dispatch(&lmp->ws);
     if (err_is_fail(err)) {
+        DEBUG_ERR(err, "event_dispatch failed");
         goto clean_up_msg;
     }
     if (err_is_fail(lmp->err)) {
         err = lmp->err;
+        DEBUG_ERR(err, "error during receive");
         goto clean_up_msg;
     }
-
     struct client_serial_state *state = (struct client_serial_state *) rpc->lmp->shared;
     *retc = state->c_recv;
 
@@ -288,6 +303,7 @@ errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
     assert(rpc->lmp->shared != NULL);
+    // TODO Why is a malloc used here?
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -718,19 +734,7 @@ static void client_recv_open_cb(void *args)
         return;
     }
 
-    // We have to allocate a new slot, since the current slot may be used for
-    // other transmissions.
-    err = slot_alloc(&lc->remote_cap);
-    if (err_is_fail(err)) {
-        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
-        return;
-    }
-
-    err = cap_copy(lc->remote_cap, server_cap);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return;
-    }
+    lc->remote_cap = server_cap;
 }
 
 static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
@@ -761,12 +765,6 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
     lc->local_cap = cap_ep;
     lc->remote_cap = remote_cap;
 
-    err = lmp_chan_alloc_recv_slot(lc);
-    if (err_is_fail(err)) {
-        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
-        return NULL;
-    }
-
     struct waitset ws;
     waitset_init(&ws);
 
@@ -776,6 +774,13 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
     err = lmp_chan_register_recv(lc, &ws, MKCLOSURE(client_recv_open_cb, rpc));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
+        return NULL;
+    }
+
+    // Allocate receive slot to receive the capability of the service endpoint
+    err = lmp_chan_alloc_recv_slot(lc);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
         return NULL;
     }
 
@@ -848,6 +853,7 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
         }
         process_channel->lmp->shared = state;
     }
+
     return process_channel;
 }
 

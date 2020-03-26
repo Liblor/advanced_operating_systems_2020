@@ -10,7 +10,8 @@ enum rpc_message_status {
     Status_Ok = 0,
     Spawn_Failed = 1,
     Process_Get_Name_Failed = 2,
-    Process_Get_All_Pids_Failed = 3
+    Process_Get_All_Pids_Failed = 3,
+    Status_Error = 4,
 
 };
 
@@ -52,6 +53,7 @@ enum pending_state {
 struct client_serial_state {
     char c_recv;        ///< Char to receive
 };
+
 
 struct client_ram_state {
     size_t bytes;
