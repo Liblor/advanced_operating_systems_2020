@@ -25,19 +25,10 @@ static void service_recv_cb(void *arg)
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
-    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-        // reregister
-        err = lmp_chan_register_recv(lc, get_default_waitset(),
-                                     MKCLOSURE(service_recv_cb, arg));
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-            return;
-        }
-    }
-    err = lmp_chan_register_recv(lc, get_default_waitset(),
-                                 MKCLOSURE(service_recv_cb, arg));
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "");
+        if (lmp_err_is_transient(err)) {
+            DEBUG_ERR(err, "lmp_chan_recv() failed (not transient)");
+        }
         return;
     }
 
