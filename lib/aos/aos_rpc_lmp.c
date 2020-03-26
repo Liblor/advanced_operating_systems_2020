@@ -236,6 +236,7 @@ void client_serial_cb(void *arg) {
 errval_t
 aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
+    errval_t err;
     assert(rpc->lmp->shared != NULL);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message));
     if (msg == NULL) {
@@ -246,18 +247,20 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;
 
-    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_send_message failed\n");
-        goto clean_up_msg;
-    }
-
+    // register response listener
     struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
     err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_serial_cb, rpc));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_register_recv failed");
         goto clean_up_msg;
     }
+    // send request
+    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "lmp_send_message failed\n");
+        goto clean_up_msg;
+    }
+    // wait for response
     err = event_dispatch(&lmp->ws);
     if (err_is_fail(err)) {
         goto clean_up_msg;
@@ -266,6 +269,7 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
         err = lmp->err;
         goto clean_up_msg;
     }
+
     struct client_serial_state *state = (struct client_serial_state *) rpc->lmp->shared;
     *retc = state->c_recv;
 
