@@ -19,6 +19,13 @@ static errval_t dummy_spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
     return SYS_ERR_OK;
 }
 
+static errval_t dummy_get_name(domainid_t pid, char **ret_name) {
+    debug_printf("get name for pid: %d\n", pid);
+    *ret_name = malloc(100);
+    (*ret_name) = "process name";
+    return SYS_ERR_OK;
+}
+
 static errval_t handle_complete_msg(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t err;
     switch (rpc_msg_part->method) {
@@ -44,6 +51,37 @@ static errval_t handle_complete_msg(struct rpc_message_part *rpc_msg_part, struc
             (*ret_msg)->msg.status = status;
             pid_array->pid_count = 1;
             pid_array->pids[0] = pid;
+            break;
+        }
+
+        case Method_Process_Get_Name: {
+            HERE;
+            debug_printf("size: %d\n", rpc_msg_part->payload_length);
+            debug_printf("pid: %p, \n" , rpc_msg_part->payload);
+            HERE;
+            domainid_t pid = *((domainid_t *) rpc_msg_part->payload);
+            HERE;
+            enum rpc_message_status status = Status_Ok;
+            char *name = NULL;
+            HERE;
+            err = get_name_cb(pid, &name);
+            if (err_is_fail(err)) {
+                status = Process_Get_Name_Failed;
+            }
+            HERE;
+            const size_t payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN);
+            *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
+            if (*ret_msg == NULL) {
+                return LIB_ERR_MALLOC_FAIL;
+            }
+            HERE;
+            char *result_name = (char *) &(*ret_msg)->msg.payload;
+            strncpy(result_name, name, payload_length);
+            free(name);
+            (*ret_msg)->cap = NULL;
+            (*ret_msg)->msg.payload_length = payload_length;
+            (*ret_msg)->msg.method = Method_Process_Get_Name;
+            (*ret_msg)->msg.status = status;
             break;
         }
         default: break;
@@ -78,14 +116,6 @@ static void service_recv_cb(void *arg)
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
-    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-        // reregister
-        err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(service_recv_cb, arg));
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-            return;
-        }
-    }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "");
         return;
@@ -94,11 +124,13 @@ static void service_recv_cb(void *arg)
         err = validate_lmp_header(&msg);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "invalid input data");
+            return;
         }
         struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
         const size_t complete_size = sizeof(struct rpc_message_part) + rpc_msg_part->payload_length;
         state->total_length = complete_size;
         state->complete_msg = malloc(complete_size);
+        debug_printf("malloc %d size\n", complete_size);
         if (state->complete_msg == NULL) {
             DEBUG_ERR(err, "malloc failed");
             return;
@@ -141,12 +173,15 @@ static void service_recv_cb(void *arg)
     }
 }
 
-
 // Initialize channel-specific data.
 static void state_init_cb(void *arg)
 {
     struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
     common_state->shared = malloc(sizeof(struct processserver_cb_state));
+
+    // keep receive callback registered
+    common_state->rpc.lc.endpoint->waitset_state.persistent = true;
+
     struct processserver_cb_state *state = common_state->shared;
     state->pending_state = EmptyState;
     state->bytes_received = 0;
@@ -259,6 +294,7 @@ errval_t processserver_init(
 
     // TODO: use dummy spawn
     spawn_cb = dummy_spawn_cb;
+    get_name_cb = dummy_get_name;
 
     err = rpc_lmp_server_init(&server, cap_chan_process, service_recv_cb, state_init_cb, state_free_cb);
     if (err_is_fail(err)) {

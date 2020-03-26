@@ -380,10 +380,12 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
         goto clean_up_msg;
     }
     // wait for response
+    debug_printf("// wait for response\n");
     err = event_dispatch(&rpc->lmp->ws);
     if (err_is_fail(err)) {
         goto clean_up_msg;
     }
+    debug_printf("// result received\n");
     if (err_is_fail(rpc->lmp->err)) {
         err = rpc->lmp->err;
         goto clean_up_msg;

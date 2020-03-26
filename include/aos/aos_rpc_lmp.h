@@ -9,6 +9,8 @@
 enum rpc_message_status {
     Status_Ok = 0,
     Spawn_Failed = 1,
+    Process_Get_Name_Failed = 2
+
 };
 
 struct rpc_message_part {
