@@ -132,7 +132,7 @@ static void client_ram_cb(void *arg) {
         rpc->lmp->err = err;
         return;
     }
-    return_with_err(msg.buf.buflen < sizeof(struct rpc_message_part), rpc->lmp, "invalid buflen");
+    return_with_err(msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part), rpc->lmp, "invalid buflen");
     struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
     return_with_err(msg_part->status != Status_Ok, rpc->lmp, "status not ok");
     return_with_err(msg_part->method != Method_Get_Ram_Cap, rpc->lmp, "wrong method in response");
@@ -223,10 +223,8 @@ void client_serial_cb(void *arg) {
         lmp->err = err;
         return;
     }
-    return_with_err(msg.buf.buflen < sizeof(struct rpc_message_part), lmp, "invalid buflen");
-
+    return_with_err(msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part), lmp, "invalid buflen");
     struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
-
     return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
     return_with_err(msg_part->method != Method_Serial_Getchar, lmp, "wrong method in response");
     return_with_err(msg_part->payload_length != 1, lmp, "invalid payload len");
