@@ -60,19 +60,30 @@ static bool test_rpc(void)
             debug_printf("spawned child: pid %d\n", pid1);
         }
     }
+    {
+        for(int i = 0; i < 1; i ++) {
+            char *name = NULL;
+            domainid_t pid = 0;
+            err = aos_rpc_lmp_process_get_name(rpc, pid, &name);
+            if (err_is_fail(err)) {
+                DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
+                return false;
+            }
+            debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
+        }
+    }
 //    {
 //        for(int i = 0; i < 1; i ++) {
 //            char *name = NULL;
-//            domainid_t pid = 11;
-//            err = aos_rpc_lmp_process_get_name(rpc, pid, &name);
+//            domainid_t pid = 0;
+//            err = aos_rpc_lmp_process_get_all_pids(rpc, pid, &name);
 //            if (err_is_fail(err)) {
-//                DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()");
+//                DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
 //                return false;
 //            }
 //            debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
 //        }
 //    }
-
     return true;
 }
 

@@ -21,7 +21,7 @@ static errval_t dummy_spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 static errval_t dummy_get_name(domainid_t pid, char **ret_name) {
     debug_printf("get name for pid: %d\n", pid);
     *ret_name = malloc(100);
-    (*ret_name) = "process name";
+    (*ret_name) = "process name here";
     return SYS_ERR_OK;
 }
 
@@ -54,26 +54,18 @@ static errval_t handle_complete_msg(struct rpc_message_part *rpc_msg_part, struc
         }
 
         case Method_Process_Get_Name: {
-            HERE;
-            debug_printf("size: %d\n", rpc_msg_part->payload_length);
-            debug_printf("pid: %p, \n" , rpc_msg_part->payload);
-            HERE;
-            domainid_t pid = *((domainid_t *) rpc_msg_part->payload);
-            HERE;
+            domainid_t pid = (domainid_t) rpc_msg_part->payload[0];
             enum rpc_message_status status = Status_Ok;
             char *name = NULL;
-            HERE;
             err = get_name_cb(pid, &name);
             if (err_is_fail(err)) {
                 status = Process_Get_Name_Failed;
             }
-            HERE;
-            const size_t payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN);
-            *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
+            const size_t payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1; // strnlen no \0
+            *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_length);
             if (*ret_msg == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
             }
-            HERE;
             char *result_name = (char *) &(*ret_msg)->msg.payload;
             strncpy(result_name, name, payload_length);
             free(name);
@@ -129,7 +121,6 @@ static void service_recv_cb(void *arg)
         const size_t complete_size = sizeof(struct rpc_message_part) + rpc_msg_part->payload_length;
         state->total_length = complete_size;
         state->complete_msg = malloc(complete_size);
-        debug_printf("malloc %d size\n", complete_size);
         if (state->complete_msg == NULL) {
             DEBUG_ERR(err, "malloc failed");
             return;

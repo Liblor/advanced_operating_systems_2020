@@ -498,7 +498,7 @@ void client_process_get_name_cb(void *arg) {
 errval_t
 aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
 {
-    debug_printf("aos_rpc_lmp_process_get_name()");
+    debug_printf("aos_rpc_lmp_process_get_name()\n");
 
     errval_t err;
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(pid));
