@@ -74,6 +74,14 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
     return SYS_ERR_OK;
 }
 
+static errval_t get_name_cb(domainid_t pid, char **ret_name) {
+    return get_name_by_pid(&processserver_state, pid, ret_name);
+}
+
+static errval_t process_get_all_pids(size_t *ret_count, domainid_t **ret_pids) {
+    return get_all_pids(&processserver_state, ret_count, ret_pids);
+}
+
 static int bsp_main(int argc, char *argv[])
 {
     errval_t err;
@@ -120,7 +128,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    err = processserver_init(&processserver_state, spawn_cb, NULL, NULL);
+    err = processserver_init(&processserver_state, spawn_cb, get_name_cb, process_get_all_pids);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();

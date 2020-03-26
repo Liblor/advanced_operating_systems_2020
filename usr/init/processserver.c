@@ -219,17 +219,17 @@ errval_t add_to_proc_list(struct processserver_state *ps, char *name, domainid_t
  * @param ret_pid_array contains all pids in this process server state, has to be delted by caller
  * @return errors
  */
-errval_t get_pid_array(struct processserver_state *ps, struct process_pid_array **ret_pid_array)
+errval_t get_all_pids(struct processserver_state *ps, size_t *ret_num_pids, domainid_t **ret_pids)
 {
-    *ret_pid_array = calloc(1, sizeof(struct process_pid_array) + ps->num_proc * sizeof(domainid_t));
-    if (*ret_pid_array == NULL) {
+    *ret_pids = calloc(1, ps->num_proc * sizeof(domainid_t));
+    if (*ret_pids == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    (*ret_pid_array)->pid_count = ps->num_proc;
+    *ret_num_pids = ps->num_proc;
     struct process_info *curr = ps->process_head.next;
     size_t curr_idx = 0;
     while (curr != &(ps->process_tail)) {
-        (*ret_pid_array)->pids[curr_idx] = curr->pid;
+        (*ret_pids)[curr_idx] = curr->pid;
         curr_idx++;
         curr = curr->next;
     }
