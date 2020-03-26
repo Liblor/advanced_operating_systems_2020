@@ -31,10 +31,7 @@ static errval_t  handle_complete_msg(struct rpc_message_part *rpc_msg_part, stru
             if (err_is_fail(err)) {
                 status = Spawn_Failed;
             }
-            HERE;
             const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
-
-            debug_printf("len: %d\n", payload_length);
             *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
             if (*ret_msg == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
@@ -55,10 +52,6 @@ static errval_t  handle_complete_msg(struct rpc_message_part *rpc_msg_part, stru
 
 static inline
 errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
-    if (msg == NULL) {
-        DEBUG_PRINTF("msg null\n");
-        return LIB_ERR_LMP_INVALID_RESPONSE; // TODO introduce new error
-    }
     if (msg->buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part)) {
         DEBUG_PRINTF("invalid buflen\n");
         return LIB_ERR_LMP_INVALID_RESPONSE;
