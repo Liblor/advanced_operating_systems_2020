@@ -8,6 +8,7 @@ static struct aos_rpc *memory_channel = NULL;
 static struct aos_rpc *process_channel = NULL;
 static struct aos_rpc *serial_channel = NULL;
 
+
 void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
     if (string) {
@@ -43,6 +44,7 @@ errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
 errval_t
 aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
 {
+    DEBUG_PRINTF("lmp_send_message: method: %d, sending %d bytes\n", msg->msg.method, msg->msg.payload_length);
     if (msg->cap == NULL) {
         msg->cap = &NULL_CAP;
     }
@@ -632,11 +634,6 @@ aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
-static void client_recv_serivce_cb(void *args)
-{
-    debug_printf("client_recv_serivce_cb() was called!\n");
-}
-
 static void client_recv_open_cb(void *args)
 {
     errval_t err;
@@ -670,12 +667,6 @@ static void client_recv_open_cb(void *args)
     err = cap_copy(lc->remote_cap, server_cap);
     if (err_is_fail(err)) {
         debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return;
-    }
-
-    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(client_recv_serivce_cb, rpc));
-    if (err_is_fail(err)) {
-        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return;
     }
 }

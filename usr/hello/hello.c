@@ -23,23 +23,25 @@
 static bool test_rpc(void)
 {
     errval_t err;
+    struct aos_rpc *rpc = NULL;
+    {
+        rpc= aos_rpc_get_init_channel();
+        if (rpc == NULL) {
+            debug_printf("Could not create init channel\n");
+            return false;
+        }
 
-    struct aos_rpc *rpc = aos_rpc_get_init_channel();
-    if (rpc == NULL) {
-        debug_printf("Could not create init channel\n");
-        return false;
-    }
+        err = aos_rpc_lmp_send_number(rpc, 2);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
+            return false;
+        }
 
-    err = aos_rpc_lmp_send_number(rpc, 2);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
-        return false;
-    }
-
-    err = aos_rpc_send_string(rpc, "hello world hello world whhhhhhhhh");
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
-        return false;
+        err = aos_rpc_send_string(rpc, "hello world hello world whhhhhhhhh");
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
+            return false;
+        }
     }
 
     debug_printf("calling aos_rpc_process_spawn\n");
@@ -56,7 +58,6 @@ static bool test_rpc(void)
         }
         debug_printf("spawned child: pid %d\n", pid1);
     }
-
 
     return true;
 }
