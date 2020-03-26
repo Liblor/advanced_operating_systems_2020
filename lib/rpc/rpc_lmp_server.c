@@ -57,7 +57,7 @@ static void open_recv_cb(void *arg)
     service_chan->endpoint = server->service_lmp_ep;
 
     // We want the channel to be registered persistently.
-    service_chan->send_waitset.persistent = true;
+    service_chan->endpoint->waitset_state.persistent = true;
 
     // We have to allocate a new slot, since the current slot may be used for
     // other transmissions.
@@ -95,14 +95,14 @@ static errval_t rpc_lmp_server_setup_open_channel(struct rpc_lmp_server *server,
 {
     errval_t err;
 
-    // We want the channel to be registered persistently.
-    server->open_lc.send_waitset.persistent = true;
-
     err = lmp_chan_accept(&server->open_lc, DEFAULT_LMP_BUF_WORDS, NULL_CAP);
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_accept() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_LMP_CHAN_ACCEPT);
     }
+
+    // We want the channel to be registered persistently.
+    server->open_lc.endpoint->waitset_state.persistent = true;
 
     err = lmp_chan_alloc_recv_slot(&server->open_lc);
     if (err_is_fail(err)) {
