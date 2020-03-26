@@ -149,6 +149,8 @@ int main(int argc, char *argv[])
 
     debug_printf("memeater started....\n");
 
+    return 0;
+
     init_rpc = aos_rpc_get_init_channel();
     if (!init_rpc) {
         USER_PANIC_ERR(err, "init RPC channel NULL?\n");

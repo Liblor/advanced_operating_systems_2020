@@ -10,6 +10,7 @@
 // Call the registered receive handler, if any.
 static void service_recv_cb(void *arg)
 {
+    debug_printf("service_recv_cb()\n");
     struct rpc_lmp_handler_state *state = arg;
     struct rpc_lmp_server *server = state->server;
 
@@ -22,6 +23,7 @@ static void service_recv_cb(void *arg)
 // requests.
 static void open_recv_cb(void *arg)
 {
+    DEBUG_PRINTF("open_recv_cb()\n");
     errval_t err;
 
     struct rpc_lmp_server *server = arg;

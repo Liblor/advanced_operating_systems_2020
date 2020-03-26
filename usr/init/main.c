@@ -56,8 +56,17 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 {
     // TODO keep track of pids
     printf("spawn_cb(name=%s...)\n", name);
+    // TODO: we currently ignore coreid, as we are single core
+
     struct spawninfo si;
-    return spawn_load_by_name(name, &si, ret_pid);
+    domainid_t pid;
+    errval_t err = spawn_load_by_name(name, &si, &pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "spawn_load_by_name()");
+        return err;
+    }
+    *ret_pid = pid;
+    return SYS_ERR_OK;
 }
 
 static int bsp_main(int argc, char *argv[])
@@ -112,14 +121,26 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    char *binary_name1 = "hello";
-    struct spawninfo si1;
-    domainid_t pid1;
+    {
+        char *binary_name1 = "hello";
+        struct spawninfo si1;
+        domainid_t pid1;
 
-    err = spawn_load_by_name(binary_name1, &si1, &pid1);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in event_dispatch");
-        abort();
+        err = spawn_load_by_name(binary_name1, &si1, &pid1);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in event_dispatch");
+            abort();
+        }
+    }
+    {
+        struct spawninfo si2;
+        char *binary_name2 = "memeater";
+        domainid_t pid2;
+        err = spawn_load_by_name(binary_name2, &si2, &pid2);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "spawn_load_by_name()");
+            return err;
+        }
     }
 
     // Grading

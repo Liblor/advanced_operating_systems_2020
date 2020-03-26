@@ -19,44 +19,56 @@
 #include <aos/aos.h>
 #include <aos/debug.h>
 #include <aos/aos_rpc.h>
+#include <spawn/spawn.h>
 
 static bool test_rpc(void)
 {
     errval_t err;
+    struct aos_rpc *rpc = NULL;
+    {
+        rpc= aos_rpc_get_init_channel();
+        if (rpc == NULL) {
+            debug_printf("Could not create init channel\n");
+            return false;
+        }
 
-    struct aos_rpc *rpc = aos_rpc_get_init_channel();
-    if (rpc == NULL) {
-        debug_printf("Could not create init channel\n");
-        return false;
-    }
+        err = aos_rpc_lmp_send_number(rpc, 2);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
+            return false;
+        }
 
-    err = aos_rpc_lmp_send_number(rpc, 2);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
-        return false;
-    }
-
-    err = aos_rpc_send_string(rpc, "hello world hello world whhhhhhhhh");
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
-        return false;
+        err = aos_rpc_send_string(rpc, "hello world hello world whhhhhhhhh");
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
+            return false;
+        }
     }
 
     debug_printf("calling aos_rpc_process_spawn\n");
-    rpc = aos_rpc_get_process_channel();
+//    rpc = aos_rpc_get_process_channel();
     {
-        char *binary_name1 = "hello";
-        domainid_t pid1;
-        coreid_t core = 0;
+//        char *binary_name1 = "memeater";
+//        domainid_t pid1;
+//        coreid_t core = 0;
+//
+//        err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
+//        if (err_is_fail(err)) {
+//            DEBUG_ERR(err, "aos_rpc_process_spawn()");
+//            return false;
+//        }
+//        debug_printf("spawned child: pid %d\n", pid1);
 
-        err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "aos_rpc_process_spawn()");
-            return false;
-        }
-        debug_printf("spawned child: pid %d\n", pid1);
+//        struct spawninfo si1;
+//        char *binary_name2 = "memeater";
+//        domainid_t pid2;
+//
+//        err = spawn_load_by_name(binary_name2, &si1, &pid2);
+//        if (err_is_fail(err)) {
+//            DEBUG_ERR(err, "spawn_load_by_name()");
+//            return err;
+//        }
     }
-
 
     return true;
 }
