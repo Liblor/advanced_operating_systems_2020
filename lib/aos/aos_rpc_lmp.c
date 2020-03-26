@@ -367,20 +367,37 @@ void client_process_get_name_cb(void *arg) {
             lmp->err = err;
             return;
         }
+        struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
+        state->total_length = msg_part->payload_length; // TODO: introduce max len
+        state->bytes_received = 0;
 
+        state->name = malloc(state->total_length);
+        void *target = state->name;
+
+        uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
+        memcpy(target, msg_part->payload, to_copy);
+        state->bytes_received += to_copy;
+
+        lmp->err = SYS_ERR_OK;
 
     } else if (state->pending_state == DataInTransmit) {
-
+        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
+        memcpy(state->name + state->bytes_received, (char *) &msg.words[0], to_copy);
+        state->bytes_received += to_copy;
     }
 
-
-    err = lmp_chan_register_recv(lc, &lmp->ws,
-                                 MKCLOSURE(client_process_get_name_cb, arg));
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "");
-        return;
+    if (state->bytes_received < state->total_length) {
+        state->pending_state = DataInTransmit;
+        // register callback
+        err = lmp_chan_register_recv(lc, get_default_waitset(),
+                                     MKCLOSURE(client_process_get_name_cb, arg));
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "");
+            return;
+        }
+    } else {
+        state->pending_state = EmptyState;
     }
-
     lmp->err = SYS_ERR_OK;
 }
 
