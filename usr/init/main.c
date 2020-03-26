@@ -33,6 +33,7 @@
 #include "test.h"
 
 struct bootinfo *bi;
+struct processserver_state processserver_state;
 
 coreid_t my_core_id;
 
@@ -54,7 +55,6 @@ static void ram_cap_cb(const size_t bytes, const size_t align)
 
 static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 {
-    // TODO keep track of pids
     printf("spawn_cb(name=%s...)\n", name);
     // TODO: we currently ignore coreid, as we are single core
 
@@ -63,6 +63,11 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
     errval_t err = spawn_load_by_name(name, &si, &pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
+        return err;
+    }
+    err = add_to_proc_list(&processserver_state, name, pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "add_to_proc_list()");
         return err;
     }
     *ret_pid = pid;
@@ -115,7 +120,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    err = processserver_init(spawn_cb, NULL, NULL);
+    err = processserver_init(&processserver_state, spawn_cb, NULL, NULL);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();

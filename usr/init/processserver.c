@@ -7,7 +7,6 @@
 #include "processserver.h"
 
 static struct rpc_lmp_server server;
-struct processserver_state processserver_state;
 
 static spawn_callback_t spawn_cb = NULL;
 static get_name_callback_t get_name_cb = NULL;
@@ -268,25 +267,26 @@ errval_t get_name_by_pid(struct processserver_state *ps, domainid_t pid, char **
 }
 
 errval_t processserver_init(
-    spawn_callback_t new_spawn_cb,
-    get_name_callback_t new_get_name_cb,
-    get_all_pids_callback_t new_get_all_pids_cb
+        struct processserver_state *processserver_state,
+        spawn_callback_t new_spawn_cb,
+        get_name_callback_t new_get_name_cb,
+        get_all_pids_callback_t new_get_all_pids_cb
 )
 {
     debug_printf("processserver_init()\n");
     errval_t err;
 
-    processserver_state.process_head.next = &processserver_state.process_tail;
-    processserver_state.process_head.prev = NULL;
-    processserver_state.process_tail.prev = &processserver_state.process_head;
-    processserver_state.process_tail.next = NULL;
-    processserver_state.processlist = &processserver_state.process_head;
-    processserver_state.process_head.name = NULL;
-    processserver_state.process_tail.name = NULL;
-    processserver_state.num_proc = 0;
+    processserver_state->process_head.next = &processserver_state->process_tail;
+    processserver_state->process_head.prev = NULL;
+    processserver_state->process_tail.prev = &processserver_state->process_head;
+    processserver_state->process_tail.next = NULL;
+    processserver_state->processlist = &processserver_state->process_head;
+    processserver_state->process_head.name = NULL;
+    processserver_state->process_tail.name = NULL;
+    processserver_state->num_proc = 0;
 
     // TODO is init 0?
-    add_to_proc_list(&processserver_state, "init", 0);
+    add_to_proc_list(processserver_state, "init", 0);
 
     spawn_cb = new_spawn_cb;
     get_name_cb = new_get_name_cb;

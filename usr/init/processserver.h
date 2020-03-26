@@ -38,9 +38,10 @@ errval_t get_pid_array(struct processserver_state *ps, struct process_pid_array 
 errval_t get_name_by_pid(struct processserver_state *ps, domainid_t pid, char **ret_name);
 
 errval_t processserver_init(
-    spawn_callback_t spawn_cb,
-    get_name_callback_t get_name_cb,
-    get_all_pids_callback_t get_all_pids_cb
+        struct processserver_state *processserver_state,
+        spawn_callback_t new_spawn_cb,
+        get_name_callback_t new_get_name_cb,
+        get_all_pids_callback_t new_get_all_pids_cb
 );
 
 #endif
