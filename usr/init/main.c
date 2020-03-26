@@ -38,12 +38,12 @@ coreid_t my_core_id;
 
 static void number_cb(struct lmp_chan *lc, uintptr_t num)
 {
-    printf("Received number %"PRIuPTR"\n", num);
+    debug_printf("Received number %"PRIuPTR"\n", num);
 }
 
 static void string_cb(struct lmp_chan *lc, char *c)
 {
-    printf("Received string %s\n", c);
+    debug_printf("Received string %s\n", c);
 }
 
 // We do not allocate RAM here. This should be done in the server itself.
@@ -63,7 +63,7 @@ static void putchar_cb(char c) {
 
 static void getchar_cb(char *c) {
     // TODO Where should we get this character from?
-    printf("getchar_cb()\n");
+    debug_printf("getchar_cb()\n");
     *c = 'a';
 }
 
