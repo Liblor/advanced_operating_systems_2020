@@ -111,6 +111,8 @@ static void client_ram_cb(void *arg) {
     debug_printf("client_ram_cb(...)\n");
     struct aos_rpc *rpc = arg;
     struct client_ram_state *ram_state = rpc->lmp->shared;
+    struct aos_rpc_lmp *lmp = rpc->lmp;
+
     struct lmp_chan *lc = &rpc->lc;
 
     struct capref cap;
@@ -119,29 +121,32 @@ static void client_ram_cb(void *arg) {
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
     if (err_is_fail(err) && lmp_err_is_transient(err)) {
         // reregister
-        err = lmp_chan_register_recv(lc, &rpc->lmp->ws,
+        err = lmp_chan_register_recv(lc, &lmp->ws,
                                      MKCLOSURE(client_ram_cb, arg));
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "");
-            rpc->lmp->err = err;
+            lmp->err = err;
             return;
         }
     }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "");
-        rpc->lmp->err = err;
+        lmp->err = err;
         return;
     }
-    return_with_err(msg.buf.buflen < sizeof(struct rpc_message_part), rpc->lmp, "invalid buflen");
+    bool buflen_invalid = msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part);
+    return_with_err(buflen_invalid, lmp, "invalid buflen");
+
     struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
-    return_with_err(msg_part->status != Status_Ok, rpc->lmp, "status not ok");
-    return_with_err(msg_part->method != Method_Get_Ram_Cap, rpc->lmp, "wrong method in response");
-    return_with_err(msg_part->payload_length != sizeof(size_t), rpc->lmp, "invalid payload len");
+
+    return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
+    return_with_err(msg_part->method != Method_Get_Ram_Cap, lmp, "wrong method in response");
+    return_with_err(msg_part->payload_length != sizeof(size_t), lmp, "invalid payload len");
 
     // TODO: do we need to allocate a slot?
     memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
     ram_state->cap = cap;
-    rpc->lmp->err = SYS_ERR_OK;
+    lmp->err = SYS_ERR_OK;
 }
 
 errval_t
@@ -223,7 +228,8 @@ void client_serial_cb(void *arg) {
         lmp->err = err;
         return;
     }
-    return_with_err(msg.buf.buflen < sizeof(struct rpc_message_part), lmp, "invalid buflen");
+    bool buflen_invalid = msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part);
+    return_with_err(buflen_invalid, lmp, "invalid buflen");
 
     struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
 
