@@ -20,22 +20,87 @@
 #include <aos/paging.h>
 #include <aos/waitset.h>
 #include <aos/aos_rpc.h>
+#include <aos/capabilities.h>
 #include <mm/mm.h>
 #include <spawn/spawn.h>
 #include <grading.h>
 
 #include "mem_alloc.h"
+#include "initserver.h"
+#include "memoryserver.h"
+#include "serialserver.h"
+#include "processserver.h"
 #include "test.h"
-
-
 
 struct bootinfo *bi;
 
 coreid_t my_core_id;
 
+static void number_cb(struct lmp_chan *lc, uintptr_t num)
+{
+    grading_rpc_handle_number(num);
 
-static int
-bsp_main(int argc, char *argv[]) {
+    debug_printf("Received number %"PRIuPTR"\n", num);
+}
+
+static void string_cb(struct lmp_chan *lc, char *c)
+{
+    grading_rpc_handler_string(c);
+
+    debug_printf("Received string %s\n", c);
+}
+
+// We do not allocate RAM here. This should be done in the server itself.
+static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct capref *retcap, size_t *retbytes)
+{
+    errval_t err;
+
+    grading_rpc_handler_ram_cap(bytes, alignment);
+
+    debug_printf("ram_cap_cb(bytes=0x%zx, alignment=0x%zx)\n", bytes, alignment);
+
+    err = ram_alloc_aligned(retcap, bytes, alignment);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "ram_alloc_aligned() failed");
+        return err_push(err, LIB_ERR_RAM_ALLOC);
+    }
+
+    struct capability cap;
+    err = cap_direct_identify(*retcap, &cap);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cap_direct_identify() failed");
+        return err_push(err, LIB_ERR_CAP_IDENTIFY);
+    }
+
+    *retbytes = get_size(&cap);
+
+    return SYS_ERR_OK;
+}
+
+static void putchar_cb(char c) {
+    errval_t err;
+
+    grading_rpc_handler_serial_putchar(c);
+
+    err = sys_print((const char *)&c, 1);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "sys_print() failed");
+    }
+}
+
+static void getchar_cb(char *c) {
+    errval_t err;
+
+    grading_rpc_handler_serial_getchar();
+
+    err = sys_getchar(c);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "sys_getchar() failed");
+    }
+}
+
+static int bsp_main(int argc, char *argv[])
+{
     errval_t err;
 
     // Grading
@@ -52,18 +117,41 @@ bsp_main(int argc, char *argv[]) {
 
     // TODO: Remove.
     //test_libmm();
-//    test_paging();
-//    test_paging_multi_pagetable();
+    //test_paging();
+    //test_paging_multi_pagetable();
 
     // TODO: initialize mem allocator, vspace management here
 
     // Grading
-    grading_test_early();
+    //grading_test_early();
 
     // TODO: Spawn system processes, boot second core etc. here
 
-    /*
-    char *binary_name1 = "hello";
+    err = initserver_init(number_cb, string_cb);
+    if (err_is_fail(err)) {
+        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = memoryserver_init(ram_cap_cb);
+    if (err_is_fail(err)) {
+        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = serialserver_init(putchar_cb, getchar_cb);
+    if (err_is_fail(err)) {
+        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = processserver_init(NULL, NULL, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    char *binary_name1 = "memeater";
     struct spawninfo si1;
     domainid_t pid1;
 
@@ -82,7 +170,6 @@ bsp_main(int argc, char *argv[]) {
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
-    */
 
     // Grading
     grading_test_late();
@@ -101,8 +188,8 @@ bsp_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
-static int
-app_main(int argc, char *argv[]) {
+static int app_main(int argc, char *argv[])
+{
     // Implement me in Milestone 5
     // Remember to call
     // - grading_setup_app_init(..);
@@ -114,7 +201,6 @@ app_main(int argc, char *argv[]) {
 int main(int argc, char *argv[])
 {
     errval_t err;
-
 
     /* Set the core id in the disp_priv struct */
     err = invoke_kernel_get_core_id(cap_kernel, &my_core_id);

@@ -169,6 +169,30 @@ struct capref cap_domainid = {
     .slot = TASKCN_SLOT_DOMAINID
 };
 
+/// Init endpoint cap.
+struct capref cap_chan_init = {
+    .cnode = TASK_CNODE_INIT,
+    .slot = TASKCN_SLOT_CHAN_INIT
+};
+
+/// Memory server endpoint cap.
+struct capref cap_chan_memory = {
+    .cnode = TASK_CNODE_INIT,
+    .slot = TASKCN_SLOT_CHAN_MEMORY
+};
+
+/// Serial server endpoint cap.
+struct capref cap_chan_serial = {
+    .cnode = TASK_CNODE_INIT,
+    .slot = TASKCN_SLOT_CHAN_SERIAL
+};
+
+/// Process server endpoint cap.
+struct capref cap_chan_process = {
+    .cnode = TASK_CNODE_INIT,
+    .slot = TASKCN_SLOT_CHAN_PROCESS
+};
+
 /// Root PML4 VNode
 struct capref cap_vroot = {
     .cnode = PAGE_CNODE_INIT,

@@ -16,12 +16,33 @@
 #define _LIB_BARRELFISH_AOS_MESSAGES_H
 
 #include <aos/aos.h>
+#include <aos/aos_rpc_lmp.h>
 
+// TODO: Move to separate memory module.
+struct mem_server_state {
+    struct lmp_chan rpc_lmp_chan_mem_server;
+    struct capref received_cap;
+    size_t bytes;
+};
 
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
-    // TODO(M3): Add state
+    struct lmp_chan lc;
+    union {
+        struct aos_rpc_lmp *lmp;
+    };
 };
+
+
+enum rpc_message_method {
+    Method_Send_Number, // TODO: assign numbers
+    Method_Get_Ram_Cap,
+    Method_Send_String,
+    Method_Serial_Putchar,
+    Method_Serial_Getchar
+};
+
+
 
 /**
  * \brief Call this handler on the receive side for grading
@@ -33,7 +54,6 @@ void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap);
  */
 errval_t aos_rpc_init(struct aos_rpc *rpc);
 
-
 /**
  * \brief Send a number.
  */
@@ -44,7 +64,6 @@ errval_t aos_rpc_send_number(struct aos_rpc *chan, uintptr_t val);
  */
 errval_t aos_rpc_send_string(struct aos_rpc *chan, const char *string);
 
-
 /**
  * \brief Request a RAM capability with >= request_bits of size over the given
  * channel.
@@ -53,12 +72,10 @@ errval_t aos_rpc_get_ram_cap(struct aos_rpc *chan, size_t bytes,
                              size_t alignment, struct capref *retcap,
                              size_t *ret_bytes);
 
-
 /**
  * \brief Get one character from the serial port
  */
 errval_t aos_rpc_serial_getchar(struct aos_rpc *chan, char *retc);
-
 
 /**
  * \brief Send one character to the serial port
@@ -74,7 +91,6 @@ errval_t aos_rpc_serial_putchar(struct aos_rpc *chan, char c);
 errval_t aos_rpc_process_spawn(struct aos_rpc *chan, char *name,
                                coreid_t core, domainid_t *newpid);
 
-
 /**
  * \brief Get name of process with the given PID.
  * \arg pid the process id to lookup
@@ -84,7 +100,6 @@ errval_t aos_rpc_process_spawn(struct aos_rpc *chan, char *name,
  */
 errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
                                   char **name);
-
 
 /**
  * \brief Get PIDs of all running processes.
@@ -96,7 +111,6 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
 errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
                                       domainid_t **pids, size_t *pid_count);
 
-
 /**
  * \brief Request a device cap for the given region.
  * @param chan  the rpc channel
@@ -107,8 +121,6 @@ errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
 errval_t aos_rpc_get_device_cap(struct aos_rpc *chan,
                                 lpaddr_t paddr, size_t bytes,
                                 struct capref *frame);
-
-
 
 /**
  * \brief Returns the RPC channel to init.

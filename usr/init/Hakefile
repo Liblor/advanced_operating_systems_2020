@@ -14,10 +14,14 @@
                       cFiles = [
                         "main.c",
                         "mem_alloc.c",
+                        "initserver.c",
+                        "memoryserver.c",
+                        "serialserver.c",
+                        "processserver.c",
                         "test.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init
-                      addLibraries = [ "mm", "getopt", "elf", "spawn",
+                      addLibraries = [ "mm", "getopt", "elf", "spawn", "rpc",
                         "grading"],
                       architectures = allArchitectures
                     }

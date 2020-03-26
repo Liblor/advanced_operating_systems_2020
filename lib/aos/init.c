@@ -17,6 +17,7 @@
 #include <stdio.h>
 
 #include <aos/aos.h>
+#include <aos/aos_rpc.h>
 #include <aos/dispatch.h>
 #include <aos/curdispatcher_arch.h>
 #include <aos/dispatcher_arch.h>
@@ -78,13 +79,46 @@ static size_t dummy_terminal_read(char *buf, size_t len)
     return len;
 }
 
+__attribute__((__used__))
+static size_t aos_terminal_read(char *buf, size_t len)
+{
+    errval_t err;
+
+    struct aos_rpc *serial_rpc = aos_rpc_get_serial_channel();
+    size_t i = 0;
+
+    for (i = 0; i < len; i++) {
+        err = aos_rpc_serial_getchar(serial_rpc, &buf[i]);
+        if (err_is_fail(err)) {
+            break;
+        }
+    }
+    return i;
+}
+
+__attribute__((__used__))
+static size_t aos_terminal_write(const char *buf, size_t len)
+{
+    errval_t err;
+
+    struct aos_rpc *serial_rpc = aos_rpc_get_serial_channel();
+    size_t i = 0;
+
+    for (i = 0; i < len; i++) {
+        err = aos_rpc_serial_putchar(serial_rpc, buf[i]);
+        if (err_is_fail(err)) {
+            break;
+        }
+    }
+
+    return i;
+}
+
 /* Set libc function pointers */
 void barrelfish_libc_glue_init(void)
 {
     // XXX: FIXME: Check whether we can use the proper kernel serial, and
     // what we need for that
-    // TODO: change these to use the user-space serial driver if possible
-    // TODO: set these functions
     _libc_terminal_read_func = dummy_terminal_read;
     _libc_terminal_write_func = syscall_terminal_write;
     _libc_exit_func = libc_exit;
@@ -96,7 +130,6 @@ void barrelfish_libc_glue_init(void)
     static char buf[BUFSIZ];
     setvbuf(stdout, buf, _IOLBF, sizeof(buf));
 }
-
 
 /** \brief Initialise libbarrelfish.
  *
@@ -140,22 +173,38 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         return err_push(err, LIB_ERR_MORECORE_INIT);
     }
 
+    // Initialize LMP endpoint subsystem.
     lmp_endpoint_init();
 
-    // HINT: Use init_domain to check if we are the init domain.
+    if (init_domain) {
+        // Endpoint to the dispatcher itself.
+        err = cap_retype(cap_selfep, cap_dispatcher, 0, ObjType_EndPointLMP, 0, 1);
+        if (err_is_fail(err)) {
+            debug_printf("cap_retype() failed: %s\n", err_getstring(err));
+            return err_push(err, LIB_ERR_CAP_RETYPE);
+        }
+    } else {
+        struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
+        set_init_rpc(init_rpc);
 
-    // TODO MILESTONE 3: register ourselves with init
-    /* allocate lmp channel structure */
-    /* create local endpoint */
-    /* set remote endpoint to init's endpoint */
-    /* set receive handler */
-    /* send local ep to init */
-    /* wait for init to acknowledge receiving the endpoint */
-    /* initialize init RPC client with lmp channel */
-    /* set init RPC client in our program state */
+        _libc_terminal_read_func = aos_terminal_read;
+        _libc_terminal_write_func = aos_terminal_write;
 
-    /* TODO MILESTONE 3: now we should have a channel with init set up and can
-     * use it for the ram allocator */
+        // This call is to setup the channel to the memory server before
+        // ram_alloc() is set to use the RPC call for memory allocation. This
+        // is necessary since the channel setup itself already needs to
+        // allocate RAM. At this point, the channel setup uses
+        // ram_alloc_fixed().
+        aos_rpc_get_memory_channel();
+
+        slot_ensure_threshold(10);
+
+        // Reset ram allocator to use remote ram allocator
+        err = ram_alloc_set(NULL);
+        if (err_is_fail(err)) {
+            return err_push(err, LIB_ERR_RAM_ALLOC_SET);
+        }
+    }
 
     // right now we don't have the nameservice & don't need the terminal
     // and domain spanning, so we return here
