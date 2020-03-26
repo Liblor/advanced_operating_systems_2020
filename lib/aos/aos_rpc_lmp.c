@@ -558,10 +558,75 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     return err;
 }
 
+// TODO: generalize
 static
 void client_process_get_all_pids_cb(void *arg) {
     debug_printf("client_process_get_all_pids_cb\n");
 
+    struct aos_rpc *rpc = (struct aos_rpc *) arg;
+    struct lmp_chan *lc = &rpc->lc;
+    struct aos_rpc_lmp *lmp = rpc->lmp;
+    struct client_process_state *state = (struct client_process_state*) lmp->shared;
+    struct capref cap;
+
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+
+    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+    if (err_is_fail(err) && lmp_err_is_transient(err)) {
+        // reregister
+        err = lmp_chan_register_recv(lc, &lmp->ws, MKCLOSURE(client_process_get_all_pids_cb, arg));
+        if (err_is_fail(err)) {
+            lmp->err = LIB_ERR_CHAN_REGISTER_RECV;
+            return;
+        }
+    } else if (err_is_fail(err)) {
+        lmp->err = err;
+        return;
+    }
+    if (state->pending_state == EmptyState) {
+        err = validate_lmp_header(&msg, Method_Process_Get_All_Pids);
+        if (err_is_fail(err)) {
+            lmp->err = err;
+            return;
+        }
+        struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
+        state->total_length = msg_part->payload_length; // TODO: introduce max len
+        state->bytes_received = 0;
+
+        state->pid_array = malloc(state->total_length);
+        if (state->pid_array == NULL) {
+            lmp->err = LIB_ERR_MALLOC_FAIL;
+            return;
+        }
+
+        uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
+        memcpy(state->pid_array, msg_part->payload, to_copy);
+        state->bytes_received += to_copy;
+
+        lmp->err = SYS_ERR_OK;
+
+    } else if (state->pending_state == DataInTransmit) {
+        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
+        memcpy(state->pid_array + state->bytes_received, (char *) &msg.words[0], to_copy);
+        state->bytes_received += to_copy;
+    }
+
+    if (state->bytes_received < state->total_length) {
+        state->pending_state = DataInTransmit;
+        // register callback
+        err = lmp_chan_register_recv(lc, &lmp->ws,
+                                     MKCLOSURE(client_process_get_all_pids_cb, arg));
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "");
+            lmp->err = err;
+            return;
+        }
+    } else {
+        state->pending_state = EmptyState;
+        assert(state->total_length == state->bytes_received);
+        assert(state->pid_array != NULL);
+    }
+    lmp->err = SYS_ERR_OK;
 }
 
 errval_t
