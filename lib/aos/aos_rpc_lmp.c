@@ -306,12 +306,95 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     return err;
 }
 
+// TODO refactor and generalize
+static void client_spawn_cb(void *arg) {
+    debug_printf("client_spawn_cb(...)\n");
+    struct aos_rpc *rpc = arg;
+    struct client_process_state *state = rpc->lmp->shared;
+    struct lmp_chan *lc = &rpc->lc;
+
+    struct capref cap;
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+
+    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+    if (err_is_fail(err) && lmp_err_is_transient(err)) {
+        // reregister
+        err = lmp_chan_register_recv(lc, &rpc->lmp->ws, MKCLOSURE(client_spawn_cb, arg));
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "");
+            rpc->lmp->err = err;
+            return;
+        }
+    }
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "");
+        rpc->lmp->err = err;
+        return;
+    }
+    return_with_err(sizeof(uint64_t) * msg.buf.buflen < sizeof(struct rpc_message_part), rpc->lmp, "invalid buflen");
+    struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
+    return_with_err(msg_part->status != Status_Ok, rpc->lmp, "status not ok");
+    return_with_err(msg_part->method != Method_Spawn_Process, rpc->lmp, "wrong method in response");
+    return_with_err(msg_part->payload_length != sizeof(size_t) + sizeof(domainid_t), rpc->lmp, "invalid payload len");
+
+    state->pid_array = malloc(msg_part->payload_length);
+    memcpy(state->pid_array, msg_part->payload, sizeof(size_t) + sizeof(domainid_t));
+
+    rpc->lmp->err = SYS_ERR_OK;
+}
+
 errval_t
 aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
                       coreid_t core, domainid_t *newpid)
 {
-    // TODO (M5): implement spawn new process rpc
-    return LIB_ERR_NOT_IMPLEMENTED;
+    errval_t err;
+    const uint32_t str_len = MIN(strlen(cmdline), RPC_LMP_MAX_STR_LEN);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + str_len);
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->msg.method = Method_Spawn_Process;
+    msg->msg.payload_length = sizeof(core) + str_len;
+    msg->cap = NULL;
+    msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, core, sizeof(core));
+    strncpy(msg->msg.payload + sizeof(core), cmdline, str_len);
+
+    // register receive handler state
+    struct client_process_state *state = rpc->lmp->shared;
+    memset(state, 0, sizeof(struct client_process_state));
+    state->pending_state = EmptyState;
+    err = lmp_chan_register_recv(&rpc->lc, &rpc->lmp->ws,
+                                 MKCLOSURE(client_spawn_cb, rpc));
+    if (err_is_fail(err)) {
+        goto clean_up_msg;
+    }
+
+    // send spawn request
+    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        goto clean_up_msg;
+    }
+
+    // wait for response
+    err = event_dispatch(&rpc->lmp->ws);
+    if (err_is_fail(err)) {
+        goto clean_up_msg;
+    }
+    if (err_is_fail(rpc->lmp->err)) {
+        err = rpc->lmp->err;
+        goto clean_up_msg;
+    }
+
+    // save response
+    *newpid = state->pid_array->pids[0];
+    assert(state->pid_array->pid_count == 1);
+    free(state->pid_array);
+
+    err = SYS_ERR_OK;
+    clean_up_msg:
+    free(msg);
+    return err;
 }
 
 errval_t
