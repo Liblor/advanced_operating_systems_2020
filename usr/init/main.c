@@ -120,7 +120,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    char *binary_name1 = "hello";
+    char *binary_name1 = "memeater";
     struct spawninfo si1;
     domainid_t pid1;
 
