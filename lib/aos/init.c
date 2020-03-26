@@ -172,24 +172,23 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
         set_init_rpc(init_rpc);
 
-        serial_rpc = aos_rpc_get_serial_channel();
         _libc_terminal_write_func = aos_terminal_write;
+
+        // This call is to setup the channel to the memory server before
+        // ram_alloc() is set to use the RPC call for memory allocation. This
+        // is necessary since the channel setup itself already needs to
+        // allocate RAM. At this point, the channel setup uses
+        // ram_alloc_fixed().
+        aos_rpc_get_memory_channel();
+
+        slot_ensure_threshold(10);
+
+        // Reset ram allocator to use remote ram allocator
+        err = ram_alloc_set(NULL);
+        if (err_is_fail(err)) {
+            return err_push(err, LIB_ERR_RAM_ALLOC_SET);
+        }
     }
-
-    // TODO MILESTONE 3:
-    /* register ourselves with init:
-     * [X] allocate lmp channel structure
-     * [X] create local endpoint
-     * [X] set remote endpoint to init's endpoint
-     * [X] set receive handler
-     * [X] send local ep to init
-     * [X] wait for init to acknowledge receiving the endpoint
-     * [X] initialize init RPC client with lmp channel
-     * [X] set init RPC client in our program state
-     */
-
-    /* TODO MILESTONE 3: now we should have a channel with init set up and can
-     * use it for the ram allocator */
 
     // right now we don't have the nameservice & don't need the terminal
     // and domain spanning, so we return here

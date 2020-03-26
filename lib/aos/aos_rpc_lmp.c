@@ -111,7 +111,6 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 }
 
 static void client_ram_cb(void *arg) {
-    debug_printf("client_ram_cb(...)\n");
     struct aos_rpc *rpc = arg;
     struct client_ram_state *ram_state = rpc->lmp->shared;
     struct aos_rpc_lmp *lmp = rpc->lmp;
@@ -146,8 +145,8 @@ static void client_ram_cb(void *arg) {
     return_with_err(msg_part->method != Method_Get_Ram_Cap, lmp, "wrong method in response");
     return_with_err(msg_part->payload_length != sizeof(size_t), lmp, "invalid payload len");
 
-    // TODO: do we need to allocate a slot?
     memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
+    // TODO Free recv slot if cap is NULL_CAP
     ram_state->cap = cap;
     lmp->err = SYS_ERR_OK;
 }
@@ -157,6 +156,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                     struct capref *ret_cap, size_t *ret_bytes)
 {
     errval_t err;
+
     // create request message
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
@@ -174,6 +174,13 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     err = lmp_chan_register_recv(&rpc->lc, &rpc->lmp->ws,
                                  MKCLOSURE(client_ram_cb, rpc));
     if (err_is_fail(err)) {
+        goto clean_up;
+    }
+
+    err = lmp_chan_alloc_recv_slot(&rpc->lc);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        err = LIB_ERR_LMP_ALLOC_RECV_SLOT;
         goto clean_up;
     }
 
@@ -196,7 +203,9 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     // save response
     struct client_ram_state *ram_state = rpc->lmp->shared;
     *ret_cap = ram_state->cap;
-    *ret_bytes = ram_state->bytes;
+    if (ret_bytes != NULL) {
+        *ret_bytes = ram_state->bytes;
+    }
 
     err = SYS_ERR_OK;
     goto clean_up;
@@ -209,8 +218,6 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 
 static
 void client_serial_cb(void *arg) {
-    debug_printf("client_serial_cb()\n");
-
     struct aos_rpc *rpc = (struct aos_rpc *) arg;
     struct lmp_chan *lc = &rpc->lc;
     struct aos_rpc_lmp *lmp = rpc->lmp;
@@ -369,19 +376,7 @@ static void client_recv_open_cb(void *args)
         return;
     }
 
-    // We have to allocate a new slot, since the current slot may be used for
-    // other transmissions.
-    err = slot_alloc(&lc->remote_cap);
-    if (err_is_fail(err)) {
-        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
-        return;
-    }
-
-    err = cap_copy(lc->remote_cap, server_cap);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return;
-    }
+    lc->remote_cap = server_cap;
 }
 
 static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
@@ -412,12 +407,6 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
     lc->local_cap = cap_ep;
     lc->remote_cap = remote_cap;
 
-    err = lmp_chan_alloc_recv_slot(lc);
-    if (err_is_fail(err)) {
-        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
-        return NULL;
-    }
-
     struct waitset ws;
     waitset_init(&ws);
 
@@ -427,6 +416,13 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
     err = lmp_chan_register_recv(lc, &ws, MKCLOSURE(client_recv_open_cb, rpc));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
+        return NULL;
+    }
+
+    // Allocate receive slot to receive the capability of the service endpoint
+    err = lmp_chan_alloc_recv_slot(lc);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
         return NULL;
     }
 

@@ -47,9 +47,28 @@ static void string_cb(struct lmp_chan *lc, char *c)
 }
 
 // We do not allocate RAM here. This should be done in the server itself.
-static void ram_cap_cb(const size_t bytes, const size_t align)
+static errval_t ram_cap_cb(const size_t bytes, const size_t align, struct capref *retcap, size_t *retbytes)
 {
-    printf("ram_cap_cb(bytes=0x%zx, align=0x%zx)\n", bytes, align);
+    errval_t err;
+
+    debug_printf("ram_cap_cb(bytes=0x%zx, align=0x%zx)\n", bytes, align);
+
+    err = ram_alloc_aligned(retcap, bytes, align);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "ram_alloc_aligned() failed");
+        return err_push(err, LIB_ERR_RAM_ALLOC);
+    }
+
+    struct capability cap;
+    err = cap_direct_identify(*retcap, &cap);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cap_direct_identify() failed");
+        return err_push(err, LIB_ERR_CAP_IDENTIFY);
+    }
+
+    *retbytes = get_size(&cap);
+
+    return SYS_ERR_OK;
 }
 
 static void putchar_cb(char c) {

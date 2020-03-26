@@ -179,7 +179,6 @@ size_t slab_freecount(struct slab_allocator *slabs)
  */
 static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
 {
-    DEBUG_BEGIN;
     errval_t err;
     struct capref frame_cap;
 
@@ -194,14 +193,6 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
-
-    /*
-    // M1
-    err = paging_map_fixed_attr(get_current_paging_state(), vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
-    if (err_is_fail(err)) {
-        return err_push(err, LIB_ERR_VSPACE_MAP);
-    }
-    */
 
     slab_grow(slabs, buf, bytes);
 
@@ -227,18 +218,20 @@ errval_t slab_ensure_threshold(struct slab_allocator *slabs, const size_t thresh
 {
     errval_t err;
 
-    if (slabs->is_refilling)
+    if (slabs->is_refilling) {
         return SYS_ERR_OK;
+    }
 
     slabs->is_refilling = true;
-    const size_t count = slab_freecount(slabs);
+    size_t count = slab_freecount(slabs);
 
-    if (count < threshold) {
+    while (count < threshold) {
         err = slabs->refill_func(slabs);
         if (err_is_fail(err)) {
             slabs->is_refilling = false;
             return err_push(err, LIB_ERR_SLAB_REFILL);
         }
+        count = slab_freecount(slabs);
     }
 
     slabs->is_refilling = false;
