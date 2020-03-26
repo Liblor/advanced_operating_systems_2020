@@ -47,7 +47,7 @@ static bool test_rpc(void)
     debug_printf("calling aos_rpc_process_spawn\n");
     rpc = aos_rpc_get_process_channel();
     {
-        for(int i = 0; i < 1; i ++) {
+        for(int i = 0; i < 2; i ++) {
             char *binary_name1 = "hello";
             domainid_t pid1;
             coreid_t core = 0;
@@ -61,7 +61,7 @@ static bool test_rpc(void)
         }
     }
     {
-        for(int i = 0; i < 1; i ++) {
+        for(int i = 0; i < 2; i ++) {
             char *name = NULL;
             domainid_t pid = 0;
             err = aos_rpc_lmp_process_get_name(rpc, pid, &name);
@@ -72,18 +72,21 @@ static bool test_rpc(void)
             debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
         }
     }
-//    {
-//        for(int i = 0; i < 1; i ++) {
-//            char *name = NULL;
-//            domainid_t pid = 0;
-//            err = aos_rpc_lmp_process_get_all_pids(rpc, pid, &name);
-//            if (err_is_fail(err)) {
-//                DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
-//                return false;
-//            }
-//            debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
-//        }
-//    }
+    {
+        for(int i = 0; i < 2; i ++) {
+            domainid_t *pids = NULL;
+            size_t pid_count = -1;
+            err = aos_rpc_lmp_process_get_all_pids(rpc, &pids, &pid_count);
+            if (err_is_fail(err)) {
+                DEBUG_ERR(err, "aos_rpc_lmp_process_get_all_pids()\n");
+                return false;
+            }
+            debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
+            for(int j = 0; j < pid_count; j ++){
+                debug_printf("pid: %d:\n", pids[j]);
+            }
+        }
+    }
     return true;
 }
 
