@@ -32,6 +32,7 @@
 #include <arch/arm/gic.h>
 #include <arch/arm/platform.h>
 #include <arch/arm/syscall_arm.h>
+#include <serial.h>
 
 // helper macros  for invocation handler definitions
 #define INVOCATION_HANDLER(func) \
@@ -1319,6 +1320,10 @@ void sys_syscall(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,
                 r.error = sys_print((const char*)a1, (size_t)a2);
             }
             break;
+
+        case SYSCALL_GETCHAR:
+            r.value = serial_console_getchar();
+            r.error = SYS_ERR_OK;
 
         case SYSCALL_DEBUG:
             if (a1 == DEBUG_CREATE_IRQ_SRC_CAP) {
