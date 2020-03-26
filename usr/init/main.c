@@ -120,7 +120,6 @@ static int bsp_main(int argc, char *argv[])
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
-
     {
         char *binary_name1 = "hello";
         struct spawninfo si1;
@@ -133,14 +132,14 @@ static int bsp_main(int argc, char *argv[])
         }
     }
     {
-        struct spawninfo si2;
-        char *binary_name2 = "memeater";
-        domainid_t pid2;
-        err = spawn_load_by_name(binary_name2, &si2, &pid2);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "spawn_load_by_name()");
-            return err;
-        }
+//        struct spawninfo si2;
+//        char *binary_name2 = "memeater";
+//        domainid_t pid2;
+//        err = spawn_load_by_name(binary_name2, &si2, &pid2);
+//        if (err_is_fail(err)) {
+//            DEBUG_ERR(err, "spawn_load_by_name()");
+//            return err;
+//        }
     }
 
     // Grading

@@ -46,18 +46,18 @@ static bool test_rpc(void)
     }
 
     debug_printf("calling aos_rpc_process_spawn\n");
-//    rpc = aos_rpc_get_process_channel();
+    rpc = aos_rpc_get_process_channel();
     {
-//        char *binary_name1 = "memeater";
-//        domainid_t pid1;
-//        coreid_t core = 0;
-//
-//        err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
-//        if (err_is_fail(err)) {
-//            DEBUG_ERR(err, "aos_rpc_process_spawn()");
-//            return false;
-//        }
-//        debug_printf("spawned child: pid %d\n", pid1);
+        char *binary_name1 = "hello";
+        domainid_t pid1;
+        coreid_t core = 0;
+
+        err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_process_spawn()");
+            return false;
+        }
+        debug_printf("spawned child: pid %d\n", pid1);
 
 //        struct spawninfo si1;
 //        char *binary_name2 = "memeater";
