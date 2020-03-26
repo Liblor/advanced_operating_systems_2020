@@ -3,7 +3,7 @@
 
 #include <aos/aos_rpc.h>
 
-typedef errval_t (* ram_cap_callback_t)(const size_t bytes, const size_t align, struct capref *retcap, size_t *retbytes);
+typedef errval_t (* ram_cap_callback_t)(const size_t bytes, const size_t alignment, struct capref *retcap, size_t *retbytes);
 
 struct memoryserver_cb_state {
 };
