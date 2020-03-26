@@ -104,6 +104,8 @@ static void service_recv_cb(void *arg)
         state->pending_state = EmptyState;
         // TODO
 
+        // TODO: error handling, free malloc on err
+        
         struct rpc_message *ret = NULL;
         err = handle_complete_msg(state->complete_msg, &ret);
         if (err_is_fail(err)) {
