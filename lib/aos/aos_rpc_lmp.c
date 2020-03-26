@@ -314,6 +314,29 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
+static inline
+errval_t validate_lmp_header(struct lmp_recv_msg *msg, enum rpc_message_method method) {
+    if (msg == NULL) {
+        DEBUG_PRINTF("msg null\n");
+        return LIB_ERR_LMP_INVALID_RESPONSE;
+    }
+    if (msg->buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part)) {
+        DEBUG_PRINTF("invalid buflen\n");
+        return LIB_ERR_LMP_INVALID_RESPONSE;
+    }
+    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+    if (msg_part->status != Status_Ok) {
+        DEBUG_PRINTF("status not ok\n");
+        return LIB_ERR_LMP_INVALID_RESPONSE;
+    }
+    if (msg_part->method != method) {
+        DEBUG_PRINTF("wrong method\n");
+        return LIB_ERR_LMP_INVALID_RESPONSE;
+    }
+
+    return SYS_ERR_OK;
+}
+
 static
 void client_process_get_name_cb(void *arg) {
     debug_printf("client_process_get_name_cb()\n");
@@ -321,10 +344,9 @@ void client_process_get_name_cb(void *arg) {
     struct aos_rpc *rpc = (struct aos_rpc *) arg;
     struct lmp_chan *lc = &rpc->lc;
     struct aos_rpc_lmp *lmp = rpc->lmp;
-    // struct client_serial_state *state = (struct client_serial_state*) lmp->shared; TODO
-    void * state = NULL;
-
+    struct client_process_state *state = (struct client_process_state*) lmp->shared;
     struct capref cap;
+
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
@@ -339,20 +361,35 @@ void client_process_get_name_cb(void *arg) {
         lmp->err = err;
         return;
     }
-    return_with_err(msg.buf.buflen < sizeof(struct rpc_message_part), lmp, "invalid buflen");
+    if (state->pending_state == EmptyState) {
+        err = validate_lmp_header(&msg, Method_Process_Get_Name);
+        if (err_is_fail(err)) {
+            lmp->err = err;
+            return;
+        }
 
-    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
 
-    return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
-    return_with_err(msg_part->method != Method_Process_Get_Name, lmp, "wrong method in response");
+    } else if (state->pending_state == DataInTransmit) {
 
-//    state->c_recv = (char) msg_part->payload[0];
+    }
+
+
+    err = lmp_chan_register_recv(lc, &lmp->ws,
+                                 MKCLOSURE(client_process_get_name_cb, arg));
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "");
+        return;
+    }
+
     lmp->err = SYS_ERR_OK;
 }
 
 errval_t
 aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
 {
+    debug_printf("aos_rpc_lmp_process_get_name()");
+
+    errval_t err;
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(pid));
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -363,38 +400,51 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &pid, sizeof(pid));
 
-    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
-        goto clean_up_msg;
-    }
-
-    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
+    // setup state for response
     assert(rpc->lmp->shared != NULL);
+    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
+    struct client_process_state *state = lmp->shared;
+    memset(state, 0, sizeof(struct client_process_state));
+    lmp->err = SYS_ERR_OK;
+    state->pending_state = EmptyState;
 
+    // register response handler
     err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_process_get_name_cb, rpc));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_register_recv failed");
         goto clean_up_msg;
     }
-    err = event_dispatch(&lmp->ws);
+    // send request
+    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
+        goto clean_up_msg;
+    }
+    // wait until all response parts received
+    do {
+        err = event_dispatch(&lmp->ws);
+    } while (err_is_ok(err) && state->bytes_received < state->total_length);
+        if (err_is_fail(err)) {
         goto clean_up_msg;
     }
     if (err_is_fail(lmp->err)) {
         err = lmp->err;
         goto clean_up_msg;
     }
+    assert(state->name != NULL);
+    const size_t tot_str_len = MIN(RPC_LMP_MAX_STR_LEN, state->total_length);
+    *name = malloc(tot_str_len);
+    if (*name == NULL) {
+        goto clean_up_msg;
+    }
 
-//    struct client_serial_state *state = (struct client_serial_state *) rpc->lmp->shared;
-// save result
+    strncpy(*name, state->name, tot_str_len);
 
     err = SYS_ERR_OK;
     goto clean_up_msg;
 
     clean_up_msg:
     free(msg);
-    DEBUG_ERR(err, "aos_rpc_lmp_process_get_name failed");
     return err;
 }
 
