@@ -391,6 +391,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     assert(state->pid_array->pid_count == 1);
     free(state->pid_array);
 
+    err = SYS_ERR_OK;
     clean_up_msg:
     free(msg);
     return err;
