@@ -54,8 +54,10 @@ static void ram_cap_cb(const size_t bytes, const size_t align)
 
 static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 {
+    // TODO keep track of pids
     printf("spawn_cb(name=%s...)\n", name);
-    return SYS_ERR_OK;
+    struct spawninfo si;
+    return spawn_load_by_name(name, &si, ret_pid);
 }
 
 static int bsp_main(int argc, char *argv[])
