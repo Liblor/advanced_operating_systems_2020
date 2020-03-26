@@ -20,8 +20,10 @@ static errval_t dummy_spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 
 static errval_t dummy_get_name(domainid_t pid, char **ret_name) {
     debug_printf("get name for pid: %d ...\n", pid);
+
     *ret_name = malloc(100);
-    (*ret_name) = "process name here";
+    char buf[100]= "process name here";
+    strncpy((*ret_name), buf, sizeof(buf));
     return SYS_ERR_OK;
 }
 
@@ -40,8 +42,6 @@ static errval_t dummy_get_all_pids (size_t *ret_count, domainid_t **ret_pids) {
 inline
 static errval_t handle_spawn_process(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t err;
-
-    // TODO create struct for each msg type
     char *name = rpc_msg_part->payload + sizeof(coreid_t);
     coreid_t core = *((coreid_t *)rpc_msg_part->payload);
     domainid_t pid;
@@ -211,17 +211,13 @@ static void service_recv_cb(void *arg)
             }
             return;
         }
-        HERE;
         err = aos_rpc_lmp_send_message(lc, ret, LMP_SEND_FLAGS_DEFAULT);
-        HERE;
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "cant reply with message");
         }
-        HERE;
         free(ret);
         free(state->complete_msg);
         state->complete_msg = NULL;
-        HERE;
     }
 }
 
