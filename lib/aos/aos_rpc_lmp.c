@@ -93,7 +93,7 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 {
-    const uint32_t str_len = MIN(strlen(string), RPC_LMP_MAX_STR_LEN);
+    const uint32_t str_len = MIN(strlen(string) + 1, RPC_LMP_MAX_STR_LEN);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + str_len);
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -352,7 +352,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
                       coreid_t core, domainid_t *newpid)
 {
     errval_t err;
-    const uint32_t str_len = MIN(strlen(cmdline), RPC_LMP_MAX_STR_LEN);
+    const uint32_t str_len = MIN(strlen(cmdline) + 1, RPC_LMP_MAX_STR_LEN);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + str_len);
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
