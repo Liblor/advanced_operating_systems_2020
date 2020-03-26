@@ -372,10 +372,9 @@ void client_process_get_name_cb(void *arg) {
         state->bytes_received = 0;
 
         state->name = malloc(state->total_length);
-        void *target = state->name;
 
         uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
-        memcpy(target, msg_part->payload, to_copy);
+        memcpy(state->name, msg_part->payload, to_copy);
         state->bytes_received += to_copy;
 
         lmp->err = SYS_ERR_OK;
@@ -389,14 +388,17 @@ void client_process_get_name_cb(void *arg) {
     if (state->bytes_received < state->total_length) {
         state->pending_state = DataInTransmit;
         // register callback
-        err = lmp_chan_register_recv(lc, get_default_waitset(),
+        err = lmp_chan_register_recv(lc, &lmp->ws,
                                      MKCLOSURE(client_process_get_name_cb, arg));
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "");
+            lmp->err = err;
             return;
         }
     } else {
         state->pending_state = EmptyState;
+        assert(state->total_length == state->bytes_received);
+        assert(state->name != NULL);
     }
     lmp->err = SYS_ERR_OK;
 }
@@ -440,7 +442,7 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     // wait until all response parts received
     do {
         err = event_dispatch(&lmp->ws);
-    } while (err_is_ok(err) && state->bytes_received < state->total_length);
+    } while (err_is_ok(err) && state->pending_state == DataInTransmit);
         if (err_is_fail(err)) {
         goto clean_up_msg;
     }
