@@ -24,23 +24,48 @@ static bool test_rpc(void)
 {
     errval_t err;
 
-    struct aos_rpc *rpc = aos_rpc_get_init_channel();
-    if (rpc == NULL) {
+    struct aos_rpc *rpc_init = aos_rpc_get_init_channel();
+    if (rpc_init == NULL) {
         debug_printf("Could not create init channel\n");
         return false;
     }
 
-    err = aos_rpc_lmp_send_number(rpc, 2);
+    err = aos_rpc_lmp_send_number(rpc_init, 2);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
         return false;
     }
 
-    err = aos_rpc_send_string(rpc, "hello world hello world whhhhhhhhh");
+    err = aos_rpc_send_string(rpc_init, "hello world hello world whhhhhhhhh");
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
         return false;
     }
+
+    struct aos_rpc *rpc_serial = aos_rpc_get_serial_channel();
+    if (rpc_init == NULL) {
+        debug_printf("Could not create serial channel\n");
+        return false;
+    }
+
+    /*
+    // Explicit test not necessary since printf is redirected to rpc during the
+    // execution of this entire program.
+    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
+        return false;
+    }
+    */
+
+    char c;
+    err = aos_rpc_lmp_serial_getchar(rpc_serial, &c);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
+        return false;
+    }
+
+    debug_printf("Received char %c\n", c);
 
     return true;
 }

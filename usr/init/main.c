@@ -38,19 +38,54 @@ coreid_t my_core_id;
 
 static void number_cb(struct lmp_chan *lc, uintptr_t num)
 {
-    printf("Received number %"PRIuPTR"\n", num);
+    debug_printf("Received number %"PRIuPTR"\n", num);
 }
 
 static void string_cb(struct lmp_chan *lc, char *c)
 {
-    printf("Received string %s\n", c);
+    debug_printf("Received string %s\n", c);
 }
 
 // We do not allocate RAM here. This should be done in the server itself.
-static void ram_cap_cb(const size_t bytes, const size_t align)
+static errval_t ram_cap_cb(const size_t bytes, const size_t align, struct capref *retcap, size_t *retbytes)
 {
-    printf("ram_cap_cb(bytes=0x%zx, align=0x%zx)\n", bytes, align);
+    errval_t err;
+
+    debug_printf("ram_cap_cb(bytes=0x%zx, align=0x%zx)\n", bytes, align);
+
+    err = ram_alloc_aligned(retcap, bytes, align);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "ram_alloc_aligned() failed");
+        return err_push(err, LIB_ERR_RAM_ALLOC);
+    }
+
+    struct capability cap;
+    err = cap_direct_identify(*retcap, &cap);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cap_direct_identify() failed");
+        return err_push(err, LIB_ERR_CAP_IDENTIFY);
+    }
+
+    *retbytes = get_size(&cap);
+
+    return SYS_ERR_OK;
 }
+
+static void putchar_cb(char c) {
+    // TODO Should we really still use the syscall here? Then what is the point
+    // in moving it here at all? It's one syscall for each char, how is that
+    // better than before?
+    sys_print((const char *)&c, 1);
+    //char r = '#';
+    //sys_print((const char *)&r, 1);
+}
+
+static void getchar_cb(char *c) {
+    // TODO Where should we get this character from?
+    debug_printf("getchar_cb()\n");
+    *c = 'a';
+}
+
 
 static int bsp_main(int argc, char *argv[])
 {
@@ -92,7 +127,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    err = serialserver_init(NULL, NULL);
+    err = serialserver_init(putchar_cb, getchar_cb);
     if (err_is_fail(err)) {
         debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
         abort();
@@ -104,7 +139,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    char *binary_name1 = "hello";
+    char *binary_name1 = "memeater";
     struct spawninfo si1;
     domainid_t pid1;
 

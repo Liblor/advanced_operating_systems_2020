@@ -15,6 +15,7 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
+#include <aos/slot_alloc.h>
 
 void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
@@ -38,6 +39,13 @@ errval_t aos_rpc_send_string(struct aos_rpc *rpc, const char *string)
 
 errval_t aos_rpc_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment, struct capref *ret_cap, size_t *ret_bytes)
 {
+
+    // We have to ensure that there are enough slots available prior to using
+    // the channel. We have to make sure the channel is used atomically, i.e.,
+    // there are no subsequent calls in the same callstack, so that the channel
+    // context can be used.
+    slot_ensure_threshold(10);
+
     return aos_rpc_lmp_get_ram_cap(rpc, bytes, alignment, ret_cap, ret_bytes);
 }
 

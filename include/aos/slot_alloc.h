@@ -96,6 +96,7 @@ errval_t two_level_slot_alloc_init_raw(struct multi_slot_allocator *ret,
                                        void *head_buf, void *reserve_buf, size_t bufsize);
 
 errval_t slot_alloc_init(void);
+void slot_ensure_threshold(const size_t threshold);
 struct slot_allocator *get_default_slot_allocator(void);
 errval_t slot_alloc(struct capref *ret);
 

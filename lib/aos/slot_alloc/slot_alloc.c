@@ -33,6 +33,17 @@ struct slot_allocator *get_default_slot_allocator(void)
 }
 
 /**
+ * \brief Refill the underlying slab to ensure a certain threshold
+ */
+void slot_ensure_threshold(const size_t threshold)
+{
+    struct slot_alloc_state *state = get_slot_alloc_state();
+    struct multi_slot_allocator *def = &state->defca;
+
+    slab_ensure_threshold(&def->slab, threshold);
+}
+
+/**
  * \brief Default slot allocator
  *
  * \param ret Pointer to the cap to return the allocated slot in
