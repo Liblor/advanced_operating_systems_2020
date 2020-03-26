@@ -535,7 +535,13 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
     if (process_channel == NULL) {
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
-        process_channel->lmp->shared = NULL;
+
+        struct client_process_state *state = malloc(sizeof(struct client_process_state));
+        if (state == NULL) {
+            DEBUG_ERR(LIB_ERR_MALLOC_FAIL, "malloc failed");
+            return NULL;
+        }
+        process_channel->lmp->shared = state;
     }
 
     return process_channel;
