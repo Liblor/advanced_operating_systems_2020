@@ -10,7 +10,6 @@
 // Call the registered receive handler, if any.
 static void service_recv_cb(void *arg)
 {
-    debug_printf("service_recv_cb()\n");
     struct rpc_lmp_handler_state *state = arg;
     struct rpc_lmp_server *server = state->server;
 
@@ -82,7 +81,9 @@ static void open_recv_cb(void *arg)
         return;
     }
 
-    err = lmp_chan_send0(service_chan, LMP_SEND_FLAGS_DEFAULT, service_chan->local_cap);
+    do {
+        err = lmp_chan_send0(service_chan, LMP_SEND_FLAGS_DEFAULT, service_chan->local_cap);
+    } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
         return;

@@ -39,15 +39,12 @@ struct processserver_state {
 
 // TODO add remove_from_proc_list
 
-errval_t add_to_proc_list(struct processserver_state *ps, char *name, domainid_t pid);
+errval_t add_to_proc_list(char *name, domainid_t *pid);
 
-errval_t get_pid_array(struct processserver_state *ps, struct process_pid_array **ret_pid_array);
+errval_t get_pid_array(struct process_pid_array **ret_pid_array);
 
-errval_t get_name_by_pid(struct processserver_state *ps, domainid_t pid, char **ret_name);
+errval_t get_name_by_pid(domainid_t pid, char **ret_name);
 
-
-
-
-
+errval_t get_all_pids(size_t *ret_num_pids, domainid_t **ret_pids);
 
 #endif

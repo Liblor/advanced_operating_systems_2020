@@ -62,6 +62,7 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
         err = lmp_chan_send4(c, flags, (first ? cap : NULL_CAP), words[0], words[1], words[2], words[3]);
 
         if (lmp_err_is_transient(err)) {
+            DEBUG_ERR(err, "lmp_chan_send4 failed (transient)");
             continue;
         } else if (err_is_fail(err)) {
             DEBUG_ERR(err, "lmp_chan_send4 failed");
@@ -512,8 +513,6 @@ void client_process_get_name_cb(void *arg) {
 errval_t
 aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
 {
-    debug_printf("aos_rpc_lmp_process_get_name()\n");
-
     errval_t err;
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(pid));
     if (msg == NULL) {
@@ -574,8 +573,6 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
 // TODO: generalize
 static
 void client_process_get_all_pids_cb(void *arg) {
-    debug_printf("client_process_get_all_pids_cb\n");
-
     struct aos_rpc *rpc = (struct aos_rpc *) arg;
     struct lmp_chan *lc = &rpc->lc;
     struct aos_rpc_lmp *lmp = rpc->lmp;
@@ -620,7 +617,7 @@ void client_process_get_all_pids_cb(void *arg) {
 
     } else if (state->pending_state == DataInTransmit) {
         uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
-        memcpy(state->pid_array + state->bytes_received, (char *) &msg.words[0], to_copy);
+        memcpy(((char *) state->pid_array) + state->bytes_received, (char *) &msg.words[0], to_copy);
         state->bytes_received += to_copy;
     }
 
@@ -645,7 +642,6 @@ errval_t
 aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
                              size_t *pid_count)
 {
-    debug_printf("aos_rpc_lmp_process_get_all_pids()\n");
     errval_t err;
     struct rpc_message *msg = malloc(sizeof(struct rpc_message));
     if (msg == NULL) {
@@ -784,7 +780,9 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
         return NULL;
     }
 
-    err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
+    do {
+        err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
+    } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
         return NULL;
