@@ -8,11 +8,6 @@
 typedef void (* recv_number_callback_t)(uint64_t numb);
 typedef void (* recv_string_callback_t)(char *string);
 
-enum pending_state {
-    EmptyState = 0,
-    StringTransmit = 1,
-};
-
 struct initserver_cb_state {
 };
 

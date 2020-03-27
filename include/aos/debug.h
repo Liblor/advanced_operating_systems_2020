@@ -62,11 +62,16 @@ void user_panic_fn(const char *file, const char *func, int line,
 # define HERE fprintf(stderr, "Disp %.*s.%u: %s, %s, %u\n", \
                         DISP_NAME_LEN, disp_name(), disp_get_core_id(), \
                       __FILE__, __func__, __LINE__)
+
+
+#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, ""), true) : false))
+
 #endif
 
 #define CONFIG_PAGING_DEBUG 1
 #define DEBUG_BEGIN ((void)0) //printf("\033[0;36m%s %s\033[0m\n",  __PRETTY_FUNCTION__,  "begin")
 #define DEBUG_END   ((void)0) //printf("\033[0;36m%s %s\033[0m\n",  __PRETTY_FUNCTION__,  "end")
+
 
 
 /**
