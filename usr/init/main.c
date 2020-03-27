@@ -99,6 +99,45 @@ static void getchar_cb(char *c) {
     }
 }
 
+static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
+{
+    errval_t err;
+
+    printf("spawn_cb(name=%s...)\n", name);
+    // TODO: we currently ignore coreid, as we are single core
+
+    struct spawninfo si;
+
+    err = add_to_proc_list(name, ret_pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "add_to_proc_list()");
+        return err;
+    }
+
+    err = spawn_load_by_name(name, &si, ret_pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "spawn_load_by_name()");
+        // TODO: If spawn failed, remove the process from the processserver state list.
+        return err;
+    }
+
+    debug_printf("new pid is %d\n", *ret_pid);
+
+    return SYS_ERR_OK;
+}
+
+static errval_t get_name_cb(domainid_t pid, char **ret_name) {
+    return get_name_by_pid(pid, ret_name);
+}
+
+static errval_t process_get_all_pids(size_t *ret_count, domainid_t **ret_pids) {
+    errval_t err;
+
+    err = get_all_pids(ret_count, ret_pids);
+
+    return err;
+}
+
 static int bsp_main(int argc, char *argv[])
 {
     errval_t err;
@@ -145,21 +184,21 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    err = processserver_init(NULL, NULL, NULL);
+    err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
 
-    char *binary_name1 = "memeater";
-    struct spawninfo si1;
-    domainid_t pid1;
+    //char *binary_name1 = "memeater";
+    //struct spawninfo si1;
+    //domainid_t pid1;
 
-    err = spawn_load_by_name(binary_name1, &si1, &pid1);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in event_dispatch");
-        abort();
-    }
+    //err = spawn_load_by_name(binary_name1, &si1, &pid1);
+    //if (err_is_fail(err)) {
+    //    DEBUG_ERR(err, "in event_dispatch");
+    //    abort();
+    //}
 
     char *binary_name2 = "hello";
     struct spawninfo si2;

@@ -61,7 +61,7 @@ static void service_recv_cb(void *arg)
                 state->bytes_received += to_copy;
                 state->total_length = rpc_msg_part->payload_length;
                 if (state->bytes_received < state->total_length) {
-                    state->pending_state = StringTransmit;
+                    state->pending_state = DataInTransmit;
                 } else {
                     if (recv_string_cb != NULL) {
                         recv_string_cb(lc, state->string);
@@ -71,19 +71,19 @@ static void service_recv_cb(void *arg)
                     state->bytes_received = 0;
                     state->total_length = 0;
 
-                    free(state->string);        // TODO discuss
+                    free(state->string);
                     state->string = NULL;
                 }
                 break;
             }
             default: break;
         }
-    } else if (state->pending_state == StringTransmit) {
+    } else if (state->pending_state == DataInTransmit) {
         uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
         memcpy(state->string + state->bytes_received, (char *) &msg.words[0], to_copy);
         state->bytes_received += to_copy;
         if (state->bytes_received < state->total_length) {
-            state->pending_state = StringTransmit;
+            state->pending_state = DataInTransmit;
         } else {
             if (recv_string_cb != NULL) {
                 recv_string_cb(lc, state->string);
@@ -93,7 +93,7 @@ static void service_recv_cb(void *arg)
             state->bytes_received = 0;
             state->total_length = 0;
 
-            free(state->string);        // TODO discuss
+            free(state->string);
             state->string = NULL;
         }
     }

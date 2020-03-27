@@ -8,7 +8,11 @@
 
 enum rpc_message_status {
     Status_Ok = 0,
-    Status_Error = 1,
+    Spawn_Failed = 1,
+    Process_Get_Name_Failed = 2,
+    Process_Get_All_Pids_Failed = 3,
+    Status_Error = 4,
+
 };
 
 struct rpc_message_part {
@@ -40,6 +44,10 @@ struct aos_rpc_lmp {
     void *shared;
 };
 
+enum pending_state {
+    EmptyState = 0,
+    DataInTransmit = 1,
+};
 
 /** internal state for aos lmp impl. to receive serial getchar **/
 struct client_serial_state {
@@ -50,6 +58,21 @@ struct client_serial_state {
 struct client_ram_state {
     size_t bytes;
     struct capref cap;
+};
+
+struct process_pid_array {
+    size_t pid_count;
+    domainid_t pids[0];
+} __packed ;
+
+struct client_process_state {
+    uint32_t bytes_received; ///< How much was read from the client already.
+    uint32_t total_length;
+    enum pending_state pending_state;
+    union {
+        char *name;
+        struct process_pid_array *pid_array;
+    };
 };
 
 /**
