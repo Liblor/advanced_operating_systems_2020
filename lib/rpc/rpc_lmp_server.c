@@ -7,14 +7,58 @@
 // TODO: When another process terminates, free the associated channel. We
 // should also call state_free_handler().
 
+//static void add_segment(
+
 // Call the registered receive handler, if any.
 static void service_recv_cb(void *arg)
 {
     struct rpc_lmp_handler_state *state = arg;
     struct rpc_lmp_server *server = state->server;
+    struct lmp_chan *lc = &state->rpc->lc;
 
-    if (server->service_recv_handler != NULL) {
-        server->service_recv_handler(arg);
+    struct capref cap;
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+
+    err = lmp_chan_recv(lc, &msg, &cap);
+    // TODO Handle error
+
+    switch (state->msg_state) {
+    case Msg_State_Empty:
+        // Assumption is that the length field of the header fits into the first segment of a message.
+        struct rpc_message_part *header = (struct rpc_message_part *) msg.words;
+        size_t full_msg_size = sizeof(struct rpc_message) + header->payload_length;
+
+        // Allocate memory for the full message
+        state->msg->msg = malloc(full_msg_size);
+
+        // Some messages include a capability in the first segment
+        state->cap = cap;
+
+        // Reset counter for received bytes
+        state->payload_received = 0;
+
+        // Copy first segment into message buffer
+        size_t n = MIN(sizeof(msg.words), full_msg_size - state->payload_received);
+        memcpy(state->msg->msg + state->payload_received, msg.words, n);
+        state->payload_received += n;
+
+        state->msg_state = Msg_State_Received_Header;
+        break;
+    case Msg_State_Received_Header:
+        break;
+    default:
+        assert(!"Unknown message state");
+        break;
+    }
+
+    // Check if the full message has been received
+    if (state->payload_received == state->msg->payload_length) {
+        if (server->service_recv_handler != NULL) {
+            server->service_recv_handler(state->msg);
+        }
+
+        // Reset state
+        state->msg_state = Msg_State_Empty:
     }
 }
 
@@ -42,6 +86,7 @@ static void open_recv_cb(void *arg)
     }
 
     struct rpc_lmp_handler_state *state = calloc(1, sizeof(struct rpc_lmp_handler_state));
+    state->msg_state = Msg_State_Empty;
 
     state->server = server;
 

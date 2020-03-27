@@ -16,9 +16,19 @@ struct rpc_lmp_server {
     state_free_handler_t state_free_handler;
 };
 
+enum msg_state {
+    Msg_State_Empty,
+    Msg_State_Received_Header,
+}
+
 struct rpc_lmp_handler_state {
     struct aos_rpc rpc;
     struct rpc_lmp_server *server;
+
+    enum msg_state;
+    uint32_t payload_received; ///< How much of the payload was read from the client already.
+    struct rpc_message msg;
+
     void *shared;
 };
 
