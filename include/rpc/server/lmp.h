@@ -3,7 +3,8 @@
 
 #include <aos/aos_rpc.h>
 
-typedef void (* service_recv_handler_t)(void *arg);
+typedef void (* service_recv_handler_t)(struct rpc_message *msg, void *shared_state);
+// TODO: Change the signatures of these callbacks as well as the type of the argument is known.
 typedef void (* state_init_handler_t)(void *arg);
 typedef void (* state_free_handler_t)(void *arg);
 
@@ -19,15 +20,15 @@ struct rpc_lmp_server {
 enum msg_state {
     Msg_State_Empty,
     Msg_State_Received_Header,
-}
+};
 
 struct rpc_lmp_handler_state {
     struct aos_rpc rpc;
     struct rpc_lmp_server *server;
 
-    enum msg_state;
-    uint32_t payload_received; ///< How much of the payload was read from the client already.
-    struct rpc_message msg;
+    enum msg_state recv_state;
+    size_t bytes_received; ///< How much of the payload was read from the client already.
+    struct rpc_message *msg;
 
     void *shared;
 };

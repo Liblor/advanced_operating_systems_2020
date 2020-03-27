@@ -7,44 +7,74 @@
 // TODO: When another process terminates, free the associated channel. We
 // should also call state_free_handler().
 
-//static void add_segment(
+static size_t full_msg_size(struct rpc_message_part msg) {
+    size_t header_size = sizeof(struct rpc_message_part);
+    return header_size + msg.payload_length;
+}
+
+static void add_segment(void *dst_buf, struct lmp_recv_msg segment, size_t bytes_total, size_t *bytes_received) {
+    size_t bytes_left = bytes_total - *bytes_received;
+    void *dst_ptr = ((void *) dst_buf) + *bytes_received;
+
+    size_t to_copy = MIN(LMP_SEGMENT_SIZE, bytes_left);
+    memcpy(dst_ptr, segment.words, to_copy);
+    *bytes_received += to_copy;
+}
 
 // Call the registered receive handler, if any.
 static void service_recv_cb(void *arg)
 {
+    errval_t err;
+
     struct rpc_lmp_handler_state *state = arg;
     struct rpc_lmp_server *server = state->server;
-    struct lmp_chan *lc = &state->rpc->lc;
+    struct lmp_chan *lc = &state->rpc.lc;
 
+    // Accumulate message until full message is received
     struct capref cap;
-    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+    struct lmp_recv_msg segment = LMP_RECV_MSG_INIT;
 
-    err = lmp_chan_recv(lc, &msg, &cap);
-    // TODO Handle error
+    err = lmp_chan_recv(lc, &segment, &cap);
+    if (err_is_fail(err)) {
+        // Reset state
+        state->recv_state = Msg_State_Empty;
+        return;
+    }
+    // TODO Allocate new capability slot when needed
 
-    switch (state->msg_state) {
+    // TODO More message sanity checks
+    assert(segment.buf.buflen <= 4*sizeof(uint64_t));
+
+    size_t bytes_total;
+
+    switch (state->recv_state) {
     case Msg_State_Empty:
+        debug_printf("Msg_State_Empty\n");
         // Assumption is that the length field of the header fits into the first segment of a message.
-        struct rpc_message_part *header = (struct rpc_message_part *) msg.words;
-        size_t full_msg_size = sizeof(struct rpc_message) + header->payload_length;
+        struct rpc_message_part *header = (struct rpc_message_part *) segment.words;
+        bytes_total = full_msg_size(*header);
+        debug_printf("bytes_total=%u\n", bytes_total);
 
         // Allocate memory for the full message
-        state->msg->msg = malloc(full_msg_size);
+        state->msg = (struct rpc_message *) calloc(1, bytes_total);
 
         // Some messages include a capability in the first segment
-        state->cap = cap;
+        state->msg->cap = cap;
 
-        // Reset counter for received bytes
-        state->payload_received = 0;
+        // Reset counter for received bytes (header has already been received)
+        state->bytes_received = 0;
 
         // Copy first segment into message buffer
-        size_t n = MIN(sizeof(msg.words), full_msg_size - state->payload_received);
-        memcpy(state->msg->msg + state->payload_received, msg.words, n);
-        state->payload_received += n;
+        add_segment(&state->msg->msg, segment, bytes_total, &state->bytes_received);
 
-        state->msg_state = Msg_State_Received_Header;
+        state->recv_state = Msg_State_Received_Header;
         break;
     case Msg_State_Received_Header:
+        debug_printf("Msg_State_Received_Header\n");
+        bytes_total = full_msg_size(state->msg->msg);
+
+        // Copy segment into message buffer
+        add_segment(&state->msg->msg, segment, bytes_total, &state->bytes_received);
         break;
     default:
         assert(!"Unknown message state");
@@ -52,13 +82,15 @@ static void service_recv_cb(void *arg)
     }
 
     // Check if the full message has been received
-    if (state->payload_received == state->msg->payload_length) {
+    if (state->bytes_received == full_msg_size(state->msg->msg)) {
+        debug_printf("Received entire message\n");
         if (server->service_recv_handler != NULL) {
-            server->service_recv_handler(state->msg);
+            // TODO Also pass a callback here to send a reply message
+            server->service_recv_handler(state->msg, state->shared);
         }
 
         // Reset state
-        state->msg_state = Msg_State_Empty:
+        state->recv_state = Msg_State_Empty;
     }
 }
 
@@ -86,7 +118,7 @@ static void open_recv_cb(void *arg)
     }
 
     struct rpc_lmp_handler_state *state = calloc(1, sizeof(struct rpc_lmp_handler_state));
-    state->msg_state = Msg_State_Empty;
+    state->recv_state = Msg_State_Empty;
 
     state->server = server;
 
