@@ -11,12 +11,13 @@ static struct rpc_lmp_server server;
 static putchar_callback_t putchar_cb = NULL;
 static getchar_callback_t getchar_cb = NULL;
 
+
 static errval_t reply_char(struct lmp_chan *lc, char c) {
     errval_t err;
 
     struct rpc_message msg;
 
-    msg.cap = NULL;
+    msg.cap = NULL_CAP;
     msg.msg.method = Method_Serial_Getchar;
     msg.msg.payload_length = sizeof(c);
     msg.msg.status = Status_Ok;
@@ -31,32 +32,14 @@ static errval_t reply_char(struct lmp_chan *lc, char c) {
     return SYS_ERR_OK;
 }
 
-static void service_recv_cb(void *arg)
+static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan)
 {
     errval_t err;
 
-    struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
-    struct aos_rpc *rpc = &common_state->rpc;
-    struct lmp_chan *lc = &rpc->lc;
-    //struct serialserver_cb_state *state = common_state->shared;
-
-    struct capref cap;
-    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
-
-    err = lmp_chan_recv(lc, &msg, &cap);
-    if (err_is_fail(err)) {
-        if (!lmp_err_is_transient(err)) {
-            DEBUG_ERR(err, "lmp_chan_recv() failed (not transient)");
-        }
-        return;
-    }
-
-    struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
-
     char c;
-    switch (rpc_msg_part->method) {
+    switch (msg->msg.method) {
         case Method_Serial_Putchar:
-            memcpy(&c, rpc_msg_part->payload, sizeof(char));
+            memcpy(&c, msg->msg.payload, sizeof(char));
             if (putchar_cb != NULL) {
                 putchar_cb(c);
             }
@@ -69,7 +52,7 @@ static void service_recv_cb(void *arg)
                 // another callback to send the response, so that the server
                 // doesn't have to wait for this callback to complete.
                 getchar_cb(&c);
-                err = reply_char(lc, c);
+                err = reply_char(reply_chan, c);
                 if (err_is_fail(err)) {
                     DEBUG_ERR(err, "reply_char() failed");
                 }
