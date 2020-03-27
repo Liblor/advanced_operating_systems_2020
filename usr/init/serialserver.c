@@ -38,28 +38,28 @@ static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct 
 
     char c;
     switch (msg->msg.method) {
-        case Method_Serial_Putchar:
-            memcpy(&c, msg->msg.payload, sizeof(char));
-            if (putchar_cb != NULL) {
-                putchar_cb(c);
+    case Method_Serial_Putchar:
+        memcpy(&c, msg->msg.payload, sizeof(char));
+        if (putchar_cb != NULL) {
+            putchar_cb(c);
+        }
+        break;
+    case Method_Serial_Getchar:
+        if (getchar_cb != NULL) {
+            // TODO Currently, if this callback blocks (which is does if
+            // the callback calls sys_getchar) the server cannot process
+            // other requests. This could be solved by giving this callback
+            // another callback to send the response, so that the server
+            // doesn't have to wait for this callback to complete.
+            getchar_cb(&c);
+            err = reply_char(reply_chan, c);
+            if (err_is_fail(err)) {
+                DEBUG_ERR(err, "reply_char() failed");
             }
-            break;
-        case Method_Serial_Getchar:
-            if (getchar_cb != NULL) {
-                // TODO Currently, if this callback blocks (which is does if
-                // the callback calls sys_getchar) the server cannot process
-                // other requests. This could be solved by giving this callback
-                // another callback to send the response, so that the server
-                // doesn't have to wait for this callback to complete.
-                getchar_cb(&c);
-                err = reply_char(reply_chan, c);
-                if (err_is_fail(err)) {
-                    DEBUG_ERR(err, "reply_char() failed");
-                }
-            }
-            break;
-        default:
-            break;
+        }
+        break;
+    default:
+        break;
     }
 }
 
