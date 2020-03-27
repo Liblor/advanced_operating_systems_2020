@@ -103,8 +103,7 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 {
     errval_t err;
 
-    printf("spawn_cb(name=%s...)\n", name);
-    // TODO: we currently ignore coreid, as we are single core
+    grading_rpc_handler_process_spawn(name, coreid);
 
     struct spawninfo si;
 
@@ -127,11 +126,19 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 }
 
 static errval_t get_name_cb(domainid_t pid, char **ret_name) {
-    return get_name_by_pid(pid, ret_name);
+    errval_t err;
+
+    grading_rpc_handler_process_get_name(pid);
+
+    err = get_name_by_pid(pid, ret_name);
+
+    return err;
 }
 
 static errval_t process_get_all_pids(size_t *ret_count, domainid_t **ret_pids) {
     errval_t err;
+
+    grading_rpc_handler_process_get_all_pids();
 
     err = get_all_pids(ret_count, ret_pids);
 
