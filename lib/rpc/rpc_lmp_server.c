@@ -46,14 +46,13 @@ static void service_recv_cb(void *arg)
     assert(segment.buf.buflen <= 4*sizeof(uint64_t));
 
     size_t bytes_total;
+    struct rpc_message_part *header;
 
     switch (state->recv_state) {
     case Msg_State_Empty:
-        debug_printf("Msg_State_Empty\n");
         // Assumption is that the length field of the header fits into the first segment of a message.
-        struct rpc_message_part *header = (struct rpc_message_part *) segment.words;
+        header = (struct rpc_message_part *) segment.words;
         bytes_total = full_msg_size(*header);
-        debug_printf("bytes_total=%u\n", bytes_total);
 
         // Allocate memory for the full message
         state->msg = (struct rpc_message *) calloc(1, bytes_total);
@@ -70,7 +69,6 @@ static void service_recv_cb(void *arg)
         state->recv_state = Msg_State_Received_Header;
         break;
     case Msg_State_Received_Header:
-        debug_printf("Msg_State_Received_Header\n");
         bytes_total = full_msg_size(state->msg->msg);
 
         // Copy segment into message buffer
@@ -83,10 +81,9 @@ static void service_recv_cb(void *arg)
 
     // Check if the full message has been received
     if (state->bytes_received == full_msg_size(state->msg->msg)) {
-        debug_printf("Received entire message\n");
         if (server->service_recv_handler != NULL) {
             // TODO Also pass a callback here to send a reply message
-            server->service_recv_handler(state->msg, state->shared);
+            server->service_recv_handler(state->msg, state->shared, lc);
         }
 
         // Reset state

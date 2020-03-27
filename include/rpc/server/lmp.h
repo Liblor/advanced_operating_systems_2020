@@ -3,7 +3,7 @@
 
 #include <aos/aos_rpc.h>
 
-typedef void (* service_recv_handler_t)(struct rpc_message *msg, void *shared_state);
+typedef void (* service_recv_handler_t)(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan);
 // TODO: Change the signatures of these callbacks as well as the type of the argument is known.
 typedef void (* state_init_handler_t)(void *arg);
 typedef void (* state_free_handler_t)(void *arg);
