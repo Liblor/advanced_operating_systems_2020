@@ -375,7 +375,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     }
     msg->msg.method = Method_Spawn_Process;
     msg->msg.payload_length = sizeof(core) + str_len;
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &core, sizeof(core));
     strncpy(msg->msg.payload + sizeof(core), cmdline, str_len);
@@ -517,7 +517,7 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.method = Method_Process_Get_Name;
     msg->msg.payload_length = sizeof(pid);
     msg->msg.status = Status_Ok;
@@ -646,7 +646,7 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.method = Method_Process_Get_All_Pids;
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;
