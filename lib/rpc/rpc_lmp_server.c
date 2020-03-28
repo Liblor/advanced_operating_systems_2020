@@ -36,14 +36,14 @@ static void service_recv_cb(void *arg)
 
     err = lmp_chan_recv(lc, &segment, &cap);
     if (err_is_fail(err)) {
-        // Reset state
-        state->recv_state = Msg_State_Empty;
-        return;
+        DEBUG_ERR(err, "lmp_chan_recv() failed");
+        goto reset_state;
     }
     // TODO Allocate new capability slot when needed
+    // TODO Reply with errval_t when an error occurs
 
     // TODO More message sanity checks
-    assert(segment.buf.buflen <= 4*sizeof(uint64_t));
+    assert(sizeof(struct rpc_message_part) <= segment.buf.buflen * sizeof(uintptr_t));
 
     size_t bytes_total;
     struct rpc_message_part *header;
@@ -54,8 +54,17 @@ static void service_recv_cb(void *arg)
         header = (struct rpc_message_part *) segment.words;
         bytes_total = full_msg_size(*header);
 
+        if (header->status != Status_Ok) {
+            debug_printf("received request where status is not ok\n");
+            goto reset_state;
+        }
+
         // Allocate memory for the full message
         state->msg = (struct rpc_message *) calloc(1, bytes_total);
+        if (state->msg == NULL) {
+            debug_printf("calloc() failed\n");
+            goto reset_state;
+        }
 
         // Some messages include a capability in the first segment
         state->msg->cap = cap;
@@ -86,8 +95,16 @@ static void service_recv_cb(void *arg)
             server->service_recv_handler(state->msg, state->shared, lc);
         }
 
-        // Reset state
-        state->recv_state = Msg_State_Empty;
+        goto reset_state;
+    }
+
+    return;
+
+reset_state:
+    state->recv_state = Msg_State_Empty;
+    if (state->msg != NULL) {
+        free(state->msg);
+        state->msg = NULL;
     }
 }
 
@@ -117,6 +134,7 @@ static void open_recv_cb(void *arg)
 
     struct rpc_lmp_handler_state *state = calloc(1, sizeof(struct rpc_lmp_handler_state));
     state->recv_state = Msg_State_Empty;
+    state->msg = NULL;
 
     state->server = server;
 
