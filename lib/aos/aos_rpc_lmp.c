@@ -46,7 +46,6 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
     errval_t err;
 
     const uint64_t msg_size = sizeof(msg->msg) + msg->msg.payload_length;
-    struct capref cap = msg->cap == NULL ? NULL_CAP : *msg->cap;
 
     uintptr_t words[LMP_MSG_LENGTH];
 
@@ -59,7 +58,7 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);
 
-        err = lmp_chan_send4(c, flags, (first ? cap : NULL_CAP), words[0], words[1], words[2], words[3]);
+        err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
 
         if (lmp_err_is_transient(err)) {
             DEBUG_ERR(err, "lmp_chan_send4 failed (transient)");
@@ -84,7 +83,7 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     msg->msg.method = Method_Send_Number;
     msg->msg.payload_length = sizeof(num);
     msg->msg.status = Status_Ok;
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     memcpy(msg->msg.payload, &num, sizeof(num));
 
     errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
@@ -102,7 +101,7 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     }
     msg->msg.method = Method_Send_String;
     msg->msg.payload_length = str_len;
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.status = Status_Ok;
     strncpy(msg->msg.payload, string, str_len);
 
@@ -168,7 +167,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     msg->msg.method = Method_Get_Ram_Cap;
     msg->msg.payload_length = payload_length;
     msg->msg.status = Status_Ok;
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
 
@@ -261,7 +260,7 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;
@@ -309,7 +308,7 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Putchar;
     msg->msg.payload_length = sizeof(c);
     msg->msg.status = Status_Ok;
@@ -376,7 +375,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     }
     msg->msg.method = Method_Spawn_Process;
     msg->msg.payload_length = sizeof(core) + str_len;
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &core, sizeof(core));
     strncpy(msg->msg.payload + sizeof(core), cmdline, str_len);
@@ -518,7 +517,7 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.method = Method_Process_Get_Name;
     msg->msg.payload_length = sizeof(pid);
     msg->msg.status = Status_Ok;
@@ -647,7 +646,7 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    msg->cap = NULL;
+    msg->cap = NULL_CAP;
     msg->msg.method = Method_Process_Get_All_Pids;
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;

@@ -33,8 +33,10 @@ struct rpc_message_part {
         } \
     } while(0);
 
+#define LMP_SEGMENT_SIZE (sizeof(uintptr_t) * LMP_MSG_LENGTH)
+
 struct rpc_message {
-    struct capref *cap; ///< Optional cap to exchange, NULL if not set
+    struct capref cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
 };
 

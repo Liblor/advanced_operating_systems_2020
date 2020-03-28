@@ -36,14 +36,14 @@ struct bootinfo *bi;
 
 coreid_t my_core_id;
 
-static void number_cb(struct lmp_chan *lc, uintptr_t num)
+static void number_cb(uintptr_t num)
 {
     grading_rpc_handle_number(num);
 
     debug_printf("Received number %"PRIuPTR"\n", num);
 }
 
-static void string_cb(struct lmp_chan *lc, char *c)
+static void string_cb(char *c)
 {
     grading_rpc_handler_string(c);
 

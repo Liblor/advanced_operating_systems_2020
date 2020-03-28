@@ -25,6 +25,7 @@
 #include <inttypes.h>
 #include <barrelfish_kpi/dispatcher_shared.h>
 #include <stdio.h>
+#include <ctype.h>
 
 #define DISP_MEMORY_SIZE            1024 // size of memory dump in bytes
 
@@ -470,14 +471,18 @@ void debug_dump_mem(lvaddr_t start_addr, lvaddr_t end_addr, lvaddr_t point)
 
     for (uintptr_t *p = (void *)start_addr; (uintptr_t)p < end_addr; p++) {
         uint8_t *bytes = (void *)p;
-        char buf[32];
+        char buf[64];
         size_t bufpos = 0;
         for (int i = 0; i < sizeof(uintptr_t); i++) {
             bufpos += snprintf(&buf[bufpos], sizeof(buf) - bufpos, "%02x ", bytes[i]);
             assert(bufpos < sizeof(buf));
         }
-        debug_printf("%p: %.*s %*" PRIxPTR "%s\n", p, (int)sizeof(buf), buf,
-                     (int)sizeof(uintptr_t) * 2, *p,
+        bufpos += snprintf(&buf[bufpos], sizeof(buf) - bufpos, " ");
+        for (int i = 0; i < sizeof(uintptr_t); i++) {
+            char c = isalnum(bytes[i]) ? bytes[i] : '.';
+            bufpos += snprintf(&buf[bufpos], sizeof(buf) - bufpos, "%c", c);
+        }
+        debug_printf("%p: %.*s\n", p, (int)sizeof(buf), buf,
                      p == (uintptr_t *)point ? " <== We are here" : "");
     }
 }

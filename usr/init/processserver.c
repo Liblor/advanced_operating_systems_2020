@@ -147,7 +147,7 @@ static errval_t handle_spawn_process(struct rpc_message_part *rpc_msg_part, stru
         return LIB_ERR_MALLOC_FAIL;
     }
     struct process_pid_array *pid_array = (struct process_pid_array *) &(*ret_msg)->msg.payload;
-    (*ret_msg)->cap = NULL;
+    (*ret_msg)->cap = NULL_CAP;
     (*ret_msg)->msg.payload_length = payload_length;
     (*ret_msg)->msg.method = Method_Spawn_Process;
     (*ret_msg)->msg.status = status;
@@ -175,7 +175,7 @@ static errval_t handle_process_get_name(struct rpc_message_part *rpc_msg_part, s
     char *result_name = (char *) &(*ret_msg)->msg.payload;
     strncpy(result_name, name, payload_length);
     free(name);
-    (*ret_msg)->cap = NULL;
+    (*ret_msg)->cap = NULL_CAP;
     (*ret_msg)->msg.payload_length = payload_length;
     (*ret_msg)->msg.method = Method_Process_Get_Name;
     (*ret_msg)->msg.status = status;
@@ -205,6 +205,7 @@ static errval_t handle_process_get_all_pids(struct rpc_message_part *rpc_msg_par
     memcpy(pid_array->pids, pids, sizeof(domainid_t) * pid_count);
     free(pids);
 
+    (*ret_msg)->cap = NULL_CAP;
     (*ret_msg)->msg.payload_length = payload_length;
     (*ret_msg)->msg.method = Method_Process_Get_All_Pids;
     (*ret_msg)->msg.status = status;
@@ -244,88 +245,39 @@ errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
 }
 
 
-// TODO make this more generic
-static void service_recv_cb(void *arg)
+static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan)
 {
+    errval_t err;
+
     debug_printf("processserver service_recv_cb()\n");
-    struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
-    struct aos_rpc *rpc = &common_state->rpc;
-    struct lmp_chan *lc = &rpc->lc;
-    struct processserver_cb_state *state = common_state->shared;
-    struct capref cap;
-    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
-    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+    struct rpc_message *ret = NULL;
+
+    err = handle_complete_msg(&msg->msg, &ret);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "");
-        return;
-    }
-    if (state->pending_state == EmptyState) {
-        err = validate_lmp_header(&msg);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "invalid input data");
-            return;
-        }
-        struct rpc_message_part *rpc_msg_part = (struct rpc_message_part *)msg.words;
-        const size_t complete_size = sizeof(struct rpc_message_part) + rpc_msg_part->payload_length;
-        state->total_length = complete_size;
-        state->complete_msg = malloc(complete_size);
-        if (state->complete_msg == NULL) {
-            DEBUG_ERR(err, "malloc failed");
-            return;
-        }
-        memset(state->complete_msg, 0, complete_size);
-        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), complete_size - state->bytes_received);
-        memcpy(state->complete_msg, rpc_msg_part, sizeof(struct rpc_message_part) + to_copy);
-        state->bytes_received = to_copy;
-
-    } else if (state->pending_state == DataInTransmit) {
-        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
-        memcpy(state->complete_msg->payload + state->bytes_received, (char *) &msg.words[0], to_copy);
-        state->bytes_received += to_copy;
+        DEBUG_ERR(err, "handle_complete_msg() failed");
+        goto cleanup;
     }
 
-    if (state->bytes_received < state->total_length) {
-        state->pending_state = DataInTransmit;
-    } else {
-        // clear state
-        state->pending_state = EmptyState;
-        state->bytes_received = 0;
-        state->total_length = 0;
+    err = aos_rpc_lmp_send_message(reply_chan, ret, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message() failed");
+    }
 
-        struct rpc_message *ret = NULL;
-        err = handle_complete_msg(state->complete_msg, &ret);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cant invoke handle_complete_msg");
-            if (ret != NULL) {
-                free(ret);
-            }
-            return;
-        }
-        err = aos_rpc_lmp_send_message(lc, ret, LMP_SEND_FLAGS_DEFAULT);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "cant reply with message");
-        }
+cleanup:
+    if (ret != NULL) {
         free(ret);
-        free(state->complete_msg);
-        state->complete_msg = NULL;
     }
 }
 
 // Initialize channel-specific data.
 static void state_init_cb(void *arg)
 {
+#if 0
     struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
     common_state->shared = malloc(sizeof(struct processserver_cb_state));
-
-    // keep receive callback registered
-    common_state->rpc.lc.endpoint->waitset_state.persistent = true;
-
-    struct processserver_cb_state *state = common_state->shared;
-    state->pending_state = EmptyState;
-    state->bytes_received = 0;
-    state->total_length = 0;
-    state->complete_msg = NULL;
+    struct initserver_cb_state *state = common_state->shared;
+#endif
 }
 
 // Free channel-specific data.
