@@ -81,6 +81,7 @@ struct pt_l2_entry {
 };
 
 #define PAGING_HASHMAP_BUCKETS 100
+#define PAGING_EXCEPTION_STACK_SIZE (8 * BASE_PAGE_SIZE)
 
 // struct to store the paging status of a process
 struct paging_state {
@@ -92,6 +93,7 @@ struct paging_state {
     struct _collections_hash_table *l0pt;
     // TODO: should be 64*sizeof(struct vaddr_region), but circular deps
     char buf[64*64];
+    char *exception_stack_base[PAGING_EXCEPTION_STACK_SIZE];
 };
 
 

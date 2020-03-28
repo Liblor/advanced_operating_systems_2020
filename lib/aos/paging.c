@@ -25,6 +25,10 @@
 static struct paging_state current;
 
 
+static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
+{
+    debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
+}
 
 /**
  * \brief Helper function that allocates a slot and
@@ -129,21 +133,34 @@ errval_t paging_init_state_foreign(struct paging_state *st, lvaddr_t start_vaddr
  */
 errval_t paging_init(void)
 {
+    errval_t err;
+
     DEBUG_BEGIN;
-    // TODO (M4): initialize self-paging handler
-    // TIP: use thread_set_exception_handler() to setup a page fault handler
-    // TIP: Think about the fact that later on, you'll have to make sure that
-    // you can handle page faults in any thread of a domain.
-    // TIP: it might be a good idea to call paging_init_state() from here to
-    // avoid code duplication.
 
     // TODO check parameters
     struct capref pdir = (struct capref) {
             .cnode = cnode_page,
             .slot = 0,
     };
-    paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
+    err = paging_init_state(&current, VADDR_OFFSET, pdir, get_default_slot_allocator());
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "paging_init_state() failed\n");
+        return err_push(err, LIB_ERR_PAGING_INITIALIZATION);
+    }
+
     set_current_paging_state(&current);
+
+    // TIP: Think about the fact that later on, you'll have to make sure that
+    // you can handle page faults in any thread of a domain.
+
+    char *exception_stack_top = (char *) current.exception_stack_base + sizeof(current.exception_stack_base);
+
+    err = thread_set_exception_handler(exception_handler, NULL, current.exception_stack_base, exception_stack_top, NULL, NULL);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "thread_set_exception_handler() failed\n");
+        return err_push(err, LIB_ERR_THREAD_SET_EXCEPTION_HANDLER);
+    }
+
     return SYS_ERR_OK;
 }
 

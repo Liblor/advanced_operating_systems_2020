@@ -424,10 +424,11 @@ errors libaos LIB_ERR_ {
     failure NAMESERVICE_CLIENT_INIT "Failure initialising nameservice client",
 
     // Threads package
-    failure THREAD_CREATE       "A version of thread create failed",
-    failure THREAD_JOIN        "Joining more than once not allowed",
-    failure THREAD_JOIN_DETACHED    "Tried to join with a detached thread",
-    failure THREAD_DETACHED    "Thread is already detached",
+    failure THREAD_CREATE                "A version of thread create failed",
+    failure THREAD_JOIN                  "Joining more than once not allowed",
+    failure THREAD_JOIN_DETACHED         "Tried to join with a detached thread",
+    failure THREAD_DETACHED              "Thread is already detached",
+    failure THREAD_SET_EXCEPTION_HANDLER "Installing exception handler failed",
 
     // Waitset/event code
     failure CHAN_ALREADY_REGISTERED "Attempt to register for an event on a channel which is already registered",
