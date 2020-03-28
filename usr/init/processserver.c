@@ -205,6 +205,7 @@ static errval_t handle_process_get_all_pids(struct rpc_message_part *rpc_msg_par
     memcpy(pid_array->pids, pids, sizeof(domainid_t) * pid_count);
     free(pids);
 
+    (*ret_msg)->cap = NULL_CAP;
     (*ret_msg)->msg.payload_length = payload_length;
     (*ret_msg)->msg.method = Method_Process_Get_All_Pids;
     (*ret_msg)->msg.status = status;
