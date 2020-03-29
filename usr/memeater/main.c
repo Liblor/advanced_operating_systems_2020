@@ -51,6 +51,8 @@ static errval_t request_and_map_memory(void)
         return err;
     }
 
+    return SYS_ERR_OK;
+
     struct capref cap1_frame;
     err = slot_alloc(&cap1_frame);
     assert(err_is_ok(err));
@@ -110,6 +112,7 @@ static errval_t request_and_map_memory(void)
 
 }
 
+__unused
 static errval_t test_basic_rpc(void)
 {
     errval_t err;
@@ -118,6 +121,7 @@ static errval_t test_basic_rpc(void)
 
     debug_printf("RPC: sending number...\n");
     err =  aos_rpc_send_number(init_rpc, 42);
+
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not send a string\n");
         return err;
@@ -149,8 +153,6 @@ int main(int argc, char *argv[])
 
     debug_printf("memeater started....\n");
 
-    return 0;
-
     init_rpc = aos_rpc_get_init_channel();
     if (!init_rpc) {
         USER_PANIC_ERR(err, "init RPC channel NULL?\n");
@@ -161,16 +163,15 @@ int main(int argc, char *argv[])
         USER_PANIC_ERR(err, "init RPC channel NULL?\n");
     }
 
-    err = test_basic_rpc();
-    if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "failure in testing basic RPC\n");
-    }
+//    err = test_basic_rpc();
+//    if (err_is_fail(err)) {
+//        USER_PANIC_ERR(err, "failure in testing basic RPC\n");
+//    }
 
     err = request_and_map_memory();
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "could not request and map memory\n");
     }
-
 
     /* test printf functionality */
     debug_printf("testing terminal printf function...\n");

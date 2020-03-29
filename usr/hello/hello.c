@@ -71,7 +71,7 @@ static bool test_rpc(void)
     rpc = aos_rpc_get_process_channel();
 
     {
-        for(int i = 0; i < 2; i ++) {
+        for(int i = 0; i < 10; i ++) {
             char *binary_name1 = "dummy";
             domainid_t pid1;
             coreid_t core = 0;
@@ -85,9 +85,9 @@ static bool test_rpc(void)
         }
     }
     {
-        for(int i = 0; i < 2; i ++) {
+        for(int i = 0; i < 10; i ++) {
             char *name = NULL;
-            err = aos_rpc_lmp_process_get_name(rpc, i+1, &name);
+            err = aos_rpc_lmp_process_get_name(rpc, i, &name);
             if (err_is_fail(err)) {
                 DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
                 return false;

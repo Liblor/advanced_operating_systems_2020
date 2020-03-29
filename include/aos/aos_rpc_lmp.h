@@ -49,6 +49,7 @@ struct aos_rpc_lmp {
 enum pending_state {
     EmptyState = 0,
     DataInTransmit = 1,
+    InvalidState = 2,
 };
 
 /** internal state for aos lmp impl. to receive serial getchar **/
@@ -76,11 +77,6 @@ struct client_process_state {
         struct process_pid_array *pid_array;
     };
 };
-
-/**
- * \brief Marshall rpc_message and send with LMP
- */
-errval_t aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags);
 
 /**
  * \brief Call this handler on the receive side for grading

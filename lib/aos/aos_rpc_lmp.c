@@ -2,14 +2,26 @@
 #include <aos/capabilities.h>
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
+#include <aos/aos_rpc_lmp_marshal.h>
 
 static struct aos_rpc *init_channel = NULL;
 static struct aos_rpc *memory_channel = NULL;
 static struct aos_rpc *process_channel = NULL;
 static struct aos_rpc *serial_channel = NULL;
 
-void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
-{
+static inline errval_t
+validate_recv_header(struct lmp_recv_msg *msg, enum pending_state state, enum rpc_message_method method) {
+    if (state == EmptyState) {
+        return_err(msg == NULL, "msg is null");
+        return_err(sizeof(uint64_t) * msg->buf.buflen < sizeof(struct rpc_message_part), "invalid buflen");
+        const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+        return_err(msg_part->status != Status_Ok, "status not ok");
+        return_err(msg_part->method != method, "wrong method in response");
+    }
+    return SYS_ERR_OK;
+}
+
+void aos_rpc_lmp_handler_print(char *string, uintptr_t *val, struct capref *cap) {
     if (string) {
         debug_printf("||TEST %s length %zu \n", string, strlen(string));
     }
@@ -25,8 +37,7 @@ void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
     }
 }
 
-errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
-{
+errval_t aos_rpc_lmp_init(struct aos_rpc *rpc) {
     lmp_chan_init(&rpc->lc);
     struct aos_rpc_lmp *rpc_lmp = malloc(sizeof(struct aos_rpc_lmp));
     if (rpc_lmp == NULL) {
@@ -41,41 +52,7 @@ errval_t aos_rpc_lmp_init(struct aos_rpc *rpc)
 }
 
 errval_t
-aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
-{
-    errval_t err;
-
-    const uint64_t msg_size = sizeof(msg->msg) + msg->msg.payload_length;
-
-    uintptr_t words[LMP_MSG_LENGTH];
-
-    uint32_t size_sent = 0;
-    uint8_t *base = (uint8_t *) &msg->msg;
-    bool first = true;
-
-    while(size_sent < msg_size) {
-        uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
-        memset(words, 0, sizeof(words));
-        memcpy(words, base + size_sent, to_send);
-
-        err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
-
-        if (lmp_err_is_transient(err)) {
-            DEBUG_ERR(err, "lmp_chan_send4 failed (transient), %s", err_getstring(err));
-            continue;
-        } else if (err_is_fail(err)) {
-            DEBUG_ERR(err, "lmp_chan_send4 failed");
-            return err;
-        }
-        size_sent += to_send;
-        first = false;
-    }
-    return SYS_ERR_OK;
-}
-
-errval_t
-aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
-{
+aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num) {
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(num));
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -92,8 +69,7 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 }
 
 errval_t
-aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
-{
+aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string) {
     const uint32_t str_len = MIN(strlen(string) + 1, RPC_LMP_MAX_STR_LEN);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + str_len);
     if (msg == NULL) {
@@ -110,6 +86,7 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     return err;
 }
 
+__unused
 static void client_ram_cb(void *arg) {
     debug_printf("client_ram_cb(...)\n");
     struct aos_rpc *rpc = arg;
@@ -140,7 +117,7 @@ static void client_ram_cb(void *arg) {
     bool buflen_invalid = msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part);
     return_with_err(buflen_invalid, lmp, "invalid buflen");
 
-    struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
+    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
 
     return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
     return_with_err(msg_part->method != Method_Get_Ram_Cap, lmp, "wrong method in response");
@@ -152,10 +129,9 @@ static void client_ram_cb(void *arg) {
     lmp->err = SYS_ERR_OK;
 }
 
-errval_t
-aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
-                    struct capref *ret_cap, size_t *ret_bytes)
-{
+__unused static errval_t
+aos_rpc_lmp_get_ram_cap2(struct aos_rpc *rpc, size_t bytes, size_t alignment,
+                        struct capref *ret_cap, size_t *ret_bytes) {
     errval_t err;
 
     // create request message
@@ -217,12 +193,124 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 }
 
 
+//__unused static void client_ram_cb(void *arg) {
+//    debug_printf("client_ram_cb(...)\n");
+//    struct aos_rpc *rpc = arg;
+//    struct client_ram_state *ram_state = rpc->lmp->shared;
+//    struct aos_rpc_lmp *lmp = rpc->lmp;
+//
+//    struct lmp_chan *lc = &rpc->lc;
+//
+//    struct capref cap;
+//    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+//
+//    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+//    if (err_is_fail(err) && lmp_err_is_transient(err)) {
+//        // reregister
+//        err = lmp_chan_register_recv(lc, &lmp->ws,
+//                                     MKCLOSURE(client_ram_cb, arg));
+//        if (err_is_fail(err)) {
+//            DEBUG_ERR(err, "");
+//            lmp->err = err;
+//            return;
+//        }
+//    }
+//    if (err_is_fail(err)) {
+//        DEBUG_ERR(err, "");
+//        lmp->err = err;
+//        return;
+//    }
+//    bool buflen_invalid = msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part);
+//    return_with_err(buflen_invalid, lmp, "invalid buflen");
+//
+//    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
+//
+//    return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
+//    return_with_err(msg_part->method != Method_Get_Ram_Cap, lmp, "wrong method in response");
+//    return_with_err(msg_part->payload_length != sizeof(size_t), lmp, "invalid payload len");
+//
+//    memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
+//    // TODO Free recv slot if cap is NULL_CAP
+//    ram_state->cap = cap;
+//    lmp->err = SYS_ERR_OK;
+//}
+
+static errval_t
+validate_get_ram_cap(struct lmp_recv_msg *msg, enum pending_state state) {
+    errval_t err = validate_recv_header(msg, state, Method_Get_Ram_Cap);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    if (state == EmptyState) {
+        const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+        return_err(msg_part->payload_length != sizeof(size_t), "no return size in payload");
+    }
+    return SYS_ERR_OK;
+}
+
+errval_t
+aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
+                        struct capref *ret_cap, size_t *ret_bytes) {
+    errval_t err;
+    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->msg.method = Method_Get_Ram_Cap;
+    msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
+    msg->cap = NULL_CAP;
+    memcpy(msg->msg.payload, &bytes, sizeof(bytes));
+    memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
+
+    struct rpc_message *recv = NULL;
+
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_get_ram_cap);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+
+    HERE;
+    // save response
+    struct client_ram_state *ram_state = (struct client_ram_state *) &recv->msg.payload;
+
+    // TODO Free recv slot if cap is NULL_CAP
+    HERE;
+
+    debug_printf("ret_cap: %p\n", ret_cap);
+    debug_printf("recv: %p\n", recv);
+    debug_printf("recv.cap: %p\n", recv->cap);
+    *ret_cap = recv->cap;
+    HERE;
+
+    debug_printf("ret_bytes: %p\n", ret_bytes);
+    debug_printf("ret_bytes: %p\n", *ret_bytes);
+    debug_printf("ram_state: %p\n", ram_state);
+    debug_printf("ram_state.bytes: %p\n", ram_state->bytes);
+
+    // ISSUE HERE
+    if (ret_bytes != NULL) {
+        memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
+    }
+    HERE;
+    debug_printf("bytes: %d\n", *ret_bytes);
+    HERE;
+    err = SYS_ERR_OK;
+    goto clean_up;
+
+    clean_up:
+    free(recv);
+    free(msg);
+    return err;
+}
+
 static
 void client_serial_cb(void *arg) {
     struct aos_rpc *rpc = (struct aos_rpc *) arg;
     struct lmp_chan *lc = &rpc->lc;
     struct aos_rpc_lmp *lmp = rpc->lmp;
-    struct client_serial_state *state = (struct client_serial_state*) lmp->shared;
+    struct client_serial_state *state = (struct client_serial_state *) lmp->shared;
 
     struct capref cap;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
@@ -253,8 +341,7 @@ void client_serial_cb(void *arg) {
 }
 
 errval_t
-aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
-{
+aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc) {
     assert(rpc->lmp->shared != NULL);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message));
     if (msg == NULL) {
@@ -300,8 +387,7 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 }
 
 errval_t
-aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
-{
+aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c) {
     assert(rpc->lmp->shared != NULL);
     // TODO Why is a malloc used here?
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
@@ -326,192 +412,62 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     return err;
 }
 
-// TODO refactor and generalize
-static void client_spawn_cb(void *arg) {
-    debug_printf("client_spawn_cb(...)\n");
-    struct aos_rpc *rpc = arg;
-    struct client_process_state *state = rpc->lmp->shared;
-    struct lmp_chan *lc = &rpc->lc;
-
-    struct capref cap;
-    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
-
-    errval_t err = lmp_chan_recv(lc, &msg, &cap);
-    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-        // reregister
-        err = lmp_chan_register_recv(lc, &rpc->lmp->ws, MKCLOSURE(client_spawn_cb, arg));
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-            rpc->lmp->err = err;
-            return;
-        }
-    }
+static errval_t validate_process_spawn(struct lmp_recv_msg *msg, enum pending_state state) {
+    errval_t err = validate_recv_header(msg, state, Method_Spawn_Process);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "");
-        rpc->lmp->err = err;
-        return;
+        return err;
     }
-    return_with_err(sizeof(uint64_t) * msg.buf.buflen < sizeof(struct rpc_message_part), rpc->lmp, "invalid buflen");
-    struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
-    return_with_err(msg_part->status != Status_Ok, rpc->lmp, "status not ok");
-    return_with_err(msg_part->method != Method_Spawn_Process, rpc->lmp, "wrong method in response");
-    return_with_err(msg_part->payload_length != sizeof(size_t) + sizeof(domainid_t), rpc->lmp, "invalid payload len");
-
-    state->pid_array = malloc(msg_part->payload_length);
-    memcpy(state->pid_array, msg_part->payload, sizeof(size_t) + sizeof(domainid_t));
-
-    rpc->lmp->err = SYS_ERR_OK;
+    if (state == EmptyState) {
+        const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+        return_err(msg_part->payload_length != sizeof(size_t) + sizeof(domainid_t), "invalid payload len");
+    }
+    return SYS_ERR_OK;
 }
 
 errval_t
 aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
-                      coreid_t core, domainid_t *newpid)
-{
+                          coreid_t core, domainid_t *newpid) {
     errval_t err;
     const uint32_t str_len = MIN(strlen(cmdline) + 1, RPC_LMP_MAX_STR_LEN);
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + str_len);
-    if (msg == NULL) {
+    struct rpc_message *send = malloc(sizeof(struct rpc_message) + str_len + sizeof(core));
+    if (send == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    msg->msg.method = Method_Spawn_Process;
-    msg->msg.payload_length = sizeof(core) + str_len;
-    msg->cap = NULL_CAP;
-    msg->msg.status = Status_Ok;
-    memcpy(msg->msg.payload, &core, sizeof(core));
-    strncpy(msg->msg.payload + sizeof(core), cmdline, str_len);
+    send->msg.method = Method_Spawn_Process;
+    send->msg.payload_length = sizeof(core) + str_len;
+    send->cap = NULL_CAP;
+    send->msg.status = Status_Ok;
+    memcpy(send->msg.payload, &core, sizeof(core));
+    memcpy(send->msg.payload + sizeof(core), cmdline, str_len);
 
-    // register receive handler state
-    struct client_process_state *state = rpc->lmp->shared;
-    memset(state, 0, sizeof(struct client_process_state));
-    state->pending_state = EmptyState;
-    err = lmp_chan_register_recv(&rpc->lc, &rpc->lmp->ws,
-                                 MKCLOSURE(client_spawn_cb, rpc));
+    struct rpc_message *recv = NULL;
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, send, &recv, validate_process_spawn);
     if (err_is_fail(err)) {
         goto clean_up_msg;
     }
 
-    // send spawn request
-    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        goto clean_up_msg;
-    }
-    // wait for response
-    err = event_dispatch(&rpc->lmp->ws);
-    if (err_is_fail(err)) {
-        goto clean_up_msg;
-    }
-    if (err_is_fail(rpc->lmp->err)) {
-        err = rpc->lmp->err;
-        goto clean_up_msg;
-    }
+    struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
+    *newpid = pid_array->pids[0];
 
-    // save response
-    *newpid = state->pid_array->pids[0];
-    assert(state->pid_array->pid_count == 1);
-    free(state->pid_array);
-
+    assert(pid_array->pid_count == 1);
     err = SYS_ERR_OK;
+
     clean_up_msg:
-    free(msg);
+    if (recv != NULL && recv->msg.payload != NULL) {
+        free(recv);
+    }
+    free(send);
+
     return err;
 }
 
-static inline
-errval_t validate_lmp_header(struct lmp_recv_msg *msg, enum rpc_message_method method) {
-    if (msg == NULL) {
-        DEBUG_PRINTF("msg null\n");
-        return LIB_ERR_LMP_INVALID_RESPONSE;
-    }
-    if (msg->buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part)) {
-        DEBUG_PRINTF("invalid buflen\n");
-        return LIB_ERR_LMP_INVALID_RESPONSE;
-    }
-    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
-    if (msg_part->status != Status_Ok) {
-        DEBUG_PRINTF("status not ok\n");
-        return LIB_ERR_LMP_INVALID_RESPONSE;
-    }
-    if (msg_part->method != method) {
-        DEBUG_PRINTF("wrong method\n");
-        return LIB_ERR_LMP_INVALID_RESPONSE;
-    }
-
-    return SYS_ERR_OK;
-}
-
-static
-void client_process_get_name_cb(void *arg) {
-    debug_printf("client_process_get_name_cb()\n");
-
-    struct aos_rpc *rpc = (struct aos_rpc *) arg;
-    struct lmp_chan *lc = &rpc->lc;
-    struct aos_rpc_lmp *lmp = rpc->lmp;
-    struct client_process_state *state = (struct client_process_state*) lmp->shared;
-    struct capref cap;
-
-    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
-
-    errval_t err = lmp_chan_recv(lc, &msg, &cap);
-    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-        // reregister
-        err = lmp_chan_register_recv(lc, &lmp->ws, MKCLOSURE(client_process_get_name_cb, arg));
-        if (err_is_fail(err)) {
-            lmp->err = LIB_ERR_CHAN_REGISTER_RECV;
-            return;
-        }
-    } else if (err_is_fail(err)) {
-        lmp->err = err;
-        return;
-    }
-    if (state->pending_state == EmptyState) {
-        err = validate_lmp_header(&msg, Method_Process_Get_Name);
-        if (err_is_fail(err)) {
-            lmp->err = err;
-            return;
-        }
-        struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
-        state->total_length = msg_part->payload_length; // TODO: introduce max len
-        state->bytes_received = 0;
-
-        state->name = malloc(state->total_length);
-        if (state->name == NULL) {
-            lmp->err = LIB_ERR_MALLOC_FAIL;
-            return;
-        }
-
-        uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
-        memcpy(state->name, msg_part->payload, to_copy);
-        state->bytes_received += to_copy;
-
-        lmp->err = SYS_ERR_OK;
-
-    } else if (state->pending_state == DataInTransmit) {
-        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
-        memcpy(state->name + state->bytes_received, (char *) &msg.words[0], to_copy);
-        state->bytes_received += to_copy;
-    }
-
-    if (state->bytes_received < state->total_length) {
-        state->pending_state = DataInTransmit;
-        // register callback
-        err = lmp_chan_register_recv(lc, &lmp->ws,
-                                     MKCLOSURE(client_process_get_name_cb, arg));
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-            lmp->err = err;
-            return;
-        }
-    } else {
-        state->pending_state = EmptyState;
-        assert(state->total_length == state->bytes_received);
-        assert(state->name != NULL);
-    }
-    lmp->err = SYS_ERR_OK;
+static errval_t
+validate_process_get_name(struct lmp_recv_msg *msg, enum pending_state state) {
+    return validate_recv_header(msg, state, Method_Process_Get_Name);
 }
 
 errval_t
-aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
-{
+aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     errval_t err;
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(pid));
     if (msg == NULL) {
@@ -523,124 +479,37 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &pid, sizeof(pid));
 
-    // setup state for response
-    assert(rpc->lmp->shared != NULL);
-    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
-    struct client_process_state *state = lmp->shared;
-    memset(state, 0, sizeof(struct client_process_state));
-    lmp->err = SYS_ERR_OK;
-    state->pending_state = EmptyState;
-
-    // register response handler
-    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_process_get_name_cb, rpc));
+    struct rpc_message *recv = NULL;
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_name);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_chan_register_recv failed");
-        goto clean_up_msg;
+        goto clean_up_recv;
     }
-    // send request
-    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
-        goto clean_up_msg;
-    }
-    // wait until all response parts received
-    do {
-        err = event_dispatch(&lmp->ws);
-    } while (err_is_ok(err) && state->pending_state == DataInTransmit);
-        if (err_is_fail(err)) {
-        goto clean_up_name;
-    }
-    if (err_is_fail(lmp->err)) {
-        err = lmp->err;
-        goto clean_up_name;
-    }
-    assert(state->name != NULL);
-    *name = state->name;
-    state->name = NULL;
 
+    *name = malloc(recv->msg.payload_length);
+    if (*name == NULL) {
+        err = LIB_ERR_MALLOC_FAIL;
+        goto clean_up_recv;
+    }
+    memcpy(*name, recv->msg.payload, recv->msg.payload_length);
     err = SYS_ERR_OK;
-    goto clean_up_name;
 
-    clean_up_name:
-    free(state->name);
+    goto clean_up_recv;
 
-    clean_up_msg:
+    clean_up_recv:
+    free(recv);
     free(msg);
+
     return err;
 }
 
-// TODO: generalize
-static
-void client_process_get_all_pids_cb(void *arg) {
-    struct aos_rpc *rpc = (struct aos_rpc *) arg;
-    struct lmp_chan *lc = &rpc->lc;
-    struct aos_rpc_lmp *lmp = rpc->lmp;
-    struct client_process_state *state = (struct client_process_state*) lmp->shared;
-    struct capref cap;
-
-    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
-
-    errval_t err = lmp_chan_recv(lc, &msg, &cap);
-    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-        // reregister
-        err = lmp_chan_register_recv(lc, &lmp->ws, MKCLOSURE(client_process_get_all_pids_cb, arg));
-        if (err_is_fail(err)) {
-            lmp->err = LIB_ERR_CHAN_REGISTER_RECV;
-            return;
-        }
-    } else if (err_is_fail(err)) {
-        lmp->err = err;
-        return;
-    }
-    if (state->pending_state == EmptyState) {
-        err = validate_lmp_header(&msg, Method_Process_Get_All_Pids);
-        if (err_is_fail(err)) {
-            lmp->err = err;
-            return;
-        }
-        struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
-        state->total_length = msg_part->payload_length; // TODO: introduce max len
-        state->bytes_received = 0;
-
-        state->pid_array = malloc(state->total_length);
-        if (state->pid_array == NULL) {
-            lmp->err = LIB_ERR_MALLOC_FAIL;
-            return;
-        }
-
-        uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
-        memcpy(state->pid_array, msg_part->payload, to_copy);
-        state->bytes_received += to_copy;
-
-        lmp->err = SYS_ERR_OK;
-
-    } else if (state->pending_state == DataInTransmit) {
-        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
-        memcpy(((char *) state->pid_array) + state->bytes_received, (char *) &msg.words[0], to_copy);
-        state->bytes_received += to_copy;
-    }
-
-    if (state->bytes_received < state->total_length) {
-        state->pending_state = DataInTransmit;
-        // register callback
-        err = lmp_chan_register_recv(lc, &lmp->ws, MKCLOSURE(client_process_get_all_pids_cb, arg));
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-            lmp->err = err;
-            return;
-        }
-    } else {
-        state->pending_state = EmptyState;
-        assert(state->total_length == state->bytes_received);
-        assert(state->pid_array != NULL);
-    }
-    lmp->err = SYS_ERR_OK;
+static errval_t
+validate_process_get_all_pids(struct lmp_recv_msg *msg, enum pending_state state) {
+    return validate_recv_header(msg, state, Method_Process_Get_All_Pids);
 }
 
 errval_t
 aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
-                             size_t *pid_count)
-{
+                                 size_t *pid_count) {
     errval_t err;
     struct rpc_message *msg = malloc(sizeof(struct rpc_message));
     if (msg == NULL) {
@@ -651,64 +520,39 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;
 
-    // setup state for response
-    assert(rpc->lmp->shared != NULL);
-    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
-    struct client_process_state *state = lmp->shared;
-    memset(state, 0, sizeof(struct client_process_state));
-    lmp->err = SYS_ERR_OK;
-    state->pending_state = EmptyState;
 
-    // register response handler
-    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_process_get_all_pids_cb, rpc));
+    struct rpc_message *recv = NULL;
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_all_pids);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_chan_register_recv failed");
-        goto clean_up_msg;
+        goto clean_up;
     }
-    // send request
-    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
-        goto clean_up_msg;
-    }
-    // wait until all response parts received
-    do {
-        err = event_dispatch(&lmp->ws);
-    } while (err_is_ok(err) && state->pending_state == DataInTransmit);
-    if (err_is_fail(err)) {
-        goto clean_up_msg;
-    }
-    if (err_is_fail(lmp->err)) {
-        err = lmp->err;
-        goto clean_up_msg;
-    }
-    assert(state->pid_array != NULL);
-    *pid_count = state->pid_array->pid_count;
+    struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
+    assert(pid_array != NULL);
+    *pid_count = pid_array->pid_count;
 
     const size_t total_length = *pid_count * sizeof(domainid_t); // TODO: sanitize pid_count
     *pids = malloc(total_length);
     if (*pids == NULL) {
-        goto clean_up_msg;
+        goto clean_up;
     }
-    memcpy(*pids, state->pid_array->pids, total_length);
+    memcpy(*pids, pid_array->pids, total_length);
 
     err = SYS_ERR_OK;
-    goto clean_up_msg;
+    goto clean_up;
 
-    clean_up_msg:
+    clean_up:
+    free(recv);
     free(msg);
     return err;
 }
 
 errval_t
 aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
-                       struct capref *ret_cap)
-{
+                           struct capref *ret_cap) {
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
-static void client_recv_open_cb(void *args)
-{
+static void client_recv_open_cb(void *args) {
     errval_t err;
 
     struct aos_rpc *rpc = (struct aos_rpc *) args;
@@ -732,8 +576,7 @@ static void client_recv_open_cb(void *args)
     lc->remote_cap = server_cap;
 }
 
-static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
-{
+static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name) {
     errval_t err;
 
     debug_printf("Setting up a new channel to %s.\n", service_name);
@@ -806,8 +649,7 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
 /**
  * \brief Returns the RPC channel to init.
  */
-struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
-{
+struct aos_rpc *aos_rpc_lmp_get_init_channel(void) {
     if (init_channel == NULL) {
         init_channel = aos_rpc_lmp_setup_channel(cap_chan_init, "init");
         init_channel->lmp->shared = NULL; // we dont need state
@@ -819,8 +661,7 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 /**
  * \brief Returns the channel to the memory server.
  */
-struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
-{
+struct aos_rpc *aos_rpc_lmp_get_memory_channel(void) {
     if (memory_channel == NULL) {
         memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
 
@@ -838,8 +679,7 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 /**
  * \brief Returns the channel to the process manager.
  */
-struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
-{
+struct aos_rpc *aos_rpc_lmp_get_process_channel(void) {
     if (process_channel == NULL) {
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
 
@@ -857,8 +697,7 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 /**
  * \brief Returns the channel to the serial console.
  */
-struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
-{
+struct aos_rpc *aos_rpc_lmp_get_serial_channel(void) {
     if (serial_channel == NULL) {
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
         struct client_serial_state *state = malloc(sizeof(struct client_serial_state));
