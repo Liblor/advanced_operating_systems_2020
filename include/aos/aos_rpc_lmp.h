@@ -49,6 +49,7 @@ struct aos_rpc_lmp {
 enum pending_state {
     EmptyState = 0,
     DataInTransmit = 1,
+    InvalidState = 2,
 };
 
 /** internal state for aos lmp impl. to receive serial getchar **/

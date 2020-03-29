@@ -71,7 +71,7 @@ static bool test_rpc(void)
     rpc = aos_rpc_get_process_channel();
 
     {
-        for(int i = 0; i < 16; i ++) {
+        for(int i = 0; i < 1; i ++) {
             char *binary_name1 = "dummy";
             domainid_t pid1;
             coreid_t core = 0;
@@ -84,30 +84,30 @@ static bool test_rpc(void)
             debug_printf("spawned child: pid %d\n", pid1);
         }
     }
-    {
-        for(int i = 0; i < 16; i ++) {
-            char *name = NULL;
-            err = aos_rpc_lmp_process_get_name(rpc, i, &name);
-            if (err_is_fail(err)) {
-                DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
-                return false;
-            }
-            debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
-        }
-    }
-    {
-        domainid_t *pids = NULL;
-        size_t pid_count = -1;
-        err = aos_rpc_lmp_process_get_all_pids(rpc, &pids, &pid_count);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "aos_rpc_lmp_process_get_all_pids()\n");
-            return false;
-        }
-        debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
-        for(int j = 0; j < pid_count; j ++){
-            debug_printf("pid: %d:\n", pids[j]);
-        }
-    }
+//    {
+//        for(int i = 0; i < 16; i ++) {
+//            char *name = NULL;
+//            err = aos_rpc_lmp_process_get_name(rpc, i, &name);
+//            if (err_is_fail(err)) {
+//                DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
+//                return false;
+//            }
+//            debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
+//        }
+//    }
+//    {
+//        domainid_t *pids = NULL;
+//        size_t pid_count = -1;
+//        err = aos_rpc_lmp_process_get_all_pids(rpc, &pids, &pid_count);
+//        if (err_is_fail(err)) {
+//            DEBUG_ERR(err, "aos_rpc_lmp_process_get_all_pids()\n");
+//            return false;
+//        }
+//        debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
+//        for(int j = 0; j < pid_count; j ++){
+//            debug_printf("pid: %d:\n", pids[j]);
+//        }
+//    }
 
     return true;
 }

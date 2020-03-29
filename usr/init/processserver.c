@@ -137,6 +137,7 @@ static errval_t handle_spawn_process(struct rpc_message_part *rpc_msg_part, stru
     coreid_t core = *((coreid_t *)rpc_msg_part->payload);
     domainid_t pid;
     enum rpc_message_status status = Status_Ok;
+    debug_printf("name: %s\n", rpc_msg_part->payload);
     err = spawn_cb(name, core, &pid);
     if (err_is_fail(err)) {
         status = Spawn_Failed;
