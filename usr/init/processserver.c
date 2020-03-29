@@ -138,10 +138,12 @@ static errval_t handle_spawn_process(struct rpc_message_part *rpc_msg_part, stru
     domainid_t pid;
     enum rpc_message_status status = Status_Ok;
     debug_printf("name: %s\n", rpc_msg_part->payload);
+
     err = spawn_cb(name, core, &pid);
     if (err_is_fail(err)) {
         status = Spawn_Failed;
     }
+    HERE;
     const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
     *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
     if (*ret_msg == NULL) {
@@ -154,6 +156,9 @@ static errval_t handle_spawn_process(struct rpc_message_part *rpc_msg_part, stru
     (*ret_msg)->msg.status = status;
     pid_array->pid_count = 1;
     pid_array->pids[0] = pid;
+    HERE;
+
+    debug_printf("msg size return: %d\n", payload_length);
 
     return SYS_ERR_OK;
 }
@@ -255,15 +260,18 @@ static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct 
     struct rpc_message *ret = NULL;
 
     err = handle_complete_msg(&msg->msg, &ret);
+    HERE;
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "handle_complete_msg() failed");
         goto cleanup;
     }
 
+    HERE;
     err = aos_rpc_lmp_send_message(reply_chan, ret, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_message() failed");
     }
+    HERE;
 
 cleanup:
     if (ret != NULL) {

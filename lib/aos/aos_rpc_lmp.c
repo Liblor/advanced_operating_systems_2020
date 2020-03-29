@@ -54,6 +54,7 @@ void client_response_cb(void *arg) {
         struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
         state->total_length = msg_part->payload_length; // TODO: introduce max len
         state->bytes_received = 0;
+        debug_printf("msg_part->payload_length: %d\n", msg_part->payload_length);
 
         state->message = malloc(state->total_length + sizeof(struct rpc_message));
         if (state->message == NULL) {
@@ -61,13 +62,17 @@ void client_response_cb(void *arg) {
             state->pending_state = InvalidState;
             goto clean_up;
         }
+
+        // copy header
         state->message->msg.method = msg_part->method;
         state->message->msg.status = msg_part->status;
         state->message->msg.payload_length = msg_part->payload_length;
-        memcpy(&state->message->cap, &cap, sizeof(cap)); // TODO
+        state->message->cap = cap;
+        debug_printf("assign: state->message->msg.payload_length  %d\n", state->message->msg.payload_length);
 
+        // copy payload
         uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
-        memcpy(&state->message->msg, msg_part->payload, to_copy);
+        memcpy(&state->message->msg.payload, msg_part->payload, to_copy);
         state->bytes_received += to_copy;
 
     } else if (state->pending_state == DataInTransmit) {
@@ -76,6 +81,7 @@ void client_response_cb(void *arg) {
         state->bytes_received += to_copy;
     }
 
+    HERE;
     if (state->bytes_received < state->total_length) {
         state->pending_state = DataInTransmit;
 
@@ -89,6 +95,7 @@ void client_response_cb(void *arg) {
         state->pending_state = EmptyState;
         assert(state->total_length == state->bytes_received);
         assert(state->message != NULL);
+        debug_printf("state->message->msg.payload_length  %d\n", state->message->msg.payload_length);
     }
     lmp->err = SYS_ERR_OK;
     return;
@@ -132,7 +139,6 @@ send_and_wait_for_recv(struct aos_rpc *rpc, struct rpc_message *send, struct rpc
     do {
         err = event_dispatch(&lmp->ws);
     } while (err_is_ok(err) && state->pending_state == DataInTransmit);
-
     if (err_is_fail(err)) {
         goto clean_up;
     }
@@ -147,7 +153,20 @@ send_and_wait_for_recv(struct aos_rpc *rpc, struct rpc_message *send, struct rpc
 
     // TODO: more input sanitation
     state = lmp->shared;
-    memcpy(*recv, rpc->lmp->shared, sizeof(state->message) + state->message->msg.payload_length);
+
+    assert(state != NULL);
+    assert(state->message != NULL);
+    assert(recv != NULL);
+
+    debug_printf("state->message->msg.payload_length: %d\n", state->message->msg.payload_length);
+    *recv = malloc(sizeof(struct rpc_message) + state->message->msg.payload_length);
+    if (*recv == NULL) {
+        err = LIB_ERR_MALLOC_FAIL;
+        goto clean_up;
+    }
+
+    state = lmp->shared;
+    memcpy(*recv, state->message, sizeof(state->message) + state->message->msg.payload_length);
 
     err = SYS_ERR_OK;
     goto clean_up;
@@ -203,6 +222,7 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
     errval_t err;
 
     const uint64_t msg_size = sizeof(msg->msg) + msg->msg.payload_length;
+    DEBUG_PRINTF("msg size: %d\n", msg_size);
 
     uintptr_t words[LMP_MSG_LENGTH];
 
@@ -215,8 +235,9 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);
 
+        HERE;
         err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
-
+        HERE;
         if (lmp_err_is_transient(err)) {
             DEBUG_ERR(err, "lmp_chan_send4 failed (transient)");
             continue;
@@ -564,6 +585,8 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
 
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
     *newpid = pid_array->pids[0];
+    debug_printf("pid_array->pid_count: %d\n", pid_array->pid_count);
+    debug_printf("pid_array->pids[0]: %d\n", pid_array->pids[0]);
     assert(pid_array->pid_count == 1);
     err = SYS_ERR_OK;
 
