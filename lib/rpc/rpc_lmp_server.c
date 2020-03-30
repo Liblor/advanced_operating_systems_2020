@@ -60,7 +60,7 @@ static void service_recv_cb(void *arg)
         }
 
         // Allocate memory for the full message
-        state->msg = (struct rpc_message *) calloc(1, bytes_total);
+        state->msg = (struct rpc_message *) calloc(1, sizeof(struct rpc_message) + header->payload_length);
         if (state->msg == NULL) {
             debug_printf("calloc() failed\n");
             goto reset_state;
