@@ -505,6 +505,158 @@ MU_TEST_SUITE(test_suite) {
     MU_RUN_TEST(test_alloc_stress);
 }
 
+
+static inline void print_test_begin(const char *name)
+{
+    debug_printf("################################################################################\n");
+    debug_printf("# Begin of test %s\n", name);
+}
+
+static inline void print_test_end(const char *name)
+{
+    debug_printf("End of test %s\n", name);
+    debug_printf("################################################################################\n");
+}
+
+static inline void print_test_abort(const char *name)
+{
+    debug_printf("Aborting test %s\n", name);
+    debug_printf("################################################################################\n");
+}
+
+
+__attribute__((__unused__))
+static bool test_paging_multiple(const lvaddr_t base, lvaddr_t *newbase, const int count, const size_t size)
+{
+    debug_printf("test_paging_multiple(base=%"PRIxLVADDR", newbase=%p, count=%d, size=%zx)\n", base, newbase, count, size);
+
+    errval_t err;
+
+    *newbase = base;
+    lvaddr_t vaddr = base;
+
+    for (int i = 0; i < count; i++) {
+        struct capref frame_cap;
+        size_t bytes = size;
+
+        err = frame_alloc(&frame_cap, bytes, &bytes);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "frame alloc");
+            debug_printf("frame_alloc failed: %s\n", err_getstring(err));
+            return false;
+        }
+
+        *newbase += bytes;
+
+        err = paging_map_fixed_attr(get_current_paging_state(), vaddr, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "paging_map_fixed_attr");
+            debug_printf("paging_map_fixed_attr failed: %s\n", err_getstring(err));
+            return false;
+        }
+
+        vaddr += bytes;
+    }
+    for (uint32_t *buf = (uint32_t *) base; (lvaddr_t) buf < vaddr; buf++)
+        *buf = 0xAAAAAAAA;
+
+    return true;
+}
+
+__attribute__((__unused__))
+static void test_paging_multi_pagetable(void) {
+    print_test_begin("test_paging_multi_pagetable");
+
+    errval_t err;
+    uint64_t size = 1024 * 1024 * 1024;
+
+    lvaddr_t *vaddr;
+    lvaddr_t base;
+    // MAP 1 GB
+    for(int i = 0; i < 1; i ++) {
+        struct capref frame_cap;
+        size_t bytes = size;
+
+
+        err = frame_alloc(&frame_cap, bytes, &bytes);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "frame_alloc\n");
+            debug_printf("frame_alloc failed: %s\n", err_getstring(err));
+            assert(false);
+        }
+
+        debug_printf("========================================\n");
+        debug_printf("mapping %zu at vaddr %p\n", bytes, vaddr);
+        err = paging_alloc(get_current_paging_state(), (void **) &vaddr, bytes, BASE_PAGE_SIZE);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "paging_alloc failed\n");
+            assert(false);
+        }
+        base = (lvaddr_t ) vaddr;
+        err = paging_map_fixed_attr(get_current_paging_state(), base, frame_cap, bytes, VREGION_FLAGS_READ_WRITE);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "paging_map_fixed_attr failed\n");
+            debug_printf("paging_map_fixed_attr failed: %s\n", err_getstring(err));
+            assert(false);
+        }
+        for (uint32_t *buf = (uint32_t *) base; (lvaddr_t) buf < (base + bytes); buf++)
+            *buf = 0xAAAAAAAA;
+    }
+
+    assert(true);
+}
+
+
+__attribute__((__unused__))
+static void test_paging(void)
+{
+    const char *name = "paging";
+
+    print_test_begin(name);
+
+    // We may not start from VADDR_OFFSET currenty, since the
+    // slab_refill_pages() function claims virtual address space starting from
+    // there.
+
+    lvaddr_t vaddr = ((lvaddr_t)512UL*1024*1024*1024 * 16); // 16GB
+
+    bool success;
+
+    success = test_paging_multiple(vaddr, &vaddr, 1, BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    success = test_paging_multiple(vaddr, &vaddr, 1, BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    success = test_paging_multiple(vaddr, &vaddr, 4, 4 * BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    // For the next test to work, we need to fill the remaining L3 page
+    // directory.
+    success = test_paging_multiple(vaddr, &vaddr, 462, BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    success = test_paging_multiple(vaddr, &vaddr, 200, 512 * BASE_PAGE_SIZE);
+    if (!success) {
+        print_test_abort(name);
+        return;
+    }
+
+    print_test_end(name);
+}
+
 void
 grading_setup_bsp_init(int argc, char **argv) {
 }
@@ -523,6 +675,9 @@ grading_test_mm(struct mm * test) {
 
 void
 grading_test_early(void) {
+    test_paging();
+    test_paging_multi_pagetable();
+
     MU_RUN_SUITE(test_suite);
     MU_REPORT();
 }
