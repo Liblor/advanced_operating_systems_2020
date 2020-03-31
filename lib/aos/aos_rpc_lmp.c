@@ -740,6 +740,7 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
 
     struct aos_rpc *rpc = malloc(sizeof(struct aos_rpc));
     if (rpc == NULL) {
+        debug_printf("malloc returned NULL\n");
         return NULL;
     }
     err = aos_rpc_lmp_init(rpc);
@@ -781,6 +782,9 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
 
     do {
         err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
+        if (lmp_err_is_transient(err)) {
+            DEBUG_ERR(err, "transient");
+        }
     } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
@@ -810,6 +814,11 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
     if (init_channel == NULL) {
         init_channel = aos_rpc_lmp_setup_channel(cap_chan_init, "init");
+        if (init_channel == NULL) {
+            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+            return NULL;
+        }
+
         init_channel->lmp->shared = NULL; // we dont need state
     }
 
@@ -823,6 +832,10 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
     if (memory_channel == NULL) {
         memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
+        if (memory_channel == NULL) {
+            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+            return NULL;
+        }
 
         struct client_ram_state *ram_state = malloc(sizeof(struct client_ram_state));
         if (ram_state == NULL) {
@@ -842,6 +855,10 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
     if (process_channel == NULL) {
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
+        if (process_channel == NULL) {
+            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+            return NULL;
+        }
 
         struct client_process_state *state = malloc(sizeof(struct client_process_state));
         if (state == NULL) {
@@ -861,6 +878,11 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
     if (serial_channel == NULL) {
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
+        if (serial_channel == NULL) {
+            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+            return NULL;
+        }
+
         struct client_serial_state *state = malloc(sizeof(struct client_serial_state));
         if (state == NULL) {
             DEBUG_ERR(LIB_ERR_MALLOC_FAIL, "malloc failed");
