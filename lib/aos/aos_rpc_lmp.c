@@ -86,7 +86,7 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string) {
     return err;
 }
 
-__unused static void client_ram_cb(void *arg) {
+static void client_ram_cb(void *arg) {
     debug_printf("client_ram_cb(...)\n");
     struct aos_rpc *rpc = arg;
     struct client_ram_state *ram_state = rpc->lmp->shared;
@@ -128,15 +128,12 @@ __unused static void client_ram_cb(void *arg) {
     lmp->err = SYS_ERR_OK;
 }
 
-static errval_t
-validate_get_ram_cap(struct lmp_recv_msg *msg, enum pending_state state) {
-    return validate_recv_header(msg, state, Method_Get_Ram_Cap);
-}
-
 errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                         struct capref *ret_cap, size_t *ret_bytes) {
     errval_t err;
+
+    // create request message
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
     if (msg == NULL) {
@@ -149,15 +146,39 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
 
-    struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_get_ram_cap);
+    // register receive handler state
+    err = lmp_chan_register_recv(&rpc->lc, &rpc->lmp->ws,
+                                 MKCLOSURE(client_ram_cb, rpc));
     if (err_is_fail(err)) {
         goto clean_up;
     }
 
+    err = lmp_chan_alloc_recv_slot(&rpc->lc);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        err = LIB_ERR_LMP_ALLOC_RECV_SLOT;
+        goto clean_up;
+    }
+
+    // send ram request
+    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+
+    // wait for response
+    err = event_dispatch(&rpc->lmp->ws);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+    if (err_is_fail(rpc->lmp->err)) {
+        err = rpc->lmp->err;
+        goto clean_up;
+    }
+
     // save response
-    struct client_ram_state *ram_state = (struct client_ram_state *) &recv->msg.payload;
-    *ret_cap = recv->cap;
+    struct client_ram_state *ram_state = rpc->lmp->shared;
+    *ret_cap = ram_state->cap;
     if (ret_bytes != NULL) {
         *ret_bytes = ram_state->bytes;
     }
@@ -166,10 +187,105 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     goto clean_up;
 
     clean_up:
-    free(recv);
     free(msg);
     return err;
 }
+
+
+//
+//__unused static void client_ram_cb(void *arg) {
+//    debug_printf("client_ram_cb(...)\n");
+//    struct aos_rpc *rpc = arg;
+//    struct client_ram_state *ram_state = rpc->lmp->shared;
+//    struct aos_rpc_lmp *lmp = rpc->lmp;
+//
+//    struct lmp_chan *lc = &rpc->lc;
+//
+//    struct capref cap;
+//    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+//
+//    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+//    if (err_is_fail(err) && lmp_err_is_transient(err)) {
+//        // reregister
+//        err = lmp_chan_register_recv(lc, &lmp->ws,
+//                                     MKCLOSURE(client_ram_cb, arg));
+//        if (err_is_fail(err)) {
+//            DEBUG_ERR(err, "");
+//            lmp->err = err;
+//            return;
+//        }
+//    }
+//    if (err_is_fail(err)) {
+//        DEBUG_ERR(err, "");
+//        lmp->err = err;
+//        return;
+//    }
+//    bool buflen_invalid = msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part);
+//    return_with_err(buflen_invalid, lmp, "invalid buflen");
+//
+//    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
+//
+//    return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
+//    return_with_err(msg_part->method != Method_Get_Ram_Cap, lmp, "wrong method in response");
+//    return_with_err(msg_part->payload_length != sizeof(size_t), lmp, "invalid payload len");
+//
+//    memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
+//    // TODO Free recv slot if cap is NULL_CAP
+//    ram_state->cap = cap;
+//    lmp->err = SYS_ERR_OK;
+//}
+
+//static errval_t
+//validate_get_ram_cap(struct lmp_recv_msg *msg, enum pending_state state) {
+//    errval_t err = validate_recv_header(msg, state, Method_Get_Ram_Cap);
+//    if (err_is_fail(err)) {
+//        return err;
+//    }
+//    if (state == EmptyState) {
+//        const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+//        return_err(msg_part->payload_length != sizeof(size_t), "no return size in payload");
+//    }
+//    return SYS_ERR_OK;
+//}
+//
+//errval_t
+//aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
+//                        struct capref *ret_cap, size_t *ret_bytes) {
+//    errval_t err;
+//    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
+//    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
+//    if (msg == NULL) {
+//        return LIB_ERR_MALLOC_FAIL;
+//    }
+//    msg->msg.method = Method_Get_Ram_Cap;
+//    msg->msg.payload_length = payload_length;
+//    msg->msg.status = Status_Ok;
+//    msg->cap = NULL_CAP;
+//    memcpy(msg->msg.payload, &bytes, sizeof(bytes));
+//    memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
+//
+//    struct rpc_message *recv = NULL;
+//    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_get_ram_cap);
+//    if (err_is_fail(err)) {
+//        goto clean_up;
+//    }
+//
+//    // save response
+//    struct client_ram_state *ram_state = (struct client_ram_state *) &recv->msg.payload;
+//    // TODO Free recv slot if cap is NULL_CAP
+//    *ret_cap = recv->cap;
+//    if (ret_bytes != NULL) {
+//        *ret_bytes = ram_state->bytes;
+//    }
+//
+//    err = SYS_ERR_OK;
+//    goto clean_up;
+//
+//    clean_up:
+//    free(recv);
+//    free(msg);
+//    return err;
+//}
 
 static
 void client_serial_cb(void *arg) {
@@ -280,7 +396,10 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c) {
 
 static errval_t validate_process_spawn(struct lmp_recv_msg *msg, enum pending_state state) {
     errval_t err = validate_recv_header(msg, state, Method_Spawn_Process);
-    if (state == EmptyState && err_is_ok(err)) {
+    if (err_is_fail(err)) {
+        return err;
+    }
+    if (state == EmptyState) {
         const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
         return_err(msg_part->payload_length != sizeof(size_t) + sizeof(domainid_t), "invalid payload len");
     }

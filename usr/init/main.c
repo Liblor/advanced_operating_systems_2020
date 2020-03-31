@@ -207,7 +207,7 @@ static int bsp_main(int argc, char *argv[])
     //    abort();
     //}
 
-    char *binary_name2 = "hello";
+    char *binary_name2 = "memeater";
     struct spawninfo si2;
     domainid_t pid2;
 

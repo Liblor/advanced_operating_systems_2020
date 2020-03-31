@@ -3,7 +3,6 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
 
-
 static
 void client_response_cb(void *arg) {
     struct aos_rpc *rpc = (struct aos_rpc *) arg;

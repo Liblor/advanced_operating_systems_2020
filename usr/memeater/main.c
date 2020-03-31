@@ -149,8 +149,6 @@ int main(int argc, char *argv[])
 
     debug_printf("memeater started....\n");
 
-    return 0;
-
     init_rpc = aos_rpc_get_init_channel();
     if (!init_rpc) {
         USER_PANIC_ERR(err, "init RPC channel NULL?\n");
@@ -170,7 +168,6 @@ int main(int argc, char *argv[])
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "could not request and map memory\n");
     }
-
 
     /* test printf functionality */
     debug_printf("testing terminal printf function...\n");
