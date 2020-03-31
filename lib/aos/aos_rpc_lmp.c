@@ -129,69 +129,68 @@ static void client_ram_cb(void *arg) {
     lmp->err = SYS_ERR_OK;
 }
 
-//errval_t
-//aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
-//                        struct capref *ret_cap, size_t *ret_bytes) {
-//    errval_t err;
-//
-//    // create request message
-//    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
-//    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
-//    if (msg == NULL) {
-//        return LIB_ERR_MALLOC_FAIL;
-//    }
-//    msg->msg.method = Method_Get_Ram_Cap;
-//    msg->msg.payload_length = payload_length;
-//    msg->msg.status = Status_Ok;
-//    msg->cap = NULL_CAP;
-//    memcpy(msg->msg.payload, &bytes, sizeof(bytes));
-//    memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
-//
-//    // register receive handler state
-//    err = lmp_chan_register_recv(&rpc->lc, &rpc->lmp->ws,
-//                                 MKCLOSURE(client_ram_cb, rpc));
-//    if (err_is_fail(err)) {
-//        goto clean_up;
-//    }
-//
-//    err = lmp_chan_alloc_recv_slot(&rpc->lc);
-//    if (err_is_fail(err)) {
-//        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
-//        err = LIB_ERR_LMP_ALLOC_RECV_SLOT;
-//        goto clean_up;
-//    }
-//
-//    // send ram request
-//    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-//    if (err_is_fail(err)) {
-//        goto clean_up;
-//    }
-//
-//    // wait for response
-//    err = event_dispatch(&rpc->lmp->ws);
-//    if (err_is_fail(err)) {
-//        goto clean_up;
-//    }
-//    if (err_is_fail(rpc->lmp->err)) {
-//        err = rpc->lmp->err;
-//        goto clean_up;
-//    }
-//
-//    // save response
-//    struct client_ram_state *ram_state = rpc->lmp->shared;
-//    *ret_cap = ram_state->cap;
-//    if (ret_bytes != NULL) {
-//        *ret_bytes = ram_state->bytes;
-//    }
-//
-//    err = SYS_ERR_OK;
-//    goto clean_up;
-//
-//    clean_up:
-//    free(msg);
-//    return err;
-//}
+__unused static errval_t
+aos_rpc_lmp_get_ram_cap2(struct aos_rpc *rpc, size_t bytes, size_t alignment,
+                        struct capref *ret_cap, size_t *ret_bytes) {
+    errval_t err;
 
+    // create request message
+    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->msg.method = Method_Get_Ram_Cap;
+    msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
+    msg->cap = NULL_CAP;
+    memcpy(msg->msg.payload, &bytes, sizeof(bytes));
+    memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
+
+    // register receive handler state
+    err = lmp_chan_register_recv(&rpc->lc, &rpc->lmp->ws,
+                                 MKCLOSURE(client_ram_cb, rpc));
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+
+    err = lmp_chan_alloc_recv_slot(&rpc->lc);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        err = LIB_ERR_LMP_ALLOC_RECV_SLOT;
+        goto clean_up;
+    }
+
+    // send ram request
+    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+
+    // wait for response
+    err = event_dispatch(&rpc->lmp->ws);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+    if (err_is_fail(rpc->lmp->err)) {
+        err = rpc->lmp->err;
+        goto clean_up;
+    }
+
+    // save response
+    struct client_ram_state *ram_state = rpc->lmp->shared;
+    *ret_cap = ram_state->cap;
+    if (ret_bytes != NULL) {
+        *ret_bytes = ram_state->bytes;
+    }
+
+    err = SYS_ERR_OK;
+    goto clean_up;
+
+    clean_up:
+    free(msg);
+    return err;
+}
 
 
 //__unused static void client_ram_cb(void *arg) {
@@ -266,20 +265,37 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
 
     struct rpc_message *recv = NULL;
-    HERE;
+
     err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_get_ram_cap);
     if (err_is_fail(err)) {
         goto clean_up;
     }
 
+    HERE;
     // save response
     struct client_ram_state *ram_state = (struct client_ram_state *) &recv->msg.payload;
-    // TODO Free recv slot if cap is NULL_CAP
-    *ret_cap = recv->cap;
-    if (ret_bytes != NULL) {
-        *ret_bytes = ram_state->bytes;
-    }
 
+    // TODO Free recv slot if cap is NULL_CAP
+    HERE;
+
+    debug_printf("ret_cap: %p\n", ret_cap);
+    debug_printf("recv: %p\n", recv);
+    debug_printf("recv.cap: %p\n", recv->cap);
+    *ret_cap = recv->cap;
+    HERE;
+
+    debug_printf("ret_bytes: %p\n", ret_bytes);
+    debug_printf("ret_bytes: %p\n", *ret_bytes);
+    debug_printf("ram_state: %p\n", ram_state);
+    debug_printf("ram_state.bytes: %p\n", ram_state->bytes);
+
+    // ISSUE HERE
+    if (ret_bytes != NULL) {
+        memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
+    }
+    HERE;
+    debug_printf("bytes: %d\n", *ret_bytes);
+    HERE;
     err = SYS_ERR_OK;
     goto clean_up;
 
