@@ -421,13 +421,19 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         if (*l1pt == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
+
+        // The new entry needs to be inserted into the hashmap _before_ the
+        // paging_create_vnode() call since paging_create_vnode() may end up in
+        // a recursion here. In that case the hashmap state already has to
+        // include the "latest" changes
+        collections_hash_insert(st->l0pt, l0_idx, l0entry);
+
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l1, &st->cap_l0, &l0entry->cap,
                 l0_idx, &l0entry->cap_mapping);
         if (err_is_fail(err)) {
             debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l1 failed: %s\n", err_getstring(err));
             return err;
         }
-        collections_hash_insert(st->l0pt, l0_idx, l0entry);
     }
 
     // mapping l1 -> l2
@@ -443,13 +449,19 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         if (*l2pt == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
+
+        // The new entry needs to be inserted into the hashmap _before_ the
+        // paging_create_vnode() call since paging_create_vnode() may end up in
+        // a recursion here. In that case the hashmap state already has to
+        // include the "latest" changes
+        collections_hash_insert(l0entry->pt, l1_idx, l1entry);
+
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l2, &l0entry->cap, &l1entry->cap,
                                   l1_idx, &l1entry->cap_mapping);
         if (err_is_fail(err)) {
             debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l2 failed: %s\n", err_getstring(err));
             return err;
         }
-        collections_hash_insert(l0entry->pt, l1_idx, l1entry);
     }
 
     // mapping l2 -> l3
@@ -462,13 +474,19 @@ static inline errval_t paging_create_pd(struct paging_state *st, const lvaddr_t 
         if (l2entry == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
+
+        // The new entry needs to be inserted into the hashmap _before_ the
+        // paging_create_vnode() call since paging_create_vnode() may end up in
+        // a recursion here. In that case the hashmap state already has to
+        // include the "latest" changes
+        collections_hash_insert(l1entry->pt, l2_idx, l2entry);
+
         err = paging_create_vnode(st, ObjType_VNode_AARCH64_l3, &l1entry->cap, &l2entry->cap,
                                   l2_idx, &l2entry->cap_mapping);
         if (err_is_fail(err)) {
             debug_printf("paging_create_vnode ObjType_VNode_AARCH64_l3 failed: %s\n", err_getstring(err));
             return err;
         }
-        collections_hash_insert(l1entry->pt, l2_idx, l2entry);
     }
     *ret_l2entry = l2entry;
 
