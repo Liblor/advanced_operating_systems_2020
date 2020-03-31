@@ -30,6 +30,8 @@ void client_response_cb(void *arg) {
         goto clean_up;
     }
     if (state->pending_state == EmptyState) {
+        debug_printf("state: EmptyState\n");
+
         if (state->validate_recv_msg != NULL) {
             err = state->validate_recv_msg(&msg, EmptyState);
         }
@@ -43,7 +45,7 @@ void client_response_cb(void *arg) {
         state->bytes_received = 0;
         debug_printf("msg_part->payload_length: %d\n", msg_part->payload_length);
 
-        state->message = malloc(state->total_length + sizeof(struct rpc_message));
+        state->message = calloc(1, state->total_length + sizeof(struct rpc_message));
         if (state->message == NULL) {
             lmp->err = LIB_ERR_MALLOC_FAIL;
             state->pending_state = InvalidState;
@@ -59,17 +61,25 @@ void client_response_cb(void *arg) {
         // copy payload
         uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
         memcpy(&state->message->msg.payload, msg_part->payload, to_copy);
+        debug_printf("to_copy: %d\n", to_copy);
         state->bytes_received += to_copy;
 
+        // TODO
+//        debug_printf("(msg_part) size_t: %zu\n", *(size_t *) &msg_part->payload);
+//        debug_printf("size_t: %zu\n", *(size_t *) &state->message->msg.payload);
+
+
     } else if (state->pending_state == DataInTransmit) {
+        debug_printf("state: DataInTransmit\n");
+
         uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
         memcpy(((char *) state->message->msg.payload) + state->bytes_received, (char *) &msg.words[0], to_copy);
         state->bytes_received += to_copy;
     }
 
-
     if (state->bytes_received < state->total_length) {
         state->pending_state = DataInTransmit;
+        debug_printf("bytes_received < total_length\n");
 
         // reregister for rest of message
         err = lmp_chan_register_recv(lc, &lmp->ws, MKCLOSURE(client_response_cb, arg));
@@ -78,10 +88,12 @@ void client_response_cb(void *arg) {
             goto clean_up;
         }
     } else {
+        debug_printf("all bytes received: %d bytes\n", state->bytes_received);
         state->pending_state = EmptyState;
         assert(state->total_length == state->bytes_received);
         assert(state->message != NULL);
-        debug_printf("state->message->msg.payload_length  %d\n", state->message->msg.payload_length);
+        HERE;
+//        debug_printf("size_t: %zu\n", *(size_t *) &state->message->msg.payload);
     }
     lmp->err = SYS_ERR_OK;
 
