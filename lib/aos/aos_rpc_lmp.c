@@ -17,6 +17,17 @@ static struct aos_rpc *serial_channel = NULL;
     } while(0);
 
 
+static inline errval_t validate_common_header(struct lmp_recv_msg *msg, enum pending_state state, enum rpc_message_method method) {
+    if (state == EmptyState) {
+        return_err(msg == NULL, "msg is null");
+        return_err(sizeof(uint64_t) * msg->buf.buflen < sizeof(struct rpc_message_part),  "invalid buflen");
+        const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+        return_err(msg_part->status != Status_Ok, "status not ok");
+        return_err(msg_part->method != method, "wrong method in response");
+    }
+    return SYS_ERR_OK;
+}
+
 void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
     if (string) {
@@ -302,12 +313,9 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 }
 
 static errval_t validate_process_spawn(struct lmp_recv_msg *msg, enum pending_state state) {
-    if (state == EmptyState) {
-        return_err(msg == NULL, "msg is null");
-        return_err(sizeof(uint64_t) * msg->buf.buflen < sizeof(struct rpc_message_part),  "invalid buflen");
+    errval_t err = validate_common_header(msg, state, Method_Spawn_Process);
+    if (state == EmptyState && err_is_ok(err)) {
         const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
-        return_err(msg_part->status != Status_Ok, "status not ok");
-        return_err(msg_part->method != Method_Spawn_Process, "wrong method in response");
         return_err(msg_part->payload_length != sizeof(size_t) + sizeof(domainid_t),  "invalid payload len");
     }
     return SYS_ERR_OK;
@@ -374,7 +382,7 @@ errval_t validate_lmp_header(struct lmp_recv_msg *msg, enum rpc_message_method m
     return SYS_ERR_OK;
 }
 
-static
+__unused static
 void client_process_get_name_cb(void *arg) {
     debug_printf("client_process_get_name_cb()\n");
 
@@ -482,7 +490,7 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     do {
         err = event_dispatch(&lmp->ws);
     } while (err_is_ok(err) && state->pending_state == DataInTransmit);
-        if (err_is_fail(err)) {
+    if (err_is_fail(err)) {
         goto clean_up_name;
     }
     if (err_is_fail(lmp->err)) {
@@ -503,6 +511,54 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     free(msg);
     return err;
 }
+
+
+//static errval_t validate_process_get_name(struct lmp_recv_msg *msg, enum pending_state state) {
+//    return validate_common_header(msg, state, Method_Process_Get_Name);
+//}
+//
+//__unused errval_t
+//aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
+//{
+//    errval_t err;
+//    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(pid));
+//    if (msg == NULL) {
+//        return LIB_ERR_MALLOC_FAIL;
+//    }
+//    msg->cap = NULL_CAP;
+//    msg->msg.method = Method_Process_Get_Name;
+//    msg->msg.payload_length = sizeof(pid);
+//    msg->msg.status = Status_Ok;
+//    memcpy(msg->msg.payload, &pid, sizeof(pid));
+//
+//    struct rpc_message *recv = NULL;
+//    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_name);
+//    if (err_is_fail(err)) {
+//        goto clean_up_msg;
+//    }
+//    *name = malloc(recv->msg.payload_length);
+//    if (*name == NULL) {
+//        err = LIB_ERR_MALLOC_FAIL;
+//        goto clean_up_recv;
+//    }
+//    memcpy(*name, recv->msg.payload, recv->msg.payload_length);
+//
+//    err = SYS_ERR_OK;
+//
+//    goto clean_up_recv;
+//
+//    clean_up_recv:
+//    if (recv != NULL) {
+//        free(recv);
+//    }
+//    clean_up_msg:
+//    free(msg);
+//
+//    return err;
+//}
+
+
+
 
 // TODO: generalize
 static
