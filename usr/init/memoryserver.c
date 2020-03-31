@@ -14,6 +14,7 @@ static ram_cap_callback_t ram_cap_cb = NULL;
 static errval_t reply_cap(struct lmp_chan *lc, struct capref *cap, size_t bytes) {
     errval_t err;
 
+
     char msg_buf[sizeof(struct rpc_message) + sizeof(bytes)];
     struct rpc_message *msg = (void *) msg_buf;
 

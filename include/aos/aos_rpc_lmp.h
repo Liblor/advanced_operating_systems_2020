@@ -38,7 +38,8 @@ struct rpc_message_part {
 struct rpc_message {
     struct capref cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
-};
+
+}  __attribute__((packed)) ;
 
 struct aos_rpc_lmp {
     struct waitset ws;
