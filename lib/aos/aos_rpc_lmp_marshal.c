@@ -45,12 +45,14 @@ void client_response_cb(void *arg) {
         state->bytes_received = 0;
         debug_printf("msg_part->payload_length: %d\n", msg_part->payload_length);
 
-        state->message = calloc(1, state->total_length + sizeof(struct rpc_message));
+        state->message = malloc(state->total_length + sizeof(struct rpc_message));
         if (state->message == NULL) {
             lmp->err = LIB_ERR_MALLOC_FAIL;
             state->pending_state = InvalidState;
             goto clean_up;
         }
+
+        debug_printf("%lu\n", state->total_length + sizeof(struct rpc_message));
 
         // copy header
         state->message->msg.method = msg_part->method;
@@ -60,13 +62,25 @@ void client_response_cb(void *arg) {
 
         // copy payload
         uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
-        memcpy(&state->message->msg.payload, msg_part->payload, to_copy);
+        memcpy(state->message->msg.payload, msg_part->payload, to_copy);
         debug_printf("to_copy: %d\n", to_copy);
         state->bytes_received += to_copy;
 
-        // TODO
-//        debug_printf("(msg_part) size_t: %zu\n", *(size_t *) &msg_part->payload);
-//        debug_printf("size_t: %zu\n", *(size_t *) &state->message->msg.payload);
+
+        char *b = (char *) state->message;
+
+        for(int i = 0; i < state->total_length + sizeof(struct rpc_message); i++ ) {
+            debug_printf("state->message[%d] = %p\n", i, *b);
+            b ++;
+        }
+////
+//        memcpy(buffer, &state->message->msg.payload[0], 8);
+//        debug_printf("buffer[100]: %s\n", buffer);
+
+//        debug_printf("(msg_part) size_t: %zu\n", *(size_t *) msg_part->payload);
+//        debug_printf("size_t: %p\n", *(char *) state->message->msg.payload);
+//
+//        debug_printf("state->message->msg.payload: %p\n", state->message->msg.payload);
 
 
     } else if (state->pending_state == DataInTransmit) {
@@ -209,7 +223,7 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
 {
     errval_t err;
 
-    const uint64_t msg_size = sizeof(msg->msg) + msg->msg.payload_length;
+    const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;
 
     uintptr_t words[LMP_MSG_LENGTH];
 
