@@ -2,6 +2,7 @@
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
+#include <aos/debug.h>
 
 static
 void client_response_cb(void *arg) {
@@ -9,10 +10,12 @@ void client_response_cb(void *arg) {
     struct lmp_chan *lc = &rpc->lc;
     struct aos_rpc_lmp *lmp = rpc->lmp;
     struct client_response_state *state = (struct client_response_state*) lmp->shared;
-    struct capref cap;
+    struct capref cap = NULL_CAP;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
+    HERE;
     errval_t err = lmp_chan_recv(lc, &msg, &cap);
+    HERE;
     if (err_is_fail(err) && lmp_err_is_transient(err)) { // reregister
         err = lmp_chan_register_recv(lc, &lmp->ws, MKCLOSURE(client_response_cb, arg));
         if (err_is_fail(err)) {
@@ -113,15 +116,19 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send, st
     }
 
     // send request
+    HERE;
     err = aos_rpc_lmp_send_message(&rpc->lc, send, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
         goto clean_up;
     }
 
+    HERE;
     // wait until whole message received
     do {
+        HERE;
         err = event_dispatch(&lmp->ws);
+        HERE;
     } while (err_is_ok(err) && state->pending_state == DataInTransmit);
     if (err_is_fail(err)) {
         goto clean_up;
@@ -163,7 +170,6 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send, st
     return err;
 }
 
-
 errval_t
 aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
 {
@@ -178,7 +184,10 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
     uint8_t *base = (uint8_t *) &msg->msg;
     bool first = true;
 
-    while(size_sent < msg_size) {
+    uint64_t retries = 0;
+    err = SYS_ERR_OK;
+
+    while(size_sent < msg_size && retries <= TRANSIENT_ERR_RETRIES) {
         uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);
@@ -186,7 +195,9 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
         err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
 
         if (lmp_err_is_transient(err)) {
-            DEBUG_ERR(err, "lmp_chan_send4 failed (transient)");
+            DEBUG_ERR(err, "lmp_chan_send4 failed (transient): %s\n", err_getstring(err));
+
+            retries++;
             continue;
         } else if (err_is_fail(err)) {
             DEBUG_ERR(err, "lmp_chan_send4 failed");
@@ -195,5 +206,4 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
         size_sent += to_send;
         first = false;
     }
-    return SYS_ERR_OK;
-}
+    return err;}

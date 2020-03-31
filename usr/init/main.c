@@ -73,7 +73,9 @@ static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct ca
     }
 
     *retbytes = get_size(&cap);
+    HERE;
 
+    debug_printf("allocated %d size\n", *retbytes);
     return SYS_ERR_OK;
 }
 
