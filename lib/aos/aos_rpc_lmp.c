@@ -9,6 +9,14 @@ static struct aos_rpc *memory_channel = NULL;
 static struct aos_rpc *process_channel = NULL;
 static struct aos_rpc *serial_channel = NULL;
 
+#define return_err(cond, msg) do { \
+        if (cond) { \
+            DEBUG_ERR(LIB_ERR_LMP_INVALID_RESPONSE, msg); \
+            return LIB_ERR_LMP_INVALID_RESPONSE;  \
+        } \
+    } while(0);
+
+
 void aos_rpc_lmp_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
     if (string) {
@@ -293,49 +301,6 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     return err;
 }
 
-__unused static void client_spawn_cb(void *arg) {
-    struct aos_rpc *rpc = arg;
-    struct client_process_state *state = rpc->lmp->shared;
-    struct lmp_chan *lc = &rpc->lc;
-
-    struct capref cap;
-    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
-
-    errval_t err = lmp_chan_recv(lc, &msg, &cap);
-    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-        // reregister
-        err = lmp_chan_register_recv(lc, &rpc->lmp->ws, MKCLOSURE(client_spawn_cb, arg));
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-            rpc->lmp->err = err;
-            return;
-        }
-    }
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "");
-        rpc->lmp->err = err;
-        return;
-    }
-    return_with_err(sizeof(uint64_t) * msg.buf.buflen < sizeof(struct rpc_message_part), rpc->lmp, "invalid buflen");
-    struct rpc_message_part *msg_part = (struct rpc_message_part *)msg.words;
-    return_with_err(msg_part->status != Status_Ok, rpc->lmp, "status not ok");
-    return_with_err(msg_part->method != Method_Spawn_Process, rpc->lmp, "wrong method in response");
-    return_with_err(msg_part->payload_length != sizeof(size_t) + sizeof(domainid_t), rpc->lmp, "invalid payload len");
-
-    state->pid_array = malloc(msg_part->payload_length);
-    memcpy(state->pid_array, msg_part->payload, sizeof(size_t) + sizeof(domainid_t));
-
-    rpc->lmp->err = SYS_ERR_OK;
-}
-
-#define return_err(cond, msg) do { \
-        if (cond) { \
-            DEBUG_ERR(LIB_ERR_LMP_INVALID_RESPONSE, msg); \
-            return LIB_ERR_LMP_INVALID_RESPONSE;  \
-        } \
-    } while(0);
-
-
 static errval_t validate_process_spawn(struct lmp_recv_msg *msg, enum pending_state state) {
     if (state == EmptyState) {
         return_err(msg == NULL, "msg is null");
@@ -364,7 +329,6 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     send->msg.status = Status_Ok;
     memcpy(send->msg.payload, &core, sizeof(core));
     memcpy(send->msg.payload + sizeof(core), cmdline, str_len);
-    debug_printf("name: %s\n", cmdline);
 
     struct rpc_message *recv = NULL;
     err = aos_rpc_lmp_send_and_wait_recv(rpc, send, &recv, validate_process_spawn);
@@ -374,8 +338,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
 
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
     *newpid = pid_array->pids[0];
-    debug_printf("pid_array->pid_count: %d\n", pid_array->pid_count);
-    debug_printf("pid_array->pids[0]: %d\n", pid_array->pids[0]);
+
     assert(pid_array->pid_count == 1);
     err = SYS_ERR_OK;
 
