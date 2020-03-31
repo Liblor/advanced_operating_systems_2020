@@ -3,7 +3,14 @@
 
 #include <aos/aos_rpc.h>
 
-// TODO: move to header file
+#define return_err(cond, msg) do { \
+        if (cond) { \
+            DEBUG_ERR(LIB_ERR_LMP_INVALID_RESPONSE, msg); \
+            return LIB_ERR_LMP_INVALID_RESPONSE;  \
+        } \
+    } while(0);
+
+
 typedef errval_t (* validate_recv_msg_t )(struct lmp_recv_msg *msg, enum pending_state state);
 
 struct client_response_state {
