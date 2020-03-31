@@ -65,8 +65,8 @@ void client_response_cb(void *arg) {
         state->bytes_received += to_copy;
 
         // TODO
-//        debug_printf("(msg_part) size_t: %zu\n", *(size_t *) &msg_part->payload);
-//        debug_printf("size_t: %zu\n", *(size_t *) &state->message->msg.payload);
+        debug_printf("(msg_part) size_t: %zu\n", *(size_t *) &msg_part->payload);
+        debug_printf("size_t: %zu\n", *(size_t *) &state->message->msg.payload);
 
 
     } else if (state->pending_state == DataInTransmit) {
