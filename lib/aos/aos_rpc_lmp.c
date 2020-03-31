@@ -452,72 +452,7 @@ void client_process_get_name_cb(void *arg) {
     lmp->err = SYS_ERR_OK;
 }
 
-errval_t
-aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
-{
-    errval_t err;
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(pid));
-    if (msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    msg->cap = NULL_CAP;
-    msg->msg.method = Method_Process_Get_Name;
-    msg->msg.payload_length = sizeof(pid);
-    msg->msg.status = Status_Ok;
-    memcpy(msg->msg.payload, &pid, sizeof(pid));
-
-    // setup state for response
-    assert(rpc->lmp->shared != NULL);
-    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
-    struct client_process_state *state = lmp->shared;
-    memset(state, 0, sizeof(struct client_process_state));
-    lmp->err = SYS_ERR_OK;
-    state->pending_state = EmptyState;
-
-    // register response handler
-    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_process_get_name_cb, rpc));
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_chan_register_recv failed");
-        goto clean_up_msg;
-    }
-    // send request
-    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
-        goto clean_up_msg;
-    }
-    // wait until all response parts received
-    do {
-        err = event_dispatch(&lmp->ws);
-    } while (err_is_ok(err) && state->pending_state == DataInTransmit);
-    if (err_is_fail(err)) {
-        goto clean_up_name;
-    }
-    if (err_is_fail(lmp->err)) {
-        err = lmp->err;
-        goto clean_up_name;
-    }
-    assert(state->name != NULL);
-    *name = state->name;
-    state->name = NULL;
-
-    err = SYS_ERR_OK;
-    goto clean_up_name;
-
-    clean_up_name:
-    free(state->name);
-
-    clean_up_msg:
-    free(msg);
-    return err;
-}
-
-
-//static errval_t validate_process_get_name(struct lmp_recv_msg *msg, enum pending_state state) {
-//    return validate_common_header(msg, state, Method_Process_Get_Name);
-//}
-//
-//__unused errval_t
+//errval_t
 //aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
 //{
 //    errval_t err;
@@ -531,33 +466,96 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
 //    msg->msg.status = Status_Ok;
 //    memcpy(msg->msg.payload, &pid, sizeof(pid));
 //
-//    struct rpc_message *recv = NULL;
-//    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_name);
+//    // setup state for response
+//    assert(rpc->lmp->shared != NULL);
+//    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
+//    struct client_process_state *state = lmp->shared;
+//    memset(state, 0, sizeof(struct client_process_state));
+//    lmp->err = SYS_ERR_OK;
+//    state->pending_state = EmptyState;
+//
+//    // register response handler
+//    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_process_get_name_cb, rpc));
 //    if (err_is_fail(err)) {
+//        DEBUG_ERR(err, "lmp_chan_register_recv failed");
 //        goto clean_up_msg;
 //    }
-//    *name = malloc(recv->msg.payload_length);
-//    if (*name == NULL) {
-//        err = LIB_ERR_MALLOC_FAIL;
-//        goto clean_up_recv;
+//    // send request
+//    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+//    if (err_is_fail(err)) {
+//        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
+//        goto clean_up_msg;
 //    }
-//    memcpy(*name, recv->msg.payload, recv->msg.payload_length);
+//    // wait until all response parts received
+//    do {
+//        err = event_dispatch(&lmp->ws);
+//    } while (err_is_ok(err) && state->pending_state == DataInTransmit);
+//    if (err_is_fail(err)) {
+//        goto clean_up_name;
+//    }
+//    if (err_is_fail(lmp->err)) {
+//        err = lmp->err;
+//        goto clean_up_name;
+//    }
+//    assert(state->name != NULL);
+//    *name = state->name;
+//    state->name = NULL;
 //
 //    err = SYS_ERR_OK;
+//    goto clean_up_name;
 //
-//    goto clean_up_recv;
+//    clean_up_name:
+//    free(state->name);
 //
-//    clean_up_recv:
-//    if (recv != NULL) {
-//        free(recv);
-//    }
 //    clean_up_msg:
 //    free(msg);
-//
 //    return err;
 //}
 
 
+static errval_t validate_process_get_name(struct lmp_recv_msg *msg, enum pending_state state) {
+    return validate_common_header(msg, state, Method_Process_Get_Name);
+}
+
+__unused errval_t
+aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
+{
+    errval_t err;
+    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(pid));
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    msg->cap = NULL_CAP;
+    msg->msg.method = Method_Process_Get_Name;
+    msg->msg.payload_length = sizeof(pid);
+    msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, &pid, sizeof(pid));
+
+    struct rpc_message *recv = NULL;
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_name);
+    if (err_is_fail(err)) {
+        goto clean_up_msg;
+    }
+    *name = malloc(recv->msg.payload_length);
+    if (*name == NULL) {
+        err = LIB_ERR_MALLOC_FAIL;
+        goto clean_up_recv;
+    }
+    memcpy(*name, recv->msg.payload, recv->msg.payload_length);
+
+    err = SYS_ERR_OK;
+
+    goto clean_up_recv;
+
+    clean_up_recv:
+    if (recv != NULL) {
+        free(recv);
+    }
+    clean_up_msg:
+    free(msg);
+
+    return err;
+}
 
 
 // TODO: generalize
