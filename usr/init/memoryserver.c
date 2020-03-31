@@ -52,7 +52,7 @@ static errval_t reply_error(struct lmp_chan *lc) {
 
 // Allocate RAM and send it to the client. Also, we notify our dispatcher that
 // we allocated RAM.
-static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan)
+static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan, void *custom_state)
 {
     errval_t err;
 
@@ -102,7 +102,7 @@ errval_t memoryserver_init(ram_cap_callback_t new_ram_cap_cb)
 
     ram_cap_cb = new_ram_cap_cb;
 
-    err = rpc_lmp_server_init(&server, cap_chan_memory, service_recv_cb, state_init_cb, state_free_cb);
+    err = rpc_lmp_server_init(&server, cap_chan_memory, service_recv_cb, state_init_cb, state_free_cb, NULL);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);

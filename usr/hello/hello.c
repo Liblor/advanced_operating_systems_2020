@@ -87,7 +87,7 @@ static bool test_rpc(void)
     {
         for(int i = 0; i < 16; i ++) {
             char *name = NULL;
-            err = aos_rpc_lmp_process_get_name(rpc, i, &name);
+            err = aos_rpc_lmp_process_get_name(rpc, i+1, &name);
             if (err_is_fail(err)) {
                 DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
                 return false;

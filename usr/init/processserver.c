@@ -104,13 +104,14 @@ errval_t get_name_by_pid(struct processserver_state *processserver_state, domain
 }
 
 inline
-static errval_t handle_spawn_process(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_spawn_process(struct processserver_state *processserver_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t err;
     char *name = rpc_msg_part->payload + sizeof(coreid_t);
     coreid_t core = *((coreid_t *)rpc_msg_part->payload);
     domainid_t pid;
     enum rpc_message_status status = Status_Ok;
-    err = spawn_cb(name, core, &pid);
+    // PAGEFAULT
+    err = spawn_cb(processserver_state, name, core, &pid);
     if (err_is_fail(err)) {
         status = Spawn_Failed;
     }
@@ -131,12 +132,12 @@ static errval_t handle_spawn_process(struct rpc_message_part *rpc_msg_part, stru
 }
 
 inline
-static errval_t handle_process_get_name(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_process_get_name(struct processserver_state *processserver_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t  err;
     domainid_t pid = (domainid_t) rpc_msg_part->payload[0];
     enum rpc_message_status status = Status_Ok;
     char *name = NULL;
-    err = get_name_cb(pid, &name);
+    err = get_name_cb(processserver_state, pid, &name);
     if (err_is_fail(err)) {
         status = Process_Get_Name_Failed;
     }
@@ -157,13 +158,13 @@ static errval_t handle_process_get_name(struct rpc_message_part *rpc_msg_part, s
 }
 
 inline
-static errval_t handle_process_get_all_pids(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_process_get_all_pids(struct processserver_state *processserver_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t  err;
     size_t pid_count;
     domainid_t *pids = NULL;
     enum rpc_message_status status = Status_Ok;
 
-    err = get_all_pids_cb(&pid_count, &pids);
+    err = get_all_pids_cb(processserver_state, &pid_count, &pids);
     if (err_is_fail(err)) {
         status = Process_Get_All_Pids_Failed;
     }
@@ -186,16 +187,16 @@ static errval_t handle_process_get_all_pids(struct rpc_message_part *rpc_msg_par
     return SYS_ERR_OK;
 }
 
-static errval_t handle_complete_msg(struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_complete_msg(struct processserver_state *processserver_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     switch (rpc_msg_part->method) {
         case Method_Spawn_Process: {
-            return handle_spawn_process(rpc_msg_part, ret_msg);
+            return handle_spawn_process(processserver_state, rpc_msg_part, ret_msg);
         }
         case Method_Process_Get_Name: {
-            return handle_process_get_name(rpc_msg_part, ret_msg);
+            return handle_process_get_name(processserver_state, rpc_msg_part, ret_msg);
         }
         case Method_Process_Get_All_Pids: {
-            return handle_process_get_all_pids(rpc_msg_part, ret_msg);
+            return handle_process_get_all_pids(processserver_state, rpc_msg_part, ret_msg);
         }
         // TODO: error on unknown message, introduce new errcode
         default: break;
@@ -218,15 +219,16 @@ errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
 }
 
 
-static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan)
+static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan, void *processserver_state)
 {
     errval_t err;
 
     debug_printf("processserver service_recv_cb()\n");
 
     struct rpc_message *ret = NULL;
+    debug_printf("%x %x %x \n\n", *((char*)processserver_state), &msg->msg, &ret);
 
-    err = handle_complete_msg(&msg->msg, &ret);
+    err = handle_complete_msg((struct processserver_state *) processserver_state, &msg->msg, &ret);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "handle_complete_msg() failed");
         goto cleanup;
@@ -259,7 +261,6 @@ static void state_free_cb(void *arg)
 }
 
 errval_t processserver_init(
-    struct processserver_state *processserver_state,
     spawn_callback_t new_spawn_cb,
     get_name_callback_t new_get_name_cb,
     get_all_pids_callback_t new_get_all_pids_cb
@@ -272,9 +273,10 @@ errval_t processserver_init(
     get_name_cb = new_get_name_cb;
     get_all_pids_cb = new_get_all_pids_cb;
 
-    init_server_state(processserver_state);
+    struct processserver_state *ps = calloc(1, sizeof(struct processserver_state));
+    init_server_state(ps);
 
-    err = rpc_lmp_server_init(&server, cap_chan_process, service_recv_cb, state_init_cb, state_free_cb);
+    err = rpc_lmp_server_init(&server, cap_chan_process, service_recv_cb, state_init_cb, state_free_cb, ps);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
