@@ -593,7 +593,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
 
     clean_up_msg:
     if (recv != NULL && recv->msg.payload != NULL) {
-        free(recv->msg.payload);
+        free(recv);
     }
     free(send);
 
