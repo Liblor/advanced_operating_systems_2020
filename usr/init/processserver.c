@@ -3,6 +3,7 @@
 #include <aos/aos_rpc_lmp.h>
 
 #include <rpc/server/lmp.h>
+#include <aos/aos_rpc_lmp_marshal.h>
 
 #include "processserver.h"
 

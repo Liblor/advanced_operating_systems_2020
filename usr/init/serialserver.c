@@ -1,7 +1,7 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
-
+#include <aos/aos_rpc_lmp_marshal.h>
 #include <rpc/server/lmp.h>
 
 #include "serialserver.h"
