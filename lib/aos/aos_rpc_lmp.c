@@ -158,6 +158,7 @@ send_and_wait_for_recv(struct aos_rpc *rpc, struct rpc_message *send, struct rpc
     assert(state->message != NULL);
     assert(recv != NULL);
 
+
     debug_printf("state->message->msg.payload_length: %d\n", state->message->msg.payload_length);
     *recv = malloc(sizeof(struct rpc_message) + state->message->msg.payload_length);
     if (*recv == NULL) {
@@ -166,7 +167,7 @@ send_and_wait_for_recv(struct aos_rpc *rpc, struct rpc_message *send, struct rpc
     }
 
     state = lmp->shared;
-    memcpy(*recv, state->message, sizeof(state->message) + state->message->msg.payload_length);
+    memcpy(*recv, state->message, sizeof(struct rpc_message) + state->message->msg.payload_length);
 
     err = SYS_ERR_OK;
     goto clean_up;
@@ -592,7 +593,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
 
     clean_up_msg:
     if (recv != NULL && recv->msg.payload != NULL) {
-        free(recv->msg.payload);
+        free(recv);
     }
     free(send);
 
