@@ -95,19 +95,19 @@ static bool test_rpc(void)
             debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
         }
     }
-//    {
-//        domainid_t *pids = NULL;
-//        size_t pid_count = -1;
-//        err = aos_rpc_lmp_process_get_all_pids(rpc, &pids, &pid_count);
-//        if (err_is_fail(err)) {
-//            DEBUG_ERR(err, "aos_rpc_lmp_process_get_all_pids()\n");
-//            return false;
-//        }
-//        debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
-//        for(int j = 0; j < pid_count; j ++){
-//            debug_printf("pid: %d:\n", pids[j]);
-//        }
-//    }
+    {
+        domainid_t *pids = NULL;
+        size_t pid_count = -1;
+        err = aos_rpc_lmp_process_get_all_pids(rpc, &pids, &pid_count);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_process_get_all_pids()\n");
+            return false;
+        }
+        debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
+        for(int j = 0; j < pid_count; j ++){
+            debug_printf("pid: %d:\n", pids[j]);
+        }
+    }
 
     return true;
 }
