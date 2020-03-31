@@ -12,34 +12,33 @@ static spawn_callback_t spawn_cb = NULL;
 static get_name_callback_t get_name_cb = NULL;
 static get_all_pids_callback_t get_all_pids_cb = NULL;
 
-static struct processserver_state processserver_state;
 
-__unused static inline void init_server_state(void)
+__unused static inline void init_server_state(struct processserver_state *processserver_state)
 {
-    processserver_state.process_head.next = &processserver_state.process_tail;
-    processserver_state.process_head.prev = NULL;
-    processserver_state.process_tail.prev = &processserver_state.process_head;
-    processserver_state.process_tail.next = NULL;
-    processserver_state.processlist = &processserver_state.process_head;
-    processserver_state.process_head.name = NULL;
-    processserver_state.process_tail.name = NULL;
-    processserver_state.num_proc = 0;
+    processserver_state->process_head.next = &processserver_state->process_tail;
+    processserver_state->process_head.prev = NULL;
+    processserver_state->process_tail.prev = &processserver_state->process_head;
+    processserver_state->process_tail.next = NULL;
+    processserver_state->processlist = &processserver_state->process_head;
+    processserver_state->process_head.name = NULL;
+    processserver_state->process_tail.name = NULL;
+    processserver_state->num_proc = 0;
 
-    // TODO is init 0?
-    //add_to_proc_list("init", 0);
+    domainid_t pid;
+    add_to_proc_list(processserver_state, "init", &pid);
 }
 
-static void add_process_info(struct process_info *process_info)
+static void add_process_info(struct processserver_state *processserver_state, struct process_info *process_info)
 {
-    processserver_state.process_tail.prev->next = process_info;
-    process_info->prev = processserver_state.process_tail.prev;
-    process_info->next = &processserver_state.process_tail;
-    process_info->pid = processserver_state.num_proc;
-    processserver_state.process_tail.prev = process_info;
-    processserver_state.num_proc++;
+    processserver_state->process_tail.prev->next = process_info;
+    process_info->prev = processserver_state->process_tail.prev;
+    process_info->next = &processserver_state->process_tail;
+    process_info->pid = processserver_state->num_proc;
+    processserver_state->process_tail.prev = process_info;
+    processserver_state->num_proc++;
 }
 
-errval_t add_to_proc_list(char *name, domainid_t *pid)
+errval_t add_to_proc_list(struct processserver_state *processserver_state, char *name, domainid_t *pid)
 {
     struct process_info *new_process = calloc(1, sizeof(struct process_info));
     if (new_process == NULL) {
@@ -53,7 +52,7 @@ errval_t add_to_proc_list(char *name, domainid_t *pid)
     }
     strncpy(new_process->name, name, name_size);
 
-    add_process_info(new_process);
+    add_process_info(processserver_state, new_process);
 
     *pid = new_process->pid;
 
@@ -66,54 +65,28 @@ errval_t add_to_proc_list(char *name, domainid_t *pid)
  * @param ret_pid_array contains all pids in this process server state, has to be delted by caller
  * @return errors
  */
-/*
-errval_t get_pid_array(struct process_pid_array **ret_pid_array)
+errval_t get_all_pids(struct processserver_state *processserver_state, size_t *ret_num_pids, domainid_t **ret_pids)
 {
-    *ret_pid_array = calloc(1, sizeof(struct process_pid_array) + processserver_state.num_proc * sizeof(domainid_t));
-    if (*ret_pid_array == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    (*ret_pid_array)->pid_count = processserver_state.num_proc;
-    struct process_info *curr = processserver_state.process_head.next;
-    size_t curr_idx = 0;
-    while (curr != &(processserver_state.process_tail)) {
-        (*ret_pid_array)->pids[curr_idx] = curr->pid;
-        curr_idx++;
-        curr = curr->next;
-    }
-    assert(curr_idx == processserver_state.num_proc);
-    return SYS_ERR_OK;
-}
-*/
-
-/**
- * Packs the current running processes into a pid_array
- *
- * @param ret_pid_array contains all pids in this process server state, has to be delted by caller
- * @return errors
- */
-errval_t get_all_pids(size_t *ret_num_pids, domainid_t **ret_pids)
-{
-    *ret_pids = calloc(1, processserver_state.num_proc * sizeof(domainid_t));
+    *ret_pids = calloc(1, processserver_state->num_proc * sizeof(domainid_t));
     if (*ret_pids == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    *ret_num_pids = processserver_state.num_proc;
-    struct process_info *curr = processserver_state.process_head.next;
+    *ret_num_pids = processserver_state->num_proc;
+    struct process_info *curr = processserver_state->process_head.next;
     size_t curr_idx = 0;
-    while (curr != &(processserver_state.process_tail)) {
+    while (curr != &(processserver_state->process_tail)) {
         (*ret_pids)[curr_idx] = curr->pid;
         curr_idx++;
         curr = curr->next;
     }
-    assert(curr_idx == processserver_state.num_proc);
+    assert(curr_idx == processserver_state->num_proc);
     return SYS_ERR_OK;
 }
 
-errval_t get_name_by_pid(domainid_t pid, char **ret_name) {
-    struct process_info *curr = processserver_state.process_head.next;
+errval_t get_name_by_pid(struct processserver_state *processserver_state, domainid_t pid, char **ret_name) {
+    struct process_info *curr = processserver_state->process_head.next;
     char *found_name = NULL;
-    while (curr != &(processserver_state.process_tail)) {
+    while (curr != &(processserver_state->process_tail)) {
         if (curr->pid == pid) {
             found_name = curr->name;
             break;
@@ -286,6 +259,7 @@ static void state_free_cb(void *arg)
 }
 
 errval_t processserver_init(
+    struct processserver_state *processserver_state,
     spawn_callback_t new_spawn_cb,
     get_name_callback_t new_get_name_cb,
     get_all_pids_callback_t new_get_all_pids_cb
@@ -298,7 +272,7 @@ errval_t processserver_init(
     get_name_cb = new_get_name_cb;
     get_all_pids_cb = new_get_all_pids_cb;
 
-    init_server_state();
+    init_server_state(processserver_state);
 
     err = rpc_lmp_server_init(&server, cap_chan_process, service_recv_cb, state_init_cb, state_free_cb);
     if (err_is_fail(err)) {

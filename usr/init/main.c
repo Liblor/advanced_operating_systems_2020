@@ -33,6 +33,7 @@
 #include "test.h"
 
 struct bootinfo *bi;
+static struct processserver_state processserver_state;
 
 coreid_t my_core_id;
 
@@ -107,7 +108,7 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 
     struct spawninfo si;
 
-    err = add_to_proc_list(name, ret_pid);
+    err = add_to_proc_list(&processserver_state, name, ret_pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
@@ -130,7 +131,7 @@ static errval_t get_name_cb(domainid_t pid, char **ret_name) {
 
     grading_rpc_handler_process_get_name(pid);
 
-    err = get_name_by_pid(pid, ret_name);
+    err = get_name_by_pid(&processserver_state, pid, ret_name);
 
     return err;
 }
@@ -140,7 +141,7 @@ static errval_t process_get_all_pids(size_t *ret_count, domainid_t **ret_pids) {
 
     grading_rpc_handler_process_get_all_pids();
 
-    err = get_all_pids(ret_count, ret_pids);
+    err = get_all_pids(&processserver_state, ret_count, ret_pids);
 
     return err;
 }
@@ -191,7 +192,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
+    err = processserver_init(&processserver_state, spawn_cb, get_name_cb, process_get_all_pids);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
