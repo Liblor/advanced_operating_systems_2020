@@ -61,7 +61,7 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
         err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
 
         if (lmp_err_is_transient(err)) {
-            DEBUG_ERR(err, "lmp_chan_send4 failed (transient)");
+            DEBUG_ERR(err, "lmp_chan_send4 failed (transient), %s", err_getstring(err));
             continue;
         } else if (err_is_fail(err)) {
             DEBUG_ERR(err, "lmp_chan_send4 failed");

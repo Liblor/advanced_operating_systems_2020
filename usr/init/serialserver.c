@@ -32,7 +32,7 @@ static errval_t reply_char(struct lmp_chan *lc, char c) {
     return SYS_ERR_OK;
 }
 
-static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan)
+static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct lmp_chan *reply_chan, void *server_state)
 {
     errval_t err;
 
@@ -64,18 +64,18 @@ static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct 
 }
 
 // Initialize channel-specific data.
-static void state_init_cb(void *arg)
+static void *state_init_cb(void *server_state)
 {
-    struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
-    common_state->shared = malloc(sizeof(struct serialserver_cb_state));
-    //struct serialserver_cb_state *state = common_state->shared;
+    struct serialserver_cb_state *state = NULL;
+
+    return state;
 }
 
 // Free channel-specific data.
-static void state_free_cb(void *arg)
+static void state_free_cb(void *server_state, void *callback_state)
 {
-    struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
-    free(common_state->shared);
+    struct serialserver_cb_state *state = callback_state;
+    free(state);
 }
 
 errval_t serialserver_init(
@@ -88,7 +88,7 @@ errval_t serialserver_init(
     putchar_cb = new_putchar_cb;
     getchar_cb = new_getchar_cb;
 
-    err = rpc_lmp_server_init(&server, cap_chan_serial, service_recv_cb, state_init_cb, state_free_cb);
+    err = rpc_lmp_server_init(&server, cap_chan_serial, service_recv_cb, state_init_cb, state_free_cb, NULL);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
