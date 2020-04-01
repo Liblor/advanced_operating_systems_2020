@@ -100,7 +100,7 @@ validate_get_ram_cap(struct lmp_recv_msg *msg, enum pending_state state) {
     return SYS_ERR_OK;
 }
 
-__unused errval_t
+errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                         struct capref *ret_cap, size_t *ret_bytes) {
     errval_t err;
@@ -128,8 +128,8 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     *ret_cap = recv->cap;
 
     if (ret_bytes != NULL) {
-        /*
-         * Compiler Alignment Bug
+        /* TODO:
+         * Compiler Alignment Undef Behaviour
          * char payload[0] may lead to alignment issues when
          * payload is copied by assign, not by memcopy
          *
