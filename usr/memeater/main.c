@@ -54,7 +54,6 @@ static errval_t request_and_map_memory(void)
     }
     HERE;
 
-
     struct capref cap1_frame;
     err = slot_alloc(&cap1_frame);
     assert(err_is_ok(err));
