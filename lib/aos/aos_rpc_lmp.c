@@ -40,6 +40,7 @@ aos_rpc_lmp_handler_print(char *string, uintptr_t *val, struct capref *cap) {
 errval_t
 aos_rpc_lmp_init(struct aos_rpc *rpc) {
     lmp_chan_init(&rpc->lc);
+
     struct aos_rpc_lmp *rpc_lmp = malloc(sizeof(struct aos_rpc_lmp));
     if (rpc_lmp == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -54,37 +55,31 @@ aos_rpc_lmp_init(struct aos_rpc *rpc) {
 
 errval_t
 aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num) {
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(num));
-    if (msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(num)];
+
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
     msg->msg.method = Method_Send_Number;
     msg->msg.payload_length = sizeof(num);
     msg->msg.status = Status_Ok;
     msg->cap = NULL_CAP;
     memcpy(msg->msg.payload, &num, sizeof(num));
 
-    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    free(msg);
-    return err;
+    return aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
 }
 
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string) {
-    const uint32_t str_len = MIN(strlen(string) + 1, RPC_LMP_MAX_STR_LEN);
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + str_len);
-    if (msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
+    const uint32_t str_len = strnlen(string, RPC_LMP_MAX_STR_LEN - 1) + 1; //  strln \0 not included
+    uint8_t send_buf[sizeof(struct rpc_message) + str_len];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
     msg->msg.method = Method_Send_String;
     msg->msg.payload_length = str_len;
     msg->cap = NULL_CAP;
     msg->msg.status = Status_Ok;
     strncpy(msg->msg.payload, string, str_len);
 
-    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
-    free(msg);
-    return err;
+    return aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
 }
 
 static errval_t
@@ -105,11 +100,11 @@ errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                         struct capref *ret_cap, size_t *ret_bytes) {
     errval_t err;
+
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + payload_length);
-    if (msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
     msg->msg.method = Method_Get_Ram_Cap;
     msg->msg.payload_length = payload_length;
     msg->msg.status = Status_Ok;
@@ -126,7 +121,6 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
         err = LIB_ERR_LMP_INVALID_RESPONSE;
         goto clean_up;
     }
-
     *ret_cap = recv->cap;
 
     if (ret_bytes != NULL) {
@@ -149,7 +143,6 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 
     clean_up:
     free(recv);
-    free(msg);
     return err;
 }
 
@@ -163,55 +156,53 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc) {
     errval_t err;
     assert(rpc->lmp->shared != NULL);
 
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message));
-    if (msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
+    uint8_t send_buf[sizeof(struct rpc_message)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;
+    HERE;
 
     struct rpc_message *recv = NULL;
     err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
     if (err_is_fail(err)) {
         goto clean_up;
     }
+    HERE;
 
     // always use memcpy when dealing with payload[0] (alignment issues)
     memcpy(retc, recv->msg.payload, sizeof(char));
+    HERE;
+
     err = SYS_ERR_OK;
     goto clean_up;
 
     clean_up:
-    free(msg);
+    free(recv);
     return err;
 }
 
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c) {
+    errval_t err;
     assert(rpc->lmp->shared != NULL);
-    // TODO Why is a malloc used here?
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
-    if (msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
+
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(c)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Putchar;
     msg->msg.payload_length = sizeof(c);
     msg->msg.status = Status_Ok;
     msg->msg.payload[0] = c;
 
-    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_send_message failed\n");
-        goto clean_up_msg;
+        return err;
     }
     return SYS_ERR_OK;
-
-    clean_up_msg:
-    free(msg);
-    return err;
 }
 
 static errval_t

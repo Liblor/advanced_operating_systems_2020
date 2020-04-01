@@ -31,11 +31,11 @@ static void test_serial_channel(void) {
 
     // Explicit test not necessary since printf is redirected to rpc during the
     // execution of this entire program.
-    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
-        USER_PANIC_ERR(err, "");
-    }
+//    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
+//    if (err_is_fail(err)) {
+//        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
+//        USER_PANIC_ERR(err, "");
+//    }
 
 
     char c;
@@ -131,6 +131,6 @@ int main(int argc, char *argv[])
 //    if (!success) {
 //        return EXIT_FAILURE;
 //    }
-
+    debug_printf("done...\n");
     return EXIT_SUCCESS;
 }

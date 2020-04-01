@@ -115,6 +115,7 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
         goto clean_up;
     }
 
+    HERE;
     err = aos_rpc_lmp_send_message(&rpc->lc, send, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
@@ -122,7 +123,9 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     }
 
     do {
+        HERE;
         err = event_dispatch(&lmp->ws);
+        HERE;
     } while (err_is_ok(err) && state->pending_state == DataInTransmit);
 
     if (err_is_fail(err)) {
@@ -152,6 +155,7 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     memcpy(*recv, state->message, sizeof(struct rpc_message) + state->message->msg.payload_length);
 
 
+
     err = SYS_ERR_OK;
     goto clean_up;
 
@@ -160,7 +164,11 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     if (capref_is_null((*recv)->cap)) {
         slot_free(rpc->lc.endpoint->recv_slot);
     }
-    free(state->message);
+    HERE;
+    if (state->message != NULL) {
+        free(state->message);
+    }
+    HERE;
     return err;
 }
 
