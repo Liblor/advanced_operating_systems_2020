@@ -46,12 +46,14 @@ static errval_t request_and_map_memory(void)
     struct capref cap1;
     err = aos_rpc_get_ram_cap(mem_rpc, BASE_PAGE_SIZE, BASE_PAGE_SIZE,
                               &cap1, &bytes);
+    debug_printf("bytes: %d\n", bytes);
+
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
         return err;
     }
+    HERE;
 
-    return SYS_ERR_OK;
 
     struct capref cap1_frame;
     err = slot_alloc(&cap1_frame);
@@ -86,6 +88,7 @@ static errval_t request_and_map_memory(void)
     debug_printf("obtaining cap of %" PRIu32 " bytes using frame alloc...\n",
                  LARGE_PAGE_SIZE);
 
+    HERE;
     struct capref cap2;
     err = frame_alloc(&cap2, LARGE_PAGE_SIZE, &bytes);
     if (err_is_fail(err)) {
@@ -93,9 +96,11 @@ static errval_t request_and_map_memory(void)
         return err;
     }
 
+    HERE;
     err = frame_identify(cap2, &id);
     assert(err_is_ok(err));
 
+    HERE;
     void *buf2;
     err = paging_map_frame(pstate, &buf2, LARGE_PAGE_SIZE, cap2, NULL, NULL);
     if (err_is_fail(err)) {
