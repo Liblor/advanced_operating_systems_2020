@@ -65,31 +65,21 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
     size_t alignment;
     struct capref retcap;
 
+    // TODO: error handling not good!
     switch (msg->msg.method) {
     case Method_Get_Ram_Cap:
-        HERE;
         memcpy(&bytes, msg->msg.payload, sizeof(bytes));
         memcpy(&alignment, msg->msg.payload + sizeof(bytes), sizeof(alignment));
 
         if (ram_cap_cb != NULL) {
             size_t retbytes;
-            HERE;
-            debug_printf("A\n");
             err = ram_cap_cb(bytes, alignment, &retcap, &retbytes);
-            HERE;
-            debug_printf("B\n");
             if (err_is_fail(err)) {
                 err = reply_error(reply_chan);
             }
-            debug_printf("C\n");
-            HERE;
-
             err = reply_cap(reply_chan, &retcap, retbytes);
-            HERE;
         } else {
-            debug_printf("D\n");
             err = reply_error(reply_chan);
-            HERE;
         }
         break;
     default:

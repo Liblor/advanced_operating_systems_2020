@@ -40,10 +40,10 @@ void client_response_cb(void *arg) {
             state->pending_state = InvalidState;
             goto clean_up;
         }
+
         struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
         state->total_length = msg_part->payload_length; // TODO: introduce max len
         state->bytes_received = 0;
-        debug_printf("msg_part->payload_length: %d\n", msg_part->payload_length);
 
         state->message = malloc(state->total_length + sizeof(struct rpc_message));
         if (state->message == NULL) {
@@ -51,8 +51,6 @@ void client_response_cb(void *arg) {
             state->pending_state = InvalidState;
             goto clean_up;
         }
-
-        debug_printf("%lu\n", state->total_length + sizeof(struct rpc_message));
 
         // copy header
         state->message->msg.method = msg_part->method;
@@ -65,23 +63,6 @@ void client_response_cb(void *arg) {
         memcpy(state->message->msg.payload, msg_part->payload, to_copy);
         debug_printf("to_copy: %d\n", to_copy);
         state->bytes_received += to_copy;
-
-
-        char *b = (char *) state->message;
-
-        for(int i = 0; i < state->total_length + sizeof(struct rpc_message); i++ ) {
-            debug_printf("state->message[%d] = %p\n", i, *b);
-            b ++;
-        }
-////
-//        memcpy(buffer, &state->message->msg.payload[0], 8);
-//        debug_printf("buffer[100]: %s\n", buffer);
-
-//        debug_printf("(msg_part) size_t: %zu\n", *(size_t *) msg_part->payload);
-//        debug_printf("size_t: %p\n", *(char *) state->message->msg.payload);
-//
-//        debug_printf("state->message->msg.payload: %p\n", state->message->msg.payload);
-
 
     } else if (state->pending_state == DataInTransmit) {
         debug_printf("state: DataInTransmit\n");
@@ -106,19 +87,13 @@ void client_response_cb(void *arg) {
         state->pending_state = EmptyState;
         assert(state->total_length == state->bytes_received);
         assert(state->message != NULL);
-        HERE;
-//        debug_printf("size_t: %zu\n", *(size_t *) &state->message->msg.payload);
     }
     lmp->err = SYS_ERR_OK;
 
     return;
 
     clean_up:
-    // TODO: is this ok?
-    assert(false); // TODO
-    if (state->message != NULL) {
-        free(state->message);
-    }
+
     return;
 
 }
