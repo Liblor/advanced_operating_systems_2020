@@ -244,10 +244,10 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     // but if we memcopy to ret_bytes first, it works
 
     // THIS FAILS
-    // debug_printf("size_t: %zu\n", *(size_t *) &recv->msg.payload);
+     debug_printf("size_t: %zu\n", *(size_t *) &recv->msg.payload);
 
     // THIS WORKS
-    debug_printf("ret_bytes: %zu\n", *ret_bytes);
+//    debug_printf("ret_bytes: %zu\n", *ret_bytes);
     HERE;
 
     err = SYS_ERR_OK;
