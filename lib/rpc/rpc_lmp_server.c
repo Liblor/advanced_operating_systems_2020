@@ -92,7 +92,7 @@ static void service_recv_cb(void *arg)
     if (state->bytes_received == full_msg_size(state->msg->msg)) {
         if (server->service_recv_handler != NULL) {
             // TODO Also pass a callback here to send a reply message
-            server->service_recv_handler(state->msg, state->shared, lc, server->custom_state);
+            server->service_recv_handler(state->msg, state->shared, lc, server->shared);
         }
 
         goto reset_state;
@@ -112,7 +112,6 @@ reset_state:
 // requests.
 static void open_recv_cb(void *arg)
 {
-    DEBUG_PRINTF("open_recv_cb()\n");
     errval_t err;
 
     struct rpc_lmp_server *server = arg;
@@ -164,7 +163,7 @@ static void open_recv_cb(void *arg)
     }
 
     if (server->state_init_handler != NULL) {
-        server->state_init_handler(state);
+        state->shared = server->state_init_handler(server->shared);
     }
 
     err = lmp_chan_register_recv(service_chan, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
@@ -234,7 +233,7 @@ errval_t rpc_lmp_server_init(
     server->service_recv_handler = new_service_recv_handler;
     server->state_init_handler = new_state_init_handler;
     server->state_free_handler = new_state_free_handler;
-    server->custom_state = server_state;
+    server->shared = server_state;
 
     err = rpc_lmp_server_setup_open_channel(server, cap_chan);
     if (err_is_fail(err)) {

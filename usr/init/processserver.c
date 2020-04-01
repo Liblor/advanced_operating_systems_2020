@@ -13,7 +13,7 @@ static get_name_callback_t get_name_cb = NULL;
 static get_all_pids_callback_t get_all_pids_cb = NULL;
 
 
-__unused static inline void init_server_state(struct processserver_state *processserver_state)
+static inline void init_server_state(struct processserver_state *processserver_state)
 {
     processserver_state->process_head.next = &processserver_state->process_tail;
     processserver_state->process_head.prev = NULL;
@@ -223,10 +223,7 @@ static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct 
 {
     errval_t err;
 
-    debug_printf("processserver service_recv_cb()\n");
-
     struct rpc_message *ret = NULL;
-    debug_printf("%x %x %x \n\n", *((char*)processserver_state), &msg->msg, &ret);
 
     err = handle_complete_msg((struct processserver_state *) processserver_state, &msg->msg, &ret);
     if (err_is_fail(err)) {
@@ -246,18 +243,18 @@ cleanup:
 }
 
 // Initialize channel-specific data.
-static void state_init_cb(void *arg)
+static void *state_init_cb(void *server_state)
 {
-#if 0
-    struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
-    common_state->shared = malloc(sizeof(struct processserver_cb_state));
-    struct initserver_cb_state *state = common_state->shared;
-#endif
+    struct processserver_cb_state *state = NULL;
+
+    return state;
 }
 
 // Free channel-specific data.
-static void state_free_cb(void *arg)
+static void state_free_cb(void *server_state, void *callback_state)
 {
+    struct processserver_cb_state *state = callback_state;
+    free(state);
 }
 
 errval_t processserver_init(
