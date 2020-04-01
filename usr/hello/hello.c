@@ -21,7 +21,33 @@
 #include <aos/aos_rpc.h>
 #include <spawn/spawn.h>
 
-static bool test_rpc(void)
+static void test_serial_channel(void) {
+    struct aos_rpc *rpc_serial = aos_rpc_get_serial_channel();
+    errval_t err;
+    if (rpc_serial == NULL) {
+        debug_printf("Could not create serial channel\n");
+        USER_PANIC("");
+    }
+
+    // Explicit test not necessary since printf is redirected to rpc during the
+    // execution of this entire program.
+    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
+        USER_PANIC_ERR(err, "");
+    }
+
+
+    char c;
+    err = aos_rpc_lmp_serial_getchar(rpc_serial, &c);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
+        USER_PANIC("");
+    }
+    debug_printf("Received %c\n", c);
+}
+
+__unused static bool test_rpc(void)
 {
     errval_t err;
 
@@ -43,29 +69,6 @@ static bool test_rpc(void)
         return false;
     }
 
-    struct aos_rpc *rpc_serial = aos_rpc_get_serial_channel();
-    if (rpc_serial == NULL) {
-        debug_printf("Could not create serial channel\n");
-        return false;
-    }
-
-    /*
-    // Explicit test not necessary since printf is redirected to rpc during the
-    // execution of this entire program.
-    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
-        return false;
-    }
-    */
-
-    //char c;
-    //err = aos_rpc_lmp_serial_getchar(rpc_serial, &c);
-    //if (err_is_fail(err)) {
-    //    DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
-    //    return false;
-    //}
-    //debug_printf("Received %c\n", c);
 
     debug_printf("calling aos_rpc_process_spawn\n");
     rpc = aos_rpc_get_process_channel();
@@ -120,12 +123,14 @@ int main(int argc, char *argv[])
         printf("argv[%d]='%s'\n", i, argv[i]);
     }
 
-    bool success;
 
-    success = test_rpc();
-    if (!success) {
-        return EXIT_FAILURE;
-    }
+    test_serial_channel();
+
+//    bool success;
+//    success = test_rpc();
+//    if (!success) {
+//        return EXIT_FAILURE;
+//    }
 
     return EXIT_SUCCESS;
 }
