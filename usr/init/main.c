@@ -99,7 +99,7 @@ static void getchar_cb(char *c) {
     }
 }
 
-static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
+static errval_t spawn_cb(struct processserver_state *processserver_state, char *name, coreid_t coreid, domainid_t *ret_pid)
 {
     errval_t err;
 
@@ -107,7 +107,7 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
 
     struct spawninfo si;
 
-    err = add_to_proc_list(name, ret_pid);
+    err = add_to_proc_list(processserver_state, name, ret_pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
@@ -125,22 +125,22 @@ static errval_t spawn_cb(char *name, coreid_t coreid, domainid_t *ret_pid)
     return SYS_ERR_OK;
 }
 
-static errval_t get_name_cb(domainid_t pid, char **ret_name) {
+static errval_t get_name_cb(struct processserver_state *processserver_state, domainid_t pid, char **ret_name) {
     errval_t err;
 
     grading_rpc_handler_process_get_name(pid);
 
-    err = get_name_by_pid(pid, ret_name);
+    err = get_name_by_pid(processserver_state, pid, ret_name);
 
     return err;
 }
 
-static errval_t process_get_all_pids(size_t *ret_count, domainid_t **ret_pids) {
+static errval_t process_get_all_pids(struct processserver_state *processserver_state, size_t *ret_count, domainid_t **ret_pids) {
     errval_t err;
 
     grading_rpc_handler_process_get_all_pids();
 
-    err = get_all_pids(ret_count, ret_pids);
+    err = get_all_pids(processserver_state, ret_count, ret_pids);
 
     return err;
 }

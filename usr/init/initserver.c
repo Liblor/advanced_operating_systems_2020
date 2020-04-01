@@ -11,7 +11,7 @@ static struct rpc_lmp_server server;
 static recv_number_callback_t recv_number_cb = NULL;
 static recv_string_callback_t recv_string_cb = NULL;
 
-static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan)
+static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct lmp_chan *reply_chan, void *server_state)
 {
     uintptr_t num;
     size_t last_idx;
@@ -39,18 +39,18 @@ static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct 
 }
 
 // Initialize channel-specific data.
-static void state_init_cb(void *arg)
+static void *state_init_cb(void *server_state)
 {
-#if 0
-    struct rpc_lmp_handler_state *common_state = (struct rpc_lmp_handler_state *) arg;
-    common_state->shared = malloc(sizeof(struct initserver_cb_state));
-    struct initserver_cb_state *state = common_state->shared;
-#endif
+    struct initserver_cb_state *state = NULL;
+
+    return state;
 }
 
 // Free channel-specific data.
-static void state_free_cb(void *arg)
+static void state_free_cb(void *server_state, void *callback_state)
 {
+    struct initserver_cb_state *state = callback_state;
+    free(state);
 }
 
 errval_t initserver_init(
@@ -63,7 +63,7 @@ errval_t initserver_init(
     recv_number_cb = new_recv_number_cb;
     recv_string_cb = new_recv_string_cb;
 
-    err = rpc_lmp_server_init(&server, cap_chan_init, service_recv_cb, state_init_cb, state_free_cb);
+    err = rpc_lmp_server_init(&server, cap_chan_init, service_recv_cb, state_init_cb, state_free_cb, NULL);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
