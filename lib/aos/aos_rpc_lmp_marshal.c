@@ -5,11 +5,12 @@
 #include <aos/debug.h>
 
 static void
-client_response_cb(void *arg) {
+client_response_cb(void *arg)
+{
     struct aos_rpc *rpc = (struct aos_rpc *) arg;
     struct lmp_chan *lc = &rpc->lc;
     struct aos_rpc_lmp *lmp = rpc->lmp;
-    struct client_response_state *state = (struct client_response_state*) lmp->shared;
+    struct client_response_state *state = (struct client_response_state *) lmp->shared;
     struct capref cap = NULL_CAP;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
 
@@ -62,8 +63,10 @@ client_response_cb(void *arg) {
         state->bytes_received += to_copy;
 
     } else if (state->pending_state == DataInTransmit) {
-        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t), state->total_length - state->bytes_received);
-        memcpy(((char *) state->message->msg.payload) + state->bytes_received, (char *) &msg.words[0], to_copy);
+        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t),
+                               state->total_length - state->bytes_received);
+        memcpy(((char *) state->message->msg.payload) + state->bytes_received,
+               (char *) &msg.words[0], to_copy);
         state->bytes_received += to_copy;
     }
     if (state->bytes_received < state->total_length) {
@@ -89,7 +92,7 @@ client_response_cb(void *arg) {
 
 errval_t
 aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
-        struct rpc_message **recv, validate_recv_msg_t validate_cb)
+                               struct rpc_message **recv, validate_recv_msg_t validate_cb)
 {
     errval_t err;
     assert(rpc->lmp->shared != NULL);
@@ -181,12 +184,13 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
     uint64_t retries = 0;
     err = SYS_ERR_OK;
 
-    while(size_sent < msg_size && retries <= TRANSIENT_ERR_RETRIES) {
+    while (size_sent < msg_size && retries <= TRANSIENT_ERR_RETRIES) {
         uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);
 
-        err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
+        err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2],
+                             words[3]);
 
         if (lmp_err_is_transient(err)) {
             DEBUG_ERR(err, "lmp_chan_send4 failed (transient): %s\n", err_getstring(err));
