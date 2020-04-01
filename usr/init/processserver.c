@@ -3,6 +3,7 @@
 #include <aos/aos_rpc_lmp.h>
 
 #include <rpc/server/lmp.h>
+#include <aos/aos_rpc_lmp_marshal.h>
 
 #include "processserver.h"
 
@@ -127,6 +128,8 @@ static errval_t handle_spawn_process(struct processserver_state *processserver_s
     (*ret_msg)->msg.status = status;
     pid_array->pid_count = 1;
     pid_array->pids[0] = pid;
+
+    debug_printf("msg size return: %d\n", payload_length);
 
     return SYS_ERR_OK;
 }

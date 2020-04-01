@@ -119,8 +119,8 @@ void barrelfish_libc_glue_init(void)
 {
     // XXX: FIXME: Check whether we can use the proper kernel serial, and
     // what we need for that
-    _libc_terminal_read_func = dummy_terminal_read;
-    _libc_terminal_write_func = syscall_terminal_write;
+//    _libc_terminal_read_func = dummy_terminal_read;
+//    _libc_terminal_write_func = syscall_terminal_write;
     _libc_exit_func = libc_exit;
     _libc_assert_func = libc_assert;
     /* morecore func is setup by morecore_init() */
@@ -187,8 +187,10 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
         set_init_rpc(init_rpc);
 
-        _libc_terminal_read_func = aos_terminal_read;
-        _libc_terminal_write_func = aos_terminal_write;
+//        _libc_terminal_read_func = aos_terminal_read;
+//        _libc_terminal_write_func = aos_terminal_write;
+        _libc_terminal_read_func = dummy_terminal_read;
+        _libc_terminal_write_func = syscall_terminal_write;
 
         // This call is to setup the channel to the memory server before
         // ram_alloc() is set to use the RPC call for memory allocation. This

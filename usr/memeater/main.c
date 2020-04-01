@@ -31,59 +31,70 @@ const char *str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, "
                   "occaecat cupidatat non proident, sunt in culpa qui officia "
                   "deserunt mollit anim id est laborum.";
 
-static errval_t request_and_map_memory(void)
-{
+static errval_t request_and_map_memory(void) {
     errval_t err;
-
+    struct paging_state *pstate = get_current_paging_state();
     size_t bytes;
     struct frame_identity id;
-    debug_printf("testing memory server...\n");
-
-    struct paging_state *pstate = get_current_paging_state();
-
-    debug_printf("obtaining cap of %" PRIu32 " bytes...\n", BASE_PAGE_SIZE);
-
-    struct capref cap1;
-    err = aos_rpc_get_ram_cap(mem_rpc, BASE_PAGE_SIZE, BASE_PAGE_SIZE,
-                              &cap1, &bytes);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
-        return err;
-    }
-
-    struct capref cap1_frame;
-    err = slot_alloc(&cap1_frame);
-    assert(err_is_ok(err));
-
-    debug_printf("Retype to frame \n");
-
-    err = cap_retype(cap1_frame, cap1, 0, ObjType_Frame, BASE_PAGE_SIZE, 1);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "could not retype RAM cap to frame cap\n");
-        return err;
-    }
-
-    err = frame_identify(cap1_frame, &id);
-    assert(err_is_ok(err));
-
-    debug_printf("Mapping frame \n");
     void *buf1;
-    err = paging_map_frame(pstate, &buf1, BASE_PAGE_SIZE, cap1_frame, NULL, NULL);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
-        return err;
+
+    for (int i = 0; i < 1; ++i) {
+
+        debug_printf("testing memory server...\n");
+        debug_printf("obtaining cap of %" PRIu32 " bytes...\n", BASE_PAGE_SIZE);
+
+        struct capref cap1;
+        err = aos_rpc_get_ram_cap(mem_rpc, BASE_PAGE_SIZE, BASE_PAGE_SIZE,
+                                  &cap1, &bytes);
+        debug_printf("bytes: %d\n", bytes);
+
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
+            return err;
+        }
+        HERE;
+
+        struct capref cap1_frame;
+        err = slot_alloc(&cap1_frame);
+        assert(err_is_ok(err));
+
+        debug_printf("Retype to frame \n");
+
+        err = cap_retype(cap1_frame, cap1, 0, ObjType_Frame, BASE_PAGE_SIZE, 1);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "could not retype RAM cap to frame cap\n");
+            return err;
+        }
+
+        err = frame_identify(cap1_frame, &id);
+        assert(err_is_ok(err));
+
+        debug_printf("Mapping frame \n");
+        err = paging_map_frame(pstate, &buf1, BASE_PAGE_SIZE, cap1_frame, NULL, NULL);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
+            return err;
+        }
+
+        debug_printf("got frame: 0x%" PRIxGENPADDR " mapped at %p\n", id.base, buf1);
+
+        debug_printf("performing memset.\n");
+        memset(buf1, 0x00, BASE_PAGE_SIZE);
+
+        uint64_t *ptr = (uint64_t *) buf1;
+        while ((char *) ptr < ((char *) buf1) + bytes) {
+
+            *ptr = 1;
+            ptr++;
+        }
+
+        memset(buf1, 0x00, BASE_PAGE_SIZE);
     }
-
-    debug_printf("got frame: 0x%" PRIxGENPADDR " mapped at %p\n", id.base, buf1);
-
-    debug_printf("performing memset.\n");
-    memset(buf1, 0x00, BASE_PAGE_SIZE);
-
-
 
     debug_printf("obtaining cap of %" PRIu32 " bytes using frame alloc...\n",
                  LARGE_PAGE_SIZE);
 
+    HERE;
     struct capref cap2;
     err = frame_alloc(&cap2, LARGE_PAGE_SIZE, &bytes);
     if (err_is_fail(err)) {
@@ -91,9 +102,11 @@ static errval_t request_and_map_memory(void)
         return err;
     }
 
+    HERE;
     err = frame_identify(cap2, &id);
     assert(err_is_ok(err));
 
+    HERE;
     void *buf2;
     err = paging_map_frame(pstate, &buf2, LARGE_PAGE_SIZE, cap2, NULL, NULL);
     if (err_is_fail(err)) {
@@ -107,31 +120,31 @@ static errval_t request_and_map_memory(void)
     memset(buf2, 0x00, LARGE_PAGE_SIZE);
 
     return SYS_ERR_OK;
-
 }
 
-static errval_t test_basic_rpc(void)
-{
+__unused
+static errval_t test_basic_rpc(void) {
     errval_t err;
 
     debug_printf("RPC: testing basic RPCs...\n");
 
     debug_printf("RPC: sending number...\n");
-    err =  aos_rpc_send_number(init_rpc, 42);
+    err = aos_rpc_send_number(init_rpc, 42);
+
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not send a string\n");
         return err;
     }
 
     debug_printf("RPC: sending small string...\n");
-    err =  aos_rpc_send_string(init_rpc, "Hello init");
+    err = aos_rpc_send_string(init_rpc, "Hello init");
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not send a string\n");
         return err;
     }
 
     debug_printf("RPC: sending large string...\n");
-    err =  aos_rpc_send_string(init_rpc, str);
+    err = aos_rpc_send_string(init_rpc, str);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not send a string\n");
         return err;
@@ -143,13 +156,10 @@ static errval_t test_basic_rpc(void)
 }
 
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     errval_t err = SYS_ERR_OK;
 
     debug_printf("memeater started....\n");
-
-    return 0;
 
     init_rpc = aos_rpc_get_init_channel();
     if (!init_rpc) {
@@ -170,7 +180,6 @@ int main(int argc, char *argv[])
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "could not request and map memory\n");
     }
-
 
     /* test printf functionality */
     debug_printf("testing terminal printf function...\n");
