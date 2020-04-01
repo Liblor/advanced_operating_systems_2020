@@ -14,18 +14,14 @@ static ram_cap_callback_t ram_cap_cb = NULL;
 static errval_t reply_cap(struct lmp_chan *lc, struct capref *cap, size_t bytes) {
     errval_t err;
 
-
     char msg_buf[sizeof(struct rpc_message) + sizeof(bytes)];
     struct rpc_message *msg = (void *) msg_buf;
 
-    HERE;
     msg->cap = *cap;
     msg->msg.method = Method_Get_Ram_Cap;
     msg->msg.payload_length = sizeof(bytes);
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
-    debug_printf("size_t: %zu\n", *(size_t *) &msg->msg.payload);
-
 
     err = aos_rpc_lmp_send_message(lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {

@@ -199,16 +199,6 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    //char *binary_name1 = "memeater";
-    //struct spawninfo si1;
-    //domainid_t pid1;
-
-    //err = spawn_load_by_name(binary_name1, &si1, &pid1);
-    //if (err_is_fail(err)) {
-    //    DEBUG_ERR(err, "in event_dispatch");
-    //    abort();
-    //}
-
     char *binary_name2 = "hello";
 //    char *binary_name2 = "memeater";
     struct spawninfo si2;

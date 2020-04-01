@@ -126,12 +126,13 @@ int main(int argc, char *argv[])
 
 
     test_serial_channel();
+    debug_printf("success\n");
 
-    bool success;
-    success = test_rpc();
-    if (!success) {
-        return EXIT_FAILURE;
-    }
+//    bool success;
+//    success = test_rpc();
+//    if (!success) {
+//        return EXIT_FAILURE;
+//    }
 
     return EXIT_SUCCESS;
 }

@@ -189,26 +189,21 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
-    struct rpc_message *msg = malloc(sizeof(struct rpc_message) + sizeof(c));
-    if (msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(char)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Putchar;
-    msg->msg.payload_length = sizeof(c);
+    msg->msg.payload_length = sizeof(char);
     msg->msg.status = Status_Ok;
-    msg->msg.payload[0] = c;
+    memcpy(msg->msg.payload, &c, sizeof(char));
 
     errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_send_message failed\n");
-        goto clean_up_msg;
+        return err;
     }
     return SYS_ERR_OK;
-
-    clean_up_msg:
-    free(msg);
-    return err;
 }
 
 static errval_t
@@ -385,15 +380,13 @@ static struct aos_rpc *
 aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
 {
     errval_t err;
-
-    debug_printf("Setting up a new channel to %s.\n", service_name);
-
     struct aos_rpc *rpc = malloc(sizeof(struct aos_rpc));
     if (rpc == NULL) {
         return NULL;
     }
     err = aos_rpc_lmp_init(rpc);
     if (err_is_fail(err)) {
+        debug_printf("error in %s\n", service_name);
         DEBUG_ERR(err, "error in aos_rpc_lmp_init");
         return NULL;
     }
@@ -403,6 +396,7 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
     struct capref cap_ep;
     err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &cap_ep, &lc->endpoint);
     if (err_is_fail(err)) {
+        debug_printf("error in %s\n", service_name);
         debug_printf("endpoint_create() failed: %s\n", err_getstring(err));
         return NULL;
     }
@@ -418,6 +412,7 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
     // wait on a specific response below.
     err = lmp_chan_register_recv(lc, &ws, MKCLOSURE(client_recv_open_cb, rpc));
     if (err_is_fail(err)) {
+        debug_printf("error in %s\n", service_name);
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return NULL;
     }
@@ -425,6 +420,7 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
     // Allocate receive slot to receive the capability of the service endpoint
     err = lmp_chan_alloc_recv_slot(lc);
     if (err_is_fail(err)) {
+        debug_printf("error in %s\n", service_name);
         debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
         return NULL;
     }
@@ -433,6 +429,7 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
         err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
     } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {
+        debug_printf("error in %s\n", service_name);
         debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
         return NULL;
     }
@@ -440,12 +437,14 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
     // Wait for the callback to be executed.
     err = event_dispatch(&ws);
     if (err_is_fail(err)) {
+        debug_printf("error in %s\n", service_name);
         debug_printf("event_dispatch() failed: %s\n", err_getstring(err));
         return NULL;
     }
 
     err = waitset_destroy(&ws);
     if (err_is_fail(err)) {
+        debug_printf("error in %s\n", service_name);
         debug_printf("waitset_destroy() failed: %s\n", err_getstring(err));
         // We don't have to return NULL, this error is not critical.
     }
@@ -476,14 +475,11 @@ aos_rpc_lmp_get_memory_channel(void)
     if (memory_channel == NULL) {
         memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
 
-        struct client_ram_state *ram_state = malloc(sizeof(struct client_ram_state));
-        if (ram_state == NULL) {
-            DEBUG_ERR(LIB_ERR_MALLOC_FAIL, "malloc failed");
+        errval_t err = aos_rpc_lmp_alloc_client_state(&memory_channel->lmp->shared);
+        if (err_is_fail(err)) {
             return NULL;
         }
-        memory_channel->lmp->shared = ram_state;
     }
-
     return memory_channel;
 }
 
@@ -496,14 +492,11 @@ aos_rpc_lmp_get_process_channel(void)
     if (process_channel == NULL) {
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
 
-        struct client_process_state *state = malloc(sizeof(struct client_process_state));
-        if (state == NULL) {
-            DEBUG_ERR(LIB_ERR_MALLOC_FAIL, "malloc failed");
+        errval_t err = aos_rpc_lmp_alloc_client_state(&process_channel->lmp->shared);
+        if (err_is_fail(err)) {
             return NULL;
         }
-        process_channel->lmp->shared = state;
     }
-
     return process_channel;
 }
 
@@ -515,13 +508,11 @@ aos_rpc_lmp_get_serial_channel(void)
 {
     if (serial_channel == NULL) {
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
-        struct client_serial_state *state = malloc(sizeof(struct client_serial_state));
-        if (state == NULL) {
-            DEBUG_ERR(LIB_ERR_MALLOC_FAIL, "malloc failed");
+
+        errval_t err = aos_rpc_lmp_alloc_client_state(&serial_channel->lmp->shared);
+        if (err_is_fail(err)) {
             return NULL;
         }
-        serial_channel->lmp->shared = state;
     }
-
     return serial_channel;
 }

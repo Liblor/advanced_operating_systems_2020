@@ -28,6 +28,8 @@ client_response_cb(void *arg)
     }
 
     if (state->pending_state == InvalidState) {
+        debug_printf("state is InvalidState, skipping receive\n");
+        lmp->err = LIB_ERR_LMP_INVALID_RESPONSE;
         goto clean_up;
     }
     if (state->pending_state == EmptyState) {
@@ -51,19 +53,19 @@ client_response_cb(void *arg)
             goto clean_up;
         }
 
-        // copy heoader
+        // copy header
         state->message->msg.method = msg_part->method;
         state->message->msg.status = msg_part->status;
         state->message->msg.payload_length = msg_part->payload_length;
         state->message->cap = cap;
 
         // copy payload
-        uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
+        const uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
         memcpy(state->message->msg.payload, msg_part->payload, to_copy);
         state->bytes_received += to_copy;
 
     } else if (state->pending_state == DataInTransmit) {
-        uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t),
+        const uint64_t to_copy = MIN(LMP_MSG_LENGTH * sizeof(uint64_t),
                                state->total_length - state->bytes_received);
         memcpy(((char *) state->message->msg.payload) + state->bytes_received,
                (char *) &msg.words[0], to_copy);
@@ -87,9 +89,26 @@ client_response_cb(void *arg)
     goto clean_up;
 
     clean_up:
+
     return;
 }
 
+errval_t aos_rpc_lmp_alloc_client_state(void **state)
+{
+    *state = malloc(sizeof(struct client_response_state));
+    if (*state == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    return SYS_ERR_OK;
+}
+
+errval_t aos_rpc_lmp_free_client_state(void *state)
+{
+    free(state);
+    return SYS_ERR_OK;
+}
+
+// Expect an allocated client_response_state in rpc->lmp-shared
 errval_t
 aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
                                struct rpc_message **recv, validate_recv_msg_t validate_cb)
@@ -98,23 +117,25 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     assert(rpc->lmp->shared != NULL);
     struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
     struct client_response_state *state = lmp->shared;
+    *recv = NULL;
 
     memset(state, 0, sizeof(struct client_response_state));
     state->pending_state = EmptyState;
     state->validate_recv_msg = validate_cb;
+    state->message = NULL;
     lmp->err = SYS_ERR_OK;
-
-    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_response_cb, rpc));
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_chan_register_recv failed");
-        goto clean_up;
-    }
 
     // allocate recv slot in case we get a cap in result
     // need to free again if not used
     err = lmp_chan_alloc_recv_slot(&rpc->lc);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "can not allocate new slot for recv cap\n");
+        goto clean_up;
+    }
+
+    err = lmp_chan_register_recv(&rpc->lc, &lmp->ws, MKCLOSURE(client_response_cb, rpc));
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "lmp_chan_register_recv failed");
         goto clean_up;
     }
 
@@ -153,7 +174,6 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     // TODO: more input sanitation
     state = lmp->shared;
     memcpy(*recv, state->message, sizeof(struct rpc_message) + state->message->msg.payload_length);
-
 
     err = SYS_ERR_OK;
     goto clean_up;
