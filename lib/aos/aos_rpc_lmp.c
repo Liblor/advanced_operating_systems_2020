@@ -230,6 +230,11 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     *ret_cap = recv->cap;
 
     if (ret_bytes != NULL) {
+//        memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
+// THIS FAILS
+//        *ret_bytes = * ((size_t *) recv->msg.payload);
+
+// THIS WORKS
         memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
     }
 
@@ -658,3 +663,46 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void) {
 
     return serial_channel;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
