@@ -95,7 +95,8 @@ validate_get_ram_cap(struct lmp_recv_msg *msg, enum pending_state state) {
     }
     if (state == EmptyState) {
         const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
-        return_err(msg_part->payload_length != sizeof(size_t), "no return size in payload");
+        return_err(msg_part->payload_length != sizeof(size_t),
+                "no return size in payload");
     }
     return SYS_ERR_OK;
 }
@@ -125,6 +126,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
         err = LIB_ERR_LMP_INVALID_RESPONSE;
         goto clean_up;
     }
+
     *ret_cap = recv->cap;
 
     if (ret_bytes != NULL) {
@@ -220,7 +222,8 @@ validate_process_spawn(struct lmp_recv_msg *msg, enum pending_state state) {
     }
     if (state == EmptyState) {
         const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
-        return_err(msg_part->payload_length != sizeof(size_t) + sizeof(domainid_t), "invalid payload len");
+        return_err(msg_part->payload_length != sizeof(size_t) + sizeof(domainid_t),
+                "invalid payload len");
     }
     return SYS_ERR_OK;
 }
@@ -254,9 +257,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     err = SYS_ERR_OK;
 
     clean_up_msg:
-    if (recv != NULL && recv->msg.payload != NULL) {
-        free(recv);
-    }
+    free(recv);
     free(send);
     return err;
 }
