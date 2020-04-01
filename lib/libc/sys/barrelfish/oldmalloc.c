@@ -35,8 +35,7 @@ void __malloc_dump(void);
 /*
  * malloc: general-purpose storage allocator
  */
-void *
-malloc(size_t nbytes)
+void *malloc(size_t nbytes)
 {
     if (alt_malloc != NULL) {
         return alt_malloc(nbytes);

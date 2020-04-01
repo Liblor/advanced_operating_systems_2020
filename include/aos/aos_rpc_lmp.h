@@ -12,7 +12,6 @@ enum rpc_message_status {
     Process_Get_Name_Failed = 2,
     Process_Get_All_Pids_Failed = 3,
     Status_Error = 4,
-
 };
 
 struct rpc_message_part {
@@ -22,8 +21,7 @@ struct rpc_message_part {
     char payload[0]; ///< The total payload data of the message.
 } __attribute__((packed));      // due to correct ordering not necessary but explicit is better
 
-#define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH*sizeof(uint64_t) - sizeof(struct rpc_message_part))
-
+#define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH * sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
 #define return_with_err(cond, state, msg) do { \
         if (cond) { \
