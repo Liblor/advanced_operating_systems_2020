@@ -344,7 +344,6 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     clean_up_recv:
     free(recv);
     free(msg);
-
     return err;
 }
 
@@ -396,7 +395,8 @@ aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
-static void client_recv_open_cb(void *args) {
+static void
+client_recv_open_cb(void *args) {
     errval_t err;
 
     struct aos_rpc *rpc = (struct aos_rpc *) args;
@@ -420,7 +420,8 @@ static void client_recv_open_cb(void *args) {
     lc->remote_cap = server_cap;
 }
 
-static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name) {
+static struct
+aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name) {
     errval_t err;
 
     debug_printf("Setting up a new channel to %s.\n", service_name);
@@ -493,7 +494,8 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(struct capref remote_cap, const
 /**
  * \brief Returns the RPC channel to init.
  */
-struct aos_rpc *aos_rpc_lmp_get_init_channel(void) {
+struct aos_rpc*
+aos_rpc_lmp_get_init_channel(void) {
     if (init_channel == NULL) {
         init_channel = aos_rpc_lmp_setup_channel(cap_chan_init, "init");
         init_channel->lmp->shared = NULL; // we dont need state
@@ -505,7 +507,8 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void) {
 /**
  * \brief Returns the channel to the memory server.
  */
-struct aos_rpc *aos_rpc_lmp_get_memory_channel(void) {
+struct aos_rpc *
+aos_rpc_lmp_get_memory_channel(void) {
     if (memory_channel == NULL) {
         memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
 
@@ -523,7 +526,8 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void) {
 /**
  * \brief Returns the channel to the process manager.
  */
-struct aos_rpc *aos_rpc_lmp_get_process_channel(void) {
+struct aos_rpc *
+aos_rpc_lmp_get_process_channel(void) {
     if (process_channel == NULL) {
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
 
@@ -541,7 +545,8 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void) {
 /**
  * \brief Returns the channel to the serial console.
  */
-struct aos_rpc *aos_rpc_lmp_get_serial_channel(void) {
+struct aos_rpc *
+aos_rpc_lmp_get_serial_channel(void) {
     if (serial_channel == NULL) {
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
         struct client_serial_state *state = malloc(sizeof(struct client_serial_state));
@@ -554,46 +559,3 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void) {
 
     return serial_channel;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
