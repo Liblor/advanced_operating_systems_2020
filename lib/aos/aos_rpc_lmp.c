@@ -222,7 +222,6 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
 
     struct rpc_message *recv = NULL;
-
     err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_get_ram_cap);
     if (err_is_fail(err)) {
         goto clean_up;
@@ -230,25 +229,19 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     *ret_cap = recv->cap;
 
     if (ret_bytes != NULL) {
-//        memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
-// THIS FAILS
-//        *ret_bytes = * ((size_t *) recv->msg.payload);
-
-// THIS WORKS
+        /*
+         * Compiler Alignment Bug
+         * char payload[0] may lead to alignment issues when
+         * payload is copied by assign, not by memcopy
+         *
+         * This Fails:
+         * *ret_bytes = * ((size_t *) recv->msg.payload);
+         *
+         * This Works:
+         * memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
+         */
         memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
     }
-
-    HERE;
-    // Weird memory bug
-    // for some reason why can not dereference msg.payload
-    // but if we memcopy to ret_bytes first, it works
-
-    // THIS FAILS
-     debug_printf("size_t: %zu\n", *(size_t *) &recv->msg.payload);
-
-    // THIS WORKS
-//    debug_printf("ret_bytes: %zu\n", *ret_bytes);
-    HERE;
 
     err = SYS_ERR_OK;
     goto clean_up;

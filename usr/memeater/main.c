@@ -31,17 +31,16 @@ const char *str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, "
                   "occaecat cupidatat non proident, sunt in culpa qui officia "
                   "deserunt mollit anim id est laborum.";
 
-static errval_t request_and_map_memory(void)
-{
+static errval_t request_and_map_memory(void) {
     errval_t err;
+    struct paging_state *pstate = get_current_paging_state();
+    size_t bytes;
+    struct frame_identity id;
+    void *buf1;
 
     for (int i = 0; i < 1; ++i) {
-        size_t bytes;
-        struct frame_identity id;
+
         debug_printf("testing memory server...\n");
-
-        struct paging_state *pstate = get_current_paging_state();
-
         debug_printf("obtaining cap of %" PRIu32 " bytes...\n", BASE_PAGE_SIZE);
 
         struct capref cap1;
@@ -71,7 +70,6 @@ static errval_t request_and_map_memory(void)
         assert(err_is_ok(err));
 
         debug_printf("Mapping frame \n");
-        void *buf1;
         err = paging_map_frame(pstate, &buf1, BASE_PAGE_SIZE, cap1_frame, NULL, NULL);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
@@ -83,63 +81,55 @@ static errval_t request_and_map_memory(void)
         debug_printf("performing memset.\n");
         memset(buf1, 0x00, BASE_PAGE_SIZE);
 
-        HERE;
-        uint64_t *ptr = (uint64_t * )buf1;
-        while ((char * ) ptr < ((char *) buf1) + bytes) {
-//        debug_printf("%p: %p\n", ptr, *ptr);
+        uint64_t *ptr = (uint64_t *) buf1;
+        while ((char *) ptr < ((char *) buf1) + bytes) {
+
             *ptr = 1;
             ptr++;
         }
-        HERE;
-//    memset(buf1, 0x00, BASE_PAGE_SIZE);
 
-
-        HERE;
+        memset(buf1, 0x00, BASE_PAGE_SIZE);
     }
-    // TODO remove this
+
+    debug_printf("obtaining cap of %" PRIu32 " bytes using frame alloc...\n",
+                 LARGE_PAGE_SIZE);
+
+    HERE;
+    struct capref cap2;
+    err = frame_alloc(&cap2, LARGE_PAGE_SIZE, &bytes);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
+        return err;
+    }
+
+    HERE;
+    err = frame_identify(cap2, &id);
+    assert(err_is_ok(err));
+
+    HERE;
+    void *buf2;
+    err = paging_map_frame(pstate, &buf2, LARGE_PAGE_SIZE, cap2, NULL, NULL);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
+        return err;
+    }
+
+    debug_printf("got frame: 0x%" PRIxGENPADDR " mapped at %p\n", id.base, buf1);
+
+    debug_printf("performing memset.\n");
+    memset(buf2, 0x00, LARGE_PAGE_SIZE);
+
     return SYS_ERR_OK;
-
-//    debug_printf("obtaining cap of %" PRIu32 " bytes using frame alloc...\n",
-//                 LARGE_PAGE_SIZE);
-//
-//    HERE;
-//    struct capref cap2;
-//    err = frame_alloc(&cap2, LARGE_PAGE_SIZE, &bytes);
-//    if (err_is_fail(err)) {
-//        DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
-//        return err;
-//    }
-//
-//    HERE;
-//    err = frame_identify(cap2, &id);
-//    assert(err_is_ok(err));
-//
-//    HERE;
-//    void *buf2;
-//    err = paging_map_frame(pstate, &buf2, LARGE_PAGE_SIZE, cap2, NULL, NULL);
-//    if (err_is_fail(err)) {
-//        DEBUG_ERR(err, "could not get BASE_PAGE_SIZE cap\n");
-//        return err;
-//    }
-//
-//    debug_printf("got frame: 0x%" PRIxGENPADDR " mapped at %p\n", id.base, buf1);
-//
-//    debug_printf("performing memset.\n");
-//    memset(buf2, 0x00, LARGE_PAGE_SIZE);
-//
-//    return SYS_ERR_OK;
-
 }
 
 __unused
-static errval_t test_basic_rpc(void)
-{
+static errval_t test_basic_rpc(void) {
     errval_t err;
 
     debug_printf("RPC: testing basic RPCs...\n");
 
     debug_printf("RPC: sending number...\n");
-    err =  aos_rpc_send_number(init_rpc, 42);
+    err = aos_rpc_send_number(init_rpc, 42);
 
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not send a string\n");
@@ -147,14 +137,14 @@ static errval_t test_basic_rpc(void)
     }
 
     debug_printf("RPC: sending small string...\n");
-    err =  aos_rpc_send_string(init_rpc, "Hello init");
+    err = aos_rpc_send_string(init_rpc, "Hello init");
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not send a string\n");
         return err;
     }
 
     debug_printf("RPC: sending large string...\n");
-    err =  aos_rpc_send_string(init_rpc, str);
+    err = aos_rpc_send_string(init_rpc, str);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "could not send a string\n");
         return err;
@@ -166,8 +156,7 @@ static errval_t test_basic_rpc(void)
 }
 
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     errval_t err = SYS_ERR_OK;
 
     debug_printf("memeater started....\n");
@@ -182,10 +171,10 @@ int main(int argc, char *argv[])
         USER_PANIC_ERR(err, "init RPC channel NULL?\n");
     }
 
-//    err = test_basic_rpc();
-//    if (err_is_fail(err)) {
-//        USER_PANIC_ERR(err, "failure in testing basic RPC\n");
-//    }
+    err = test_basic_rpc();
+    if (err_is_fail(err)) {
+        USER_PANIC_ERR(err, "failure in testing basic RPC\n");
+    }
 
     err = request_and_map_memory();
     if (err_is_fail(err)) {

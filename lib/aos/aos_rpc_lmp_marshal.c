@@ -52,7 +52,7 @@ void client_response_cb(void *arg) {
             goto clean_up;
         }
 
-        // copy header
+        // copy heoader
         state->message->msg.method = msg_part->method;
         state->message->msg.status = msg_part->status;
         state->message->msg.payload_length = msg_part->payload_length;
