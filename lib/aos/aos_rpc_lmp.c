@@ -130,8 +130,8 @@ static void client_ram_cb(void *arg) {
 }
 
 __unused static errval_t
-aos_rpc_lmp_get_ram_cap2(struct aos_rpc *rpc, size_t bytes, size_t alignment,
-                        struct capref *ret_cap, size_t *ret_bytes) {
+aos_rpc_lmp_get_ram_cap_old(struct aos_rpc *rpc, size_t bytes, size_t alignment,
+                            struct capref *ret_cap, size_t *ret_bytes) {
     errval_t err;
 
     // create request message
@@ -192,50 +192,7 @@ aos_rpc_lmp_get_ram_cap2(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     return err;
 }
 
-
-//__unused static void client_ram_cb(void *arg) {
-//    debug_printf("client_ram_cb(...)\n");
-//    struct aos_rpc *rpc = arg;
-//    struct client_ram_state *ram_state = rpc->lmp->shared;
-//    struct aos_rpc_lmp *lmp = rpc->lmp;
-//
-//    struct lmp_chan *lc = &rpc->lc;
-//
-//    struct capref cap;
-//    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
-//
-//    errval_t err = lmp_chan_recv(lc, &msg, &cap);
-//    if (err_is_fail(err) && lmp_err_is_transient(err)) {
-//        // reregister
-//        err = lmp_chan_register_recv(lc, &lmp->ws,
-//                                     MKCLOSURE(client_ram_cb, arg));
-//        if (err_is_fail(err)) {
-//            DEBUG_ERR(err, "");
-//            lmp->err = err;
-//            return;
-//        }
-//    }
-//    if (err_is_fail(err)) {
-//        DEBUG_ERR(err, "");
-//        lmp->err = err;
-//        return;
-//    }
-//    bool buflen_invalid = msg.buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part);
-//    return_with_err(buflen_invalid, lmp, "invalid buflen");
-//
-//    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
-//
-//    return_with_err(msg_part->status != Status_Ok, lmp, "status not ok");
-//    return_with_err(msg_part->method != Method_Get_Ram_Cap, lmp, "wrong method in response");
-//    return_with_err(msg_part->payload_length != sizeof(size_t), lmp, "invalid payload len");
-//
-//    memcpy(&ram_state->bytes, msg_part->payload, sizeof(size_t));
-//    // TODO Free recv slot if cap is NULL_CAP
-//    ram_state->cap = cap;
-//    lmp->err = SYS_ERR_OK;
-//}
-
-static errval_t
+__unused static errval_t
 validate_get_ram_cap(struct lmp_recv_msg *msg, enum pending_state state) {
     errval_t err = validate_recv_header(msg, state, Method_Get_Ram_Cap);
     if (err_is_fail(err)) {
@@ -248,7 +205,7 @@ validate_get_ram_cap(struct lmp_recv_msg *msg, enum pending_state state) {
     return SYS_ERR_OK;
 }
 
-errval_t
+__unused errval_t
 aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
                         struct capref *ret_cap, size_t *ret_bytes) {
     errval_t err;
@@ -270,32 +227,22 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     if (err_is_fail(err)) {
         goto clean_up;
     }
-
-    HERE;
-    // save response
-    struct client_ram_state *ram_state = (struct client_ram_state *) &recv->msg.payload;
-
-    // TODO Free recv slot if cap is NULL_CAP
-    HERE;
-
-    debug_printf("ret_cap: %p\n", ret_cap);
-    debug_printf("recv: %p\n", recv);
-    debug_printf("recv.cap: %p\n", recv->cap);
     *ret_cap = recv->cap;
-    HERE;
 
-    debug_printf("ret_bytes: %p\n", ret_bytes);
-    debug_printf("ret_bytes: %p\n", *ret_bytes);
-    debug_printf("ram_state: %p\n", ram_state);
-    debug_printf("ram_state.bytes: %p\n", ram_state->bytes);
-
-    // ISSUE HERE
     if (ret_bytes != NULL) {
         memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
     }
-    HERE;
-    debug_printf("bytes: %d\n", *ret_bytes);
-    HERE;
+
+    // Weird memory bug
+    // for some reason why can not dereference msg.payload
+    // but if we memcopy to ret_bytes first, it works
+
+    // THIS FAILS
+    // debug_printf("size_t: %zu\n", *(size_t *) recv->msg.payload);
+
+    // THIS WORKS
+    debug_printf("ret_bytes: %zu\n", *ret_bytes);
+
     err = SYS_ERR_OK;
     goto clean_up;
 
@@ -519,7 +466,6 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     msg->msg.method = Method_Process_Get_All_Pids;
     msg->msg.payload_length = 0;
     msg->msg.status = Status_Ok;
-
 
     struct rpc_message *recv = NULL;
     err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_all_pids);
