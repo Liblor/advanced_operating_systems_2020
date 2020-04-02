@@ -256,7 +256,12 @@ errval_t paging_init(void)
 void paging_init_onthread(struct thread *t)
 {
     DEBUG_BEGIN;
-    // TODO (M4): setup exception handler for thread `t'.
+    void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
+    void *stack_top = stack + PAGING_EXCEPTION_STACK_SIZE;
+
+    t->exception_stack = stack;
+    t->exception_stack_top = stack_top;
+    t->exception_handler = exception_handler;
 }
 
 /**
