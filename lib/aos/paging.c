@@ -24,6 +24,17 @@
 
 static struct paging_state current;
 
+static void paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
+{
+    lvaddr_t vaddr = (lvaddr_t)addr;
+
+    // TODO: check if vaddr is in NULL addr page
+    // TODO: check vaddr is valid heap or stack (etc)
+    // TODO: "guard" page for stack
+
+    // TODO: check if page was marked as mappped
+    // TODO: map page
+}
 
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
@@ -31,7 +42,7 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
 
     switch (type) {
         case EXCEPT_PAGEFAULT:
-            // TODO
+            paging_handler(type, subtype, addr, regs);
             break;
         default:
             // TODO what to do now?
