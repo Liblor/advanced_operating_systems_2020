@@ -153,7 +153,9 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     goto clean_up;
 
     clean_up:
-    free(recv);
+    if (recv != NULL) {
+        free(recv);
+    }
     return err;
 }
 
