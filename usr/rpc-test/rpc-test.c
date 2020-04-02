@@ -68,9 +68,12 @@ __unused static void test_process(void) {
     errval_t err;
 
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
-    const uint64_t process_number = 128;
+
+    // Apparently 128 processes are too much for 2GB RAM to handle.
+    const uint64_t process_number = 100;
 
     debug_printf("Testing aos_rpc_process_spawn() (spawning %u processes)...\n", process_number);
+
     for(int i = 0; i < process_number; i ++) {
         char *binary_name1 = "dummy";
         domainid_t pid1;
@@ -86,6 +89,7 @@ __unused static void test_process(void) {
     }
 
     debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
+
     for(int i = 0; i < process_number; i ++) {
         char *name = NULL;
 
@@ -99,6 +103,7 @@ __unused static void test_process(void) {
     }
 
     debug_printf("Testing aos_rpc_lmp_process_get_all_pids()...\n");
+
     domainid_t *pids = NULL;
     size_t pid_count = -1;
     err = aos_rpc_lmp_process_get_all_pids(rpc, &pids, &pid_count);
@@ -106,10 +111,12 @@ __unused static void test_process(void) {
         DEBUG_ERR(err, "aos_rpc_lmp_process_get_all_pids()\n");
         return;
     }
-    //debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
-    //for(int j = 0; j < pid_count; j ++){
-        //debug_printf("pid: %d:\n", pids[j]);
-    //}
+
+    debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
+
+    for(int j = 0; j < pid_count; j ++){
+        debug_printf("pid: %d:\n", pids[j]);
+    }
 }
 
 __unused static void test_serial(void) {

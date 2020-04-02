@@ -114,6 +114,7 @@ static errval_t handle_spawn_process(struct processserver_state *server_state, s
     // PAGEFAULT
     err = spawn_cb(server_state, name, core, &pid);
     if (err_is_fail(err)) {
+        DEBUG_ERR(err, "spawn_cb()");
         status = Spawn_Failed;
     }
     const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
@@ -218,7 +219,6 @@ errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
     }
     return SYS_ERR_OK;
 }
-
 
 static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan, void *server_state)
 {
