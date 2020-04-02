@@ -73,6 +73,7 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     return aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
 }
 
+
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 {
