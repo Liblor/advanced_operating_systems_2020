@@ -278,8 +278,6 @@ errors libaos LIB_ERR_ {
     failure PAGING_INITIALIZATION "The initialization of the paging state failed",
     failure PAGING_VADDR_NOT_ALIGNED "The virtual address is not aligned",
 
-    failure PAGEFAULT_NOT_RECOVERABLE "The pagefault is not recovarable. The Thread is killed",
-
     failure VSPACE_PINNED_INIT  "Failure in vspace_pinned_init()",
     failure VSPACE_PINNED_ALLOC "Failure in vspace_pinned_alloc()",
     failure VSPACE_PINNED_INVALID_TYPE "Wrong type of slab requested",
@@ -538,7 +536,7 @@ errors monitor MON_ERR_ {
     failure UNICAST_INIT        "Failure in initing unicast path",
     failure MULTICAST_INIT      "Failure in initing multicast path",
     failure SPAWN_XCORE_MONITOR "Failure in spawn_xcore_monitor()",
-    failure INCOMPLETE_ROUTE    "(Portion of) routing table not present",
+    failure INCOMPLETE_ROUTE    "(Portion of) routing table not presennnt",
 
     // Resource controller
     failure RSRC_ALLOC		"Out of resource domains",
@@ -1374,5 +1372,12 @@ errors aos AOS_ERR_ {
     failure LMP_SEND_FAILURE        "Failure while sending AOS LMP message",
     failure LMP_MSGTYPE_UNKNOWN     "Unknown message type for AOS LMP implementation",
     failure INVALID_ALIGNMENT       "The alignment given is invalid",
+
+    failure PAGING_NOT_RECOVERABLE "The pagefault is not recoverable. The Thread is killed",
+    failure PAGING_NULL_DEREF "Null pointer dereference",
+
+    failure PAGING_ADDR_NOT_MANAGED "Address not within the manageable region of dispatcher",
+    failure PAGING_ADDR_NOT_RESERVED "Address was never reserved to be mapped.",
+
 };
 
