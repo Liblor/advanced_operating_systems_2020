@@ -40,14 +40,14 @@ static void number_cb(uintptr_t num)
 {
     grading_rpc_handle_number(num);
 
-    printf("Received number %"PRIuPTR"\n", num);
+    debug_printf("Received number %"PRIuPTR"\n", num);
 }
 
 static void string_cb(char *c)
 {
     grading_rpc_handler_string(c);
 
-    printf("Received string %s\n", c);
+    debug_printf("Received string %s\n", c);
 }
 
 // We do not allocate RAM here. This should be done in the server itself.
