@@ -33,12 +33,12 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
 
     if (vaddr == 0) {
         debug_printf("NULL pointer dereferenced!\n");
-        return LIB_ERR_PAGEFAULT_NOT_RECOVERABLE;
+        return AOS_ERR_PAGING_NULL_DEREF;
     }
 
     if (vaddr < st->head->base_addr) {
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent\n", vaddr);
-        return LIB_ERR_PAGEFAULT_NOT_RECOVERABLE;
+        return AOS_ERR_PAGING_ADDR_NOT_MANAGED;
     }
 
     // TODO: check vaddr is valid heap or stack (etc)
@@ -47,7 +47,7 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
     // make sure, the passed address is marked for lazily mapping (i.e. reserved)
     if (!is_vaddr_page_reserved(st, vaddr)) {
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped\n", vaddr);
-        return LIB_ERR_PAGEFAULT_NOT_RECOVERABLE;
+        return LIB_ERR_PMAP_NOT_MAPPED;
     }
 
     // create frame and map it
@@ -58,22 +58,22 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
     if (err_is_fail(err)) {
         debug_printf("Page fault handler error: frame_alloc failed, while "
                      "lazily mapping 0x%lx\n", vaddr);
-        debug_printf(err_getstring(err));
-        return err_push(err, LIB_ERR_PAGEFAULT_NOT_RECOVERABLE);
+        debug_printf("%s\n", err_getstring(err));
+        return err;
     }
     if (size < BASE_PAGE_SIZE) {
         debug_printf("Page fault handler error: frame_alloc returned a too small frame "
                      "while lazily mapping 0x%lx\n", vaddr);
-        debug_printf(err_getstring(err));
-        return err_push(err, LIB_ERR_PAGEFAULT_NOT_RECOVERABLE);
+        debug_printf("%s\n", err_getstring(err));
+        return err;
     }
 
     err = paging_map_fixed(st, vaddr, frame, size);
     if (err_is_fail(err)) {
         debug_printf("Page fault handler error: mapping frame failed "
                      "while lazily mapping 0x%lx\n", vaddr);
-        debug_printf(err_getstring(err));
-        return err_push(err, LIB_ERR_PAGEFAULT_NOT_RECOVERABLE);
+        debug_printf("%s\n", err_getstring(err));
+        return err;
     }
 
     return SYS_ERR_OK;
