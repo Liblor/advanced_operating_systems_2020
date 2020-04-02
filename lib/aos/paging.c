@@ -46,7 +46,7 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
             break;
         default:
             // TODO what to do now?
-            debug_printf("Unknown exception type\n")
+            debug_printf("Unknown exception type\n");
     }
 }
 
