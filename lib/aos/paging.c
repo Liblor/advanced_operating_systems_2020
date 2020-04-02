@@ -28,6 +28,15 @@ static struct paging_state current;
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
+
+    switch (type) {
+        case EXCEPT_PAGEFAULT:
+            // TODO
+            break;
+        default:
+            // TODO what to do now?
+            debug_printf("Unknown exception type\n")
+    }
 }
 
 /**
