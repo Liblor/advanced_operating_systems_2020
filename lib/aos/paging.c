@@ -321,7 +321,8 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
 
     *buf = NULL;
     slab_ensure_threshold(&st->slabs, 12);
-    errval_t err = find_region(st, buf, bytes, alignment);
+    //errval_t err = find_region(st, buf, bytes, alignment);
+    errval_t err = reserve_vaddr_region(st, buf, bytes, alignment);
     if (err_is_fail(err)) { return err; }
 
     return SYS_ERR_OK;

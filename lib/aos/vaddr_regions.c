@@ -91,12 +91,12 @@ static inline errval_t split_off(struct paging_state *st, struct vaddr_region *r
     return SYS_ERR_OK;
 }
 
-static inline bool is_in_free_region(struct vaddr_region *region, lvaddr_t addr, size_t size) {
+static inline bool is_not_mapped_region(struct vaddr_region *region, lvaddr_t addr, size_t size) {
     bool addr_start = region->base_addr <= addr;
     bool no_overflow = addr + size > addr;
     bool end = addr + size <= region->base_addr + region->size;
-    bool is_free = region->type == NodeType_Free;
-    return addr_start && no_overflow && end && is_free;
+    bool not_mapped = region->type != NodeType_Allocated;
+    return addr_start && no_overflow && end && not_mapped;
 }
 
 static inline bool is_mergeable(struct vaddr_region *prev, struct vaddr_region *next) {
@@ -137,7 +137,7 @@ errval_t alloc_vaddr_region(struct paging_state *st, lvaddr_t addr, size_t size,
     errval_t err;
     *ret = NULL;
     struct vaddr_region *curr = st->head;
-    while (curr != NULL && !is_in_free_region(curr, addr, size)) { curr = curr->next; }
+    while (curr != NULL && !is_not_mapped_region(curr, addr, size)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_OUT_OF_VIRTUAL_ADDR; }
 
     if (addr == curr->base_addr) {
@@ -171,9 +171,9 @@ errval_t free_region(struct paging_state *st, struct vaddr_region *region) {
     return SYS_ERR_OK;
 }
 
-errval_t find_region(struct paging_state *st, void **buf, size_t bytes, size_t alignment) {
+errval_t reserve_vaddr_region(struct paging_state *st, void **buf, size_t bytes, size_t alignment) {
+    errval_t err;
     *buf = NULL;
-    // TODO: should not page aligned vaddr be possible?
     if ((alignment % BASE_PAGE_SIZE) || alignment == 0) { return AOS_ERR_INVALID_ALIGNMENT; }
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
@@ -182,6 +182,22 @@ errval_t find_region(struct paging_state *st, void **buf, size_t bytes, size_t a
     while (curr != NULL && !is_region_free(curr, bytes, alignment)) { curr = curr->next; }
     if (curr == NULL) { return LIB_ERR_OUT_OF_VIRTUAL_ADDR; }
 
-    *buf = (void *) ROUND_UP(curr->base_addr, alignment);       // overflow checked in is_allocatable
+    lvaddr_t vaddr = ROUND_UP(curr->base_addr, alignment);   // overflow checked in is_allocatable
+    *buf = (void *)vaddr;
+
+    if (vaddr == curr->base_addr) {
+        err = split_off(st, curr, bytes);
+        if (err_is_fail(err)) { return err; }
+    } else {
+        // TODO: remove size 0 nodes if it isn't end of original ram cap
+        gensize_t pad_size = (vaddr - curr->base_addr);
+        err = split_off(st, curr, pad_size);
+        if (err_is_fail(err)) { return err; }
+        err = split_off(st, curr, bytes);
+        if (err_is_fail(err)) { return err; }
+    }
+    assert(vaddr == curr->prev->base_addr);
+    curr->prev->type = NodeType_Reserved;
+
     return SYS_ERR_OK;
 }
