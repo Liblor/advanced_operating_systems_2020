@@ -278,6 +278,8 @@ errors libaos LIB_ERR_ {
     failure PAGING_INITIALIZATION "The initialization of the paging state failed",
     failure PAGING_VADDR_NOT_ALIGNED "The virtual address is not aligned",
 
+    failure PAGEFAULT_NOT_RECOVERABLE "The pagefault is not recovarable. The Thread is killed",
+
     failure VSPACE_PINNED_INIT  "Failure in vspace_pinned_init()",
     failure VSPACE_PINNED_ALLOC "Failure in vspace_pinned_alloc()",
     failure VSPACE_PINNED_INVALID_TYPE "Wrong type of slab requested",

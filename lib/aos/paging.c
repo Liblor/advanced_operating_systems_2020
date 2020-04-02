@@ -25,7 +25,7 @@
 static struct paging_state current;
 
 __unused
-static void paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
+static errval_t paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     errval_t err;
     lvaddr_t vaddr = ROUND_DOWN((lvaddr_t)addr, BASE_PAGE_SIZE);
@@ -33,12 +33,12 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
 
     if (vaddr == 0) {
         debug_printf("NULL pointer dereferenced!\n");
-        return;
+        return LIB_ERR_PAGEFAULT_NOT_RECOVERABLE;
     }
 
     if (vaddr < st->head->base_addr) {
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent\n", vaddr);
-        return;
+        return LIB_ERR_PAGEFAULT_NOT_RECOVERABLE;
     }
 
     // TODO: check vaddr is valid heap or stack (etc)
@@ -47,7 +47,7 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
     // make sure, the passed address is marked for lazily mapping (i.e. reserved)
     if (!is_vaddr_page_reserved(st, vaddr)) {
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped\n", vaddr);
-        return;
+        return LIB_ERR_PAGEFAULT_NOT_RECOVERABLE;
     }
 
     // create frame and map it
@@ -59,13 +59,13 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
         debug_printf("Page fault handler error: frame_alloc failed, while "
                      "lazily mapping 0x%lx\n", vaddr);
         debug_printf(err_getstring(err));
-        return;
+        return err_push(err, LIB_ERR_PAGEFAULT_NOT_RECOVERABLE);
     }
     if (size < BASE_PAGE_SIZE) {
         debug_printf("Page fault handler error: frame_alloc returned a too small frame "
                      "while lazily mapping 0x%lx\n", vaddr);
         debug_printf(err_getstring(err));
-        return;
+        return err_push(err, LIB_ERR_PAGEFAULT_NOT_RECOVERABLE);
     }
 
     err = paging_map_fixed(st, vaddr, frame, size);
@@ -73,22 +73,22 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
         debug_printf("Page fault handler error: mapping frame failed "
                      "while lazily mapping 0x%lx\n", vaddr);
         debug_printf(err_getstring(err));
-        return;
+        return err_push(err, LIB_ERR_PAGEFAULT_NOT_RECOVERABLE);
     }
+
+    return SYS_ERR_OK;
 }
 
 __unused static void
-exception_handler_giveup(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
+exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
+        void *addr, arch_registers_state_t *regs)
 {
     __unused struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
 
-    static char str[512];
-    snprintf(str, sizeof(str), "%.*s.%d: unrecoverable error (type: 0x%"
+    debug_printf("\n%.*s.%d: unrecoverable error (errmsg: '%s', type: 0x%"
                                PRIxPTR", subtype: 0x%" PRIxPTR ") on %" PRIxPTR " at IP %" PRIxPTR "\n",
-             DISP_NAME_LEN, disp_name(), disp_get_current_core_id(), type, subtype, addr, regs->named.pc);
+             DISP_NAME_LEN, disp_name(), disp_get_current_core_id(), err_getstring(err), type, subtype, addr, regs->named.pc);
 
-    sys_print(str, sizeof(str));
-    
     debug_print_save_area(regs);
     // debug_dump(regs); // print stack
     thread_exit(-1); // TODO status code
@@ -98,18 +98,21 @@ __unused
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
-
+    errval_t err = SYS_ERR_OK;
 
     switch (type) {
         case EXCEPT_PAGEFAULT:
-            paging_handler(type, subtype, addr, regs);
+            err = paging_handler(type, subtype, addr, regs);
             break;
         default:
             // TODO what to do now?
             debug_printf("Unknown exception type\n");
     }
 
-    exception_handler_giveup(type, subtype, addr, regs);
+    if (err_is_fail(err)) {
+        // we die here ... RIP
+        exception_handler_giveup(err, type, subtype, addr, regs);
+    }
 }
 
 /**
