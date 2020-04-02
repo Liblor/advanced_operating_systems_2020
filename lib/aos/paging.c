@@ -83,7 +83,7 @@ exception_handler_giveup(enum exception_type type, int subtype, void *addr, arch
     __unused struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
 
     static char str[512];
-    snprintf(str, sizeof(str), "\n%.*s.%d: unrecoverable error (type: 0x%"
+    snprintf(str, sizeof(str), "%.*s.%d: unrecoverable error (type: 0x%"
                                PRIxPTR", subtype: 0x%" PRIxPTR ") on %" PRIxPTR " at IP %" PRIxPTR "\n",
              DISP_NAME_LEN, disp_name(), disp_get_current_core_id(), type, subtype, addr, regs->named.pc);
 
