@@ -119,8 +119,8 @@ void barrelfish_libc_glue_init(void)
 {
     // XXX: FIXME: Check whether we can use the proper kernel serial, and
     // what we need for that
-    _libc_terminal_read_func = dummy_terminal_read;
-    _libc_terminal_write_func = syscall_terminal_write;
+//    _libc_terminal_read_func = dummy_terminal_read;
+//    _libc_terminal_write_func = syscall_terminal_write;
     _libc_exit_func = libc_exit;
     _libc_assert_func = libc_assert;
     /* morecore func is setup by morecore_init() */
@@ -187,6 +187,8 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
         set_init_rpc(init_rpc);
 
+        _libc_terminal_read_func = dummy_terminal_read;
+        _libc_terminal_write_func = syscall_terminal_write;
         // TODO: Enabling this triggers the following error
 //        ERROR: dummy.0 in aos_rpc_lmp_send_message() /source//lib/aos/aos_rpc_lmp_marshal.c:196
 //        ERROR: lmp_chan_send4 failed (transient): The endpoint buffer is full

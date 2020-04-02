@@ -251,15 +251,13 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
 
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
     *newpid = pid_array->pids[0];
-    assert(pid_array->pid_count == 1);
 
+    assert(pid_array->pid_count == 1);
     err = SYS_ERR_OK;
     goto clean_up;
 
-    clean_up:
-    if (recv != NULL) {
-        free(recv);
-    }
+clean_up:
+    free(recv);
     return err;
 }
 
@@ -270,8 +268,7 @@ validate_process_get_name(struct lmp_recv_msg *msg, enum pending_state state)
 }
 
 errval_t
-aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
-{
+aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     errval_t err;
     const size_t payload_len = sizeof(pid);
     uint8_t send_buf[sizeof(struct rpc_message) + payload_len];
@@ -391,6 +388,7 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
     errval_t err;
     struct aos_rpc *rpc = malloc(sizeof(struct aos_rpc));
     if (rpc == NULL) {
+        debug_printf("malloc returned NULL\n");
         return NULL;
     }
     err = aos_rpc_lmp_init(rpc);
@@ -436,6 +434,9 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
 
     do {
         err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
+        if (lmp_err_is_transient(err)) {
+            DEBUG_ERR(err, "transient");
+        }
     } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {
         debug_printf("error in %s\n", service_name);
@@ -469,6 +470,11 @@ aos_rpc_lmp_get_init_channel(void)
 {
     if (init_channel == NULL) {
         init_channel = aos_rpc_lmp_setup_channel(cap_chan_init, "init");
+        if (init_channel == NULL) {
+            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+            return NULL;
+        }
+
         init_channel->lmp->shared = NULL; // we dont need state
     }
 
@@ -483,6 +489,10 @@ aos_rpc_lmp_get_memory_channel(void)
 {
     if (memory_channel == NULL) {
         memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
+        if (memory_channel == NULL) {
+            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+            return NULL;
+        }
 
         errval_t err = aos_rpc_lmp_alloc_client_state(&memory_channel->lmp->shared);
         if (err_is_fail(err)) {
@@ -500,6 +510,10 @@ aos_rpc_lmp_get_process_channel(void)
 {
     if (process_channel == NULL) {
         process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
+        if (process_channel == NULL) {
+            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+            return NULL;
+        }
 
         errval_t err = aos_rpc_lmp_alloc_client_state(&process_channel->lmp->shared);
         if (err_is_fail(err)) {
@@ -517,6 +531,10 @@ aos_rpc_lmp_get_serial_channel(void)
 {
     if (serial_channel == NULL) {
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
+        if (serial_channel == NULL) {
+            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+            return NULL;
+        }
 
         errval_t err = aos_rpc_lmp_alloc_client_state(&serial_channel->lmp->shared);
         if (err_is_fail(err)) {

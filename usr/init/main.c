@@ -57,8 +57,6 @@ static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct ca
 
     grading_rpc_handler_ram_cap(bytes, alignment);
 
-    debug_printf("ram_cap_cb(bytes=0x%zx, alignment=0x%zx)\n", bytes, alignment);
-
     err = ram_alloc_aligned(retcap, bytes, alignment);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "ram_alloc_aligned() failed");
@@ -120,8 +118,6 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
         // TODO: If spawn failed, remove the process from the processserver state list.
         return err;
     }
-
-    debug_printf("new pid is %d\n", *ret_pid);
 
     return SYS_ERR_OK;
 }
@@ -198,17 +194,14 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    {
-        // Testing
-        char *binary_name2 = "hello";
-        struct spawninfo si2;
-        domainid_t pid2;
+    char *binary_name = "rpc-test";
+    struct spawninfo si;
+    domainid_t pid;
 
-        err = spawn_load_by_name(binary_name2, &si2, &pid2);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in event_dispatch");
-            abort();
-        }
+    err = spawn_load_by_name(binary_name, &si, &pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in event_dispatch");
+        abort();
     }
 
     // Grading

@@ -89,7 +89,6 @@ client_response_cb(void *arg)
     goto clean_up;
 
     clean_up:
-
     return;
 }
 

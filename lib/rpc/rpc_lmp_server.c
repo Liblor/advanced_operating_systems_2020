@@ -174,6 +174,9 @@ static void open_recv_cb(void *arg)
 
     do {
         err = lmp_chan_send0(service_chan, LMP_SEND_FLAGS_DEFAULT, service_chan->local_cap);
+        if (lmp_err_is_transient(err)) {
+            DEBUG_ERR(err, "transient");
+        }
     } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
