@@ -26,9 +26,11 @@ static struct paging_state current;
 
 static void paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
-    __unused lvaddr_t vaddr = (lvaddr_t)addr;
+    errval_t err;
+    lvaddr_t vaddr = ROUND_DOWN((lvaddr_t)addr, BASE_PAGE_SIZE);
+    struct paging_state *st = get_current_paging_state();
 
-    if (addr == NULL) {
+    if (vaddr == 0) {
         debug_printf("NULL pointer dereferenced!\n");
         return;
     }
@@ -38,7 +40,27 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
     // TODO: "guard" page for stack
 
     // TODO: check if page was marked as mappped
-    // TODO: map page
+    struct capref frame;
+    size_t size;
+    slab_ensure_threshold(&st->slabs, 10);
+    err = frame_alloc(&frame, BASE_PAGE_SIZE, &size);
+    if (err_is_fail(err)) {
+        debug_printf("Page fault handler error: frame_alloc failed");
+        debug_printf(err_getstring(err));
+        return;
+    }
+    if (size < BASE_PAGE_SIZE) {
+        debug_printf("Page fault handler error: frame_alloc returned a too small frame");
+        debug_printf(err_getstring(err));
+        return;
+    }
+
+    err = paging_map_fixed(st, vaddr, frame, size);
+    if (err_is_fail(err)) {
+        debug_printf("Page fault handler error: mapping frame failed");
+        debug_printf(err_getstring(err));
+        return;
+    }
 }
 
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
