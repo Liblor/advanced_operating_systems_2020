@@ -341,7 +341,9 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     goto clean_up;
 
     clean_up:
-    free(recv);
+    if (recv != NULL) {
+        free(recv);
+    }
     return err;
 }
 
