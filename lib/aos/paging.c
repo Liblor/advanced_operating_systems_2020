@@ -28,6 +28,11 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
 {
     __unused lvaddr_t vaddr = (lvaddr_t)addr;
 
+    if (addr == NULL) {
+        debug_printf("NULL pointer dereferenced!\n");
+        return;
+    }
+
     // TODO: check if vaddr is in NULL addr page
     // TODO: check vaddr is valid heap or stack (etc)
     // TODO: "guard" page for stack
