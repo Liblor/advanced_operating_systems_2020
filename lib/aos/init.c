@@ -187,8 +187,12 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
         set_init_rpc(init_rpc);
 
-        _libc_terminal_read_func = aos_terminal_read;
-        _libc_terminal_write_func = aos_terminal_write;
+        // TODO: Enabling this triggers the following error
+//        ERROR: dummy.0 in aos_rpc_lmp_send_message() /source//lib/aos/aos_rpc_lmp_marshal.c:196
+//        ERROR: lmp_chan_send4 failed (transient): The endpoint buffer is full
+
+//        _libc_terminal_read_func = aos_terminal_read;
+//        _libc_terminal_write_func = aos_terminal_write;
 
         // This call is to setup the channel to the memory server before
         // ram_alloc() is set to use the RPC call for memory allocation. This

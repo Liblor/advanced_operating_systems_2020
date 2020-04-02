@@ -74,6 +74,7 @@ static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct ca
 
     *retbytes = get_size(&cap);
 
+    debug_printf("allocated %d size\n", *retbytes);
     return SYS_ERR_OK;
 }
 
@@ -197,24 +198,17 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    //char *binary_name1 = "memeater";
-    //struct spawninfo si1;
-    //domainid_t pid1;
+    {
+        // Testing
+        char *binary_name2 = "hello";
+        struct spawninfo si2;
+        domainid_t pid2;
 
-    //err = spawn_load_by_name(binary_name1, &si1, &pid1);
-    //if (err_is_fail(err)) {
-    //    DEBUG_ERR(err, "in event_dispatch");
-    //    abort();
-    //}
-
-    char *binary_name2 = "hello";
-    struct spawninfo si2;
-    domainid_t pid2;
-
-    err = spawn_load_by_name(binary_name2, &si2, &pid2);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in event_dispatch");
-        abort();
+        err = spawn_load_by_name(binary_name2, &si2, &pid2);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in event_dispatch");
+            abort();
+        }
     }
 
     // Grading

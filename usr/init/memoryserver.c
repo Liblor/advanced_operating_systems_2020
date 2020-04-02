@@ -3,6 +3,7 @@
 #include <aos/aos_rpc_lmp.h>
 
 #include <rpc/server/lmp.h>
+#include <aos/aos_rpc_lmp_marshal.h>
 
 #include "memoryserver.h"
 
@@ -13,7 +14,7 @@ static ram_cap_callback_t ram_cap_cb = NULL;
 static errval_t reply_cap(struct lmp_chan *lc, struct capref *cap, size_t bytes) {
     errval_t err;
 
-    uint8_t msg_buf[sizeof(struct rpc_message) + sizeof(bytes)];
+    char msg_buf[sizeof(struct rpc_message) + sizeof(bytes)];
     struct rpc_message *msg = (void *) msg_buf;
 
     msg->cap = *cap;
@@ -60,6 +61,7 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
     size_t alignment;
     struct capref retcap;
 
+    // TODO: error handling not good!
     switch (msg->msg.method) {
     case Method_Get_Ram_Cap:
         memcpy(&bytes, msg->msg.payload, sizeof(bytes));

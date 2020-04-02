@@ -12,7 +12,6 @@ enum rpc_message_status {
     Process_Get_Name_Failed = 2,
     Process_Get_All_Pids_Failed = 3,
     Status_Error = 4,
-
 };
 
 struct rpc_message_part {
@@ -22,22 +21,14 @@ struct rpc_message_part {
     char payload[0]; ///< The total payload data of the message.
 } __attribute__((packed));      // due to correct ordering not necessary but explicit is better
 
-#define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH*sizeof(uint64_t) - sizeof(struct rpc_message_part))
-
-
-#define return_with_err(cond, state, msg) do { \
-        if (cond) { \
-            (state)->err = LIB_ERR_LMP_INVALID_RESPONSE; \
-            DEBUG_ERR(state->err, msg); \
-            return; \
-        } \
-    } while(0);
+#define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH * sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
 #define LMP_SEGMENT_SIZE (sizeof(uintptr_t) * LMP_MSG_LENGTH)
 
 struct rpc_message {
     struct capref cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
+
 };
 
 struct aos_rpc_lmp {
@@ -49,6 +40,7 @@ struct aos_rpc_lmp {
 enum pending_state {
     EmptyState = 0,
     DataInTransmit = 1,
+    InvalidState = 2,
 };
 
 /** internal state for aos lmp impl. to receive serial getchar **/
@@ -76,11 +68,6 @@ struct client_process_state {
         struct process_pid_array *pid_array;
     };
 };
-
-/**
- * \brief Marshall rpc_message and send with LMP
- */
-errval_t aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags);
 
 /**
  * \brief Call this handler on the receive side for grading
