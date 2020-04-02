@@ -27,14 +27,54 @@ static struct paging_state current;
 __unused
 static void paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
-    __unused lvaddr_t vaddr = (lvaddr_t)addr;
+    errval_t err;
+    lvaddr_t vaddr = ROUND_DOWN((lvaddr_t)addr, BASE_PAGE_SIZE);
+    struct paging_state *st = get_current_paging_state();
 
-    // TODO: check if vaddr is in NULL addr page
+    if (vaddr == 0) {
+        debug_printf("NULL pointer dereferenced!\n");
+        return;
+    }
+
+    if (vaddr < st->head->base_addr) {
+        debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent\n", vaddr);
+        return;
+    }
+
     // TODO: check vaddr is valid heap or stack (etc)
     // TODO: "guard" page for stack
 
-    // TODO: check if page was marked as mappped
-    // TODO: map page
+    // make sure, the passed address is marked for lazily mapping (i.e. reserved)
+    if (!is_vaddr_page_reserved(st, vaddr)) {
+        debug_printf("PAGE FAULT: Address 0x%lx is not mapped\n", vaddr);
+        return;
+    }
+
+    // create frame and map it
+    struct capref frame;
+    size_t size;
+    slab_ensure_threshold(&st->slabs, 10);
+    err = frame_alloc(&frame, BASE_PAGE_SIZE, &size);
+    if (err_is_fail(err)) {
+        debug_printf("Page fault handler error: frame_alloc failed, while "
+                     "lazily mapping 0x%lx\n", vaddr);
+        debug_printf(err_getstring(err));
+        return;
+    }
+    if (size < BASE_PAGE_SIZE) {
+        debug_printf("Page fault handler error: frame_alloc returned a too small frame "
+                     "while lazily mapping 0x%lx\n", vaddr);
+        debug_printf(err_getstring(err));
+        return;
+    }
+
+    err = paging_map_fixed(st, vaddr, frame, size);
+    if (err_is_fail(err)) {
+        debug_printf("Page fault handler error: mapping frame failed "
+                     "while lazily mapping 0x%lx\n", vaddr);
+        debug_printf(err_getstring(err));
+        return;
+    }
 }
 
 __unused static void
