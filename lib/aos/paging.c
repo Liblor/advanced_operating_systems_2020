@@ -35,6 +35,11 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
         return;
     }
 
+    if (vaddr < st->head->base_addr) {
+        debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent\n", vaddr);
+        return;
+    }
+
     // TODO: check vaddr is valid heap or stack (etc)
     // TODO: "guard" page for stack
 
