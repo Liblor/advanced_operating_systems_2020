@@ -46,7 +46,7 @@ static int thread_1(void *args) {
 __unused
 static void thread_test(void) {
     debug_printf("spawning thread...\n");
-    __unused struct thread *t = thread_create_varstack(thread_1, NULL, 1024);
+    __unused struct thread *t = thread_create_varstack(thread_1, NULL, 4*BASE_PAGE_SIZE);
 }
 
 int main(int argc, char *argv[])
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     thread_test();
 
     // uncomment the line below to cause error(bug)
-//    fail();
+    fail();
 
 
 
