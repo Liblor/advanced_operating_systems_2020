@@ -184,7 +184,9 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
         }
     }
 
-    free(state->message);
+    if (state->message != NULL) {
+        free(state->message);
+    }
     state->message = NULL;
     return err;
 }

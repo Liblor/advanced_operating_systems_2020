@@ -23,21 +23,13 @@ struct rpc_message_part {
 
 #define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH * sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
-#define return_with_err(cond, state, msg) do { \
-        if (cond) { \
-            (state)->err = LIB_ERR_LMP_INVALID_RESPONSE; \
-            DEBUG_ERR(state->err, msg); \
-            return; \
-        } \
-    } while(0);
-
 #define LMP_SEGMENT_SIZE (sizeof(uintptr_t) * LMP_MSG_LENGTH)
 
 struct rpc_message {
     struct capref cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
 
-}  __attribute__((packed)) ;
+};
 
 struct aos_rpc_lmp {
     struct waitset ws;

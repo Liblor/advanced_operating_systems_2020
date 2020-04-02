@@ -73,6 +73,7 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     return aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
 }
 
+
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 {
@@ -153,7 +154,9 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     goto clean_up;
 
     clean_up:
-    free(recv);
+    if (recv != NULL) {
+        free(recv);
+    }
     return err;
 }
 
@@ -253,7 +256,6 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     err = SYS_ERR_OK;
     goto clean_up;
 
-clean_up:
     free(recv);
     return err;
 }
@@ -294,7 +296,9 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     goto clean_up_recv;
 
     clean_up_recv:
-    free(recv);
+    if (recv != NULL) {
+        free(recv);
+    }
     return err;
 }
 
@@ -338,7 +342,9 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     goto clean_up;
 
     clean_up:
-    free(recv);
+    if (recv != NULL) {
+        free(recv);
+    }
     return err;
 }
 
