@@ -20,7 +20,7 @@
 
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
-    struct lmp_chan c;
+    struct lmp_chan lc;
     union {
         struct aos_rpc_lmp *lmp;
     };
