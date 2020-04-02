@@ -91,8 +91,8 @@ static void (*minunit_setup)(void) = NULL;
 static void (*minunit_teardown)(void) = NULL;
 
 /*  Definitions */
-#define MU_TEST(method_name) static void method_name(void)
-#define MU_TEST_SUITE(suite_name) static void suite_name(void)
+#define MU_TEST(method_name) __attribute__((__unused__)) static void method_name(void)
+#define MU_TEST_SUITE(suite_name) __attribute__((__unused__))  static void suite_name(void)
 
 #define MU__SAFE_BLOCK(block) do {\
 	block\

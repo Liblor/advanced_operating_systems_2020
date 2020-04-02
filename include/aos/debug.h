@@ -64,7 +64,7 @@ void user_panic_fn(const char *file, const char *func, int line,
                       __FILE__, __func__, __LINE__)
 
 
-#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, ""), true) : false))
+#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
 
 #endif
 
