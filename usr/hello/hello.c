@@ -72,7 +72,7 @@ __unused static bool test_rpc(void)
 
     debug_printf("calling aos_rpc_process_spawn\n");
     rpc = aos_rpc_get_process_channel();
-    size_t size = 30;
+    size_t size = 100;
 
     {
         for(int i = 0; i < size; i ++) {
@@ -128,11 +128,11 @@ int main(int argc, char *argv[])
     test_serial_channel();
     debug_printf("success\n");
 
-//    bool success;
-//    success = test_rpc();
-//    if (!success) {
-//        return EXIT_FAILURE;
-//    }
+    bool success;
+    success = test_rpc();
+    if (!success) {
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
