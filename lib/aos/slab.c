@@ -194,6 +194,8 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
 
+    assert(buf != NULL);
+
     slab_grow(slabs, buf, bytes);
 
     return SYS_ERR_OK;
@@ -221,6 +223,8 @@ errval_t slab_ensure_threshold(struct slab_allocator *slabs, const size_t thresh
     if (slabs->is_refilling) {
         return SYS_ERR_OK;
     }
+
+    //debug_printf("slab_ensure_threshold(slabs=%p, threshold=%zu)\n", slabs, threshold);
 
     slabs->is_refilling = true;
     size_t count = slab_freecount(slabs);

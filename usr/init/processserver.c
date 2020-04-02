@@ -14,32 +14,32 @@ static get_name_callback_t get_name_cb = NULL;
 static get_all_pids_callback_t get_all_pids_cb = NULL;
 
 
-static inline void init_server_state(struct processserver_state *processserver_state)
+static inline void init_server_state(struct processserver_state *server_state)
 {
-    processserver_state->process_head.next = &processserver_state->process_tail;
-    processserver_state->process_head.prev = NULL;
-    processserver_state->process_tail.prev = &processserver_state->process_head;
-    processserver_state->process_tail.next = NULL;
-    processserver_state->processlist = &processserver_state->process_head;
-    processserver_state->process_head.name = NULL;
-    processserver_state->process_tail.name = NULL;
-    processserver_state->num_proc = 0;
+    server_state->process_head.next = &server_state->process_tail;
+    server_state->process_head.prev = NULL;
+    server_state->process_tail.prev = &server_state->process_head;
+    server_state->process_tail.next = NULL;
+    server_state->processlist = &server_state->process_head;
+    server_state->process_head.name = NULL;
+    server_state->process_tail.name = NULL;
+    server_state->num_proc = 0;
 
     domainid_t pid;
-    add_to_proc_list(processserver_state, "init", &pid);
+    add_to_proc_list(server_state, "init", &pid);
 }
 
-static void add_process_info(struct processserver_state *processserver_state, struct process_info *process_info)
+static void add_process_info(struct processserver_state *server_state, struct process_info *process_info)
 {
-    processserver_state->process_tail.prev->next = process_info;
-    process_info->prev = processserver_state->process_tail.prev;
-    process_info->next = &processserver_state->process_tail;
-    process_info->pid = processserver_state->num_proc;
-    processserver_state->process_tail.prev = process_info;
-    processserver_state->num_proc++;
+    server_state->process_tail.prev->next = process_info;
+    process_info->prev = server_state->process_tail.prev;
+    process_info->next = &server_state->process_tail;
+    process_info->pid = server_state->num_proc;
+    server_state->process_tail.prev = process_info;
+    server_state->num_proc++;
 }
 
-errval_t add_to_proc_list(struct processserver_state *processserver_state, char *name, domainid_t *pid)
+errval_t add_to_proc_list(struct processserver_state *server_state, char *name, domainid_t *pid)
 {
     struct process_info *new_process = calloc(1, sizeof(struct process_info));
     if (new_process == NULL) {
@@ -53,7 +53,7 @@ errval_t add_to_proc_list(struct processserver_state *processserver_state, char 
     }
     strncpy(new_process->name, name, name_size);
 
-    add_process_info(processserver_state, new_process);
+    add_process_info(server_state, new_process);
 
     *pid = new_process->pid;
 
@@ -66,28 +66,28 @@ errval_t add_to_proc_list(struct processserver_state *processserver_state, char 
  * @param ret_pid_array contains all pids in this process server state, has to be delted by caller
  * @return errors
  */
-errval_t get_all_pids(struct processserver_state *processserver_state, size_t *ret_num_pids, domainid_t **ret_pids)
+errval_t get_all_pids(struct processserver_state *server_state, size_t *ret_num_pids, domainid_t **ret_pids)
 {
-    *ret_pids = calloc(1, processserver_state->num_proc * sizeof(domainid_t));
+    *ret_pids = calloc(1, server_state->num_proc * sizeof(domainid_t));
     if (*ret_pids == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    *ret_num_pids = processserver_state->num_proc;
-    struct process_info *curr = processserver_state->process_head.next;
+    *ret_num_pids = server_state->num_proc;
+    struct process_info *curr = server_state->process_head.next;
     size_t curr_idx = 0;
-    while (curr != &(processserver_state->process_tail)) {
+    while (curr != &(server_state->process_tail)) {
         (*ret_pids)[curr_idx] = curr->pid;
         curr_idx++;
         curr = curr->next;
     }
-    assert(curr_idx == processserver_state->num_proc);
+    assert(curr_idx == server_state->num_proc);
     return SYS_ERR_OK;
 }
 
-errval_t get_name_by_pid(struct processserver_state *processserver_state, domainid_t pid, char **ret_name) {
-    struct process_info *curr = processserver_state->process_head.next;
+errval_t get_name_by_pid(struct processserver_state *server_state, domainid_t pid, char **ret_name) {
+    struct process_info *curr = server_state->process_head.next;
     char *found_name = NULL;
-    while (curr != &(processserver_state->process_tail)) {
+    while (curr != &(server_state->process_tail)) {
         if (curr->pid == pid) {
             found_name = curr->name;
             break;
@@ -105,15 +105,16 @@ errval_t get_name_by_pid(struct processserver_state *processserver_state, domain
 }
 
 inline
-static errval_t handle_spawn_process(struct processserver_state *processserver_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_spawn_process(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t err;
     char *name = rpc_msg_part->payload + sizeof(coreid_t);
     coreid_t core = *((coreid_t *)rpc_msg_part->payload);
     domainid_t pid;
     enum rpc_message_status status = Status_Ok;
     // PAGEFAULT
-    err = spawn_cb(processserver_state, name, core, &pid);
+    err = spawn_cb(server_state, name, core, &pid);
     if (err_is_fail(err)) {
+        DEBUG_ERR(err, "spawn_cb()");
         status = Spawn_Failed;
     }
     const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
@@ -133,12 +134,12 @@ static errval_t handle_spawn_process(struct processserver_state *processserver_s
 }
 
 inline
-static errval_t handle_process_get_name(struct processserver_state *processserver_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_process_get_name(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t  err;
     domainid_t pid = (domainid_t) rpc_msg_part->payload[0];
     enum rpc_message_status status = Status_Ok;
     char *name = NULL;
-    err = get_name_cb(processserver_state, pid, &name);
+    err = get_name_cb(server_state, pid, &name);
     if (err_is_fail(err)) {
         status = Process_Get_Name_Failed;
     }
@@ -159,13 +160,13 @@ static errval_t handle_process_get_name(struct processserver_state *processserve
 }
 
 inline
-static errval_t handle_process_get_all_pids(struct processserver_state *processserver_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_process_get_all_pids(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t  err;
     size_t pid_count;
     domainid_t *pids = NULL;
     enum rpc_message_status status = Status_Ok;
 
-    err = get_all_pids_cb(processserver_state, &pid_count, &pids);
+    err = get_all_pids_cb(server_state, &pid_count, &pids);
     if (err_is_fail(err)) {
         status = Process_Get_All_Pids_Failed;
     }
@@ -188,16 +189,16 @@ static errval_t handle_process_get_all_pids(struct processserver_state *processs
     return SYS_ERR_OK;
 }
 
-static errval_t handle_complete_msg(struct processserver_state *processserver_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_complete_msg(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     switch (rpc_msg_part->method) {
         case Method_Spawn_Process: {
-            return handle_spawn_process(processserver_state, rpc_msg_part, ret_msg);
+            return handle_spawn_process(server_state, rpc_msg_part, ret_msg);
         }
         case Method_Process_Get_Name: {
-            return handle_process_get_name(processserver_state, rpc_msg_part, ret_msg);
+            return handle_process_get_name(server_state, rpc_msg_part, ret_msg);
         }
         case Method_Process_Get_All_Pids: {
-            return handle_process_get_all_pids(processserver_state, rpc_msg_part, ret_msg);
+            return handle_process_get_all_pids(server_state, rpc_msg_part, ret_msg);
         }
         // TODO: error on unknown message, introduce new errcode
         default: break;
@@ -219,14 +220,13 @@ errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
     return SYS_ERR_OK;
 }
 
-
-static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan, void *processserver_state)
+static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan, void *server_state)
 {
     errval_t err;
 
     struct rpc_message *ret = NULL;
 
-    err = handle_complete_msg((struct processserver_state *) processserver_state, &msg->msg, &ret);
+    err = handle_complete_msg((struct processserver_state *) server_state, &msg->msg, &ret);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "handle_complete_msg() failed");
         goto cleanup;

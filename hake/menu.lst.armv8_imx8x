@@ -8,4 +8,6 @@ module  /armv8/sbin/init
 module /armv8/sbin/hello 123456 654321 "hello world"
 module /armv8/sbin/memeater
 module /armv8/sbin/dummy
+module /armv8/sbin/rpc-test
+module /armv8/sbin/rpc-test-2
 module /armv8/sbin/faulter

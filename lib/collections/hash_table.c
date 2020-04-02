@@ -129,8 +129,7 @@ void collections_hash_insert(collections_hash_table *t, uint64_t key, void *data
 
     elem = collections_hash_find_elem(t, key);
 	if (elem != NULL) {
-		printf("Error: key %" PRIu64 " already present in hash table %" PRIu64 "\n",
-            key, elem->key);
+		printf("Error: key %" PRIu64 " already present in hash table %" PRIu64 "\n", key, elem->key);
 		assert(0);
 		return;
 	}
