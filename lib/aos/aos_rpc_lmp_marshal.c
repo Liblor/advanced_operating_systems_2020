@@ -171,7 +171,6 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
         goto clean_up;
     }
 
-    // TODO: more input sanitation
     state = lmp->shared;
     memcpy(*recv, state->message, sizeof(struct rpc_message) + state->message->msg.payload_length);
 
@@ -185,6 +184,7 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
             slot_free(rpc->lc.endpoint->recv_slot);
         }
     }
+
     free(state->message);
     state->message = NULL;
     return err;
