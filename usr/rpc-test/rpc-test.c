@@ -158,10 +158,10 @@ int main(int argc, char *argv[])
 {
     debug_printf("Running RPC tests...\n");
 
-    //test_init();
-    //test_memory();
+    test_init();
+    test_memory();
     test_process();
-    //test_serial();
+    test_serial();
 
     return EXIT_SUCCESS;
 }
