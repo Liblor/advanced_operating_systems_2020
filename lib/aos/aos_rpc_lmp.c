@@ -254,7 +254,9 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     goto clean_up;
 
     clean_up:
-    free(recv);
+    if (recv != NULL) {
+        free(recv);
+    }
     return err;
 }
 
