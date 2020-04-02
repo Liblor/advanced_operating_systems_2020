@@ -30,7 +30,7 @@ const char long_string[] = "this is a very long string this is a very long strin
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string\n";
 
-static void test_init(void) {
+__unused static void test_init(void) {
     errval_t err;
 
     debug_printf("Testing init RPC...\n");
@@ -60,11 +60,11 @@ static void test_init(void) {
     }
 }
 
-static void test_memory(void) {
+__unused static void test_memory(void) {
     // TODO
 }
 
-static void test_process(void) {
+__unused static void test_process(void) {
     errval_t err;
 
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
@@ -81,18 +81,21 @@ static void test_process(void) {
             DEBUG_ERR(err, "aos_rpc_process_spawn()");
             return;
         }
-        //debug_printf("spawned child: pid %d\n", pid1);
+
+        debug_printf("spawned child: pid %d\n", pid1);
     }
 
     debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
     for(int i = 0; i < process_number; i ++) {
         char *name = NULL;
+
         err = aos_rpc_lmp_process_get_name(rpc, i, &name);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
             return;
         }
-        //debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
+
+        debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
     }
 
     debug_printf("Testing aos_rpc_lmp_process_get_all_pids()...\n");
@@ -109,7 +112,7 @@ static void test_process(void) {
     //}
 }
 
-static void test_serial(void) {
+__unused static void test_serial(void) {
     errval_t err;
 
     debug_printf("Testing serial RPC...\n");
@@ -148,10 +151,10 @@ int main(int argc, char *argv[])
 {
     debug_printf("Running RPC tests...\n");
 
-    test_init();
-    test_memory();
+    //test_init();
+    //test_memory();
     test_process();
-    test_serial();
+    //test_serial();
 
     return EXIT_SUCCESS;
 }

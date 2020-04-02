@@ -96,6 +96,8 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
     struct client_response_state *state = lmp->shared;
 
+    *recv = NULL;
+
     memset(state, 0, sizeof(struct client_response_state));
     state->pending_state = EmptyState;
     state->validate_recv_msg = validate_cb;
@@ -157,8 +159,10 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
 
     clean_up:
     // free slot in case no cap was received
-    if (capref_is_null((*recv)->cap)) {
-        slot_free(rpc->lc.endpoint->recv_slot);
+    if (*recv != NULL) {
+        if (capref_is_null((*recv)->cap)) {
+            slot_free(rpc->lc.endpoint->recv_slot);
+        }
     }
     free(state->message);
     return err;

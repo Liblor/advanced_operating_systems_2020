@@ -40,14 +40,14 @@ static void number_cb(uintptr_t num)
 {
     grading_rpc_handle_number(num);
 
-    debug_printf("Received number %"PRIuPTR"\n", num);
+    printf("Received number %"PRIuPTR"\n", num);
 }
 
 static void string_cb(char *c)
 {
     grading_rpc_handler_string(c);
 
-    debug_printf("Received string %s\n", c);
+    printf("Received string %s\n", c);
 }
 
 // We do not allocate RAM here. This should be done in the server itself.
@@ -56,8 +56,6 @@ static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct ca
     errval_t err;
 
     grading_rpc_handler_ram_cap(bytes, alignment);
-
-    debug_printf("ram_cap_cb(bytes=0x%zx, alignment=0x%zx)\n", bytes, alignment);
 
     err = ram_alloc_aligned(retcap, bytes, alignment);
     if (err_is_fail(err)) {
@@ -74,7 +72,6 @@ static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct ca
 
     *retbytes = get_size(&cap);
 
-    debug_printf("allocated %d size\n", *retbytes);
     return SYS_ERR_OK;
 }
 
@@ -120,8 +117,6 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
         // TODO: If spawn failed, remove the process from the processserver state list.
         return err;
     }
-
-    debug_printf("new pid is %d\n", *ret_pid);
 
     return SYS_ERR_OK;
 }
@@ -198,22 +193,11 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    //char *binary_name1 = "memeater";
-    //struct spawninfo si1;
-    //domainid_t pid1;
+    char *binary_name = "rpc-test";
+    struct spawninfo si;
+    domainid_t pid;
 
-    //err = spawn_load_by_name(binary_name1, &si1, &pid1);
-    //if (err_is_fail(err)) {
-    //    DEBUG_ERR(err, "in event_dispatch");
-    //    abort();
-    //}
-
-//    char *binary_name2 = "hello";
-    char *binary_name2 = "memeater";
-    struct spawninfo si2;
-    domainid_t pid2;
-
-    err = spawn_load_by_name(binary_name2, &si2, &pid2);
+    err = spawn_load_by_name(binary_name, &si, &pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "in event_dispatch");
         abort();

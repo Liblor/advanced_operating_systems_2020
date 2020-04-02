@@ -129,8 +129,6 @@ static errval_t handle_spawn_process(struct processserver_state *server_state, s
     pid_array->pid_count = 1;
     pid_array->pids[0] = pid;
 
-    debug_printf("msg size return: %d\n", payload_length);
-
     return SYS_ERR_OK;
 }
 
