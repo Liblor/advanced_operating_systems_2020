@@ -272,14 +272,12 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
     pr->region_size = size;
     pr->flags = flags;
 
-    //Add the region to a datastructure and ensure paging_alloc
-    //will return non-overlapping regions.
-    struct vaddr_region *ret;
-    errval_t err = alloc_vaddr_region(st, pr->base_addr, size, &ret);
-    if (err_is_fail(err)) {
-        return err;
-    }
-    ret->region = pr;
+    // TODO: Add the region to a datastructure and ensure paging_alloc
+    // will return non-overlapping regions.
+    // Currently this function is not called directly, that's why this doesn't result in a bug.
+    // It is only called by paging_region_init_aligned, we already "reserve" the vaddr_regions
+    // there, but this should be rewritten.
+
     return SYS_ERR_OK;
 }
 
