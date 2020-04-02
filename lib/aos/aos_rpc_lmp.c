@@ -297,7 +297,9 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
     goto clean_up_recv;
 
     clean_up_recv:
-    free(recv);
+    if (recv != NULL) {
+        free(recv);
+    }
     return err;
 }
 
