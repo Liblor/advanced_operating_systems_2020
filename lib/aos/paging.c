@@ -35,29 +35,37 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
         return;
     }
 
-    // TODO: check if vaddr is in NULL addr page
     // TODO: check vaddr is valid heap or stack (etc)
     // TODO: "guard" page for stack
 
-    // TODO: check if page was marked as mappped
+    // make sure, the passed address is marked for lazily mapping (i.e. reserved)
+    if (!is_vaddr_page_reserved(st, vaddr)) {
+        debug_printf("PAGE FAULT: Address 0x%lx is not mapped\n", vaddr);
+        return;
+    }
+
+    // create frame and map it
     struct capref frame;
     size_t size;
     slab_ensure_threshold(&st->slabs, 10);
     err = frame_alloc(&frame, BASE_PAGE_SIZE, &size);
     if (err_is_fail(err)) {
-        debug_printf("Page fault handler error: frame_alloc failed");
+        debug_printf("Page fault handler error: frame_alloc failed, while "
+                     "lazily mapping 0x%lx\n", vaddr);
         debug_printf(err_getstring(err));
         return;
     }
     if (size < BASE_PAGE_SIZE) {
-        debug_printf("Page fault handler error: frame_alloc returned a too small frame");
+        debug_printf("Page fault handler error: frame_alloc returned a too small frame "
+                     "while lazily mapping 0x%lx\n", vaddr);
         debug_printf(err_getstring(err));
         return;
     }
 
     err = paging_map_fixed(st, vaddr, frame, size);
     if (err_is_fail(err)) {
-        debug_printf("Page fault handler error: mapping frame failed");
+        debug_printf("Page fault handler error: mapping frame failed "
+                     "while lazily mapping 0x%lx\n", vaddr);
         debug_printf(err_getstring(err));
         return;
     }

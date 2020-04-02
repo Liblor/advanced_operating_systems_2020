@@ -99,6 +99,15 @@ static inline bool is_not_mapped_region(struct vaddr_region *region, lvaddr_t ad
     return addr_start && no_overflow && end && not_mapped;
 }
 
+static inline bool is_reserved_region(struct vaddr_region *region, lvaddr_t addr, size_t size)
+{
+    bool addr_start = region->base_addr <= addr;
+    bool no_overflow = addr + size > addr;
+    bool end = addr + size <= region->base_addr + region->size;
+    bool reserved = region->type == NodeType_Reserved;
+    return addr_start && no_overflow && end && reserved;
+}
+
 static inline bool is_mergeable(struct vaddr_region *prev, struct vaddr_region *next) {
     return prev != NULL && prev->next == next && prev->type == next->type;
 }
@@ -199,5 +208,20 @@ errval_t reserve_vaddr_region(struct paging_state *st, void **buf, size_t bytes,
     assert(vaddr == curr->prev->base_addr);
     curr->prev->type = NodeType_Reserved;
 
+    // XXX: maybe it makes sense to merge with neighboring regions if they are also reserved
+
     return SYS_ERR_OK;
+}
+
+/**
+ * Checks if the virtual address vaddr is marked as reserved
+ */
+errval_t is_vaddr_page_reserved(struct paging_state *st, lvaddr_t vaddr)
+{
+    // XXX: is there a benefit to check over larger sizes
+    size_t size = BASE_PAGE_SIZE;
+    struct vaddr_region *curr = st->head;
+    // XXX: easy optimization, break after vaddr > curr->base_addr
+    while (curr != NULL && !is_reserved_region(curr, vaddr, size)) { curr = curr->next; }
+    return (curr != NULL);
 }
