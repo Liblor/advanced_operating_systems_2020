@@ -61,9 +61,9 @@ struct paging_region {
     lvaddr_t current_addr;
     size_t region_size;
     paging_flags_t flags;
-    size_t num_caps;
+    size_t num_caps;             /// < number of cap_mappings
     struct capref frame_cap;
-    struct capref *cap_mapping;
+    struct capref *cap_mapping;  /// < Array of allocated mappings when region spawns onto multiple page tables
     // TODO: if needed add struct members for tracking state
 };
 

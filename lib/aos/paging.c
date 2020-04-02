@@ -24,6 +24,7 @@
 
 static struct paging_state current;
 
+__unused
 static void paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     __unused lvaddr_t vaddr = (lvaddr_t)addr;
@@ -36,9 +37,28 @@ static void paging_handler(enum exception_type type, int subtype, void *addr, ar
     // TODO: map page
 }
 
+__unused static void
+exception_handler_giveup(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
+{
+    __unused struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
+
+    static char str[512];
+    snprintf(str, sizeof(str), "\n%.*s.%d: unrecoverable error (type: 0x%"
+                               PRIxPTR", subtype: 0x%" PRIxPTR ") on %" PRIxPTR " at IP %" PRIxPTR "\n",
+             DISP_NAME_LEN, disp_name(), disp_get_current_core_id(), type, subtype, addr, regs->named.pc);
+
+    sys_print(str, sizeof(str));
+    
+    debug_print_save_area(regs);
+    // debug_dump(regs); // print stack
+    thread_exit(-1); // TODO status code
+}
+
+__unused
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
+
 
     switch (type) {
         case EXCEPT_PAGEFAULT:
@@ -48,6 +68,8 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
             // TODO what to do now?
             debug_printf("Unknown exception type\n");
     }
+
+    exception_handler_giveup(type, subtype, addr, regs);
 }
 
 /**
