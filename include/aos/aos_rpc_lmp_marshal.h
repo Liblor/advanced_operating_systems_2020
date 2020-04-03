@@ -18,6 +18,9 @@ typedef errval_t (*validate_recv_msg_t )(struct lmp_recv_msg *msg, enum pending_
 
 /// rpc/lmp response state to track and buffer transmission
 struct client_response_state {
+    struct aos_rpc *rpc;
+    struct waitset ws;
+    errval_t err;
     uint32_t bytes_received;                   ///< How much was read from the client already.
     uint32_t total_length;                     ///< total bytes to transmit
     enum pending_state pending_state;          ///< transmission state
