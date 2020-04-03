@@ -23,6 +23,8 @@
 
 static struct paging_state current;
 
+// TODO: check that addr is in valid stack bounds of current thread or
+// TODO: check that addr is in valid heap bounds
 static errval_t paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     errval_t err;
@@ -33,13 +35,10 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("NULL pointer dereferenced!\n");
         return AOS_ERR_PAGING_NULL_DEREF;
     }
-
     if (vaddr < st->head->base_addr) {
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent\n", vaddr);
         return AOS_ERR_PAGING_ADDR_NOT_MANAGED;
     }
-
-    // make sure, the passed address is marked for lazily mapping (i.e. reserved)
     if (!is_vaddr_page_reserved(st, vaddr)) {
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped\n", vaddr);
         return LIB_ERR_PMAP_NOT_MAPPED;
@@ -97,10 +96,9 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
             err = paging_handler(type, subtype, addr, regs);
             break;
         default:
-            // TODO what to do now?
+            err = AOS_ERR_PAGING_INVALID_UNHANDLED_EXCEPTION;
             debug_printf("Unknown exception type\n");
     }
-
     if (err_is_fail(err)) {
         // we die here ... RIP
         exception_handler_giveup(err, type, subtype, addr, regs);
