@@ -51,8 +51,6 @@ aos_rpc_lmp_init(struct aos_rpc *rpc)
         return LIB_ERR_MALLOC_FAIL;
     }
     memset(rpc_lmp, 0, sizeof(struct aos_rpc_lmp));
-    waitset_init(&rpc_lmp->ws);
-    rpc_lmp->err = SYS_ERR_OK;
     rpc->lmp = rpc_lmp;
 
     return SYS_ERR_OK;
@@ -474,8 +472,6 @@ aos_rpc_lmp_get_init_channel(void)
             debug_printf("aos_rpc_lmp_setup_channel() failed\n");
             return NULL;
         }
-
-        init_channel->lmp->shared = NULL; // we dont need state
     }
 
     return init_channel;
@@ -491,11 +487,6 @@ aos_rpc_lmp_get_memory_channel(void)
         memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
         if (memory_channel == NULL) {
             debug_printf("aos_rpc_lmp_setup_channel() failed\n");
-            return NULL;
-        }
-
-        errval_t err = aos_rpc_lmp_alloc_client_state(&memory_channel->lmp->shared);
-        if (err_is_fail(err)) {
             return NULL;
         }
     }
@@ -514,11 +505,6 @@ aos_rpc_lmp_get_process_channel(void)
             debug_printf("aos_rpc_lmp_setup_channel() failed\n");
             return NULL;
         }
-
-        errval_t err = aos_rpc_lmp_alloc_client_state(&process_channel->lmp->shared);
-        if (err_is_fail(err)) {
-            return NULL;
-        }
     }
     return process_channel;
 }
@@ -533,11 +519,6 @@ aos_rpc_lmp_get_serial_channel(void)
         serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
         if (serial_channel == NULL) {
             debug_printf("aos_rpc_lmp_setup_channel() failed\n");
-            return NULL;
-        }
-
-        errval_t err = aos_rpc_lmp_alloc_client_state(&serial_channel->lmp->shared);
-        if (err_is_fail(err)) {
             return NULL;
         }
     }
