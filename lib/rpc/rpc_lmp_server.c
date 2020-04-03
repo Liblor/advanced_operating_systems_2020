@@ -21,6 +21,14 @@ static void add_segment(void *dst_buf, struct lmp_recv_msg segment, size_t bytes
     *bytes_received += to_copy;
 }
 
+static inline void reset_state(struct rpc_lmp_handler_state *state)
+{
+    assert(state != NULL);
+
+    state->recv_state = Msg_State_Empty;
+    free(state->msg);
+}
+
 // Call the registered receive handler, if any.
 static void service_recv_cb(void *arg)
 {
@@ -36,9 +44,11 @@ static void service_recv_cb(void *arg)
 
     err = lmp_chan_recv(lc, &segment, &cap);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_chan_recv() failed");
-        goto reset_state;
+        DEBUG_ERR(err, "lmp_chan_recv()");
+        reset_state(state);
+        goto reregister;
     }
+
     // TODO Allocate new capability slot when needed
     // TODO Reply with errval_t when an error occurs
 
@@ -56,14 +66,16 @@ static void service_recv_cb(void *arg)
 
         if (header->status != Status_Ok) {
             debug_printf("received request where status is not ok\n");
-            goto reset_state;
+            reset_state(state);
+            goto reregister;
         }
 
         // Allocate memory for the full message
         state->msg = (struct rpc_message *) calloc(1, sizeof(struct rpc_message) + header->payload_length);
         if (state->msg == NULL) {
             debug_printf("calloc() failed\n");
-            goto reset_state;
+            reset_state(state);
+            goto reregister;
         }
 
         // Some messages include a capability in the first segment
@@ -95,16 +107,16 @@ static void service_recv_cb(void *arg)
             server->service_recv_handler(state->msg, state->shared, lc, server->shared);
         }
 
-        goto reset_state;
+        reset_state(state);
+        goto reregister;
     }
 
     return;
 
-reset_state:
-    state->recv_state = Msg_State_Empty;
-    if (state->msg != NULL) {
-        free(state->msg);
-        state->msg = NULL;
+reregister:
+    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
     }
 }
 
@@ -122,16 +134,21 @@ static void open_recv_cb(void *arg)
     err = lmp_chan_recv(&server->open_lc, &msg, &client_cap);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_recv()");
-        return;
+        goto reregister;
     }
 
     // In case no capability was sent, return.
     if (capref_is_null(client_cap)) {
-        debug_printf("open_recvcb() could not retrieve a capability.");
-        return;
+        debug_printf("open_recvcb() could not retrieve a capability.\n");
+        goto reregister;
     }
 
     struct rpc_lmp_handler_state *state = calloc(1, sizeof(struct rpc_lmp_handler_state));
+    if (state == NULL) {
+        debug_printf("calloc() cannot allocate memory.\n");
+        goto reregister;
+    }
+
     state->recv_state = Msg_State_Empty;
     state->msg = NULL;
 
@@ -140,7 +157,7 @@ static void open_recv_cb(void *arg)
     err = aos_rpc_lmp_init(&state->rpc);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_lmp_init() failed: %s\n", err_getstring(err));
-        return;
+        goto reregister;
     }
 
     struct lmp_chan *service_chan = &state->rpc.lc;
@@ -148,18 +165,15 @@ static void open_recv_cb(void *arg)
     err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &service_chan->local_cap, &service_chan->endpoint);
     if (err_is_fail(err)) {
         debug_printf("endpoint_create() failed: %s\n", err_getstring(err));
-        return;
+        goto reregister;
     }
-
-    // We want the channel to be registered persistently.
-    service_chan->endpoint->waitset_state.persistent = true;
 
     service_chan->remote_cap = client_cap;
 
     err = lmp_chan_alloc_recv_slot(&server->open_lc);
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
-        return;
+        goto reregister;
     }
 
     if (server->state_init_handler != NULL) {
@@ -169,18 +183,29 @@ static void open_recv_cb(void *arg)
     err = lmp_chan_register_recv(service_chan, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
-        return;
+        goto reregister;
     }
 
+    uint32_t retries = 0;
     do {
         err = lmp_chan_send0(service_chan, LMP_SEND_FLAGS_DEFAULT, service_chan->local_cap);
         if (lmp_err_is_transient(err)) {
-            DEBUG_ERR(err, "transient");
+            retries++;
+            if (retries >= TRANSIENT_ERR_RETRIES) {
+                debug_printf("a transient error occured %u times, retries exceeded\n", retries);
+                break;
+            }
         }
     } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
-        return;
+        goto reregister;
+    }
+
+reregister:
+    err = lmp_chan_register_recv(&server->open_lc, get_default_waitset(), MKCLOSURE(open_recv_cb, server));
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
     }
 }
 
@@ -194,9 +219,6 @@ static errval_t rpc_lmp_server_setup_open_channel(struct rpc_lmp_server *server,
         debug_printf("lmp_chan_accept() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_LMP_CHAN_ACCEPT);
     }
-
-    // We want the channel to be registered persistently.
-    server->open_lc.endpoint->waitset_state.persistent = true;
 
     err = lmp_chan_alloc_recv_slot(&server->open_lc);
     if (err_is_fail(err)) {
