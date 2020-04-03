@@ -27,7 +27,7 @@ extern morecore_free_func_t sys_morecore_free;
 // this define makes morecore use an implementation that just has a static
 // 16MB heap.
 // TODO (M4): use a dynamic heap instead,
-#define USE_STATIC_HEAP
+//#define USE_STATIC_HEAP
 
 #ifdef USE_STATIC_HEAP
 
@@ -101,8 +101,28 @@ errval_t morecore_reinit(void)
  */
 static void *morecore_alloc(size_t bytes, size_t *retbytes)
 {
-    USER_PANIC("NYI \n");
-    return NULL;
+    struct morecore_state *state = get_morecore_state();
+    void *ret_addr = NULL;
+    const lvaddr_t end_address = state->zone.base_addr + state->zone.region_size;
+    if (end_address <= state->zone.current_addr) {
+        *retbytes = 0;
+        debug_printf("morecore_alloc failed: out of zone addresses\n");
+        return NULL;
+    }
+
+    lvaddr_t new_curr = MIN(state->zone.current_addr + bytes, end_address);
+    if (new_curr < state->zone.current_addr) {
+        *retbytes = 0;
+        debug_printf("morecore_alloc failed: overflow\n");
+        return NULL;
+    }
+
+    *retbytes = new_curr - state->zone.current_addr;
+    ret_addr = (void *)state->zone.current_addr;
+    state->zone.current_addr = new_curr;
+    assert(new_curr <= end_address);
+
+    return ret_addr;
 }
 
 static void morecore_free(void *base, size_t bytes)
@@ -113,8 +133,19 @@ static void morecore_free(void *base, size_t bytes)
 errval_t morecore_init(size_t alignment)
 {
     debug_printf("initializing dynamic heap\n");
+    struct morecore_state *state = get_morecore_state();
 
-    USER_PANIC("NYI \n");
+    thread_mutex_init(&state->mutex);
+
+    void *buf;
+    paging_alloc(get_current_paging_state(), &buf, MORECORE_VADDR_ZONE_SIZE, BASE_PAGE_SIZE);
+    state->zone.region_size = MORECORE_VADDR_ZONE_SIZE;
+    state->zone.base_addr = (lvaddr_t)buf;
+    state->zone.current_addr = state->zone.base_addr;
+
+    sys_morecore_alloc = morecore_alloc;
+    sys_morecore_free = morecore_free;
+
     return SYS_ERR_OK;
 }
 
