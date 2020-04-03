@@ -32,8 +32,6 @@ struct rpc_message {
 };
 
 struct aos_rpc_lmp {
-    struct waitset ws;
-    errval_t err;
     void *shared;
 };
 

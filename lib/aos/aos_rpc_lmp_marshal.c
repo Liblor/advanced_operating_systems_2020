@@ -28,7 +28,6 @@ client_response_cb(void *arg)
     }
 
     if (state->pending_state == InvalidState) {
-        debug_printf("state is InvalidState, skipping receive\n");
         state->err = LIB_ERR_LMP_INVALID_RESPONSE;
         goto clean_up;
     }
@@ -92,22 +91,6 @@ client_response_cb(void *arg)
     return;
 }
 
-errval_t aos_rpc_lmp_alloc_client_state(void **state)
-{
-    *state = malloc(sizeof(struct client_response_state));
-    if (*state == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    return SYS_ERR_OK;
-}
-
-errval_t aos_rpc_lmp_free_client_state(void *state)
-{
-    free(state);
-    return SYS_ERR_OK;
-}
-
-// Expect an allocated client_response_state in rpc->lmp-shared
 errval_t
 aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
                                struct rpc_message **recv, validate_recv_msg_t validate_cb)
@@ -122,11 +105,6 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     state.pending_state = EmptyState;
     state.validate_recv_msg = validate_cb;
     state.message = NULL;
-
-
-//    assert(rpc->lmp->shared != NULL);
-//    struct aos_rpc_lmp *lmp = (struct aos_rpc_lmp *) rpc->lmp;
-//    struct client_response_state *state = lmp->shared;
     *recv = NULL;
 
     // allocate recv slot in case we get a cap in result
@@ -165,7 +143,6 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
         goto clean_up;
     }
 
-//    assert(state != NULL);
     assert(state.message != NULL);
     assert(recv != NULL);
 
@@ -188,6 +165,7 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     }
     free(state.message);
     state.message = NULL;
+
     return err;
 }
 
