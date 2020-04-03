@@ -36,7 +36,7 @@ static void service_recv_cb(void *arg)
 
     err = lmp_chan_recv(lc, &segment, &cap);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_chan_recv() failed");
+        DEBUG_ERR(err, "lmp_chan_recv()");
         goto reset_state;
     }
     // TODO Allocate new capability slot when needed
@@ -127,11 +127,16 @@ static void open_recv_cb(void *arg)
 
     // In case no capability was sent, return.
     if (capref_is_null(client_cap)) {
-        debug_printf("open_recvcb() could not retrieve a capability.");
+        debug_printf("open_recvcb() could not retrieve a capability.\n");
         return;
     }
 
     struct rpc_lmp_handler_state *state = calloc(1, sizeof(struct rpc_lmp_handler_state));
+    if (state == NULL) {
+        debug_printf("calloc() cannot allocate memory.\n");
+        return;
+    }
+
     state->recv_state = Msg_State_Empty;
     state->msg = NULL;
 
@@ -172,10 +177,15 @@ static void open_recv_cb(void *arg)
         return;
     }
 
+    uint32_t retries = 0;
     do {
         err = lmp_chan_send0(service_chan, LMP_SEND_FLAGS_DEFAULT, service_chan->local_cap);
         if (lmp_err_is_transient(err)) {
-            DEBUG_ERR(err, "transient");
+            retries++;
+            if (retries >= TRANSIENT_ERR_RETRIES) {
+                debug_printf("a transient error occured %u times, retries exceeded\n", retries);
+                break;
+            }
         }
     } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {

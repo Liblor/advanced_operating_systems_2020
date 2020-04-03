@@ -205,25 +205,32 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
     uint64_t retries = 0;
     err = SYS_ERR_OK;
 
-    while (size_sent < msg_size && retries <= TRANSIENT_ERR_RETRIES) {
+    while (size_sent < msg_size && retries < TRANSIENT_ERR_RETRIES) {
         uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);
 
-        err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2],
-                             words[3]);
+        err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
 
         if (lmp_err_is_transient(err)) {
-            DEBUG_ERR(err, "lmp_chan_send4 failed (transient): %s\n", err_getstring(err));
             retries++;
             continue;
-
         } else if (err_is_fail(err)) {
-            DEBUG_ERR(err, "lmp_chan_send4 failed");
-            return err;
+            break;
         }
+
         size_sent += to_send;
         first = false;
+        retries = 0;
     }
+    if (err_is_fail(err)) {
+        if (retries >= TRANSIENT_ERR_RETRIES) {
+            debug_printf("a transient error occured %u times, retries exceeded\n", retries);
+        }
+
+        DEBUG_ERR(err, "lmp_chan_send4 failed");
+        return err;
+    }
+
     return err;
 }

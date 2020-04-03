@@ -203,7 +203,7 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 
     errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_send_message failed\n");
+        DEBUG_ERR(err, "lmp_send_message()\n");
         return err;
     }
     return SYS_ERR_OK;
@@ -386,16 +386,17 @@ static struct aos_rpc *
 aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
 {
     errval_t err;
-    struct aos_rpc *rpc = malloc(sizeof(struct aos_rpc));
+
+    struct aos_rpc *rpc = calloc(1, sizeof(struct aos_rpc));
     if (rpc == NULL) {
         debug_printf("malloc returned NULL\n");
-        return NULL;
+        goto error;
     }
+
     err = aos_rpc_lmp_init(rpc);
     if (err_is_fail(err)) {
-        debug_printf("error in %s\n", service_name);
-        DEBUG_ERR(err, "error in aos_rpc_lmp_init");
-        return NULL;
+        DEBUG_ERR(err, "aos_rpc_lmp_init()\n");
+        goto error;
     }
 
     struct lmp_chan *lc = &rpc->lc;
@@ -403,9 +404,8 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
     struct capref cap_ep;
     err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &cap_ep, &lc->endpoint);
     if (err_is_fail(err)) {
-        debug_printf("error in %s\n", service_name);
         debug_printf("endpoint_create() failed: %s\n", err_getstring(err));
-        return NULL;
+        goto error;
     }
 
     lc->local_cap = cap_ep;
@@ -419,47 +419,51 @@ aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
     // wait on a specific response below.
     err = lmp_chan_register_recv(lc, &ws, MKCLOSURE(client_recv_open_cb, rpc));
     if (err_is_fail(err)) {
-        debug_printf("error in %s\n", service_name);
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
-        return NULL;
+        goto error;
     }
 
     // Allocate receive slot to receive the capability of the service endpoint
     err = lmp_chan_alloc_recv_slot(lc);
     if (err_is_fail(err)) {
-        debug_printf("error in %s\n", service_name);
         debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
-        return NULL;
+        goto error;
     }
 
+    uint32_t retries = 0;
     do {
         err = lmp_chan_send0(lc, LMP_SEND_FLAGS_DEFAULT, cap_ep);
         if (lmp_err_is_transient(err)) {
-            DEBUG_ERR(err, "transient");
+            retries++;
+            if (retries >= TRANSIENT_ERR_RETRIES) {
+                debug_printf("A transient error occured %u times, retries exceeded\n", retries);
+                break;
+            }
         }
     } while (lmp_err_is_transient(err));
     if (err_is_fail(err)) {
-        debug_printf("error in %s\n", service_name);
         debug_printf("lmp_chan_send0() failed: %s\n", err_getstring(err));
-        return NULL;
+        goto error;
     }
 
     // Wait for the callback to be executed.
     err = event_dispatch(&ws);
     if (err_is_fail(err)) {
-        debug_printf("error in %s\n", service_name);
         debug_printf("event_dispatch() failed: %s\n", err_getstring(err));
-        return NULL;
+        goto error;
     }
 
     err = waitset_destroy(&ws);
     if (err_is_fail(err)) {
-        debug_printf("error in %s\n", service_name);
         debug_printf("waitset_destroy() failed: %s\n", err_getstring(err));
         // We don't have to return NULL, this error is not critical.
     }
 
     return rpc;
+
+error:
+    debug_printf("Error while setting up channel for %s\n", service_name);
+    return NULL;
 }
 
 /**

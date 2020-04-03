@@ -10,9 +10,6 @@
         } \
     } while(0);
 
-/// Number of retries before error on transient error
-#define TRANSIENT_ERR_RETRIES 5
-
 /// Callback to validate incoming server response
 typedef errval_t (*validate_recv_msg_t )(struct lmp_recv_msg *msg, enum pending_state state);
 
