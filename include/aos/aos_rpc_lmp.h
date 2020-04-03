@@ -32,8 +32,6 @@ struct rpc_message {
 };
 
 struct aos_rpc_lmp {
-    struct waitset ws;
-    errval_t err;
     void *shared;
 };
 
@@ -43,31 +41,10 @@ enum pending_state {
     InvalidState = 2,
 };
 
-/** internal state for aos lmp impl. to receive serial getchar **/
-struct client_serial_state {
-    char c_recv;        ///< Char to receive
-};
-
-
-struct client_ram_state {
-    size_t bytes;
-    struct capref cap;
-};
-
 struct process_pid_array {
     size_t pid_count;
     domainid_t pids[0];
 } __packed ;
-
-struct client_process_state {
-    uint32_t bytes_received; ///< How much was read from the client already.
-    uint32_t total_length;
-    enum pending_state pending_state;
-    union {
-        char *name;
-        struct process_pid_array *pid_array;
-    };
-};
 
 /**
  * \brief Call this handler on the receive side for grading
