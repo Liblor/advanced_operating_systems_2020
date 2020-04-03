@@ -25,6 +25,7 @@
 struct paging_state;
 struct paging_region;
 
+#define THREAD_UNRECOVERABLE_PAGEFAULT_CODE (-1)
 
 struct thread;
 errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,

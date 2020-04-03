@@ -20,11 +20,9 @@
 #include "threads_priv.h"
 
 #include <stdio.h>
-#include <string.h>
 
 static struct paging_state current;
 
-__unused
 static errval_t paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     errval_t err;
@@ -40,9 +38,6 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent\n", vaddr);
         return AOS_ERR_PAGING_ADDR_NOT_MANAGED;
     }
-
-    // TODO: check vaddr is valid heap or stack (etc)
-    // TODO: "guard" page for stack
 
     // make sure, the passed address is marked for lazily mapping (i.e. reserved)
     if (!is_vaddr_page_reserved(st, vaddr)) {
@@ -79,22 +74,19 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
     return SYS_ERR_OK;
 }
 
-__unused static void
+static void
 exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
         void *addr, arch_registers_state_t *regs)
 {
-    __unused struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
-
     debug_printf("\n%.*s.%d: unrecoverable error (errmsg: '%s', type: 0x%"
                                PRIxPTR", subtype: 0x%" PRIxPTR ") on %" PRIxPTR " at IP %" PRIxPTR "\n",
              DISP_NAME_LEN, disp_name(), disp_get_current_core_id(), err_getstring(err), type, subtype, addr, regs->named.pc);
 
     debug_print_save_area(regs);
     // debug_dump(regs); // print stack
-    thread_exit(-1); // TODO status code
+    thread_exit(THREAD_UNRECOVERABLE_PAGEFAULT_CODE);
 }
 
-__unused
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
@@ -122,7 +114,6 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
 static errval_t pt_alloc(struct paging_state * st, enum objtype type,
                          struct capref *ret)
 {
-    DEBUG_BEGIN;
     errval_t err;
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
     if (err_is_fail(err)) {
