@@ -85,6 +85,7 @@ struct pt_l2_entry {
 
 // struct to store the paging status of a process
 struct paging_state {
+    struct thread_mutex mutex;
     struct slot_allocator *slot_alloc;
     struct slab_allocator slabs;
     struct vaddr_region *head;

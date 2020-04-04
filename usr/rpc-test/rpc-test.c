@@ -70,11 +70,11 @@ __unused static void test_process(void) {
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
 
     // Apparently 128 processes are too much for 2GB RAM to handle.
-    const uint64_t process_number = 40;
+    const uint64_t process_number = 20;
 
     debug_printf("Testing aos_rpc_process_spawn() (spawning %u processes)...\n", process_number);
 
-    for(int i = 0; i < process_number; i ++) {
+    for(int i = 0; i < process_number; i++) {
         char *binary_name1 = "dummy";
         domainid_t pid1;
         coreid_t core = 0;
@@ -88,6 +88,7 @@ __unused static void test_process(void) {
         debug_printf("spawned child: pid %d\n", pid1);
     }
 
+    /*
     debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
 
     for(int i = 0; i < process_number; i ++) {
@@ -117,6 +118,7 @@ __unused static void test_process(void) {
     for(int j = 0; j < pid_count; j ++){
         debug_printf("pid: %d:\n", pids[j]);
     }
+    */
 }
 
 __unused static void test_serial(void) {
@@ -159,9 +161,9 @@ int main(int argc, char *argv[])
     debug_printf("Running RPC tests...\n");
 
     test_init();
-    test_memory();
+    //test_memory();
     test_process();
-    test_serial();
+    //test_serial();
 
     return EXIT_SUCCESS;
 }

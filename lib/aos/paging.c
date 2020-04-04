@@ -176,6 +176,8 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
     slab_grow(&st->slabs, st->buf, sizeof(st->buf));
 
+    thread_mutex_init(&st->mutex);
+
     add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
     return SYS_ERR_OK;
 }
@@ -699,6 +701,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
     errval_t err;
+    thread_mutex_lock_nested(&st->mutex);
 
     //debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ..., bytes=%zx, ...)\n", st, vaddr, bytes);
 
@@ -777,6 +780,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         vaddr += curr_pte_count * BASE_PAGE_SIZE;
         offset += curr_pte_count * BASE_PAGE_SIZE;
     }
+    thread_mutex_unlock(&st->mutex);
     return err;
 }
 
