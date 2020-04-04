@@ -194,7 +194,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    char *binary_name = "hello";
+    char *binary_name = "rpc-test";
     struct spawninfo si;
     domainid_t pid;
 

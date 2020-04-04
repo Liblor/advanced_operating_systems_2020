@@ -45,7 +45,6 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         return LIB_ERR_PMAP_NOT_MAPPED;
     }
 
-
     // create frame and map it
     struct capref frame;
     size_t size;
@@ -82,11 +81,10 @@ static void
 exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
         void *addr, arch_registers_state_t *regs)
 {
-    /*
     debug_printf("\n%.*s.%d: unrecoverable error (errmsg: '%s', type: 0x%"
                                PRIxPTR", subtype: 0x%" PRIxPTR ") on %" PRIxPTR " at IP %" PRIxPTR "\n",
              DISP_NAME_LEN, disp_name(), disp_get_current_core_id(), err_getstring(err), type, subtype, addr, regs->named.pc);
-             */
+
 
     debug_print_save_area(regs);
     // debug_dump(regs); // print stack
@@ -95,10 +93,8 @@ exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
 
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
-    debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
+    // debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
     errval_t err = SYS_ERR_OK;
-
-
     morecore_enable_static();
 
     switch (type) {
