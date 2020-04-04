@@ -89,6 +89,32 @@ errval_t morecore_reinit(void)
 }
 
 #else
+
+#define HEAP_SIZE (1<<24)
+static char mymem[HEAP_SIZE] = { 0 };
+static char *endp = mymem + HEAP_SIZE;
+
+static void morecore_init_static(struct morecore_state *state, size_t alignment)
+{
+    state->freep = mymem;
+}
+
+static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
+{
+    size_t aligned_bytes = ROUND_UP(bytes, sizeof(Header));
+    void *ret = NULL;
+    if (state->freep + aligned_bytes < endp) {
+        ret = state->freep;
+        state->freep += aligned_bytes;
+    }
+    else {
+        aligned_bytes = 0;
+    }
+    *retbytes = aligned_bytes;
+    return ret;
+}
+
+
 // dynamic heap using lib/aos/paging features
 
 /**

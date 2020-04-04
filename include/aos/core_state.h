@@ -39,8 +39,10 @@ struct morecore_state {
     Header *header_freep;
     // for "real" morecore (lib/aos/morecore.c)
     struct morecore_zone zone;
+
     // for "static" morecore (see lib/aos/static_morecore.c)
     char *freep;
+
 };
 
 struct ram_alloc_state {
