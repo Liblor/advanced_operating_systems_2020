@@ -106,6 +106,7 @@ static void morecore_init_static(struct morecore_state *state, size_t alignment)
 
 static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
+    debug_printf("morecore_alloc_static\n");
     size_t aligned_bytes = ROUND_UP(bytes, sizeof(Header));
     void *ret = NULL;
     if (state->freep + aligned_bytes < endp) {
@@ -121,6 +122,7 @@ static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, s
 
 static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
+    debug_printf("morecore_alloc_dynamic\n");
     void *ret_addr = NULL;
     const lvaddr_t end_address = state->zone.base_addr + state->zone.region_size;
     if (end_address <= state->zone.current_addr) {
@@ -243,5 +245,6 @@ Header *get_malloc_freep(void);
 Header *get_malloc_freep(void)
 {
     struct morecore_state *state =get_morecore_state();
-    return state->heap_static ? state->header_freep_static : state->header_freep_dynamic;
+    //return state->heap_static ? state->header_freep_static : state->header_freep_dynamic;
+    return state->header_freep;
 }
