@@ -106,11 +106,11 @@ static void service_recv_cb(void *arg)
             // TODO Also pass a callback here to send a reply message
             server->service_recv_handler(state->msg, state->shared, lc, server->shared);
         }
-
         reset_state(state);
-        goto reregister;
     }
 
+    // always reregister server to continue to receive requests
+    goto reregister;
     return;
 
 reregister:
