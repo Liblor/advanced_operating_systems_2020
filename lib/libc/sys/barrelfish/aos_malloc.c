@@ -2,46 +2,24 @@
 /*
  * AOS Malloc
  *
- * System specifc code should implement `more_core'
+ * Malloc implementation which is aware of a static and dynamic heapx
  */
 
-#include "k_r_malloc.h"
+#include "aos_malloc.h"
 #include <stddef.h> /* For NULL */
-#include <stdlib.h>
-#include <string.h> /* For memcpy */
 
 #include <aos/aos.h>
 #include <aos/core_state.h> /* XXX */
 
-typedef void *(*alt_malloc_t)(size_t bytes);
-alt_malloc_t alt_malloc = NULL;
-
-typedef void (*alt_free_t)(void *p);
-alt_free_t alt_free = NULL;
-
 #define MALLOC_LOCK thread_mutex_lock(&state->mutex)
 #define MALLOC_UNLOCK thread_mutex_unlock(&state->mutex)
 
-#ifdef CONFIG_MALLOC_INSTRUMENT
-size_t __malloc_instrumented_allocated;
-#endif
 
-#ifdef CONFIG_MALLOC_DEBUG_INTERNAL
-#include <stdio.h>
-#include <assert.h>
-int __malloc_check(void);
-void __malloc_dump(void);
-#endif
-
-#define MAGIC_STATIC  (0xB16B00B5)
-#define MAGIC_DYNAMIC (0xB00BBABE)
-
-#define GET_MAGIC (state->heap_static ? MAGIC_STATIC : MAGIC_DYNAMIC)
 
 /*
  * malloc: general-purpose storage allocator
  */
-void *malloc(size_t nbytes)
+void *aos_malloc(size_t nbytes)
 {
     // XXX: we dont use alt_malloc and alt_free anymore
 
@@ -86,7 +64,7 @@ void *malloc(size_t nbytes)
  * free: put block ap in free list
  */
 void
-__free_locked(void *ap)
+__aos_free_locked(void *ap)
 {
     struct morecore_state *state = get_morecore_state();
 	Header *bp, *p;
@@ -116,7 +94,7 @@ __free_locked(void *ap)
 	state->header_freep = p;
 }
 
-void free(void *ap)
+void aos_free(void *ap)
 {
     if (ap == NULL) {
         return;
@@ -150,7 +128,7 @@ void free(void *ap)
         state->header_freep = state->header_freep_dynamic;
     }
     MALLOC_LOCK;
-    __free_locked(ap);
+    __aos_free_locked(ap);
     lesscore();
 
     // restore state
