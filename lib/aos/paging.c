@@ -400,7 +400,9 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
         return err;
     }
 
+    thread_mutex_lock_nested(&st->mutex);
     err = reserve_vaddr_region(st, buf, bytes, alignment);
+    thread_mutex_unlock(&st->mutex);
     if (err_is_fail(err)) {
         return err;
     }
