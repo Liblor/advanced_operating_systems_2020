@@ -79,7 +79,7 @@ static inline void merge_with_prev_node(struct paging_state *st, struct vaddr_re
 static inline errval_t split_off(struct paging_state *st, struct vaddr_region *region, size_t size) {
     // create new node
     struct vaddr_region *new_region;
-    errval_t err = create_new_region(st, &new_region, region->base_addr, size, NULL, NodeType_Free);
+    errval_t err = create_new_region(st, &new_region, region->base_addr, size, NULL, region->type);
     if (err_is_fail(err)) { return err; }
 
     // Update node
