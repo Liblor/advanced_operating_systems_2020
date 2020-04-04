@@ -41,6 +41,7 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         return AOS_ERR_PAGING_ADDR_NOT_MANAGED;
     }
     if (!is_vaddr_page_reserved(st, vaddr)) {
+        print_vaddr_regions(get_current_paging_state());
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped\n", vaddr);
         return LIB_ERR_PMAP_NOT_MAPPED;
     }
