@@ -87,7 +87,7 @@ exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
 
 
     debug_print_save_area(regs);
-    // debug_dump(regs); // print stack
+//     debug_dump(regs); // print stack
     thread_exit(THREAD_UNRECOVERABLE_PAGEFAULT_CODE);
 }
 
