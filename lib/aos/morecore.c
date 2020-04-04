@@ -96,9 +96,12 @@ static char *endp = mymem + HEAP_SIZE;
 
 static void morecore_init_static(struct morecore_state *state, size_t alignment)
 {
+    debug_printf("initializing static heap\n");
     state->freep = mymem;
 }
 
+// TODO: integrate
+__unused
 static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
     size_t aligned_bytes = ROUND_UP(bytes, sizeof(Header));
@@ -114,20 +117,8 @@ static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, s
     return ret;
 }
 
-
-// dynamic heap using lib/aos/paging features
-
-/**
- * \brief Allocate some memory for malloc to use
- *
- * This function will keep trying with smaller and smaller frames till
- * it finds a set of frames that satisfy the requirement. retbytes can
- * be smaller than bytes if we were able to allocate a smaller memory
- * region than requested for.
- */
-static void *morecore_alloc(size_t bytes, size_t *retbytes)
+static void * morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
-    struct morecore_state *state = get_morecore_state();
     void *ret_addr = NULL;
     const lvaddr_t end_address = state->zone.base_addr + state->zone.region_size;
     if (end_address <= state->zone.current_addr) {
@@ -151,9 +142,44 @@ static void *morecore_alloc(size_t bytes, size_t *retbytes)
     return ret_addr;
 }
 
+/*
+ * Solutions:
+ *
+ * - adapt malloc
+ * - use slab, and replace calls to malloc with calls to slab
+ * - paging does not use heap, but keeps new data in static buffer,
+ *   and copies it at the end once malloc available
+ */
+
+/**
+ * \brief Allocate some memory for malloc to use
+ *
+ * This function will keep trying with smaller and smaller frames till
+ * it finds a set of frames that satisfy the requirement. retbytes can
+ * be smaller than bytes if we were able to allocate a smaller memory
+ * region than requested for.
+ */
+static void *morecore_alloc(size_t bytes, size_t *retbytes)
+{
+    struct morecore_state *state = get_morecore_state();
+
+    // TODO: switch
+    return morecore_alloc_dynamic(state, bytes, retbytes);
+
+}
+
 static void morecore_free(void *base, size_t bytes)
 {
     USER_PANIC("NYI \n");
+}
+
+static void morecore_init_dynamic(struct morecore_state *state, size_t alignment)
+{
+    void *buf;
+    paging_alloc(get_current_paging_state(), &buf, MORECORE_VADDR_ZONE_SIZE, BASE_PAGE_SIZE);
+    state->zone.region_size = MORECORE_VADDR_ZONE_SIZE;
+    state->zone.base_addr = (lvaddr_t)buf;
+    state->zone.current_addr = state->zone.base_addr;
 }
 
 errval_t morecore_init(size_t alignment)
@@ -163,11 +189,12 @@ errval_t morecore_init(size_t alignment)
 
     thread_mutex_init(&state->mutex);
 
-    void *buf;
-    paging_alloc(get_current_paging_state(), &buf, MORECORE_VADDR_ZONE_SIZE, BASE_PAGE_SIZE);
-    state->zone.region_size = MORECORE_VADDR_ZONE_SIZE;
-    state->zone.base_addr = (lvaddr_t)buf;
-    state->zone.current_addr = state->zone.base_addr;
+    // we start off dynamic and switch to static in pagefault handler
+    state->heap_static = false;
+
+    morecore_init_dynamic(state,alignment);
+    morecore_init_static(state, alignment);
+
 
     sys_morecore_alloc = morecore_alloc;
     sys_morecore_free = morecore_free;
