@@ -209,6 +209,7 @@ errval_t morecore_init(size_t alignment)
 {
     debug_printf("morecore_init\n");
     struct morecore_state *state = get_morecore_state();
+    memset(state, 0, sizeof(struct morecore_state));
 
     thread_mutex_init(&state->mutex);
 
