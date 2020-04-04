@@ -109,10 +109,7 @@ static void service_recv_cb(void *arg)
         reset_state(state);
     }
 
-    // always reregister server to continue to receive requests
-    goto reregister;
-    return;
-
+    // always reregister callback to continue to receive requests
 reregister:
     err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
     if (err_is_fail(err)) {
