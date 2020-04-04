@@ -20,6 +20,7 @@
 #include "threads_priv.h"
 
 #include <stdio.h>
+#include <aos/morecore.h>
 
 static struct paging_state current;
 
@@ -91,6 +92,8 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
     debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
     errval_t err = SYS_ERR_OK;
 
+    morecore_enable_static();
+
     switch (type) {
         case EXCEPT_PAGEFAULT:
             err = paging_handler(type, subtype, addr, regs);
@@ -99,6 +102,9 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
             err = AOS_ERR_PAGING_INVALID_UNHANDLED_EXCEPTION;
             debug_printf("Unknown exception type\n");
     }
+
+    morecore_enable_dynamic();
+
     if (err_is_fail(err)) {
         // we die here ... RIP
         exception_handler_giveup(err, type, subtype, addr, regs);
@@ -250,7 +256,10 @@ errval_t paging_init(void)
 void paging_init_onthread(struct thread *t)
 {
     DEBUG_BEGIN;
+    morecore_enable_static();
     void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
+
+    morecore_enable_dynamic();
     void *stack_top = stack + PAGING_EXCEPTION_STACK_SIZE;
 
     t->exception_stack = stack;

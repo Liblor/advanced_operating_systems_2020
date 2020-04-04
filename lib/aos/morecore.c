@@ -101,7 +101,6 @@ static char *endp = mymem + HEAP_SIZE;
 
 static void morecore_init_static(struct morecore_state *state, size_t alignment)
 {
-    debug_printf("initializing static heap\n");
     state->freep = mymem;
 }
 
@@ -164,7 +163,9 @@ static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, 
  */
 static void *morecore_alloc(size_t bytes, size_t *retbytes)
 {
+    HERE;
     struct morecore_state *state = get_morecore_state();
+    debug_printf("heap_static: %d\n", state->heap_static);
     if (state->heap_static) {
         return morecore_alloc_static(state, bytes, retbytes);
     } else {
@@ -186,22 +187,42 @@ static void morecore_init_dynamic(struct morecore_state *state, size_t alignment
     state->zone.current_addr = state->zone.base_addr;
 }
 
+void morecore_enable_static(void)
+{
+    debug_printf("enabling static heap\n");
+    struct morecore_state *state = get_morecore_state();
+    state->heap_static = true;
+    state->header_freep = state->header_freep_static;
+    state->header_base = state->header_base_static;
+}
+
+void morecore_enable_dynamic(void)
+{
+    debug_printf("enabling dynamic heap\n");
+    struct morecore_state *state = get_morecore_state();
+    state->heap_static = false;
+    state->header_freep = state->header_freep_dynamic;
+    state->header_base = state->header_base_dynamic;
+}
+
 errval_t morecore_init(size_t alignment)
 {
-    debug_printf("initializing dynamic heap\n");
+    debug_printf("morecore_init\n");
     struct morecore_state *state = get_morecore_state();
 
     thread_mutex_init(&state->mutex);
 
     // we start off dynamic and switch to static in pagefault handler
-    state->heap_static = false;
 
+    // XXX: Glue aos_malloc which is static/dynamic heap aware
+    // no malloc before this function is called as we initialize morecore here
     alt_free = aos_free;
     alt_free_locked = __aos_free_locked;
     alt_malloc = aos_malloc;
 
     morecore_init_dynamic(state,alignment);
     morecore_init_static(state, alignment);
+    morecore_enable_dynamic();
 
     sys_morecore_alloc = morecore_alloc;
     sys_morecore_free = morecore_free;
