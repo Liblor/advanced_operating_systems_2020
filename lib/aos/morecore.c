@@ -193,18 +193,30 @@ void morecore_enable_static(void)
 {
     debug_printf("enabling static heap\n");
     struct morecore_state *state = get_morecore_state();
-    state->heap_static = true;
-    state->header_freep = state->header_freep_static;
-    state->header_base = state->header_base_static;
+    if (!state->heap_static) {
+        state->heap_static = true;
+
+        state->header_freep_dynamic = state->header_freep;
+        state->header_base_dynamic = state->header_base;
+
+        state->header_freep = state->header_freep_static;
+        state->header_base = state->header_base_static;
+    }
 }
 
 void morecore_enable_dynamic(void)
 {
     debug_printf("enabling dynamic heap\n");
     struct morecore_state *state = get_morecore_state();
-    state->heap_static = false;
-    state->header_freep = state->header_freep_dynamic;
-    state->header_base = state->header_base_dynamic;
+    if (state->heap_static) {
+        state->heap_static = false;
+
+        state->header_freep_static = state->header_freep;
+        state->header_base_static = state->header_base;
+
+        state->header_freep = state->header_freep_dynamic;
+        state->header_base = state->header_base_dynamic;
+    }
 }
 
 errval_t morecore_init(size_t alignment)
