@@ -21,23 +21,18 @@
  */
 void *aos_malloc(size_t nbytes)
 {
-    HERE;
     // XXX: we dont use alt_malloc and alt_free anymore
 
     struct morecore_state *state = get_morecore_state();
-    HERE;
 	Header *p, *prevp;
 	unsigned nunits;
 	nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
 
-	HERE;
 	MALLOC_LOCK;
-	HERE;
 	if ((prevp = state->header_freep) == NULL) {	/* no free list yet */
 		state->header_base.s.ptr = state->header_freep = prevp = &state->header_base;
 		state->header_base.s.size = 0;
 	}
-	HERE;
 	for (p = prevp->s.ptr;; prevp = p, p = p->s.ptr) {
 		if (p->s.size >= nunits) {	/* big enough */
 			if (p->s.size == nunits)	/* exactly */
@@ -50,11 +45,9 @@ void *aos_malloc(size_t nbytes)
             p->s.magic = GET_MAGIC;
 			state->header_freep = prevp;
 
-			HERE;
 			MALLOC_UNLOCK;
 			return (void *) (p + 1);
 		}
-		HERE;
 		if (p == state->header_freep) {	/* wrapped around free list */
 			if ((p = (Header *) morecore(nunits)) == NULL) {
 				MALLOC_UNLOCK;

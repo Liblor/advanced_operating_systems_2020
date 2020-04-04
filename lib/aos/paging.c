@@ -44,13 +44,13 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped\n", vaddr);
         return LIB_ERR_PMAP_NOT_MAPPED;
     }
-    HERE;
+
 
     // create frame and map it
     struct capref frame;
     size_t size;
     slab_ensure_threshold(&st->slabs, 10);
-    HERE;
+
     err = frame_alloc(&frame, BASE_PAGE_SIZE, &size);
     if (err_is_fail(err)) {
         debug_printf("Page fault handler error: frame_alloc failed, while "
@@ -64,7 +64,7 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("%s\n", err_getstring(err));
         return err;
     }
-    HERE;
+
 
     err = paging_map_fixed(st, vaddr, frame, size);
     if (err_is_fail(err)) {
@@ -73,7 +73,7 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("%s\n", err_getstring(err));
         return err;
     }
-    HERE;
+
 
     return SYS_ERR_OK;
 }
@@ -82,9 +82,11 @@ static void
 exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
         void *addr, arch_registers_state_t *regs)
 {
+    /*
     debug_printf("\n%.*s.%d: unrecoverable error (errmsg: '%s', type: 0x%"
                                PRIxPTR", subtype: 0x%" PRIxPTR ") on %" PRIxPTR " at IP %" PRIxPTR "\n",
              DISP_NAME_LEN, disp_name(), disp_get_current_core_id(), err_getstring(err), type, subtype, addr, regs->named.pc);
+             */
 
     debug_print_save_area(regs);
     // debug_dump(regs); // print stack
@@ -96,7 +98,7 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
     debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
     errval_t err = SYS_ERR_OK;
 
-    HERE;
+
     morecore_enable_static();
 
     switch (type) {
@@ -712,19 +714,16 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     }
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
-    HERE;
     struct vaddr_region *vaddr_region = NULL;
     err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
     if (err_is_fail(err)) {
         return err;
     }
-    HERE;
 
     err = slab_ensure_threshold(&st->slabs, 12);
     if (err_is_fail(err)) {
         return err;
     }
-    HERE;
 
     /* how many lvl3 mappings needed in total */
     uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
@@ -733,21 +732,21 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     const uint64_t upper_bound_single_lvl3 = pte_count / VMSAv8_64_PTABLE_NUM_ENTRIES + 2;
     uint64_t offset = 0;
 
-    HERE;
+
     struct paging_region *paging_region = malloc(sizeof(struct paging_region));
-    HERE;
+
     if (paging_region == NULL) {
         // TODO free vaddr_region
         return LIB_ERR_MALLOC_FAIL;
     }
-    HERE;
+
     paging_region->cap_mapping = malloc(upper_bound_single_lvl3 * sizeof(struct capref));
-    HERE;
+
     if (paging_region->cap_mapping == NULL) {
         // TODO free vaddr_region
         return LIB_ERR_MALLOC_FAIL;
     }
-    HERE;
+
     paging_region->base_addr = vaddr;
     paging_region->current_addr = paging_region->base_addr;
     paging_region->region_size = bytes;
@@ -755,7 +754,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     paging_region->num_caps = 0;
     vaddr_region->region = paging_region;
 
-    HERE;
+
     while (pte_count > 0) {
         assert (paging_region->num_caps < upper_bound_single_lvl3);
         /* find how many remaining entries in current lvl 3 pagetable

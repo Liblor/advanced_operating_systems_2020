@@ -106,7 +106,6 @@ static void morecore_init_static(struct morecore_state *state, size_t alignment)
 
 static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
-    debug_printf("morecore_alloc_static\n");
     size_t aligned_bytes = ROUND_UP(bytes, sizeof(Header));
     void *ret = NULL;
     if (state->freep + aligned_bytes < endp) {
@@ -122,7 +121,6 @@ static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, s
 
 static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
-    debug_printf("morecore_alloc_dynamic\n");
     void *ret_addr = NULL;
     const lvaddr_t end_address = state->zone.base_addr + state->zone.region_size;
     if (end_address <= state->zone.current_addr) {
@@ -165,9 +163,7 @@ static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, 
  */
 static void *morecore_alloc(size_t bytes, size_t *retbytes)
 {
-    HERE;
     struct morecore_state *state = get_morecore_state();
-    debug_printf("heap_static: %d\n", state->heap_static);
     if (state->heap_static) {
         return morecore_alloc_static(state, bytes, retbytes);
     } else {
@@ -191,7 +187,6 @@ static void morecore_init_dynamic(struct morecore_state *state, size_t alignment
 
 void morecore_enable_static(void)
 {
-    debug_printf("enabling static heap\n");
     struct morecore_state *state = get_morecore_state();
     if (!state->heap_static) {
         state->heap_static = true;
@@ -206,7 +201,6 @@ void morecore_enable_static(void)
 
 void morecore_enable_dynamic(void)
 {
-    debug_printf("enabling dynamic heap\n");
     struct morecore_state *state = get_morecore_state();
     if (state->heap_static) {
         state->heap_static = false;
@@ -221,7 +215,6 @@ void morecore_enable_dynamic(void)
 
 errval_t morecore_init(size_t alignment)
 {
-    debug_printf("morecore_init\n");
     struct morecore_state *state = get_morecore_state();
     memset(state, 0, sizeof(struct morecore_state));
 
@@ -237,7 +230,7 @@ errval_t morecore_init(size_t alignment)
 
     morecore_init_dynamic(state,alignment);
     morecore_init_static(state, alignment);
-    morecore_enable_dynamic();
+    state->heap_static = false;
 
     sys_morecore_alloc = morecore_alloc;
     sys_morecore_free = morecore_free;
