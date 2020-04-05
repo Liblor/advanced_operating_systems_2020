@@ -39,7 +39,7 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent\n", vaddr);
         return AOS_ERR_PAGING_ADDR_NOT_MANAGED;
     }
-    if (!is_vaddr_page_reserved(st, vaddr)) {
+    if (!vaddr_nodes_is_reserved(st, vaddr)) {
         debug_printf("PAGE FAULT: Address 0x%lx is not mapped\n", vaddr);
         return LIB_ERR_PMAP_NOT_MAPPED;
     }
@@ -171,7 +171,7 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     slab_init(&st->slabs, sizeof(struct vaddr_node), slab_default_refill);
     slab_grow(&st->slabs, st->buf, sizeof(st->buf));
 
-    add_node(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
+    vaddr_nodes_add(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
 
     return SYS_ERR_OK;
 }
@@ -390,7 +390,7 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
         return err;
     }
 
-    err = reserve_vaddr_node(st, buf, bytes, alignment);
+    err = vaddr_nodes_reserve(st, buf, bytes, alignment);
     if (err_is_fail(err)) {
         return err;
     }
@@ -704,7 +704,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
     struct vaddr_node *vaddr_node = NULL;
-    err = alloc_vaddr_node(st, vaddr, bytes, &vaddr_node);
+    err = vaddr_nodes_alloc(st, vaddr, bytes, &vaddr_node);
     if (err_is_fail(err)) {
         return err;
     }

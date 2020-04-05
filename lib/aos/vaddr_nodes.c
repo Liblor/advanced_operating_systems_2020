@@ -204,7 +204,7 @@ static inline bool is_node_free(
     return node->type == NodeType_Free && no_overflow && in_range && enough_space;
 }
 
-errval_t add_node(
+errval_t vaddr_nodes_add(
     struct paging_state *st,
     lvaddr_t base,
     size_t size,
@@ -236,7 +236,7 @@ errval_t add_node(
     return SYS_ERR_OK;
 }
 
-errval_t alloc_vaddr_node(
+errval_t vaddr_nodes_alloc(
     struct paging_state *st,
     lvaddr_t addr,
     size_t size,
@@ -284,8 +284,7 @@ errval_t alloc_vaddr_node(
     return SYS_ERR_OK;
 }
 
-
-errval_t free_node(
+errval_t vaddr_nodes_free(
     struct paging_state *st,
     struct vaddr_node *node
 )
@@ -305,7 +304,7 @@ errval_t free_node(
     return SYS_ERR_OK;
 }
 
-errval_t reserve_vaddr_node(
+errval_t vaddr_nodes_reserve(
     struct paging_state *st,
     void **buf,
     size_t bytes,
@@ -368,7 +367,7 @@ errval_t reserve_vaddr_node(
 /**
  * Checks if the virtual address vaddr is marked as reserved
  */
-errval_t is_vaddr_page_reserved(
+errval_t vaddr_nodes_is_reserved(
     struct paging_state *st,
     lvaddr_t vaddr
 )

@@ -20,10 +20,10 @@ struct vaddr_node {
     struct paging_region *region;
 };
 
-errval_t add_node(struct paging_state *st, lvaddr_t base, size_t size, struct paging_region *paging_region);
-errval_t alloc_vaddr_node(struct paging_state *st, lvaddr_t addr, size_t size, struct vaddr_node **ret);
-errval_t free_node(struct paging_state *st, struct vaddr_node *node);
-errval_t reserve_vaddr_node(struct paging_state *st, void **buf, size_t bytes, size_t alignment);
-errval_t is_vaddr_page_reserved(struct paging_state *st, lvaddr_t vaddr);
+errval_t vaddr_nodes_add(struct paging_state *st, lvaddr_t base, size_t size, struct paging_region *paging_region);
+errval_t vaddr_nodes_alloc(struct paging_state *st, lvaddr_t addr, size_t size, struct vaddr_node **ret);
+errval_t vaddr_nodes_free(struct paging_state *st, struct vaddr_node *node);
+errval_t vaddr_nodes_reserve(struct paging_state *st, void **buf, size_t bytes, size_t alignment);
+errval_t vaddr_nodes_is_reserved(struct paging_state *st, lvaddr_t vaddr);
 
 #endif //BF_AOS_VADDR_NODES_H
