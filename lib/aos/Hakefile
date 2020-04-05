@@ -51,7 +51,7 @@
                              "thread_once.c",
                              "thread_sync.c",
                              "threads.c",
-                             "vaddr_regions.c",
+                             "vaddr_nodes.c",
                              "waitset.c" ],
                   assemblyFiles = [ "arch/aarch64/context.S", "arch/aarch64/entry.S"],
                   addIncludes =   [ "include", "include/arch/aarch64" ],

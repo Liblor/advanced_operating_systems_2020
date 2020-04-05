@@ -14,7 +14,7 @@
 
 #include <aos/aos.h>
 #include <aos/paging.h>
-#include <aos/vaddr_regions.h>
+#include <aos/vaddr_nodes.h>
 #include <aos/except.h>
 #include <aos/slab.h>
 #include "threads_priv.h"
@@ -168,10 +168,10 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     st->slot_alloc = ca;
     st->cap_l0 = cap_l0;
 
-    slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
+    slab_init(&st->slabs, sizeof(struct vaddr_node), slab_default_refill);
     slab_grow(&st->slabs, st->buf, sizeof(st->buf));
 
-    add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
+    add_node(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
 
     return SYS_ERR_OK;
 }
@@ -279,7 +279,7 @@ errval_t paging_region_init_fixed(struct paging_state *st, struct paging_region 
     // TODO: Add the region to a datastructure and ensure paging_alloc
     // will return non-overlapping regions.
     // Currently this function is not called directly, that's why this doesn't result in a bug.
-    // It is only called by paging_region_init_aligned, we already "reserve" the vaddr_regions
+    // It is only called by paging_region_init_aligned, we already "reserve" the vaddr_nodes
     // there, but this should be rewritten.
 
     return SYS_ERR_OK;
@@ -357,7 +357,7 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
     //      holes for non-trivial case
 
     // TODO
-    // split vaddr_region if necessary
+    // split vaddr_node if necessary
     // split paging_region or keep track by other means?
     // how to keep track of mappings?
     return LIB_ERR_NOT_IMPLEMENTED;
@@ -390,7 +390,7 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
         return err;
     }
 
-    err = reserve_vaddr_region(st, buf, bytes, alignment);
+    err = reserve_vaddr_node(st, buf, bytes, alignment);
     if (err_is_fail(err)) {
         return err;
     }
@@ -703,8 +703,8 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     }
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
-    struct vaddr_region *vaddr_region = NULL;
-    err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
+    struct vaddr_node *vaddr_node = NULL;
+    err = alloc_vaddr_node(st, vaddr, bytes, &vaddr_node);
     if (err_is_fail(err)) {
         return err;
     }
@@ -723,12 +723,12 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 
     struct paging_region *paging_region = malloc(sizeof(struct paging_region));
     if (paging_region == NULL) {
-        // TODO free vaddr_region
+        // TODO free vaddr_node
         return LIB_ERR_MALLOC_FAIL;
     }
     paging_region->cap_mapping = malloc(upper_bound_single_lvl3 * sizeof(struct capref));
     if (paging_region->cap_mapping == NULL) {
-        // TODO free vaddr_region
+        // TODO free vaddr_node
         return LIB_ERR_MALLOC_FAIL;
     }
     paging_region->base_addr = vaddr;
@@ -736,7 +736,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     paging_region->region_size = bytes;
     paging_region->flags = flags;
     paging_region->num_caps = 0;
-    vaddr_region->region = paging_region;
+    vaddr_node->region = paging_region;
 
     while (pte_count > 0) {
         assert (paging_region->num_caps < upper_bound_single_lvl3);

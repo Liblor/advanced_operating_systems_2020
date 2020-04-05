@@ -16,7 +16,7 @@
 #define PAGING_TYPES_H_ 1
 
 #include <aos/slab.h>
-//#include <aos/vaddr_regions.h>
+//#include <aos/vaddr_nodes.h>
 #include <aos/solution.h>
 #include <collections/hash_table.h>
 #include <collections/list.h>
@@ -87,11 +87,11 @@ struct pt_l2_entry {
 struct paging_state {
     struct slot_allocator *slot_alloc;
     struct slab_allocator slabs;
-    struct vaddr_region *head;
-    struct vaddr_region *tail;
+    struct vaddr_node *head;
+    struct vaddr_node *tail;
     struct capref cap_l0;
     struct _collections_hash_table *l0pt;
-    // TODO: should be 64*sizeof(struct vaddr_region), but circular deps
+    // TODO: should be 64*sizeof(struct vaddr_node), but circular deps
     char buf[64*64];
     char *exception_stack_base[PAGING_EXCEPTION_STACK_SIZE];
 };
