@@ -13,7 +13,7 @@ static inline errval_t create_new_node(
     struct vaddr_node **ret_node,
     lvaddr_t base,
     size_t size,
-    struct paging_region *paging_region,
+    struct paging_region *region,
     enum nodetype type
 )
 {
@@ -35,7 +35,7 @@ static inline errval_t create_new_node(
     node->type = type;
     node->base_addr = base;
     node->size = size;
-    node->region = paging_region;
+    node->region = region;
 
     *ret_node = node;
 
@@ -161,7 +161,7 @@ static inline bool is_not_mapped_node(
     return addr_start && no_overflow && end && not_mapped;
 }
 
-static inline bool is_reserved_node(
+static inline bool is_node_reserved(
     struct vaddr_node *node,
     lvaddr_t addr,
     size_t size
@@ -208,7 +208,7 @@ errval_t vaddr_nodes_add(
     struct paging_state *st,
     lvaddr_t base,
     size_t size,
-    struct paging_region *paging_region
+    struct paging_region *region
 )
 {
     errval_t err;
@@ -217,7 +217,7 @@ errval_t vaddr_nodes_add(
 
     struct vaddr_node *node;
 
-    err = create_new_node(st, &node, base, size, paging_region, NodeType_Free);
+    err = create_new_node(st, &node, base, size, region, NodeType_Free);
     if (err_is_fail(err)) {
         return err;
     }
@@ -297,6 +297,7 @@ errval_t vaddr_nodes_free(
     if (is_mergeable(node->prev, node)) {
         merge_with_prev_node(st, node);
     }
+
     if (is_mergeable(node, node->next)) {
         merge_with_prev_node(st, node->next);
     }
@@ -367,7 +368,7 @@ errval_t vaddr_nodes_reserve(
 /**
  * Checks if the virtual address vaddr is marked as reserved
  */
-errval_t vaddr_nodes_is_reserved(
+bool vaddr_nodes_is_reserved(
     struct paging_state *st,
     lvaddr_t vaddr
 )
@@ -379,7 +380,7 @@ errval_t vaddr_nodes_is_reserved(
     struct vaddr_node *curr = st->head;
 
     // XXX: easy optimization, break after vaddr > curr->base_addr
-    while (curr != NULL && !is_reserved_node(curr, vaddr, size)) {
+    while (curr != NULL && !is_node_reserved(curr, vaddr, size)) {
         curr = curr->next;
     }
 
