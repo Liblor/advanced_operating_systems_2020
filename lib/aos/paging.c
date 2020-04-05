@@ -160,14 +160,19 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
                            struct capref cap_l0, struct slot_allocator *ca)
 {
     DEBUG_BEGIN;
+
+    memset(st, 0x00, sizeof(struct paging_state));
+
     // TODO (M4): Implement page fault handler that installs frames when a page fault
     // occurs and keeps track of the virtual address space.
     st->slot_alloc = ca;
     st->cap_l0 = cap_l0;
+
     slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
     slab_grow(&st->slabs, st->buf, sizeof(st->buf));
 
     add_region(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
+
     return SYS_ERR_OK;
 }
 
