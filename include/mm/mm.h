@@ -25,8 +25,8 @@
 __BEGIN_DECLS
 
 enum nodetype {
-    NodeType_Free,      ///< This region exists and is free
-    NodeType_Allocated  ///< This region exists and is allocated
+    NodeType_Free,      ///< This region is free
+    NodeType_Allocated  ///< This region is allocated
 };
 
 struct capinfo {
