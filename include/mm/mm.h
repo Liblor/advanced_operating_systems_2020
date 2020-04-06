@@ -36,6 +36,7 @@ struct mm {
     slot_refill_t slot_refill;              ///< Slot allocator refill function
     void *slot_alloc_inst;                  ///< Opaque instance pointer for slot allocator
     enum objtype objtype;                   ///< Type of capabilities stored
+    struct slab_allocator slabs;
 
     struct range_tracker rt;
 

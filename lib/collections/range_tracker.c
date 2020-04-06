@@ -7,15 +7,13 @@
 // TODO Change errors
 // TODO Should the ensure threshold be called in here?
 
-errval_t range_tracker_init(struct range_tracker *rt, slab_refill_func_t slab_refill_func)
+errval_t range_tracker_init(struct range_tracker *rt, struct slab_allocator *slabs)
 {
     assert(rt != NULL);
+    assert(slabs != NULL);
+    assert(slabs->blocksize == sizeof(struct rtnode));
 
-    if (slab_refill_func == NULL)
-        slab_refill_func = slab_default_refill;
-
-    slab_init(&rt->slabs, sizeof(struct rtnode), slab_refill_func);
-
+    rt->slabs = slabs;
     rt->head = &rt->rt_head;
     rt->rt_head.next = &rt->rt_tail;
     rt->rt_head.prev = NULL;
@@ -39,7 +37,7 @@ errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t siz
             break;
     }
 
-    struct rtnode *node = slab_alloc(&rt->slabs);
+    struct rtnode *node = slab_alloc(rt->slabs);
     if (node == NULL)
         return MM_ERR_MM_ADD;
 
@@ -58,7 +56,7 @@ errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t siz
     next->prev = node;
     node->next = next;
 
-    err = slab_ensure_threshold(&rt->slabs, 20);
+    err = slab_ensure_threshold(rt->slabs, 20);
     if (err_is_fail(err))
         return err;
 
@@ -87,7 +85,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
     // Make sure we can allocate a node for leftover if needed.
     // Only create a leftover node if there is space left.
     if (best_padding_size + size < best_size) {
-        leftover = slab_alloc(&rt->slabs);
+        leftover = slab_alloc(rt->slabs);
         if (leftover == NULL) {
             err = MM_ERR_MM_ADD;
             goto error_recovery;
@@ -99,7 +97,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
     // Make sure we can allocate a node for padding if needed.
     // Only create a padding node if padding is necessary.
     if (best_padding_size > 0) {
-        padding = slab_alloc(&rt->slabs);
+        padding = slab_alloc(rt->slabs);
         if (padding == NULL) {
             err = MM_ERR_MM_ADD;
             goto error_recovery;
@@ -146,7 +144,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
 
 error_recovery:
     if (leftover != NULL) {
-        slab_free(&rt->slabs, leftover);
+        slab_free(rt->slabs, leftover);
     }
 
     if (padding != NULL) {
@@ -155,7 +153,7 @@ error_recovery:
         // slab_alloc().
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        slab_free(&rt->slabs, padding);
+        slab_free(rt->slabs, padding);
         #pragma GCC diagnostic pop
     }
 
@@ -211,7 +209,7 @@ errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, ui
 
     // We refill at the very end, so all other mandatory tasks are already done
     // in case of any error.
-    err = slab_ensure_threshold(&rt->slabs, 20);
+    err = slab_ensure_threshold(rt->slabs, 20);
     if (err_is_fail(err)) {
         return err;
     }
@@ -290,7 +288,7 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
         node->size += node->next->size;
         node->next->next->prev = node;
         node->next = node->next->next;
-        slab_free(&rt->slabs, old);
+        slab_free(rt->slabs, old);
     }
 
     // Merge the node with previous neighbor if possible.
@@ -303,7 +301,7 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
         node->size += node->prev->size;
         node->prev->prev->next = node;
         node->prev = node->prev->prev;
-        slab_free(&rt->slabs, old);
+        slab_free(rt->slabs, old);
     }
 
     return SYS_ERR_OK;

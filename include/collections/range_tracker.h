@@ -28,14 +28,16 @@ struct rtnode {
     union range_tracker_shared shared;
 };
 
+#define RANGE_TRACKER_NODE_SIZE (sizeof(struct rtnode))
+
 struct range_tracker {
-    struct slab_allocator slabs;
+    struct slab_allocator *slabs;
     struct rtnode *head;
     struct rtnode rt_head;
     struct rtnode rt_tail;
 };
 
-errval_t range_tracker_init(struct range_tracker *rt, slab_refill_func_t slab_refill_func);
+errval_t range_tracker_init(struct range_tracker *rt, struct slab_allocator *slabs);
 errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t size, union range_tracker_shared shared);
 errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode);
 errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode);
