@@ -218,6 +218,7 @@ static errval_t refill_thread_slabs(struct slab_allocator *slabs)
         return err_push(err, LIB_ERR_VSPACE_MMU_AWARE_MAP);
     }
 
+    assert(buf != NULL);
     slab_grow(slabs, buf, size);
 
     return SYS_ERR_OK;

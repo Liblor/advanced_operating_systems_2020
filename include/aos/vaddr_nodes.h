@@ -6,7 +6,6 @@
 
 enum nodetype {
     NodeType_Free,      ///< This node is free
-    NodeType_Reserved,  ///< This node is intended to be used in a paging region, but is not yet allocated
     NodeType_Allocated, ///< This node is allocated but not yet mapped into the page table
     NodeType_Mapped,    ///< This node is mapped into the page table
 };
@@ -22,12 +21,41 @@ struct vaddr_node {
 
 errval_t vaddr_nodes_add(struct paging_state *st, lvaddr_t base, size_t size, struct paging_region *paging_region);
 
+errval_t vaddr_nodes_alloc_node(
+    struct paging_state *st,
+    struct vaddr_node *node,
+    lvaddr_t base,
+    size_t size,
+    struct vaddr_node **ret
+);
+
 errval_t vaddr_nodes_alloc(struct paging_state *st, lvaddr_t addr, size_t size, struct vaddr_node **ret);
 
 errval_t vaddr_nodes_free(struct paging_state *st, struct vaddr_node *node);
 
-errval_t vaddr_nodes_reserve(struct paging_state *st, void **buf, size_t bytes, size_t alignment);
+struct vaddr_node *vaddr_nodes_get(
+    struct paging_state *st,
+    const lvaddr_t base,
+    const size_t size
+);
 
-bool vaddr_nodes_is_reserved(struct paging_state *st, lvaddr_t vaddr);
+struct vaddr_node *vaddr_nodes_get_free(
+    struct paging_state *st,
+    const size_t size,
+    const size_t alignment
+);
+
+bool vaddr_nodes_is_type(
+    struct vaddr_node *node,
+    enum nodetype type
+);
+
+errval_t vaddr_nodes_set_region(
+    struct paging_state *st,
+    struct vaddr_node *node,
+    lvaddr_t base,
+    size_t size,
+    struct paging_region *region
+);
 
 #endif //BF_AOS_VADDR_NODES_H

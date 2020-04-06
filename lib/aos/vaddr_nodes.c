@@ -42,27 +42,28 @@ static inline errval_t create_new_node(
     return SYS_ERR_OK;
 }
 
-static inline void insert_before(
+// Results in [a-prev] <--> [a] <--> [b] <--> [a->next].
+static inline void insert_b_after_a(
     struct paging_state *st,
-    struct vaddr_node *new_node,
-    struct vaddr_node *before
+    struct vaddr_node *a,
+    struct vaddr_node *b
 )
 {
     assert(st != NULL);
-    assert(new_node != NULL);
-    assert(before != NULL);
+    assert(a != NULL);
+    assert(b != NULL);
 
-    new_node->prev = before->prev;
+    b->next = a->next;
 
-    if (new_node->prev != NULL) {
-        new_node->prev->next = new_node;
+    if (a->next != NULL) {
+        a->next->prev = b;
     } else {
-        assert(st->head == before);
-        st->head = new_node;
+        assert(a == st->tail);
+        st->tail = b;
     }
 
-    new_node->next = before;
-    before->prev = new_node;
+    a->next = b;
+    b->prev = a;
 }
 
 /**
@@ -117,10 +118,11 @@ static inline void merge_with_prev_node(
     slab_free(&st->slabs, to_delete);
 }
 
-static inline errval_t split_off(
+static inline errval_t split_in_two(
     struct paging_state *st,
     struct vaddr_node *node,
-    size_t size
+    size_t size,
+    struct vaddr_node **ret
 )
 {
     errval_t err;
@@ -128,53 +130,163 @@ static inline errval_t split_off(
     assert(st != NULL);
     assert(node != NULL);
 
-    // create new node
+    if (ret != NULL) {
+        *ret = NULL;
+    }
+
     struct vaddr_node *new_node;
 
-    err = create_new_node(st, &new_node, node->base_addr, size, NULL, NodeType_Free);
+    err = create_new_node(st, &new_node, node->base_addr + size, node->size - size, node->region, node->type);
     if (err_is_fail(err)) {
         return err;
     }
 
-    // Update node
-    node->base_addr += size;
-    node->size -= size;
+    insert_b_after_a(st, node, new_node);
 
-    insert_before(st, new_node, node);
+    if (ret != NULL) {
+        *ret = new_node;
+    }
 
     return SYS_ERR_OK;
 }
 
-static inline bool is_not_mapped_node(
+static inline errval_t split(
+    struct paging_state *st,
     struct vaddr_node *node,
-    lvaddr_t addr,
-    size_t size
+    lvaddr_t base,
+    size_t size,
+    struct vaddr_node **ret
 )
 {
+    errval_t err;
+
+    assert(st != NULL);
     assert(node != NULL);
+    assert(ret != NULL);
 
-    bool addr_start = node->base_addr <= addr;
-    bool no_overflow = addr + size > addr;
-    bool end = addr + size <= node->base_addr + node->size;
-    bool not_mapped = node->type != NodeType_Allocated;
+    // TODO: Return error on violating constraints.
+    assert(node->base_addr <= base);
+    assert(node->base_addr + node->size >= base);
+    assert(node->base_addr + node->size >= base + size);
 
-    return addr_start && no_overflow && end && not_mapped;
+    // TODO: Return error on overflow.
+    assert(node->base_addr + node->size >= node->base_addr);
+    assert(base + size >= base);
+
+    *ret = NULL;
+
+    const size_t padding_size = base - node->base_addr;
+
+    struct vaddr_node *leftover = NULL;
+
+    // Create a leftover block if needed.
+    if (padding_size + size < node->size) {
+        err = split_in_two(st, node, padding_size + size, &leftover);
+        if (err_is_fail(err)) {
+            return err;
+        }
+
+        assert(node->next == leftover);
+        assert(leftover->prev == node);
+        assert(node->base_addr < leftover->base_addr);
+    }
+
+    struct vaddr_node *new_node = node;
+
+    // Create a padding block if needed.
+    if (padding_size > 0) {
+        err = split_in_two(st, node, padding_size, &new_node);
+        if (err_is_fail(err)) {
+            return err;
+        }
+
+        assert(node->next == new_node);
+        assert(new_node->prev == node);
+        assert(node->base_addr < new_node->base_addr);
+    }
+
+    *ret = new_node;
+
+    return SYS_ERR_OK;
 }
 
-static inline bool is_node_reserved(
+static inline bool address_in_node(
     struct vaddr_node *node,
-    lvaddr_t addr,
-    size_t size
+    const lvaddr_t base,
+    const size_t size
 )
 {
     assert(node != NULL);
 
-    bool addr_start = node->base_addr <= addr;
-    bool no_overflow = addr + size > addr;
-    bool end = addr + size <= node->base_addr + node->size;
-    bool reserved = node->type == NodeType_Reserved;
+    bool addr_start = node->base_addr <= base;
+    bool no_overflow = base + size > base;
+    bool end = base + size <= node->base_addr + node->size;
 
-    return addr_start && no_overflow && end && reserved;
+    return addr_start && no_overflow && end;
+}
+
+static inline bool node_has_aligned_capacity(
+    struct vaddr_node *node,
+    gensize_t size,
+    gensize_t alignment
+)
+{
+    assert(node != NULL);
+    assert(alignment != 0);
+
+    const genpaddr_t aligned_base = ROUND_UP(node->base_addr, alignment);
+    const bool no_overflow = aligned_base >= node->base_addr;
+    const bool in_range = node->base_addr + node->size >= aligned_base;
+    const bool enough_space = node->base_addr + node->size >= aligned_base + size;
+
+    return no_overflow && in_range && enough_space;
+}
+
+struct vaddr_node *vaddr_nodes_get(
+    struct paging_state *st,
+    const lvaddr_t base,
+    const size_t size
+)
+{
+    assert(st != NULL);
+
+    struct vaddr_node *node = st->head;
+
+    // TODO: Break after base > curr->base_addr
+    while (node != NULL && !address_in_node(node, base, size)) {
+        node = node->next;
+    }
+
+    return node;
+}
+
+struct vaddr_node *vaddr_nodes_get_free(
+    struct paging_state *st,
+    const size_t size,
+    const size_t alignment
+)
+{
+    assert(st != NULL);
+
+    if ((alignment % BASE_PAGE_SIZE != 0) || alignment == 0) {
+        return NULL;
+    }
+
+    const size_t new_size = ROUND_UP(size, BASE_PAGE_SIZE);
+
+    // Check for overflow.
+    if (new_size < size) {
+        return NULL;
+    }
+
+    struct vaddr_node *node = st->head;
+
+    while (node != NULL &&
+           !(vaddr_nodes_is_type(node, NodeType_Free) && node_has_aligned_capacity(node, new_size, alignment) && node->region == NULL)) {
+        node = node->next;
+    }
+
+    return node;
 }
 
 static inline bool is_mergeable(
@@ -186,22 +298,6 @@ static inline bool is_mergeable(
     assert(next != NULL);
 
     return prev != NULL && prev->next == next && prev->type == next->type;
-}
-
-static inline bool is_node_free(
-    struct vaddr_node *node,
-    gensize_t size,
-    gensize_t alignment
-)
-{
-    assert(node != NULL);
-
-    genpaddr_t aligned_base = ROUND_UP(node->base_addr, alignment);
-    bool no_overflow = aligned_base >= node->base_addr;
-    bool in_range = node->base_addr + node->size > aligned_base;
-    bool enough_space = node->size - (aligned_base - node->base_addr) >= size;
-
-    return node->type == NodeType_Free && no_overflow && in_range && enough_space;
 }
 
 errval_t vaddr_nodes_add(
@@ -229,16 +325,17 @@ errval_t vaddr_nodes_add(
     } else {
         assert(st->tail != NULL);
         st->tail->next = node;
-       node->prev = st->tail;
+        node->prev = st->tail;
         st->tail = node;
     }
 
     return SYS_ERR_OK;
 }
 
-errval_t vaddr_nodes_alloc(
+errval_t vaddr_nodes_alloc_node(
     struct paging_state *st,
-    lvaddr_t addr,
+    struct vaddr_node *node,
+    lvaddr_t base,
     size_t size,
     struct vaddr_node **ret
 )
@@ -247,39 +344,52 @@ errval_t vaddr_nodes_alloc(
 
     assert(st != NULL);
 
+    if (ret != NULL) {
+        *ret = NULL;
+    }
+
+    struct vaddr_node *new_node;
+
+    err = split(st, node, base, size, &new_node);
+    if (err_is_fail(err)) {
+        debug_printf("split() failed\n");
+        return err;
+    }
+
+    new_node->type = NodeType_Allocated;
+
+    if (ret != NULL) {
+        *ret = new_node;
+    }
+
+    return SYS_ERR_OK;
+}
+
+errval_t vaddr_nodes_alloc(
+    struct paging_state *st,
+    lvaddr_t base,
+    size_t size,
+    struct vaddr_node **ret
+)
+{
+    errval_t err;
+
+    assert(st != NULL);
+    assert(ret != NULL);
+
     *ret = NULL;
-    struct vaddr_node *curr = st->head;
 
-    while (curr != NULL && !is_not_mapped_node(curr, addr, size)) {
-        curr = curr->next;
+    struct vaddr_node *node = vaddr_nodes_get(st, base, size);
+
+    if (node == NULL || !vaddr_nodes_is_type(node, NodeType_Free)) {
+        return LIB_ERR_OUT_OF_VIRTUAL_ADDR; // TODO: Is this errval_t correct?
     }
 
-    if (curr == NULL) {
-        return LIB_ERR_OUT_OF_VIRTUAL_ADDR;
+    err = vaddr_nodes_alloc_node(st, node, base, size, ret);
+    if (err_is_fail(err)) {
+        debug_printf("vaddr_nodes_alloc_node() failed");
+        return err;
     }
-
-    if (addr == curr->base_addr) {
-        err = split_off(st, curr, size);
-        if (err_is_fail(err)) {
-            return err;
-        }
-    } else {
-        // TODO: remove size 0 nodes if it isn't end of original ram cap
-        gensize_t pad_size = (addr - curr->base_addr);
-
-        err = split_off(st, curr, pad_size);
-        if (err_is_fail(err)) {
-            return err;
-        }
-
-        err = split_off(st, curr, size);
-        if (err_is_fail(err)) {
-            return err;
-        }
-    }
-
-    *ret = curr->prev;
-    (*ret)->type = NodeType_Allocated;
 
     return SYS_ERR_OK;
 }
@@ -305,84 +415,42 @@ errval_t vaddr_nodes_free(
     return SYS_ERR_OK;
 }
 
-errval_t vaddr_nodes_reserve(
+bool vaddr_nodes_is_type(
+    struct vaddr_node *node,
+    enum nodetype type
+)
+{
+    assert(node != NULL);
+
+    return node->type == type;
+}
+
+errval_t vaddr_nodes_set_region(
     struct paging_state *st,
-    void **buf,
-    size_t bytes,
-    size_t alignment
+    struct vaddr_node *node,
+    lvaddr_t base,
+    size_t size,
+    struct paging_region *region
 )
 {
     errval_t err;
 
     assert(st != NULL);
-    assert(buf != NULL);
+    assert(node != NULL);
 
-    *buf = NULL;
-    if ((alignment % BASE_PAGE_SIZE) || alignment == 0) {
-        return AOS_ERR_INVALID_ALIGNMENT;
-    }
-    bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
+    // These state transitions do not make a lot of sense.
+    assert(!(region == NULL && node->region == NULL));
+    assert(!(region != NULL && node->region != NULL));
 
-    // find node with enough memory
-    struct vaddr_node *curr = st->head;
+    struct vaddr_node *new_node = node;
 
-    while (curr != NULL && !is_node_free(curr, bytes, alignment)) {
-        curr = curr->next;
-    }
-
-    if (curr == NULL) {
-        return LIB_ERR_OUT_OF_VIRTUAL_ADDR;
+    err = split(st, node, base, size, &new_node);
+    if (err_is_fail(err)) {
+        debug_printf("split() failed\n");
+        return err;
     }
 
-    lvaddr_t vaddr = ROUND_UP(curr->base_addr, alignment);   // overflow checked in is_allocatable
-    *buf = (void *)vaddr;
-
-    if (vaddr == curr->base_addr) {
-        err = split_off(st, curr, bytes);
-        if (err_is_fail(err)) {
-            return err;
-        }
-    } else {
-        // TODO: remove size 0 nodes if it isn't end of original ram cap
-        gensize_t pad_size = (vaddr - curr->base_addr);
-
-        err = split_off(st, curr, pad_size);
-        if (err_is_fail(err)) {
-            return err;
-        }
-
-        err = split_off(st, curr, bytes);
-        if (err_is_fail(err)) {
-            return err;
-        }
-    }
-
-    assert(vaddr == curr->prev->base_addr);
-    curr->prev->type = NodeType_Reserved;
-
-    // XXX: maybe it makes sense to merge with neighboring nodes if they are also reserved
+    new_node->region = region;
 
     return SYS_ERR_OK;
-}
-
-/**
- * Checks if the virtual address vaddr is marked as reserved
- */
-bool vaddr_nodes_is_reserved(
-    struct paging_state *st,
-    lvaddr_t vaddr
-)
-{
-    assert(st != NULL);
-
-    // XXX: is there a benefit to check over larger sizes
-    size_t size = BASE_PAGE_SIZE;
-    struct vaddr_node *curr = st->head;
-
-    // XXX: easy optimization, break after vaddr > curr->base_addr
-    while (curr != NULL && !is_node_reserved(curr, vaddr, size)) {
-        curr = curr->next;
-    }
-
-    return (curr != NULL);
 }

@@ -54,6 +54,7 @@ void slab_grow(struct slab_allocator *slabs, void *buf, size_t buflen)
     /* setup slab_head structure at top of buffer */
     assert(buflen > sizeof(struct slab_head));
     struct slab_head *head = buf;
+    assert(head != NULL);
     buflen -= sizeof(struct slab_head);
     buf = (char *)buf + sizeof(struct slab_head);
 

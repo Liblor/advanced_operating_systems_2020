@@ -264,7 +264,6 @@ errval_t processserver_init(
     get_all_pids_callback_t new_get_all_pids_cb
 )
 {
-    debug_printf("processserver_init()\n");
     errval_t err;
 
     spawn_cb = new_spawn_cb;
