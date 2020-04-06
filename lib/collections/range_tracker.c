@@ -211,6 +211,8 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
 
     struct rtnode *node;
 
+    // TODO: See range_tracker_get() on how to optimize this loop.
+
     for (node = rt->head->next; node != &rt->rt_tail; node = node->next) {
         // We can only free allocated nodes.
         if (node->type != RangeTracker_NodeType_Used)
@@ -270,6 +272,39 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
     return SYS_ERR_OK;
 }
 
+errval_t range_tracker_get(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode)
+{
+    assert(rt != NULL);
+    assert(retnode != NULL);
+
+    // Check for overflow.
+    // TODO: Introduce a new error code.
+    if (base + size < base) {
+        return MM_ERR_NOT_FOUND;
+    }
+
+    struct rtnode *node = NULL;
+    struct rtnode *current;
+
+    for (current = rt->head->next; current != &rt->rt_tail; current = current->next) {
+        if (current->base <= base && current->base + current->size >= base + size) {
+            node = current;
+            break;
+        }
+
+        if (current->base > base) {
+            break;
+        }
+    }
+
+    if (node == NULL)
+        return MM_ERR_NOT_FOUND;
+
+    *retnode = node;
+
+    return SYS_ERR_OK;
+}
+
 static void print_rtnodes(struct range_tracker *rt)
 {
     if (rt->head == NULL) {
@@ -291,4 +326,3 @@ void range_tracker_print_state(struct range_tracker *rt)
 {
     print_rtnodes(rt);
 }
-

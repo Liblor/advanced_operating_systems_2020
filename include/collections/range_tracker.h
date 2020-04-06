@@ -40,6 +40,7 @@ errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t siz
 errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode);
 errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode);
 errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t size, union range_tracker_shared *shared);
+errval_t range_tracker_get(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode);
 
 void range_tracker_print_state(struct range_tracker *rt);
 void range_tracker_destroy(struct range_tracker *rt);
