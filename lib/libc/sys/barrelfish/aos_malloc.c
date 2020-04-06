@@ -48,7 +48,6 @@ void *aos_malloc(size_t nbytes)
             p->s.magic = GET_MAGIC;
 			state->header_freep = prevp;
 
-			assert(state->heap_static && ((lvaddr_t)(p+1) < state->zone.base_addr));
 			MALLOC_UNLOCK;
 			return (void *) (p + 1);
 		}
@@ -138,8 +137,10 @@ void aos_free(void *ap)
     lesscore();
 
     // restore state
-    state->header_base = cur_header_base;
-    state->header_freep = cur_header_freep;
+    if (!((magic == MAGIC_STATIC) && state->heap_static) && !((magic == MAGIC_DYNAMIC) && !state->heap_static)) {
+        state->header_base = cur_header_base;
+        state->header_freep = cur_header_freep;
+    }
 
     MALLOC_UNLOCK;
 }

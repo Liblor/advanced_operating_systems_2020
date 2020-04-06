@@ -102,6 +102,7 @@ static char *endp = mymem + HEAP_SIZE;
 static void morecore_init_static(struct morecore_state *state, size_t alignment)
 {
     state->freep = mymem;
+    state->header_freep_static = NULL;
 }
 
 static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
@@ -185,6 +186,7 @@ static void morecore_init_dynamic(struct morecore_state *state, size_t alignment
     state->zone.region_size = MORECORE_VADDR_ZONE_SIZE;
     state->zone.base_addr = (lvaddr_t)buf;
     state->zone.current_addr = state->zone.base_addr;
+    state->header_freep_dynamic = NULL;
 }
 
 void morecore_enable_static(void)
@@ -232,6 +234,7 @@ errval_t morecore_init(size_t alignment)
 
     morecore_init_dynamic(state,alignment);
     morecore_init_static(state, alignment);
+
     state->heap_static = false;
 
     sys_morecore_alloc = morecore_alloc;
