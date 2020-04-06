@@ -79,7 +79,7 @@ static inline void merge_with_prev_node(struct paging_state *st, struct vaddr_re
 static inline errval_t split_off(struct paging_state *st, struct vaddr_region *region, size_t size) {
     // create new node
     struct vaddr_region *new_region;
-    errval_t err = create_new_region(st, &new_region, region->base_addr, size, NULL, NodeType_Free);
+    errval_t err = create_new_region(st, &new_region, region->base_addr, size, NULL, region->type);
     if (err_is_fail(err)) { return err; }
 
     // Update node
@@ -224,4 +224,15 @@ errval_t is_vaddr_page_reserved(struct paging_state *st, lvaddr_t vaddr)
     // XXX: easy optimization, break after vaddr > curr->base_addr
     while (curr != NULL && !is_reserved_region(curr, vaddr, size)) { curr = curr->next; }
     return (curr != NULL);
+}
+
+void print_vaddr_regions(struct paging_state *st)
+{
+    struct vaddr_region *curr = st->head;
+    debug_printf("0: free, 1: alloc, 2: reserved\n");
+    while (curr != NULL && curr != st->tail) {
+        debug_printf("type: %d \t base: %p \t size %zu \t region: %p \n",
+                     curr->type, curr->base_addr, curr->size, curr->region);
+        curr = curr->next;
+    }
 }

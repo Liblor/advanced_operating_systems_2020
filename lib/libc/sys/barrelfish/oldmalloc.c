@@ -18,6 +18,8 @@ alt_malloc_t alt_malloc = NULL;
 typedef void (*alt_free_t)(void *p);
 alt_free_t alt_free = NULL;
 
+alt_free_t alt_free_locked = NULL;
+
 #define MALLOC_LOCK thread_mutex_lock(&state->mutex)
 #define MALLOC_UNLOCK thread_mutex_unlock(&state->mutex)
 
@@ -40,6 +42,7 @@ void *malloc(size_t nbytes)
     if (alt_malloc != NULL) {
         return alt_malloc(nbytes);
     }
+    HERE;
 
     struct morecore_state *state = get_morecore_state();
 	Header *p, *prevp;
@@ -103,11 +106,15 @@ void *malloc(size_t nbytes)
 void
 __free_locked(void *ap)
 {
+    if (ap == NULL)
+        return;
+
+    if (alt_free_locked != NULL) {
+        return alt_free_locked(ap);
+    }
+
     struct morecore_state *state = get_morecore_state();
 	Header *bp, *p;
-
-	if (ap == NULL)
-		return;
 
 	bp = (Header *) ap - 1;	/* point to block header */
 	for (p = state->header_freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)

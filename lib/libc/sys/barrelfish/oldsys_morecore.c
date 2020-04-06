@@ -66,33 +66,5 @@ Header *morecore(unsigned nu)
  */
 void lesscore(void)
 {
-#if defined(__arm__) || defined(__aarch64__)
     // Not implemented
-
-#else
-    struct morecore_state *state = get_morecore_state();
-    genvaddr_t gvaddr =
-        vregion_get_base_addr(&state->mmu_state.vregion)
-        + state->mmu_state.offset;
-    void *eaddr = (void*)vspace_genvaddr_to_lvaddr(gvaddr);
-
-    assert(sys_morecore_free);
-
-    // Deallocate from end of segment
-    Header *prevp = state->header_freep, *p;
-    for(p = prevp->s.ptr;; prevp = p, p = p->s.ptr) {
-        if(p + p->s.size == eaddr) {
-            prevp->s.ptr = p->s.ptr;
-            state->header_freep = prevp;
-
-            // Give back the memory
-            sys_morecore_free(p, p->s.size * sizeof(Header));
-            break;
-        }
-
-        if (p == state->header_freep) {	/* wrapped around free list */
-            break;
-        }
-    }
-#endif
 }
