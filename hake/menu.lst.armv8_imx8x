@@ -11,3 +11,4 @@ module /armv8/sbin/dummy
 module /armv8/sbin/rpc-test
 module /armv8/sbin/rpc-test-2
 module /armv8/sbin/faulter
+module /armv8/sbin/paging-test
