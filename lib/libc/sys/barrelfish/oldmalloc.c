@@ -42,6 +42,7 @@ void *malloc(size_t nbytes)
     if (alt_malloc != NULL) {
         return alt_malloc(nbytes);
     }
+    HERE;
 
     struct morecore_state *state = get_morecore_state();
 	Header *p, *prevp;

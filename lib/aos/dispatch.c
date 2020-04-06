@@ -395,7 +395,7 @@ void disp_pagefault(dispatcher_handle_t handle, lvaddr_t fault_address,
 
     // print out stuff
     debug_print_save_area(regs);
-    debug_dump(regs);
+//    debug_dump(regs);
     //debug_call_chain(regs);
 
     // run something else

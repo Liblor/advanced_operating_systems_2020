@@ -163,9 +163,7 @@ static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, 
  */
 static void *morecore_alloc(size_t bytes, size_t *retbytes)
 {
-    HERE;
     struct morecore_state *state = get_morecore_state();
-    debug_printf("heap_static: %d\n", state->heap_static);
     if (state->heap_static) {
         return morecore_alloc_static(state, bytes, retbytes);
     } else {
@@ -189,26 +187,36 @@ static void morecore_init_dynamic(struct morecore_state *state, size_t alignment
 
 void morecore_enable_static(void)
 {
-    debug_printf("enabling static heap\n");
     struct morecore_state *state = get_morecore_state();
-    state->heap_static = true;
-    state->header_freep = state->header_freep_static;
-    state->header_base = state->header_base_static;
+    if (!state->heap_static) {
+        state->heap_static = true;
+
+        state->header_freep_dynamic = state->header_freep;
+        state->header_base_dynamic = state->header_base;
+
+        state->header_freep = state->header_freep_static;
+        state->header_base = state->header_base_static;
+    }
 }
 
 void morecore_enable_dynamic(void)
 {
-    debug_printf("enabling dynamic heap\n");
     struct morecore_state *state = get_morecore_state();
-    state->heap_static = false;
-    state->header_freep = state->header_freep_dynamic;
-    state->header_base = state->header_base_dynamic;
+    if (state->heap_static) {
+        state->heap_static = false;
+
+        state->header_freep_static = state->header_freep;
+        state->header_base_static = state->header_base;
+
+        state->header_freep = state->header_freep_dynamic;
+        state->header_base = state->header_base_dynamic;
+    }
 }
 
 errval_t morecore_init(size_t alignment)
 {
-    debug_printf("morecore_init\n");
     struct morecore_state *state = get_morecore_state();
+    memset(state, 0, sizeof(struct morecore_state));
 
     thread_mutex_init(&state->mutex);
 
@@ -222,7 +230,7 @@ errval_t morecore_init(size_t alignment)
 
     morecore_init_dynamic(state,alignment);
     morecore_init_static(state, alignment);
-    morecore_enable_dynamic();
+    state->heap_static = false;
 
     sys_morecore_alloc = morecore_alloc;
     sys_morecore_free = morecore_free;
@@ -242,5 +250,6 @@ Header *get_malloc_freep(void);
 Header *get_malloc_freep(void)
 {
     struct morecore_state *state =get_morecore_state();
-    return state->heap_static ? state->header_freep_static : state->header_freep_dynamic;
+    //return state->heap_static ? state->header_freep_static : state->header_freep_dynamic;
+    return state->header_freep;
 }

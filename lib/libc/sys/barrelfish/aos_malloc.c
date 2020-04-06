@@ -11,7 +11,7 @@
 #include <aos/aos.h>
 #include <aos/core_state.h> /* XXX */
 
-#define MALLOC_LOCK thread_mutex_lock(&state->mutex)
+#define MALLOC_LOCK thread_mutex_lock_nested(&state->mutex)
 #define MALLOC_UNLOCK thread_mutex_unlock(&state->mutex)
 
 
@@ -57,6 +57,7 @@ void *aos_malloc(size_t nbytes)
 			}
 		}
 	}
+	HERE;
 	MALLOC_UNLOCK;
 }
 
