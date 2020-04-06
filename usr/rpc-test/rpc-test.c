@@ -85,10 +85,13 @@ __unused static void test_process(void) {
             return;
         }
 
+//        volatile int t=900000000;
+//        while(t--);
+
         debug_printf("spawned child: pid %d\n", pid1);
     }
 
-    /*
+
     debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
 
     for(int i = 0; i < process_number; i ++) {
@@ -118,7 +121,7 @@ __unused static void test_process(void) {
     for(int j = 0; j < pid_count; j ++){
         debug_printf("pid: %d:\n", pids[j]);
     }
-    */
+
 }
 
 __unused static void test_serial(void) {
@@ -161,9 +164,9 @@ int main(int argc, char *argv[])
     debug_printf("Running RPC tests...\n");
 
     test_init();
-    //test_memory();
+    test_memory();
     test_process();
-    //test_serial();
+    test_serial();
 
     return EXIT_SUCCESS;
 }

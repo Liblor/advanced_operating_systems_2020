@@ -112,7 +112,9 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
         return err;
     }
 
+    HERE;
     err = spawn_load_by_name(name, &si, ret_pid);
+    HERE;
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
         // TODO: If spawn failed, remove the process from the processserver state list.

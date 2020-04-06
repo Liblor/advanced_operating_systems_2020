@@ -544,11 +544,13 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     si->binary_name = argv[0];
 
     void *module_data;
+    HERE;
     err = load_module(si, &module_data);
     if (err_is_fail(err)) {
         debug_printf("load_module() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_LOAD);
     }
+    HERE;
 
     struct capref cap_cnode_l1;
     struct capref l0_table_child;
@@ -572,14 +574,17 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     genvaddr_t entry_point_addr;
     void *got_section_addr;
 
+    HERE;
     err = parse_elf(si->module, module_data, &as, &entry_point_addr, &got_section_addr);
     if (err_is_fail(err)) {
         debug_printf("parse_elf() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_ELF_MAP);
     }
+    HERE;
 
     void *args_page_child;
 
+    HERE;
     err = setup_arguments(as.paging_state_child, argc, argv, taskcn_child, &args_page_child);
     if (err_is_fail(err)) {
         debug_printf("setup_arguments() failed: %s\n", err_getstring(err));
@@ -589,12 +594,14 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     struct capref dp_child;
     struct capref dp_frame_child;
 
+    HERE;
     err = setup_dispatcher(as.paging_state_child, si->binary_name, &dp_child, got_section_addr, entry_point_addr, args_page_child, &dp_frame_child, taskcn_child);
     if (err_is_fail(err)) {
         debug_printf("setup_dispatcher() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_SETUP_DISPATCHER);
     }
 
+    HERE;
     err = invoke_dispatcher(dp_child, cap_dispatcher, cap_cnode_l1, l0_table_child, dp_frame_child, true);
     if (err_is_fail(err)) {
         debug_printf("invoke_dispatcher() failed: %s\n", err_getstring(err));
@@ -645,6 +652,7 @@ errval_t spawn_load_by_name(char *binary_name, struct spawninfo * si, domainid_t
         return SPAWN_ERR_GET_CMDLINE_ARGS;
     }
 
+    HERE;
     err = spawn_load_argv(argc, argv, si, pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_argv() failed: %s\n", err_getstring(err));

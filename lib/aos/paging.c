@@ -24,6 +24,10 @@
 
 static struct paging_state current;
 
+static void* eager_malloc(size_t size) {
+    return malloc(size);
+}
+
 // TODO: check that addr is in valid stack bounds of current thread or
 // TODO: check that addr is in valid heap bounds
 static errval_t paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
@@ -94,7 +98,7 @@ exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
 
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
-    // debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
+     debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
     errval_t err = SYS_ERR_OK;
     morecore_enable_static();
 
@@ -109,6 +113,7 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
 
     morecore_enable_dynamic();
 
+    debug_printf("exception_handler exit,  addr=%p \n",addr);
     if (err_is_fail(err)) {
         // we die here ... RIP
         exception_handler_giveup(err, type, subtype, addr, regs);
@@ -263,7 +268,7 @@ void paging_init_onthread(struct thread *t)
 {
     DEBUG_BEGIN;
     morecore_enable_static();
-    void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
+    void *stack = eager_malloc(PAGING_EXCEPTION_STACK_SIZE);
 
     morecore_enable_dynamic();
     void *stack_top = stack + PAGING_EXCEPTION_STACK_SIZE;
@@ -395,7 +400,7 @@ errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t 
 
     *buf = NULL;
 
-    err = slab_ensure_threshold(&st->slabs, 12);
+    err = slab_ensure_threshold(&st->slabs, 20);
     if (err_is_fail(err)) {
         return err;
     }
@@ -431,7 +436,6 @@ errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes
                                struct capref frame, int flags, void *arg1, void *arg2)
 {
     errval_t err;
-
     DEBUG_BEGIN;
 
     // TODO(M2): Implement me (done, remove todo after review)
@@ -534,7 +538,7 @@ paging_create_pd_level(
 
         entry = collections_hash_find(ht, index);
         if (entry == NULL) {
-            entry = malloc(size);
+            entry = eager_malloc(size);
             if (entry == NULL) {
                 // TODO: Do we recover from alloc errors with free of resources?
                 return LIB_ERR_MALLOC_FAIL;
@@ -705,6 +709,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
 {
     errval_t err;
     thread_mutex_lock_nested(&st->mutex);
+    morecore_enable_static();
 
     //debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ..., bytes=%zx, ...)\n", st, vaddr, bytes);
 
@@ -735,14 +740,14 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     uint64_t offset = 0;
 
 
-    struct paging_region *paging_region = malloc(sizeof(struct paging_region));
+    struct paging_region *paging_region = eager_malloc(sizeof(struct paging_region));
 
     if (paging_region == NULL) {
         // TODO free vaddr_region
         return LIB_ERR_MALLOC_FAIL;
     }
 
-    paging_region->cap_mapping = malloc(upper_bound_single_lvl3 * sizeof(struct capref));
+    paging_region->cap_mapping = eager_malloc(upper_bound_single_lvl3 * sizeof(struct capref));
 
     if (paging_region->cap_mapping == NULL) {
         // TODO free vaddr_region
@@ -783,6 +788,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         vaddr += curr_pte_count * BASE_PAGE_SIZE;
         offset += curr_pte_count * BASE_PAGE_SIZE;
     }
+    morecore_enable_dynamic();
     thread_mutex_unlock(&st->mutex);
     return err;
 }
