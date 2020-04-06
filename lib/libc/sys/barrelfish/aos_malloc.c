@@ -48,6 +48,7 @@ void *aos_malloc(size_t nbytes)
             p->s.magic = GET_MAGIC;
 			state->header_freep = prevp;
 
+			assert(state->heap_static && ((lvaddr_t)(p+1) < state->zone.base_addr));
 			MALLOC_UNLOCK;
 			return (void *) (p + 1);
 		}
