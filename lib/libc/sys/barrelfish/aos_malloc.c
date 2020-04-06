@@ -137,7 +137,9 @@ void aos_free(void *ap)
     lesscore();
 
     // restore state
+    // XXX: needs refactoring
     if (!((magic == MAGIC_STATIC) && state->heap_static) && !((magic == MAGIC_DYNAMIC) && !state->heap_static)) {
+        // true if freed block is not of the current state
         state->header_base = cur_header_base;
         state->header_freep = cur_header_freep;
     }
