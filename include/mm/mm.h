@@ -20,32 +20,10 @@
 #include <aos/types.h>
 #include <aos/capabilities.h>
 #include <aos/slab.h>
+#include <collections/range_tracker.h>
 #include "slot_alloc.h"
 
 __BEGIN_DECLS
-
-enum nodetype {
-    NodeType_Free,      ///< This region is free
-    NodeType_Allocated  ///< This region is allocated
-};
-
-struct capinfo {
-    struct capref cap;
-    genpaddr_t base;
-    gensize_t size;
-};
-
-/**
- * \brief Node in Memory manager
- */
-struct mmnode {
-    enum nodetype type;    ///< Type of `this` node.
-    struct capinfo cap;    ///< Cap in which this region exists
-    struct mmnode *prev;   ///< Previous node in the list.
-    struct mmnode *next;   ///< Next node in the list.
-    genpaddr_t base;       ///< Base address of this region
-    gensize_t size;        ///< Size of this free region in cap
-};
 
 /**
  * \brief Memory manager instance data
@@ -54,14 +32,12 @@ struct mmnode {
  * them to allocate its memory, we declare it in the public header.
  */
 struct mm {
-    struct slab_allocator slabs;            ///< Slab allocator used for allocating nodes
     slot_alloc_t slot_alloc;                ///< Slot allocator for allocating cspace
     slot_refill_t slot_refill;              ///< Slot allocator refill function
     void *slot_alloc_inst;                  ///< Opaque instance pointer for slot allocator
     enum objtype objtype;                   ///< Type of capabilities stored
-    struct mmnode *head;                    ///< Pointer to head of doubly-linked list of nodes
-    struct mmnode mm_head;                  ///< Head of the doubly-linked list.
-    struct mmnode mm_tail;                  ///< Tail of the doubly-linked list.
+
+    struct range_tracker rt;
 
     /* statistics */
     gensize_t stats_bytes_max;
@@ -79,7 +55,6 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment,
                               struct capref *retcap);
 errval_t mm_alloc(struct mm *mm, size_t size, struct capref *retcap);
 errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t size);
-void mm_dump_mmnodes(struct mm *mm);
 void mm_destroy(struct mm *mm);
 
 __END_DECLS
