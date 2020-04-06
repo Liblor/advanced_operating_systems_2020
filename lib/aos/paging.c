@@ -58,13 +58,13 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("%s\n", err_getstring(err));
         return err;
     }
+
     if (size < BASE_PAGE_SIZE) {
         debug_printf("Page fault handler error: frame_alloc returned a too small frame "
                      "while lazily mapping 0x%lx\n", vaddr);
         debug_printf("%s\n", err_getstring(err));
         return err;
     }
-
 
     err = paging_map_fixed(st, vaddr, frame, size);
     if (err_is_fail(err)) {
@@ -73,7 +73,6 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("%s\n", err_getstring(err));
         return err;
     }
-
 
     return SYS_ERR_OK;
 }
@@ -88,13 +87,14 @@ exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
 
 
     debug_print_save_area(regs);
-//     debug_dump(regs); // print stack
+    // debug_dump(regs); // print stack
     thread_exit(THREAD_UNRECOVERABLE_PAGEFAULT_CODE);
 }
 
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
     // debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
+
     errval_t err = SYS_ERR_OK;
     morecore_enable_static();
 
@@ -151,7 +151,6 @@ __attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, st
     return pt_alloc(st, ObjType_VNode_AARCH64_l3, ret);
 }
 
-
 /**
  * TODO(M2): Implement this function.
  * TODO(M4): Improve this function.
@@ -170,8 +169,6 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
                            struct capref cap_l0, struct slot_allocator *ca)
 {
     DEBUG_BEGIN;
-    // TODO (M4): Implement page fault handler that installs frames when a page fault
-    // occurs and keeps track of the virtual address space.
     st->slot_alloc = ca;
     st->cap_l0 = cap_l0;
     slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
@@ -247,7 +244,8 @@ errval_t paging_init(void)
 
     char *exception_stack_top = (char *) current.exception_stack_base + sizeof(current.exception_stack_base);
 
-    err = thread_set_exception_handler(exception_handler, NULL, current.exception_stack_base, exception_stack_top, NULL, NULL);
+    err = thread_set_exception_handler(exception_handler, NULL,
+            current.exception_stack_base, exception_stack_top, NULL, NULL);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "thread_set_exception_handler() failed\n");
         return err_push(err, LIB_ERR_THREAD_SET_EXCEPTION_HANDLER);
@@ -389,13 +387,14 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
  */
 errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t alignment)
 {
+
     errval_t err;
 
     DEBUG_BEGIN;
 
     *buf = NULL;
 
-    err = slab_ensure_threshold(&st->slabs, 12);
+    err = slab_ensure_threshold(&st->slabs, 22);
     if (err_is_fail(err)) {
         return err;
     }
@@ -431,7 +430,6 @@ errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes
                                struct capref frame, int flags, void *arg1, void *arg2)
 {
     errval_t err;
-
     DEBUG_BEGIN;
 
     // TODO(M2): Implement me (done, remove todo after review)
@@ -703,10 +701,14 @@ errval_t paging_map_fixed_single_pt3(struct paging_state *st, lvaddr_t vaddr,
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
+    //debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ..., bytes=%zx, ...)\n", st, vaddr, bytes);
+
     errval_t err;
     thread_mutex_lock_nested(&st->mutex);
 
-    //debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ..., bytes=%zx, ...)\n", st, vaddr, bytes);
+    // run on vmem which does not pagefault
+    // TODO: switch to non-bootstrap heap which does not pagefault
+    morecore_enable_static();
 
     if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
@@ -734,14 +736,12 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     const uint64_t upper_bound_single_lvl3 = pte_count / VMSAv8_64_PTABLE_NUM_ENTRIES + 2;
     uint64_t offset = 0;
 
-
     struct paging_region *paging_region = malloc(sizeof(struct paging_region));
 
     if (paging_region == NULL) {
         // TODO free vaddr_region
         return LIB_ERR_MALLOC_FAIL;
     }
-
     paging_region->cap_mapping = malloc(upper_bound_single_lvl3 * sizeof(struct capref));
 
     if (paging_region->cap_mapping == NULL) {
@@ -755,7 +755,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     paging_region->flags = flags;
     paging_region->num_caps = 0;
     vaddr_region->region = paging_region;
-
 
     while (pte_count > 0) {
         assert (paging_region->num_caps < upper_bound_single_lvl3);
@@ -783,6 +782,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         vaddr += curr_pte_count * BASE_PAGE_SIZE;
         offset += curr_pte_count * BASE_PAGE_SIZE;
     }
+    morecore_enable_dynamic();
     thread_mutex_unlock(&st->mutex);
     return err;
 }
