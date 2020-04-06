@@ -7,15 +7,13 @@
 // TODO Change errors
 // TODO Should the ensure threshold be called in here?
 
-errval_t range_tracker_init(struct range_tracker *rt, slab_refill_func_t slab_refill_func)
+errval_t range_tracker_init(struct range_tracker *rt, struct slab_allocator *slabs)
 {
     assert(rt != NULL);
+    assert(slabs != NULL);
+    assert(slabs->blocksize == sizeof(struct rtnode));
 
-    if (slab_refill_func == NULL)
-        slab_refill_func = slab_default_refill;
-
-    slab_init(&rt->slabs, sizeof(struct rtnode), slab_refill_func);
-
+    rt->slabs = slabs;
     rt->head = &rt->rt_head;
     rt->rt_head.next = &rt->rt_tail;
     rt->rt_head.prev = NULL;
@@ -39,7 +37,7 @@ errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t siz
             break;
     }
 
-    struct rtnode *node = slab_alloc(&rt->slabs);
+    struct rtnode *node = slab_alloc(rt->slabs);
     if (node == NULL)
         return MM_ERR_MM_ADD;
 
@@ -58,11 +56,108 @@ errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t siz
     next->prev = node;
     node->next = next;
 
-    err = slab_ensure_threshold(&rt->slabs, 10);
+    err = slab_ensure_threshold(rt->slabs, 20);
     if (err_is_fail(err))
         return err;
 
     return SYS_ERR_OK;
+}
+
+static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64_t offset, uint64_t size, struct rtnode **retnode)
+{
+    assert(node != NULL);
+    assert(node->size >= size + offset);
+
+    errval_t err;
+
+    uint64_t best_base = node->base;
+    uint64_t best_size = node->size;
+    uint64_t best_padding_size = offset;
+    struct rtnode *best = node;
+    /*
+     * We have to split the node and mark the requested part as being
+     * allocated. This will result in the following layout.
+     * [best->prev] <--> [padding] <--> [best] <--> [leftover] <--> [best-next]
+     */
+
+    struct rtnode *leftover = NULL;
+
+    // Make sure we can allocate a node for leftover if needed.
+    // Only create a leftover node if there is space left.
+    if (best_padding_size + size < best_size) {
+        leftover = slab_alloc(rt->slabs);
+        if (leftover == NULL) {
+            err = MM_ERR_MM_ADD;
+            goto error_recovery;
+        }
+    }
+
+    struct rtnode *padding = NULL;
+
+    // Make sure we can allocate a node for padding if needed.
+    // Only create a padding node if padding is necessary.
+    if (best_padding_size > 0) {
+        padding = slab_alloc(rt->slabs);
+        if (padding == NULL) {
+            err = MM_ERR_MM_ADD;
+            goto error_recovery;
+        }
+    }
+
+    best->type = RangeTracker_NodeType_Used;
+    best->base = best_base + best_padding_size;
+    best->size = size;
+
+    if (leftover != NULL) {
+        leftover->original_region_base = best->original_region_base;
+        // TODO Should shared really always be inherited?
+        leftover->shared = best->shared;
+        leftover->type = RangeTracker_NodeType_Free;
+        leftover->base = best_base + best_padding_size + size;
+        leftover->size = best_size - best_padding_size - size;
+
+        best->next->prev = leftover;
+        leftover->next = best->next;
+        best->next = leftover;
+        leftover->prev = best;
+    }
+
+    if (padding != NULL) {
+        padding->original_region_base = best->original_region_base;
+        // TODO Should shared really always be inherited?
+        padding->shared = best->shared;
+        padding->type = RangeTracker_NodeType_Free;
+        padding->base = best_base;
+        padding->size = best_padding_size;
+
+        best->prev->next = padding;
+        padding->prev = best->prev;
+        best->prev = padding;
+        padding->next = best;
+    }
+
+    if (retnode != NULL) {
+        *retnode = best;
+    }
+
+    return SYS_ERR_OK;
+
+error_recovery:
+    if (leftover != NULL) {
+        slab_free(rt->slabs, leftover);
+    }
+
+    if (padding != NULL) {
+        // GCC says that the variable might be uninitialized. That cannot be
+        // the case, since it is initialized as NULL, and set using
+        // slab_alloc().
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+        slab_free(rt->slabs, padding);
+        #pragma GCC diagnostic pop
+    }
+
+    return err;
 }
 
 errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode)
@@ -106,102 +201,42 @@ errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, ui
         return MM_ERR_OUT_OF_MEMORY;
     }
 
-    const uint64_t best_base = best->base;
 
-    /*
-     * We have to split the node and mark the requested part as being
-     * allocated. This will result in the following layout.
-     * [best->prev] <--> [padding] <--> [best] <--> [leftover] <--> [best-next]
-     */
-
-    struct rtnode *leftover = NULL;
-
-    // Make sure we can allocate a node for leftover if needed.
-    // Only create a leftover node if there is space left.
-    if (best_padding_size + size < best_size) {
-        leftover = slab_alloc(&rt->slabs);
-        if (leftover == NULL) {
-            err = MM_ERR_MM_ADD;
-            goto error_recovery;
-        }
+    err = split_node(rt, best, best_padding_size, size, retnode);
+    if (err_is_fail(err)) {
+        return err;
     }
-
-    struct rtnode *padding = NULL;
-
-    // Make sure we can allocate a node for padding if needed.
-    // Only create a padding node if padding is necessary.
-    if (best_padding_size > 0) {
-        padding = slab_alloc(&rt->slabs);
-        if (padding == NULL) {
-            err = MM_ERR_MM_ADD;
-            goto error_recovery;
-        }
-    }
-
-    best->type = RangeTracker_NodeType_Used;
-    best->base = best_base + best_padding_size;
-    best->size = size;
-
-    if (leftover != NULL) {
-        leftover->original_region_base = best->original_region_base;
-        // TODO Should shared really always be inherited?
-        leftover->shared = best->shared;
-        leftover->type = RangeTracker_NodeType_Free;
-        leftover->base = best_base + best_padding_size + size;
-        leftover->size = best_size - best_padding_size - size;
-
-        best->next->prev = leftover;
-        leftover->next = best->next;
-        best->next = leftover;
-        leftover->prev = best;
-    }
-
-    if (padding != NULL) {
-        padding->original_region_base = best->original_region_base;
-        // TODO Should shared really always be inherited?
-        padding->shared = best->shared;
-        padding->type = RangeTracker_NodeType_Free;
-        padding->base = best_base;
-        padding->size = best_padding_size;
-
-        best->prev->next = padding;
-        padding->prev = best->prev;
-        best->prev = padding;
-        padding->next = best;
-    }
-
-    *retnode = best;
 
     // We refill at the very end, so all other mandatory tasks are already done
     // in case of any error.
-    err = slab_ensure_threshold(&rt->slabs, 10);
+    err = slab_ensure_threshold(rt->slabs, 20);
     if (err_is_fail(err)) {
         return err;
     }
 
     return SYS_ERR_OK;
-
-error_recovery:
-    if (leftover != NULL) {
-        slab_free(&rt->slabs, leftover);
-    }
-
-    if (padding != NULL) {
-        // GCC says that the variable might be uninitialized. That cannot be
-        // the case, since it is initialized as NULL, and set using
-        // slab_alloc().
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        slab_free(&rt->slabs, padding);
-        #pragma GCC diagnostic pop
-    }
-
-    return err;
 }
 
-errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode)
-{
-    // TODO
+errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode) {
+    errval_t err;
+
+    assert(base % BASE_PAGE_SIZE == 0);
+
+    struct rtnode *node;
+    err = range_tracker_get(rt, base, size, &node);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    // TODO Maybe return error if there is not enough space
+
+    uint64_t offset = base - node->base;
+
+    err = split_node(rt, node, offset, size, retnode);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
     return SYS_ERR_OK;
 }
 
@@ -253,7 +288,7 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
         node->size += node->next->size;
         node->next->next->prev = node;
         node->next = node->next->next;
-        slab_free(&rt->slabs, old);
+        slab_free(rt->slabs, old);
     }
 
     // Merge the node with previous neighbor if possible.
@@ -266,7 +301,7 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
         node->size += node->prev->size;
         node->prev->prev->next = node;
         node->prev = node->prev->prev;
-        slab_free(&rt->slabs, old);
+        slab_free(rt->slabs, old);
     }
 
     return SYS_ERR_OK;
@@ -297,8 +332,9 @@ errval_t range_tracker_get(struct range_tracker *rt, uint64_t base, uint64_t siz
         }
     }
 
-    if (node == NULL)
+    if (node == NULL) {
         return MM_ERR_NOT_FOUND;
+    }
 
     *retnode = node;
 

@@ -31,7 +31,9 @@ errval_t mm_init(struct mm *mm,
     mm->slot_alloc_inst = slot_alloc_inst;
     mm->objtype = objtype;
 
-    return range_tracker_init(&mm->rt, slab_refill_func);
+    slab_init(&mm->slabs, RANGE_TRACKER_NODE_SIZE, slab_refill_func);
+
+    return range_tracker_init(&mm->rt, &mm->slabs);
 }
 
 void mm_destroy(struct mm *mm)

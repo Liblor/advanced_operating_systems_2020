@@ -6,6 +6,7 @@
 #include "mem_alloc.h"
 #include <mm/mm.h>
 #include <aos/paging.h>
+#include <collections/range_tracker.h>
 
 /// MM allocator instance data
 struct mm aos_mm;
@@ -58,8 +59,8 @@ errval_t initialize_ram_alloc(void)
     }
 
     // Give aos_mm a bit of memory for the initialization
-    static char nodebuf[sizeof(struct rtnode)*64];
-    slab_grow(&aos_mm.rt.slabs, nodebuf, sizeof(nodebuf));
+    static char nodebuf[RANGE_TRACKER_NODE_SIZE*64];
+    slab_grow(&aos_mm.slabs, nodebuf, sizeof(nodebuf));
 
     // Walk bootinfo and add all RAM caps to allocator handed to us by the kernel
     uint64_t mem_avail = 0;

@@ -8,6 +8,7 @@
 #include <spawn/spawn.h>
 #include <minunit.h>
 #include <mm/mm.h>
+#include <collections/range_tracker.h>
 
 #include "../../usr/init/mem_alloc.h"
 
@@ -58,7 +59,7 @@ static void check_mm_valid_state(void) {
     mu_assert(curr == &test_mm->rt.rt_tail, "Linked list is corrupted. Last element is not tail node.");
 }
 
-static void check_mmnode(uint64_t n, enum range_tracker_nodetype type, uint64_t base_offset_pages, uint64_t size_pages) {
+static void check_rtnode(uint64_t n, enum range_tracker_nodetype type, uint64_t base_offset_pages, uint64_t size_pages) {
     // Get the nth node.
     struct rtnode *next;
     uint64_t i = 0;
@@ -168,15 +169,14 @@ static void test_setup(void) {
 static void test_teardown(void) {
 }
 
-// TODO Align parameters again
 MU_TEST(test_minimal) {
     uint64_t s = default_allocated / BASE_PAGE_SIZE;
     uint64_t space = (default_total_size - default_allocated) / BASE_PAGE_SIZE;
 
     mm_test_alloc_aligned(&caps[0], 1, 1, SYS_ERR_OK, 3);
-    check_mmnode(0, RangeTracker_NodeType_Used, 0, s);
-    check_mmnode(1, RangeTracker_NodeType_Used, s + 0, 1);
-    check_mmnode(2, RangeTracker_NodeType_Free, s + 1, space - 1);
+    check_rtnode(0, RangeTracker_NodeType_Used, 0, s);
+    check_rtnode(1, RangeTracker_NodeType_Used, s + 0, 1);
+    check_rtnode(2, RangeTracker_NodeType_Free, s + 1, space - 1);
 
     mm_test_free(caps[0], SYS_ERR_OK, 2);
 }
@@ -194,151 +194,151 @@ MU_TEST(test_alignment) {
 
     mm_test_alloc_aligned(&caps[0], 1, 1, SYS_ERR_OK, n+2);
     // xxxx x...x x ooo...
-    check_mmnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1, RangeTracker_NodeType_Free,      s+1, 0);
+    check_rtnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1, RangeTracker_NodeType_Free, s+1, 0);
 
     mm_test_alloc_aligned(&caps[1], 2, 1, SYS_ERR_OK, n+4);
     // xxxx x...x x o x ooo...
-    check_mmnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1, RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2, RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3, RangeTracker_NodeType_Free,      s+3, 0);
+    check_rtnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1, RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2, RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3, RangeTracker_NodeType_Free, s+3, 0);
 
     mm_test_alloc_aligned(&caps[2], 3, 1, SYS_ERR_OK, n+5);
     // xxxx x...x x o x x ooo...
-    check_mmnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1, RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2, RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3, RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4, RangeTracker_NodeType_Free,      s+4, 0);
+    check_rtnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1, RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2, RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3, RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4, RangeTracker_NodeType_Free, s+4, 0);
 
     mm_test_alloc_aligned(&caps[3], 3, 1, SYS_ERR_OK, n+7);
     // xxxx x...x x o x x oo x ooo...
-    check_mmnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1, RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2, RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3, RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4, RangeTracker_NodeType_Free,      s+4, 2);
-    check_mmnode(n+5, RangeTracker_NodeType_Used, s+6, 1);
-    check_mmnode(n+6, RangeTracker_NodeType_Free,      s+7, 0);
+    check_rtnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1, RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2, RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3, RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4, RangeTracker_NodeType_Free, s+4, 2);
+    check_rtnode(n+5, RangeTracker_NodeType_Used, s+6, 1);
+    check_rtnode(n+6, RangeTracker_NodeType_Free, s+7, 0);
 
     mm_test_alloc_aligned(&caps[4], 4, 1, SYS_ERR_OK, n+9);
     // xxxx x...x x o x x oo x o x ooo...
-    check_mmnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1, RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2, RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3, RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4, RangeTracker_NodeType_Free,      s+4, 2);
-    check_mmnode(n+5, RangeTracker_NodeType_Used, s+6, 1);
-    check_mmnode(n+6, RangeTracker_NodeType_Free,      s+7, 1);
-    check_mmnode(n+7, RangeTracker_NodeType_Used, s+8, 1);
-    check_mmnode(n+8, RangeTracker_NodeType_Free,      s+9, 0);
+    check_rtnode(n+0, RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1, RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2, RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3, RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4, RangeTracker_NodeType_Free, s+4, 2);
+    check_rtnode(n+5, RangeTracker_NodeType_Used, s+6, 1);
+    check_rtnode(n+6, RangeTracker_NodeType_Free, s+7, 1);
+    check_rtnode(n+7, RangeTracker_NodeType_Used, s+8, 1);
+    check_rtnode(n+8, RangeTracker_NodeType_Free, s+9, 0);
 
     mm_test_alloc_aligned(&caps[5], 4, 1, SYS_ERR_OK, n+11);
     // xxxx x...x x o x x oo x o x ooo x ooo...
-    check_mmnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1 , RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4 , RangeTracker_NodeType_Free,      s+4, 2);
-    check_mmnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
-    check_mmnode(n+6 , RangeTracker_NodeType_Free,      s+7, 1);
-    check_mmnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
-    check_mmnode(n+8 , RangeTracker_NodeType_Free,      s+9, 3);
-    check_mmnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
-    check_mmnode(n+10, RangeTracker_NodeType_Free,     s+13, 0);
+    check_rtnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1 , RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4 , RangeTracker_NodeType_Free, s+4, 2);
+    check_rtnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
+    check_rtnode(n+6 , RangeTracker_NodeType_Free, s+7, 1);
+    check_rtnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
+    check_rtnode(n+8 , RangeTracker_NodeType_Free, s+9, 3);
+    check_rtnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
+    check_rtnode(n+10, RangeTracker_NodeType_Free,s+13, 0);
 
     mm_test_alloc_aligned(&caps[6], 4, 2, SYS_ERR_OK, n+13);
     // xxxx x...x x o x x oo x o x ooo x ooo xx ooo...
-    check_mmnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1 , RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4 , RangeTracker_NodeType_Free,      s+4, 2);
-    check_mmnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
-    check_mmnode(n+6 , RangeTracker_NodeType_Free,      s+7, 1);
-    check_mmnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
-    check_mmnode(n+8 , RangeTracker_NodeType_Free,      s+9, 3);
-    check_mmnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
-    check_mmnode(n+10, RangeTracker_NodeType_Free,      s+13, 3);
-    check_mmnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
-    check_mmnode(n+12, RangeTracker_NodeType_Free,      s+18, 0);
+    check_rtnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1 , RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4 , RangeTracker_NodeType_Free, s+4, 2);
+    check_rtnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
+    check_rtnode(n+6 , RangeTracker_NodeType_Free, s+7, 1);
+    check_rtnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
+    check_rtnode(n+8 , RangeTracker_NodeType_Free, s+9, 3);
+    check_rtnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
+    check_rtnode(n+10, RangeTracker_NodeType_Free, s+13, 3);
+    check_rtnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
+    check_rtnode(n+12, RangeTracker_NodeType_Free, s+18, 0);
 
     mm_test_alloc_aligned(&caps[7], 4, 4, SYS_ERR_OK, n+15);
     // xxxx x...x x o x x oo x o x ooo x ooo xx oo xxxx ooo...
-    check_mmnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1 , RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4 , RangeTracker_NodeType_Free,      s+4, 2);
-    check_mmnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
-    check_mmnode(n+6 , RangeTracker_NodeType_Free,      s+7, 1);
-    check_mmnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
-    check_mmnode(n+8 , RangeTracker_NodeType_Free,      s+9, 3);
-    check_mmnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
-    check_mmnode(n+10, RangeTracker_NodeType_Free,      s+13, 3);
-    check_mmnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
-    check_mmnode(n+12, RangeTracker_NodeType_Free,      s+18, 2);
-    check_mmnode(n+13, RangeTracker_NodeType_Used, s+20, 4);
-    check_mmnode(n+14, RangeTracker_NodeType_Free,      s+24, 0);
+    check_rtnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1 , RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4 , RangeTracker_NodeType_Free, s+4, 2);
+    check_rtnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
+    check_rtnode(n+6 , RangeTracker_NodeType_Free, s+7, 1);
+    check_rtnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
+    check_rtnode(n+8 , RangeTracker_NodeType_Free, s+9, 3);
+    check_rtnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
+    check_rtnode(n+10, RangeTracker_NodeType_Free, s+13, 3);
+    check_rtnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
+    check_rtnode(n+12, RangeTracker_NodeType_Free, s+18, 2);
+    check_rtnode(n+13, RangeTracker_NodeType_Used, s+20, 4);
+    check_rtnode(n+14, RangeTracker_NodeType_Free, s+24, 0);
 
     mm_test_alloc_aligned(&caps[8], 4, 1, SYS_ERR_OK, n+16);
     // xxxx x...x x o x x oo x o x ooo x ooo xx oo xxxx x ooo...
-    check_mmnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1 , RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4 , RangeTracker_NodeType_Free,      s+4, 2);
-    check_mmnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
-    check_mmnode(n+6 , RangeTracker_NodeType_Free,      s+7, 1);
-    check_mmnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
-    check_mmnode(n+8 , RangeTracker_NodeType_Free,      s+9, 3);
-    check_mmnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
-    check_mmnode(n+10, RangeTracker_NodeType_Free,      s+13, 3);
-    check_mmnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
-    check_mmnode(n+12, RangeTracker_NodeType_Free,      s+18, 2);
-    check_mmnode(n+13, RangeTracker_NodeType_Used, s+20, 4);
-    check_mmnode(n+14, RangeTracker_NodeType_Used, s+24, 1);
-    check_mmnode(n+15, RangeTracker_NodeType_Free,      s+25, 0);
+    check_rtnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1 , RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4 , RangeTracker_NodeType_Free, s+4, 2);
+    check_rtnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
+    check_rtnode(n+6 , RangeTracker_NodeType_Free, s+7, 1);
+    check_rtnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
+    check_rtnode(n+8 , RangeTracker_NodeType_Free, s+9, 3);
+    check_rtnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
+    check_rtnode(n+10, RangeTracker_NodeType_Free, s+13, 3);
+    check_rtnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
+    check_rtnode(n+12, RangeTracker_NodeType_Free, s+18, 2);
+    check_rtnode(n+13, RangeTracker_NodeType_Used, s+20, 4);
+    check_rtnode(n+14, RangeTracker_NodeType_Used, s+24, 1);
+    check_rtnode(n+15, RangeTracker_NodeType_Free, s+25, 0);
 
     mm_test_alloc_aligned(&caps[9], 1, space-(s+25), SYS_ERR_OK, n+16);
     // xxxx x...x x o x x oo x o x ooo x ooo xx oo xxxx x x...x
-    check_mmnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1 , RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4 , RangeTracker_NodeType_Free,      s+4, 2);
-    check_mmnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
-    check_mmnode(n+6 , RangeTracker_NodeType_Free,      s+7, 1);
-    check_mmnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
-    check_mmnode(n+8 , RangeTracker_NodeType_Free,      s+9, 3);
-    check_mmnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
-    check_mmnode(n+10, RangeTracker_NodeType_Free,      s+13, 3);
-    check_mmnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
-    check_mmnode(n+12, RangeTracker_NodeType_Free,      s+18, 2);
-    check_mmnode(n+13, RangeTracker_NodeType_Used, s+20, 4);
-    check_mmnode(n+14, RangeTracker_NodeType_Used, s+24, 1);
-    check_mmnode(n+15, RangeTracker_NodeType_Used, s+25, 0);
+    check_rtnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1 , RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4 , RangeTracker_NodeType_Free, s+4, 2);
+    check_rtnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
+    check_rtnode(n+6 , RangeTracker_NodeType_Free, s+7, 1);
+    check_rtnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
+    check_rtnode(n+8 , RangeTracker_NodeType_Free, s+9, 3);
+    check_rtnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
+    check_rtnode(n+10, RangeTracker_NodeType_Free, s+13, 3);
+    check_rtnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
+    check_rtnode(n+12, RangeTracker_NodeType_Free, s+18, 2);
+    check_rtnode(n+13, RangeTracker_NodeType_Used, s+20, 4);
+    check_rtnode(n+14, RangeTracker_NodeType_Used, s+24, 1);
+    check_rtnode(n+15, RangeTracker_NodeType_Used, s+25, 0);
 
     mm_test_alloc_aligned(&caps[10], 3, 3, SYS_ERR_OK, n+16);
     // xxxx x...x x o x x oo x o x xxx x ooo xx oo xxxx x x...x
     //            0 1 2 0 12 0 1 2 012 0 120 12 01 2012
-    check_mmnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
-    check_mmnode(n+1 , RangeTracker_NodeType_Free,      s+1, 1);
-    check_mmnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
-    check_mmnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
-    check_mmnode(n+4 , RangeTracker_NodeType_Free,      s+4, 2);
-    check_mmnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
-    check_mmnode(n+6 , RangeTracker_NodeType_Free,      s+7, 1);
-    check_mmnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
-    check_mmnode(n+8 , RangeTracker_NodeType_Used, s+9, 3);
-    check_mmnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
-    check_mmnode(n+10, RangeTracker_NodeType_Free,      s+13, 3);
-    check_mmnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
-    check_mmnode(n+12, RangeTracker_NodeType_Free,      s+18, 2);
-    check_mmnode(n+13, RangeTracker_NodeType_Used, s+20, 4);
-    check_mmnode(n+14, RangeTracker_NodeType_Used, s+24, 1);
-    check_mmnode(n+15, RangeTracker_NodeType_Used, s+25, 0);
+    check_rtnode(n+0 , RangeTracker_NodeType_Used, s+0, 1);
+    check_rtnode(n+1 , RangeTracker_NodeType_Free, s+1, 1);
+    check_rtnode(n+2 , RangeTracker_NodeType_Used, s+2, 1);
+    check_rtnode(n+3 , RangeTracker_NodeType_Used, s+3, 1);
+    check_rtnode(n+4 , RangeTracker_NodeType_Free, s+4, 2);
+    check_rtnode(n+5 , RangeTracker_NodeType_Used, s+6, 1);
+    check_rtnode(n+6 , RangeTracker_NodeType_Free, s+7, 1);
+    check_rtnode(n+7 , RangeTracker_NodeType_Used, s+8, 1);
+    check_rtnode(n+8 , RangeTracker_NodeType_Used, s+9, 3);
+    check_rtnode(n+9 , RangeTracker_NodeType_Used, s+12, 1);
+    check_rtnode(n+10, RangeTracker_NodeType_Free, s+13, 3);
+    check_rtnode(n+11, RangeTracker_NodeType_Used, s+16, 2);
+    check_rtnode(n+12, RangeTracker_NodeType_Free, s+18, 2);
+    check_rtnode(n+13, RangeTracker_NodeType_Used, s+20, 4);
+    check_rtnode(n+14, RangeTracker_NodeType_Used, s+24, 1);
+    check_rtnode(n+15, RangeTracker_NodeType_Used, s+25, 0);
 
     mm_test_alloc_aligned(&caps[11], 3, 3, MM_ERR_OUT_OF_MEMORY, n+16);
 
@@ -361,19 +361,19 @@ MU_TEST(test_out_of_memory) {
     mm_test_alloc_aligned(&caps[2], 0x10000, space, MM_ERR_OUT_OF_MEMORY, 2);
 
     mm_test_alloc_aligned(&caps[3], 1, space, SYS_ERR_OK, 2);
-    check_mmnode(1, RangeTracker_NodeType_Used, s+0, space);
+    check_rtnode(1, RangeTracker_NodeType_Used, s+0, space);
 
     mm_test_free(caps[3], SYS_ERR_OK, 2);
 
     mm_test_alloc_aligned(&caps[4], 1, space - 1, SYS_ERR_OK, 3);
     // xxxx x...x o
-    check_mmnode(1, RangeTracker_NodeType_Used, s+0, space-1);
-    check_mmnode(2, RangeTracker_NodeType_Free, s+space-1, 1);
+    check_rtnode(1, RangeTracker_NodeType_Used, s+0, space-1);
+    check_rtnode(2, RangeTracker_NodeType_Free, s+space-1, 1);
 
     mm_test_alloc_aligned(&caps[5], 1, 1, SYS_ERR_OK, 3);
     // xxxx x...x x
-    check_mmnode(1, RangeTracker_NodeType_Used, s+0, space-1);
-    check_mmnode(2, RangeTracker_NodeType_Used, s+space-1, 1);
+    check_rtnode(1, RangeTracker_NodeType_Used, s+0, space-1);
+    check_rtnode(2, RangeTracker_NodeType_Used, s+space-1, 1);
 
     mm_test_alloc_aligned(&caps[6], 1, 1, MM_ERR_OUT_OF_MEMORY, 3);
 
@@ -382,8 +382,8 @@ MU_TEST(test_out_of_memory) {
 
     mm_test_alloc_aligned(&caps[7], 1, 1, SYS_ERR_OK, 3);
     // xxxx x...x x
-    check_mmnode(1, RangeTracker_NodeType_Used, s+0, space-1);
-    check_mmnode(2, RangeTracker_NodeType_Used, s+space-1, 1);
+    check_rtnode(1, RangeTracker_NodeType_Used, s+0, space-1);
+    check_rtnode(2, RangeTracker_NodeType_Used, s+space-1, 1);
 
     mm_test_alloc_aligned(&caps[8], 1, 1, MM_ERR_OUT_OF_MEMORY, 3);
 
@@ -411,14 +411,40 @@ MU_TEST(test_free_invalid) {
     genpaddr_t base_correct = default_region_base + default_allocated;
     gensize_t size_correct = BASE_PAGE_SIZE;
 
-    HERE;
     _mm_test_free(caps[0], base_correct+1, size_correct, MM_ERR_NOT_FOUND, 3);
 
-    HERE;
     _mm_test_free(caps[0], base_correct, size_correct+1, MM_ERR_NOT_FOUND, 3);
 
-    HERE;
     _mm_test_free(caps[0], base_correct, size_correct, SYS_ERR_OK, 2);
+}
+
+// The functions tested here are actually not used in libmm, but they
+// should still be tested somewhere
+// TODO Add more extensive range tracker tests
+MU_TEST(test_range_tracker_minimal) {
+    errval_t err;
+
+    struct range_tracker *rt = &test_mm->rt;
+
+    uint64_t s = default_allocated / BASE_PAGE_SIZE;
+    uint64_t space = (default_total_size - default_allocated) / BASE_PAGE_SIZE;
+
+    uint64_t fixed_offset_pages = 0xabcd;
+    uint64_t fixed_base = default_region_base + default_allocated + fixed_offset_pages * BASE_PAGE_SIZE;
+    uint64_t fixed_size_pages = 10;
+
+    struct rtnode *new_node;
+    err = range_tracker_alloc_fixed(rt, fixed_base, fixed_size_pages * BASE_PAGE_SIZE, &new_node);
+    mu_assert(err_no(err) == SYS_ERR_OK, "Returned error value wrong.");
+
+    check_rtnode(0, RangeTracker_NodeType_Used, 0, s);
+    check_rtnode(1, RangeTracker_NodeType_Free, s+0, fixed_offset_pages);
+    check_rtnode(2, RangeTracker_NodeType_Used, s+fixed_offset_pages, fixed_size_pages);
+    check_rtnode(3, RangeTracker_NodeType_Free, s+fixed_offset_pages+fixed_size_pages, space-fixed_offset_pages-fixed_size_pages);
+
+    struct rtnode *node;
+    err = range_tracker_get(rt, fixed_base, fixed_size_pages * BASE_PAGE_SIZE, &node);
+    mu_assert(err_no(err) == SYS_ERR_OK, "Returned error value wrong.");
 }
 
 MU_TEST(test_alloc_stress) {
@@ -505,7 +531,8 @@ MU_TEST_SUITE(test_suite) {
     // TODO This test is failing
     //MU_RUN_TEST(test_free_invalid);
 
-    // TODO This test is hanging
+    MU_RUN_TEST(test_range_tracker_minimal);
+
     // Leave these tests at the end
     MU_RUN_TEST(test_alloc_stress);
 }
