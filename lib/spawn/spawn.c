@@ -28,9 +28,9 @@ extern coreid_t my_core_id;
  */
 __attribute__((__used__))
 static void armv8_set_registers(void *arch_load_info,
-                                dispatcher_handle_t handle,
-                                arch_registers_state_t *enabled_area,
-                                arch_registers_state_t *disabled_area)
+                              dispatcher_handle_t handle,
+                              arch_registers_state_t *enabled_area,
+                              arch_registers_state_t *disabled_area)
 {
     assert(arch_load_info != NULL);
     uintptr_t got_base = (uintptr_t) arch_load_info;
@@ -105,17 +105,17 @@ static inline errval_t load_module(struct spawninfo *si, void **module_data)
 
     // Map the module.
     struct capref child_frame = {
-            .cnode = cnode_module,
-            .slot = si->module->mrmod_slot,
+        .cnode = cnode_module,
+        .slot = si->module->mrmod_slot,
     };
     err = paging_map_frame_attr(
-            get_current_paging_state(),
-            module_data,
-            si->module->mrmod_size,
-            child_frame,
-            VREGION_FLAGS_READ,
-            NULL,
-            NULL
+        get_current_paging_state(),
+        module_data,
+        si->module->mrmod_size,
+        child_frame,
+        VREGION_FLAGS_READ,
+        NULL,
+        NULL
     );
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
@@ -152,8 +152,8 @@ static inline errval_t setup_cspace(struct capref *cap_cnode_l1, struct capref *
 
     // Capability for the root CNode.
     struct capref slot_cnode_l1 = {
-            .cnode = *taskcn_child,
-            .slot = TASKCN_SLOT_ROOTCN,
+        .cnode = *taskcn_child,
+        .slot = TASKCN_SLOT_ROOTCN,
     };
     err = cap_copy(slot_cnode_l1, *cap_cnode_l1);
     if (err_is_fail(err)) {
@@ -194,8 +194,8 @@ static inline errval_t setup_cspace(struct capref *cap_cnode_l1, struct capref *
     }
 
     struct capref cap_start = {
-            .cnode = cnode_l2_rootcn_slot_base_page_cn,
-            .slot = 0,
+        .cnode = cnode_l2_rootcn_slot_base_page_cn,
+        .slot = 0,
     };
 
     err = cap_retype(cap_start, cap_ram, 0, ObjType_RAM, BASE_PAGE_SIZE, L2_CNODE_SLOTS);
@@ -253,12 +253,12 @@ static inline errval_t parse_elf(struct mem_region *module, void *module_data, s
     errval_t err;
 
     err = elf_load(
-            EM_AARCH64,
-            elf_allocator_cb,
-            as,
-            (lvaddr_t) module_data,
-            module->mrmod_size,
-            entry_point_addr
+        EM_AARCH64,
+        elf_allocator_cb,
+        as,
+        (lvaddr_t) module_data,
+        module->mrmod_size,
+        entry_point_addr
     );
     if (err_is_fail(err)) {
         debug_printf("elf_load() failed: %s\n", err_getstring(err));
@@ -295,13 +295,13 @@ static inline errval_t setup_arguments(struct paging_state *paging_state_child, 
     assert(args_frame_size >= BASE_PAGE_SIZE);
 
     err = paging_map_frame_attr(
-            get_current_paging_state(),
-            &args_page_parent,
-            args_frame_size,
-            args_frame,
-            VREGION_FLAGS_READ_WRITE,
-            NULL,
-            NULL
+        get_current_paging_state(),
+        &args_page_parent,
+        args_frame_size,
+        args_frame,
+        VREGION_FLAGS_READ_WRITE,
+        NULL,
+        NULL
     );
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
@@ -309,13 +309,13 @@ static inline errval_t setup_arguments(struct paging_state *paging_state_child, 
     }
 
     err = paging_map_frame_attr(
-            paging_state_child,
-            args_page_child,
-            args_frame_size,
-            args_frame,
-            VREGION_FLAGS_READ_WRITE,
-            NULL,
-            NULL
+        paging_state_child,
+        args_page_child,
+        args_frame_size,
+        args_frame,
+        VREGION_FLAGS_READ_WRITE,
+        NULL,
+        NULL
     );
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
@@ -323,8 +323,8 @@ static inline errval_t setup_arguments(struct paging_state *paging_state_child, 
     }
 
     struct capref args_frame_child = {
-            .cnode = taskcn_child,
-            .slot = TASKCN_SLOT_ARGSPAGE,
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_ARGSPAGE,
     };
 
     err = cap_copy(args_frame_child, args_frame);
@@ -389,8 +389,8 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
 
     // Endpoint to the dispatcher itself.
     struct capref slot_selfep = {
-            .cnode = taskcn_child,
-            .slot = TASKCN_SLOT_SELFEP,
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_SELFEP,
     };
     err = cap_retype(slot_selfep, *dp_child, 0, ObjType_EndPointLMP, 0, 1);
     if (err_is_fail(err)) {
@@ -399,8 +399,8 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     }
 
     struct capref chan_init_child = {
-            .cnode = taskcn_child,
-            .slot = TASKCN_SLOT_CHAN_INIT,
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_CHAN_INIT,
     };
     err = cap_copy(chan_init_child, cap_chan_init);
     if (err_is_fail(err)) {
@@ -409,8 +409,8 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     }
 
     struct capref chan_memory_child = {
-            .cnode = taskcn_child,
-            .slot = TASKCN_SLOT_CHAN_MEMORY,
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_CHAN_MEMORY,
     };
     err = cap_copy(chan_memory_child, cap_chan_memory);
     if (err_is_fail(err)) {
@@ -419,8 +419,8 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     }
 
     struct capref chan_serial_child = {
-            .cnode = taskcn_child,
-            .slot = TASKCN_SLOT_CHAN_SERIAL,
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_CHAN_SERIAL,
     };
     err = cap_copy(chan_serial_child, cap_chan_serial);
     if (err_is_fail(err)) {
@@ -429,8 +429,8 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     }
 
     struct capref chan_process_child = {
-            .cnode = taskcn_child,
-            .slot = TASKCN_SLOT_CHAN_PROCESS,
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_CHAN_PROCESS,
     };
     err = cap_copy(chan_process_child, cap_chan_process);
     if (err_is_fail(err)) {
@@ -440,8 +440,8 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
 
     // Dispatcher capability.
     struct capref slot_dp = {
-            .cnode = taskcn_child,
-            .slot = TASKCN_SLOT_DISPATCHER,
+        .cnode = taskcn_child,
+        .slot = TASKCN_SLOT_DISPATCHER,
     };
     err = cap_copy(slot_dp, *dp_child);
     if (err_is_fail(err)) {
@@ -462,13 +462,13 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     // Map dispatcher into parent.
     void *dp_page_parent;
     err = paging_map_frame_attr(
-            get_current_paging_state(),
-            &dp_page_parent,
-            dp_frame_bytes,
-            dp_frame_parent,
-            VREGION_FLAGS_READ_WRITE,
-            NULL,
-            NULL
+        get_current_paging_state(),
+        &dp_page_parent,
+        dp_frame_bytes,
+        dp_frame_parent,
+        VREGION_FLAGS_READ_WRITE,
+        NULL,
+        NULL
     );
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
@@ -478,13 +478,13 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     // Map dispatcher into child.
     void *dp_page_child;
     err = paging_map_frame_attr(
-            ps,
-            &dp_page_child,
-            dp_frame_bytes,
-            dp_frame_parent,
-            VREGION_FLAGS_READ_WRITE,
-            NULL,
-            NULL
+        ps,
+        &dp_page_child,
+        dp_frame_bytes,
+        dp_frame_parent,
+        VREGION_FLAGS_READ_WRITE,
+        NULL,
+        NULL
     );
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
@@ -580,7 +580,6 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
 
     void *args_page_child;
 
-    HERE;
     err = setup_arguments(as.paging_state_child, argc, argv, taskcn_child, &args_page_child);
     if (err_is_fail(err)) {
         debug_printf("setup_arguments() failed: %s\n", err_getstring(err));
@@ -590,14 +589,12 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     struct capref dp_child;
     struct capref dp_frame_child;
 
-    HERE;
     err = setup_dispatcher(as.paging_state_child, si->binary_name, &dp_child, got_section_addr, entry_point_addr, args_page_child, &dp_frame_child, taskcn_child);
     if (err_is_fail(err)) {
         debug_printf("setup_dispatcher() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_SETUP_DISPATCHER);
     }
 
-    HERE;
     err = invoke_dispatcher(dp_child, cap_dispatcher, cap_cnode_l1, l0_table_child, dp_frame_child, true);
     if (err_is_fail(err)) {
         debug_printf("invoke_dispatcher() failed: %s\n", err_getstring(err));
@@ -648,7 +645,6 @@ errval_t spawn_load_by_name(char *binary_name, struct spawninfo * si, domainid_t
         return SPAWN_ERR_GET_CMDLINE_ARGS;
     }
 
-    HERE;
     err = spawn_load_argv(argc, argv, si, pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_argv() failed: %s\n", err_getstring(err));
