@@ -223,10 +223,6 @@ errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
 static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan, void *server_state)
 {
     errval_t err;
-    HERE;
-    debug_printf("=============================== service_recv_cb\n\n");
-
-
     struct rpc_message *ret = NULL;
 
     err = handle_complete_msg((struct processserver_state *) server_state, &msg->msg, &ret);
