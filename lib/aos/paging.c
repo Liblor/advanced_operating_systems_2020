@@ -171,6 +171,8 @@ __attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, st
 errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
                            struct capref cap_l0, struct slot_allocator *ca)
 {
+    errval_t err;
+
     assert(st != NULL);
 
     DEBUG_BEGIN;
@@ -182,16 +184,23 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
     st->slot_alloc = ca;
     st->cap_l0 = cap_l0;
 
-    slab_init(&st->slabs, sizeof(struct vaddr_node), slab_default_refill);
-    slab_grow(&st->slabs, st->buf, sizeof(st->buf));
+    err = range_tracker_init(st->rt, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("paging_init_state() failed\n");
+        return err;
+    }
 
-    vaddr_nodes_add(st, start_vaddr, 0xffffffffffff-start_vaddr, NULL);
+    err = range_tracker_add(st->rt, start_vaddr, (1ULL << 48) - start_vaddr, 0);
+    if (err_is_fail(err)) {
+        debug_printf("range_tracker_add() failed\n");
+        return err;
+    }
 
     return SYS_ERR_OK;
 }
 
-static inline
-void create_hashtable(collections_hash_table **hashmap) {
+static inline void create_hashtable(collections_hash_table **hashmap)
+{
     collections_hash_create_with_buckets(hashmap, PAGING_HASHMAP_BUCKETS, NULL);
 }
 

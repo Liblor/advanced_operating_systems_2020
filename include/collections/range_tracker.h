@@ -7,7 +7,6 @@
 #include <aos/capabilities.h>
 #include <aos/slab.h>
 
-
 enum range_tracker_nodetype {
     RangeTracker_NodeType_Free,
     RangeTracker_NodeType_Used
