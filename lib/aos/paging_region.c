@@ -11,14 +11,14 @@ static inline errval_t paging_region_init_region(
 
     pr->flags = flags;
 
-    const size_t end = base + size;
-    const size_t actual_base = ROUND_DOWN(base, BASE_PAGE_SIZE);
-    const size_t end_base = ROUND_UP(end, BASE_PAGE_SIZE);
+    struct sanitized_range range;
 
-    assert(actual_base <= base);
-    assert(end_base >= base);
+    err = paging_sanitize_range(base, size, &range);
+    if (err_is_fail(err)) {
+        return err;
+    }
 
-    pr->capc = (end_base - actual_base) / BASE_PAGE_SIZE;
+    pr->capc = range->size / BASE_PAGE_SIZE;
     pr->capv = calloc(pr->capc, sizeof(struct capref));
 
     if (pr->capv == NULL) {
@@ -32,7 +32,7 @@ static inline errval_t paging_region_init_region(
         return err;
     }
 
-    err = range_tracker_add(&pr->rt, base, size, NULL);
+    err = range_tracker_add(&pr->rt, range->base, range->size, NULL);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_add() failed\n");
         return err;
@@ -149,7 +149,7 @@ errval_t paging_region_init(
  */
 errval_t paging_region_map(
     struct paging_region *pr,
-    size_t req_size,
+    size_t size,
     void **retbuf,
     size_t *ret_size
 )
@@ -158,40 +158,28 @@ errval_t paging_region_map(
 
     DEBUG_BEGIN;
 
-    // TODO: Similar to vaddr_nodes_get_free(), could be merged.
-
     assert(pr != NULL);
     assert(retbuf != NULL);
 
-    const size_t new_size = ROUND_UP(req_size, BASE_PAGE_SIZE);
+    const size_t sanitized_size;
 
-    // Handle overflow.
-    if (new_size < req_size) {
-        return LIB_ERR_PAGING_SIZE_INVALID;
-    }
-
-    struct vaddr_node *node = pr->head;
-
-    while (node != NULL && node->region == pr && !(vaddr_nodes_is_type(node, NodeType_Free) && node->size >= new_size)) {
-        node = node->next;
-    }
-
-    if (node == NULL) {
-        return LIB_ERR_VSPACE_MMU_AWARE_NO_SPACE;
-    }
-
-    struct vaddr_node *new_node = NULL;
-
-    err = vaddr_nodes_alloc_node(get_current_paging_state(), node, node->base_addr, req_size, &new_node);
+    err = paging_sanitize_size(size, &sanitized_size)
     if (err_is_fail(err)) {
-        debug_printf("vaddr_nodes_alloc_node() failed\n");
         return err;
     }
 
-    *retbuf = (void *)new_node->base_addr;
+    struct rtnode *node = NULL;
+
+    err = range_tracker_alloc_aligned(&pr->rt, sanitized_size, BASE_PAGE_SIZE, &node);
+    if (err_is_fail(err)) {
+        debug_printf("range_tracker_alloc_aligned() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    *retbuf = (void *) node->base;
 
     if (ret_size != NULL) {
-        *ret_size = new_node->size;
+        *ret_size = node->size;
     }
 
     return SYS_ERR_OK;
@@ -209,12 +197,41 @@ errval_t paging_region_unmap(
     size_t bytes
 )
 {
-    // XXX: should free up some space in paging region, however need to track
-    //      holes for non-trivial case
+    errval_t err;
 
-    // TODO
-    // split vaddr_node if necessary
-    // split paging_region or keep track by other means?
-    // how to keep track of mappings?
-    return LIB_ERR_NOT_IMPLEMENTED;
+    DEBUG_BEGIN;
+
+    assert(pr != NULL);
+
+    struct sanitized_range range;
+
+    err = paging_sanitize_range(base, bytes, &range);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    struct rtnode *node;
+
+    // TODO: Calling range_tracker_get() by a followed range_tracker_free()
+    // where we pass the base does not look efficient. The region will be
+    // iterated twice. We should either be able to pass the node directly for
+    // freeing, or not have to get the node in the first place.
+    err = range_tracker_get(&pr->rt, base, bytes, &node);
+    if (err_is_fail(err)) {
+        debug_printf("range_tracker_get() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    // TODO: This is not generalized yet. The caller may unmap mappings that
+    // span over multiple nodes in the range tracker. Unfortunately, the range
+    // tracker does not support such complex behavior at the point of writing.
+    err = range_tracker_free(&pr->rt, node->base, node->size, NULL)
+    if (err_is_fail(err)) {
+        debug_printf("range_tracker_free() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    // TODO: Unmap installed pages.
+
+    return SYS_ERR_OK;
 }

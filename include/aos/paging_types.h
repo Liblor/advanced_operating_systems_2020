@@ -54,6 +54,56 @@
 #define PAGING_HASHMAP_BUCKETS 100
 #define PAGING_EXCEPTION_STACK_SIZE (8 * BASE_PAGE_SIZE)
 
+struct sanitized_range {
+    const lvaddr_t base; ///< The aligned base of the range.
+    const lvaddr_t end; ///< The aligned end of the range.
+    const size_t size; ///< The size of the aligned ends.
+};
+
+static const inline errval_t paging_sanitize_range(
+    const lvaddr_t base,
+    const size_t size,
+    struct sanitized_range *range
+)
+{
+    assert(range != NULL);
+
+    const size_t end = base + size;
+    range->base = ROUND_DOWN(base, BASE_PAGE_SIZE);
+    range->end = ROUND_UP(end, BASE_PAGE_SIZE);
+    range->size = range->end - range->base;
+
+    // Handle overflow.
+    if (range->end < base || range->size < size) {
+        return LIB_ERR_PAGING_SIZE_INVALID;
+    }
+
+    assert(range->base <= base);
+    assert(range->end >= base);
+    assert(range->size >= size);
+
+    return SYS_ERR_OK;
+}
+
+static const inline errval_t paging_sanitize_size(
+    const size_t size,
+    const size_t *ret
+)
+{
+    assert(ret != NULL);
+
+    *ret = ROUND_UP(size, BASE_PAGE_SIZE);
+
+    // Handle overflow.
+    if (*ret < size) {
+        return LIB_ERR_PAGING_SIZE_INVALID;
+    }
+
+    assert(*ret >= size);
+
+    return SYS_ERR_OK;
+}
+
 struct pt_entry {
     struct capref cap;
     struct capref cap_mapping;

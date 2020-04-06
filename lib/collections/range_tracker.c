@@ -74,6 +74,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
     uint64_t best_size = node->size;
     uint64_t best_padding_size = offset;
     struct rtnode *best = node;
+
     /*
      * We have to split the node and mark the requested part as being
      * allocated. This will result in the following layout.
