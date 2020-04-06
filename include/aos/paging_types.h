@@ -16,9 +16,9 @@
 #define PAGING_TYPES_H_ 1
 
 #include <aos/slab.h>
-//#include <aos/vaddr_nodes.h>
 #include <aos/solution.h>
 #include <collections/hash_table.h>
+#include <collections/range_tracker.h>
 #include <collections/list.h>
 
 #define MCN_COUNT DIVIDE_ROUND_UP(PTABLE_ENTRIES, L2_CNODE_SLOTS)
@@ -30,18 +30,17 @@
 
 #define PMAP_META_SIZE ROUND_UP(SLAB_STATIC_SIZE(2048, sizeof(struct ptable)), BASE_PAGE_SIZE)
 
-
-#define VADDR_OFFSET ((lvaddr_t)512UL*1024*1024*1024) // 1GB
+#define VADDR_OFFSET ((lvaddr_t)512UL*1024*1024*1024)   // 1GB
 
 #define PAGING_SLAB_BUFSIZE 32
 
-#define VREGION_FLAGS_READ     0x01 // Reading allowed
-#define VREGION_FLAGS_WRITE    0x02 // Writing allowed
-#define VREGION_FLAGS_EXECUTE  0x04 // Execute allowed
-#define VREGION_FLAGS_NOCACHE  0x08 // Caching disabled
-#define VREGION_FLAGS_MPB      0x10 // Message passing buffer
-#define VREGION_FLAGS_GUARD    0x20 // Guard page
-#define VREGION_FLAGS_MASK     0x2f // Mask of all individual VREGION_FLAGS
+#define VREGION_FLAGS_READ     0x01     // Reading allowed
+#define VREGION_FLAGS_WRITE    0x02     // Writing allowed
+#define VREGION_FLAGS_EXECUTE  0x04     // Execute allowed
+#define VREGION_FLAGS_NOCACHE  0x08     // Caching disabled
+#define VREGION_FLAGS_MPB      0x10     // Message passing buffer
+#define VREGION_FLAGS_GUARD    0x20     // Guard page
+#define VREGION_FLAGS_MASK     0x2f     // Mask of all individual VREGION_FLAGS
 
 #define VREGION_FLAGS_READ_WRITE \
     (VREGION_FLAGS_READ | VREGION_FLAGS_WRITE)
@@ -52,20 +51,8 @@
 #define VREGION_FLAGS_READ_WRITE_MPB \
     (VREGION_FLAGS_READ | VREGION_FLAGS_WRITE | VREGION_FLAGS_MPB)
 
-typedef int paging_flags_t;
-
-
-struct paging_region {
-    lvaddr_t base_addr;
-    // TODO: investigate
-    size_t region_size;
-    paging_flags_t flags;
-    size_t num_caps;             ///< Number of cap_mappings
-    struct capref frame_cap;
-    struct capref *cap_mapping;  ///< Array of allocated mappings when region spawns onto multiple page tables
-    struct vaddr_node *head;      ///< Pointer to the first node in the region
-};
-
+#define PAGING_HASHMAP_BUCKETS 100
+#define PAGING_EXCEPTION_STACK_SIZE (8 * BASE_PAGE_SIZE)
 
 struct pt_entry {
     struct capref cap;
@@ -79,9 +66,6 @@ struct pt_l2_entry {
     struct paging_region *l3_entries[PTABLE_ENTRIES];
 };
 
-#define PAGING_HASHMAP_BUCKETS 100
-#define PAGING_EXCEPTION_STACK_SIZE (8 * BASE_PAGE_SIZE)
-
 // Struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
@@ -89,9 +73,8 @@ struct paging_state {
     struct capref cap_l0;
     struct _collections_hash_table *l0pt;
     // TODO: should be 64*sizeof(struct vaddr_node), but circular deps
-    char buf[64*64];
+    char buf[64 * 64];
     char *exception_stack_base[PAGING_EXCEPTION_STACK_SIZE];
 };
 
-
-#endif  /// PAGING_TYPES_H_
+#endif                          /// PAGING_TYPES_H_
