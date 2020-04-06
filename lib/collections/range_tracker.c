@@ -63,28 +63,29 @@ errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t siz
     return SYS_ERR_OK;
 }
 
-static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64_t offset, uint64_t size, struct rtnode **retnode)
+static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64_t offset, uint64_t size, enum range_tracker_nodetype new_type, struct rtnode **retnode)
 {
     assert(node != NULL);
     assert(node->size >= size + offset);
 
     errval_t err;
 
-    uint64_t best_base = node->base;
-    uint64_t best_size = node->size;
-    uint64_t best_padding_size = offset;
-    struct rtnode *best = node;
+    uint64_t old_base = node->base;
+    uint64_t old_size = node->size;
+    uint64_t new_base = old_base + offset;
+    uint64_t new_size = size;
+
     /*
      * We have to split the node and mark the requested part as being
      * allocated. This will result in the following layout.
-     * [best->prev] <--> [padding] <--> [best] <--> [leftover] <--> [best-next]
+     * [node->prev] <--> [padding] <--> [node] <--> [leftover] <--> [node-next]
      */
 
     struct rtnode *leftover = NULL;
 
     // Make sure we can allocate a node for leftover if needed.
     // Only create a leftover node if there is space left.
-    if (best_padding_size + size < best_size) {
+    if (offset + size < old_size) {
         leftover = slab_alloc(rt->slabs);
         if (leftover == NULL) {
             err = MM_ERR_MM_ADD;
@@ -96,7 +97,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
 
     // Make sure we can allocate a node for padding if needed.
     // Only create a padding node if padding is necessary.
-    if (best_padding_size > 0) {
+    if (offset > 0) {
         padding = slab_alloc(rt->slabs);
         if (padding == NULL) {
             err = MM_ERR_MM_ADD;
@@ -104,40 +105,49 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
         }
     }
 
-    best->type = RangeTracker_NodeType_Used;
-    best->base = best_base + best_padding_size;
-    best->size = size;
-
     if (leftover != NULL) {
-        leftover->original_region_base = best->original_region_base;
+        leftover->original_region_base = node->original_region_base;
         // TODO Should shared really always be inherited?
-        leftover->shared = best->shared;
+        leftover->shared = node->shared;
         leftover->type = RangeTracker_NodeType_Free;
-        leftover->base = best_base + best_padding_size + size;
-        leftover->size = best_size - best_padding_size - size;
+        leftover->base = old_base + offset + size;
+        leftover->size = old_size - offset - size;
 
-        best->next->prev = leftover;
-        leftover->next = best->next;
-        best->next = leftover;
-        leftover->prev = best;
+        node->next->prev = leftover;
+        leftover->next = node->next;
+        node->next = leftover;
+        leftover->prev = node;
     }
 
     if (padding != NULL) {
-        padding->original_region_base = best->original_region_base;
+        padding->original_region_base = node->original_region_base;
         // TODO Should shared really always be inherited?
-        padding->shared = best->shared;
+        padding->shared = node->shared;
         padding->type = RangeTracker_NodeType_Free;
-        padding->base = best_base;
-        padding->size = best_padding_size;
+        padding->base = old_base;
+        padding->size = offset;
 
-        best->prev->next = padding;
-        padding->prev = best->prev;
-        best->prev = padding;
-        padding->next = best;
+        node->prev->next = padding;
+        padding->prev = node->prev;
+        node->prev = padding;
+        padding->next = node;
     }
 
+    node->base = new_base;
+    node->size = new_size;
+    node->type = new_type;
+
+    // Sanity checks
+    assert(node->size == size);
+    assert(leftover == NULL || node->next->size == old_base + old_size - (new_base + new_size));
+    assert(leftover == NULL || node->next->base  == new_base + new_size);
+    assert(padding == NULL || node->prev->size == offset);
+    assert(padding == NULL || node->prev->base == old_base);
+    assert(node->prev->next == node);
+    assert(node->next->prev == node);
+
     if (retnode != NULL) {
-        *retnode = best;
+        *retnode = node;
     }
 
     return SYS_ERR_OK;
@@ -172,37 +182,14 @@ errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, ui
     if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0)
         return MM_ERR_INVALID_ALIGNMENT;
 
-    struct rtnode *best = NULL;
-    uint64_t best_size = 0;
-    uint64_t best_padding_size = 0;
-
-    // Find the largest node that is still free and can hold the requested size.
-    for (struct rtnode *next = rt->head->next; next != &rt->rt_tail; next = next->next) {
-        uint64_t padding_size = (next->base % alignment > 0) ? (alignment - (next->base % alignment)) : 0;
-
-        // We only care about free nodes.
-        if (next->type != RangeTracker_NodeType_Free)
-            continue;
-
-        // We only care about nodes of sufficient size. We also need to make
-        // sure that the addition does not overflow.
-        if (size + padding_size >= size && next->size < size + padding_size)
-            continue;
-
-        // We want the largest node possible to minimize fragmentation (worst-fit).
-        if (next->size >= best_size) {
-            best = next;
-            best_size = next->size;
-            best_padding_size = padding_size;
-        }
+    struct rtnode *node = NULL;
+    uint64_t padding_size;
+    err = range_tracker_find(rt, size, alignment, &node, &padding_size);
+    if (err_is_fail(err)) {
+        return err;
     }
 
-    if (best == NULL) {
-        return MM_ERR_OUT_OF_MEMORY;
-    }
-
-
-    err = split_node(rt, best, best_padding_size, size, retnode);
+    err = split_node(rt, node, padding_size, size, RangeTracker_NodeType_Used, retnode);
     if (err_is_fail(err)) {
         return err;
     }
@@ -232,7 +219,7 @@ errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint
 
     uint64_t offset = base - node->base;
 
-    err = split_node(rt, node, offset, size, retnode);
+    err = split_node(rt, node, offset, size, RangeTracker_NodeType_Used, retnode);
     if (err_is_fail(err)) {
         return err;
     }
@@ -303,6 +290,39 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
         node->prev = node->prev->prev;
         slab_free(rt->slabs, old);
     }
+
+    return SYS_ERR_OK;
+}
+
+errval_t range_tracker_find(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode, uint64_t *retpadding)
+{
+    struct rtnode *best = NULL;
+
+    // Find the largest node that is still free and can hold the requested size.
+    for (struct rtnode *next = rt->head->next; next != &rt->rt_tail; next = next->next) {
+        uint64_t padding_size = (next->base % alignment > 0) ? (alignment - (next->base % alignment)) : 0;
+
+        // We only care about free nodes.
+        if (next->type != RangeTracker_NodeType_Free)
+            continue;
+
+        // We only care about nodes of sufficient size. We also need to make
+        // sure that the addition does not overflow.
+        if (size + padding_size >= size && next->size < size + padding_size)
+            continue;
+
+        // We want the largest node possible to minimize fragmentation (worst-fit).
+        if (best == NULL || next->size >= best->size) {
+            best = next;
+            *retpadding = padding_size;
+        }
+    }
+
+    if (best == NULL) {
+        return MM_ERR_OUT_OF_MEMORY;
+    }
+
+    *retnode = best;
 
     return SYS_ERR_OK;
 }
