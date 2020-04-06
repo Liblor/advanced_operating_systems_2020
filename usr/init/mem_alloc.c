@@ -58,8 +58,8 @@ errval_t initialize_ram_alloc(void)
     }
 
     // Give aos_mm a bit of memory for the initialization
-    static char nodebuf[sizeof(struct mmnode)*64];
-    slab_grow(&aos_mm.slabs, nodebuf, sizeof(nodebuf));
+    static char nodebuf[sizeof(struct rtnode)*64];
+    slab_grow(&aos_mm.rt.slabs, nodebuf, sizeof(nodebuf));
 
     // Walk bootinfo and add all RAM caps to allocator handed to us by the kernel
     uint64_t mem_avail = 0;

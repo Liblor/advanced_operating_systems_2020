@@ -136,8 +136,8 @@ static void test_add(const uint32_t count, const size_t size)
     );
     assert(err_is_ok(err));
 
-    static char nodebuf[sizeof(struct mmnode)*64];
-    slab_grow(&mm.slabs, nodebuf, sizeof(nodebuf));
+    static char nodebuf[sizeof(struct rtnode)*64];
+    slab_grow(&mm.rt.slabs, nodebuf, sizeof(nodebuf));
 
     struct capref caps[count];
 
