@@ -87,11 +87,11 @@ static void mm_test_alloc_aligned(struct capref *retcap, uint64_t alignment_page
     check_mm_valid_state();
 
     if (err_no(err) != err_no(expected_error)) {
-        debug_printf("expected=%s (%d), actual=%s (%d)\n", err_getcode(expected_error), expected_error, err_getcode(err), err);
+        debug_printf("expected=%s (%d), actual=%s (%d)\n", err_getcode(expected_error), err_no(expected_error), err_getcode(err), err_no(err));
     }
     mu_assert(err_no(err) == err_no(expected_error), "Returned error value wrong.");
 
-    if (err != SYS_ERR_OK) {
+    if (err_no(err) != SYS_ERR_OK) {
         mu_assert(capref_is_null(*retcap), "Capability was given despite error.");
         mu_assert(node_count_before == node_count_after, "Node count has changes despite error.");
     }
@@ -115,7 +115,7 @@ static void _mm_test_free(struct capref cap, genpaddr_t base, gensize_t size, er
     }
     mu_assert(err_no(err) == err_no(expected_error), "Returned error value wrong.");
 
-    if (err != SYS_ERR_OK) {
+    if (err_no(err) != SYS_ERR_OK) {
         mu_assert(node_count_before == node_count_after, "Node count has changes despite error.");
     }
 
@@ -494,11 +494,11 @@ MU_TEST_SUITE(test_suite) {
 
     MU_SUITE_CONFIGURE(&test_setup, &test_teardown);
 
-	MU_RUN_TEST(test_minimal);
-	MU_RUN_TEST(test_alignment);
-	MU_RUN_TEST(test_out_of_memory);
-	MU_RUN_TEST(test_alloc_size_0);
-	MU_RUN_TEST(test_free_null);
+    MU_RUN_TEST(test_minimal);
+    MU_RUN_TEST(test_alignment);
+    MU_RUN_TEST(test_out_of_memory);
+    MU_RUN_TEST(test_alloc_size_0);
+    MU_RUN_TEST(test_free_null);
     MU_RUN_TEST(test_free_invalid);
 
     // Leave these tests at the end
@@ -676,10 +676,10 @@ grading_test_mm(struct mm * test) {
 void
 grading_test_early(void) {
     //test_paging();
-    test_paging_multi_pagetable();
+    //test_paging_multi_pagetable();
 
-    //MU_RUN_SUITE(test_suite);
-    //MU_REPORT();
+    MU_RUN_SUITE(test_suite);
+    MU_REPORT();
 }
 
 void
