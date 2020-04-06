@@ -100,7 +100,7 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
     next->prev = node;
     node->next = next;
 
-    err = slab_ensure_threshold(&mm->slabs, 10);
+    err = slab_ensure_threshold(&mm->slabs, 20);
     if (err_is_fail(err))
         return err;
 
@@ -236,7 +236,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     // We refill at the very end, so all other mandatory tasks are already done
     // in case of any error.
-    err = slab_ensure_threshold(&mm->slabs, 10);
+    err = slab_ensure_threshold(&mm->slabs, 20);
     if (err_is_fail(err)) {
         return err;
     }
