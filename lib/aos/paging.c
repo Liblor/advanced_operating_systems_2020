@@ -24,11 +24,6 @@
 
 static struct paging_state current;
 
-static void* eager_malloc(size_t size) {
-    return malloc(size);
-}
-
-
 // TODO: check that addr is in valid stack bounds of current thread or
 // TODO: check that addr is in valid heap bounds
 static errval_t paging_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
@@ -56,18 +51,13 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
     size_t size;
     slab_ensure_threshold(&st->slabs, 10);
 
-
-    debug_printf("hello\n");
     err = frame_alloc(&frame, BASE_PAGE_SIZE, &size);
-
-    debug_printf("world\n");
     if (err_is_fail(err)) {
         debug_printf("Page fault handler error: frame_alloc failed, while "
                      "lazily mapping 0x%lx\n", vaddr);
         debug_printf("%s\n", err_getstring(err));
         return err;
     }
-    //debug_printf("%d\n", __LINE__);
 
     if (size < BASE_PAGE_SIZE) {
         debug_printf("Page fault handler error: frame_alloc returned a too small frame "
@@ -75,8 +65,6 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("%s\n", err_getstring(err));
         return err;
     }
-    //debug_printf("%d\n", __LINE__);
-
 
     err = paging_map_fixed(st, vaddr, frame, size);
     if (err_is_fail(err)) {
@@ -85,8 +73,6 @@ static errval_t paging_handler(enum exception_type type, int subtype, void *addr
         debug_printf("%s\n", err_getstring(err));
         return err;
     }
-    //debug_printf("%d\n", __LINE__);
-
 
     return SYS_ERR_OK;
 }
@@ -101,13 +87,14 @@ exception_handler_giveup(errval_t err, enum exception_type type, int subtype,
 
 
     debug_print_save_area(regs);
-//     debug_dump(regs); // print stack
+    // debug_dump(regs); // print stack
     thread_exit(THREAD_UNRECOVERABLE_PAGEFAULT_CODE);
 }
 
 static void exception_handler(enum exception_type type, int subtype, void *addr, arch_registers_state_t *regs)
 {
-     debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
+    // debug_printf("exception_handler(type=%d, subtype=%d, addr=%p, regs=%p)\n", type, subtype, addr, regs);
+
     errval_t err = SYS_ERR_OK;
     morecore_enable_static();
 
@@ -122,7 +109,6 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
 
     morecore_enable_dynamic();
 
-    debug_printf("exception_handler exit,  addr=%p \n",addr);
     if (err_is_fail(err)) {
         // we die here ... RIP
         exception_handler_giveup(err, type, subtype, addr, regs);
@@ -136,13 +122,6 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
 static errval_t pt_alloc(struct paging_state * st, enum objtype type,
                          struct capref *ret)
 {
-//    struct morecore_state *s = get_morecore_state();
-//    bool heap_static = s->heap_static;
-//    if (!s->heap_static) {
-//        morecore_enable_static();
-//    }
-
-
     errval_t err;
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
     if (err_is_fail(err)) {
@@ -154,9 +133,6 @@ static errval_t pt_alloc(struct paging_state * st, enum objtype type,
         debug_printf("vnode_create failed: %s\n", err_getstring(err));
         return err;
     }
-//    if(!heap_static) {
-//        morecore_enable_dynamic();
-//    }
     return SYS_ERR_OK;
 }
 
@@ -174,7 +150,6 @@ __attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, st
 {
     return pt_alloc(st, ObjType_VNode_AARCH64_l3, ret);
 }
-
 
 /**
  * TODO(M2): Implement this function.
@@ -194,8 +169,6 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
                            struct capref cap_l0, struct slot_allocator *ca)
 {
     DEBUG_BEGIN;
-    // TODO (M4): Implement page fault handler that installs frames when a page fault
-    // occurs and keeps track of the virtual address space.
     st->slot_alloc = ca;
     st->cap_l0 = cap_l0;
     slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
@@ -271,7 +244,8 @@ errval_t paging_init(void)
 
     char *exception_stack_top = (char *) current.exception_stack_base + sizeof(current.exception_stack_base);
 
-    err = thread_set_exception_handler(exception_handler, NULL, current.exception_stack_base, exception_stack_top, NULL, NULL);
+    err = thread_set_exception_handler(exception_handler, NULL,
+            current.exception_stack_base, exception_stack_top, NULL, NULL);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "thread_set_exception_handler() failed\n");
         return err_push(err, LIB_ERR_THREAD_SET_EXCEPTION_HANDLER);
@@ -287,7 +261,7 @@ void paging_init_onthread(struct thread *t)
 {
     DEBUG_BEGIN;
     morecore_enable_static();
-    void *stack = eager_malloc(PAGING_EXCEPTION_STACK_SIZE);
+    void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
 
     morecore_enable_dynamic();
     void *stack_top = stack + PAGING_EXCEPTION_STACK_SIZE;
@@ -558,7 +532,7 @@ paging_create_pd_level(
 
         entry = collections_hash_find(ht, index);
         if (entry == NULL) {
-            entry = eager_malloc(size);
+            entry = malloc(size);
             if (entry == NULL) {
                 // TODO: Do we recover from alloc errors with free of resources?
                 return LIB_ERR_MALLOC_FAIL;
@@ -727,12 +701,14 @@ errval_t paging_map_fixed_single_pt3(struct paging_state *st, lvaddr_t vaddr,
 errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
+    //debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ..., bytes=%zx, ...)\n", st, vaddr, bytes);
+
     errval_t err;
     thread_mutex_lock_nested(&st->mutex);
+
+    // run on vmem which does not pagefault
+    // TODO: switch to non-bootstrap heap which does not pagefault
     morecore_enable_static();
-
-
-    //debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ..., bytes=%zx, ...)\n", st, vaddr, bytes);
 
     if (bytes == 0) {
         return LIB_ERR_PAGING_SIZE_INVALID;
@@ -741,7 +717,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
-
 
     struct vaddr_region *vaddr_region = NULL;
     err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
@@ -754,7 +729,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         return err;
     }
 
-    //debug_printf("%d\n", __LINE__);
     /* how many lvl3 mappings needed in total */
     uint64_t pte_count = ROUND_UP(bytes, BASE_PAGE_SIZE) / BASE_PAGE_SIZE;
     /* Upper bound on how many different level 3 pages we need
@@ -762,17 +736,13 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     const uint64_t upper_bound_single_lvl3 = pte_count / VMSAv8_64_PTABLE_NUM_ENTRIES + 2;
     uint64_t offset = 0;
 
-
-    //debug_printf("%d\n", __LINE__);
-    struct paging_region *paging_region = eager_malloc(sizeof(struct paging_region));
+    struct paging_region *paging_region = malloc(sizeof(struct paging_region));
 
     if (paging_region == NULL) {
         // TODO free vaddr_region
         return LIB_ERR_MALLOC_FAIL;
     }
-
-    //debug_printf("%d\n", __LINE__);
-    paging_region->cap_mapping = eager_malloc(upper_bound_single_lvl3 * sizeof(struct capref));
+    paging_region->cap_mapping = malloc(upper_bound_single_lvl3 * sizeof(struct capref));
 
     if (paging_region->cap_mapping == NULL) {
         // TODO free vaddr_region
@@ -786,7 +756,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     paging_region->num_caps = 0;
     vaddr_region->region = paging_region;
 
-    //debug_printf("%d\n", __LINE__);
     while (pte_count > 0) {
         assert (paging_region->num_caps < upper_bound_single_lvl3);
         /* find how many remaining entries in current lvl 3 pagetable
@@ -812,7 +781,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         pte_count = pte_count - curr_pte_count;
         vaddr += curr_pte_count * BASE_PAGE_SIZE;
         offset += curr_pte_count * BASE_PAGE_SIZE;
-        //debug_printf("%d\n", __LINE__);
     }
     morecore_enable_dynamic();
     thread_mutex_unlock(&st->mutex);

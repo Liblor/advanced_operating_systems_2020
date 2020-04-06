@@ -72,7 +72,6 @@ static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct ca
 
     *retbytes = get_size(&cap);
 
-    debug_printf("allocated %d size\n", *retbytes);
     return SYS_ERR_OK;
 }
 
@@ -111,10 +110,7 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
     }
-
-    HERE;
     err = spawn_load_by_name(name, &si, ret_pid);
-    HERE;
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
         // TODO: If spawn failed, remove the process from the processserver state list.

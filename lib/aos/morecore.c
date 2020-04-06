@@ -93,6 +93,10 @@ errval_t morecore_reinit(void)
     return SYS_ERR_OK;
 }
 
+// dummy functions, implemented in dynamic heap
+void morecore_enable_static(void){}
+void morecore_enable_dynamic(void){}
+
 #else
 
 #define HEAP_SIZE (1<<24)
@@ -145,15 +149,6 @@ static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, 
     return ret_addr;
 }
 
-/*
- * Solutions:
- *
- * - adapt malloc
- * - use slab, and replace calls to malloc with calls to slab
- * - paging does not use heap, but keeps new data in static buffer,
- *   and copies it at the end once malloc available
- */
-
 /**
  * \brief Allocate some memory for malloc to use
  *
@@ -176,8 +171,6 @@ static void morecore_free(void *base, size_t bytes)
 {
     USER_PANIC("NYI \n");
 }
-
-
 
 static void morecore_init_dynamic(struct morecore_state *state, size_t alignment)
 {
@@ -228,6 +221,7 @@ errval_t morecore_init(size_t alignment)
 
     // XXX: Glue aos_malloc which is static/dynamic heap aware
     // no malloc before this function is called as we initialize morecore here
+
     alt_free = aos_free;
     alt_free_locked = __aos_free_locked;
     alt_malloc = aos_malloc;
@@ -255,6 +249,5 @@ Header *get_malloc_freep(void);
 Header *get_malloc_freep(void)
 {
     struct morecore_state *state =get_morecore_state();
-    //return state->heap_static ? state->header_freep_static : state->header_freep_dynamic;
     return state->header_freep;
 }
