@@ -176,6 +176,8 @@ static void morecore_free(void *base, size_t bytes)
     USER_PANIC("NYI \n");
 }
 
+
+
 static void morecore_init_dynamic(struct morecore_state *state, size_t alignment)
 {
     void *buf;

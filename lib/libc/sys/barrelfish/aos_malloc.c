@@ -24,6 +24,9 @@ void *aos_malloc(size_t nbytes)
     // XXX: we dont use alt_malloc and alt_free anymore
 
     struct morecore_state *state = get_morecore_state();
+//    if (state->heap_static) {
+//        debug_printf("W\n");
+//    }
 	Header *p, *prevp;
 	unsigned nunits;
 	nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
@@ -106,6 +109,7 @@ void aos_free(void *ap)
     unsigned magic = ((Header *)ap)[-1].s.magic;
 
     if (magic != MAGIC_STATIC && magic != MAGIC_DYNAMIC) {
+        assert(false);
         debug_printf("%s: Trying to free not malloced region %p by %p\n",
                      __func__, ap, __builtin_return_address(0));
         return;
