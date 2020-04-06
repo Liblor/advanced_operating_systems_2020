@@ -69,12 +69,13 @@ struct pt_l2_entry {
 // Struct to store the paging status of a process
 struct paging_state {
     struct slot_allocator *slot_alloc;
-    struct range_tracker rt;
+    struct slab_allocator slabs;
+    struct range_tracker rt; ///< The range tracker is used to track allocated paging regions.
     struct capref cap_l0;
     struct _collections_hash_table *l0pt;
-    // TODO: should be 64*sizeof(struct vaddr_node), but circular deps
-    char buf[64 * 64];
+    char initial_slabs_buffer[64 * RANGE_TRACKER_NODE_SIZE]; ///< Used to initially grow the slab allocator.
     char *exception_stack_base[PAGING_EXCEPTION_STACK_SIZE];
+    lvaddr_t start_addr; ///< From where on this paging state is responsible.
 };
 
-#endif                          /// PAGING_TYPES_H_
+#endif // PAGING_TYPES_H_

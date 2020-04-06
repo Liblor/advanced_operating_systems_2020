@@ -21,6 +21,9 @@
 #include <barrelfish_kpi/paging_arch.h>
 #include <aos/paging_types.h>
 
+// This must not be removed, as the function interface origins from the paging module.
+#include <aos/paging_region.h>
+
 struct paging_state;
 struct paging_region;
 

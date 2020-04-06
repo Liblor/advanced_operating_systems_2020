@@ -42,8 +42,8 @@ static errval_t paging_handler(
         return AOS_ERR_PAGING_NULL_DEREF;
     }
 
-    if (vaddr < st->head->base_addr) {
-        debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent (base=%p)!\n", vaddr, st->head->base_addr);
+    if (vaddr < st->start_addr) {
+        debug_printf("PAGE FAULT: Address 0x%lx is not mapped or managed by parent (base=%p)!\n", vaddr, st->start_addr);
         return AOS_ERR_PAGING_ADDR_NOT_MANAGED;
     }
 
@@ -221,13 +221,19 @@ errval_t paging_init_state(
     st->slot_alloc = ca;
     st->cap_l0 = cap_l0;
 
-    err = range_tracker_init(st->rt, NULL);
+    st->start_addr = start_vaddr;
+
+    slab_init(&st->slabs, RANGE_TRACKER_NODE_SIZE, slab_default_refill);
+
+    slab_grow(&st->slabs, st->initial_slabs_buffer, sizeof(st->initial_slabs_buffer));
+
+    err = range_tracker_init(st->rt, &st->slabs);
     if (err_is_fail(err)) {
-        debug_printf("paging_init_state() failed\n");
+        debug_printf("range_tracker_init() failed\n");
         return err;
     }
 
-    err = range_tracker_add(st->rt, start_vaddr, (1ULL << 48) - start_vaddr, 0);
+    err = range_tracker_add(st->rt, start_vaddr, (1ULL << 48) - start_vaddr, NULL);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_add() failed\n");
         return err;

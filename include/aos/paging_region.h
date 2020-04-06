@@ -6,11 +6,10 @@
 typedef int paging_flags_t;
 
 struct paging_region {
-    lvaddr_t base_addr;
-    paging_flags_t flags;
-    size_t num_caps;             ///< Number of cap_mappings
-    struct capref frame_cap;
-    struct capref *cap_mapping;  ///< Array of allocated mappings when region spawns onto multiple page tables
+    paging_flags_t flags; ///< The flags with which new frames will be mapped.
+    struct range_tracker rt; ///< For managing the second layer, i.e., the actual mappings.
+    size_t capc; ///< Amount of mappings.
+    struct capref *capv; ///< Array of allocated mappings within this region.
 };
 
 errval_t paging_region_init(
