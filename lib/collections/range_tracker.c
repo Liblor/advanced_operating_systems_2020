@@ -334,8 +334,9 @@ errval_t range_tracker_get(struct range_tracker *rt, uint64_t base, uint64_t siz
         }
     }
 
-    if (node == NULL)
+    if (node == NULL) {
         return MM_ERR_NOT_FOUND;
+    }
 
     *retnode = node;
 

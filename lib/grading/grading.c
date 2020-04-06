@@ -421,6 +421,35 @@ MU_TEST(test_free_invalid) {
     _mm_test_free(caps[0], base_correct, size_correct, SYS_ERR_OK, 2);
 }
 
+// The functions tested here are actually not used in libmm, but they
+// should still be tested somewhere
+// TODO Add more extensive range tracker tests
+MU_TEST(test_range_tracker_minimal) {
+    errval_t err;
+
+    struct range_tracker *rt = &test_mm->rt;
+
+    uint64_t s = default_allocated / BASE_PAGE_SIZE;
+    uint64_t space = (default_total_size - default_allocated) / BASE_PAGE_SIZE;
+
+    uint64_t fixed_offset_pages = 0xabcd;
+    uint64_t fixed_base = default_region_base + default_allocated + fixed_offset_pages * BASE_PAGE_SIZE;
+    uint64_t fixed_size_pages = 10;
+
+    struct rtnode *new_node;
+    err = range_tracker_alloc_fixed(rt, fixed_base, fixed_size_pages * BASE_PAGE_SIZE, &new_node);
+    mu_assert(err_no(err) == SYS_ERR_OK, "Returned error value wrong.");
+
+    check_rtnode(0, RangeTracker_NodeType_Used, 0, s);
+    check_rtnode(1, RangeTracker_NodeType_Free, s+0, fixed_offset_pages);
+    check_rtnode(2, RangeTracker_NodeType_Used, s+fixed_offset_pages, fixed_size_pages);
+    check_rtnode(3, RangeTracker_NodeType_Free, s+fixed_offset_pages+fixed_size_pages, space-fixed_offset_pages-fixed_size_pages);
+
+    struct rtnode *node;
+    err = range_tracker_get(rt, fixed_base, fixed_size_pages * BASE_PAGE_SIZE, &node);
+    mu_assert(err_no(err) == SYS_ERR_OK, "Returned error value wrong.");
+}
+
 MU_TEST(test_alloc_stress) {
     int i, j;
     const uint64_t node_count = 1024;
@@ -505,7 +534,8 @@ MU_TEST_SUITE(test_suite) {
     // TODO This test is failing
     //MU_RUN_TEST(test_free_invalid);
 
-    // TODO This test is hanging
+    MU_RUN_TEST(test_range_tracker_minimal);
+
     // Leave these tests at the end
     MU_RUN_TEST(test_alloc_stress);
 }
