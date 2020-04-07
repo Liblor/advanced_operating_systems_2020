@@ -10,7 +10,6 @@
 
 #define GET_MAGIC (state->heap_static ? MAGIC_STATIC : MAGIC_DYNAMIC)
 
-
 // static/dynamic heap aware malloc implementation
 typedef void *(*alt_malloc_t)(size_t bytes);
 typedef void (*alt_free_t)(void *p);
