@@ -286,6 +286,8 @@ errval_t range_tracker_alloc_aligned(
         return err;
     }
 
+    assert(best != NULL);
+
     return SYS_ERR_OK;
 }
 
