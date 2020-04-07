@@ -153,7 +153,9 @@ static errval_t ensure_static_threshold(struct morecore_state *state, size_t ali
                 state->static_zone.is_refilling = false;
                 return err;
             }
-            err = paging_map_fixed_attr(get_current_paging_state(), state->static_zone.current_addr, cap, size, VREGION_FLAGS_READ_WRITE);
+            err = paging_map_fixed_attr(get_current_paging_state(),
+                    state->static_zone.base_addr + state->static_zone.backed_size,
+                    cap, size, VREGION_FLAGS_READ_WRITE);
             if (err_is_fail(err)) {
                 state->static_zone.is_refilling = false;
                 return err;
