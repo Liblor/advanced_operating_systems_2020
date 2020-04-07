@@ -99,7 +99,8 @@ void morecore_enable_dynamic(void){}
 
 #else
 
-#define HEAP_SIZE (1<<24)
+//#define HEAP_SIZE (1<<24)
+#define HEAP_SIZE (100*BASE_PAGE_SIZE)
 static char mymem[HEAP_SIZE] = { 0 };
 static char *endp = mymem + HEAP_SIZE;
 
@@ -147,7 +148,7 @@ static errval_t ensure_static_threshold(struct morecore_state *state, size_t req
     if (state->static_zone.is_refilling) { return SYS_ERR_OK; }
 
     state->static_zone.is_refilling = true;
-    if (static_zone_needs_refill(state, requested_bytes)) { goto finish_refill; }
+    if (!static_zone_needs_refill(state, requested_bytes)) { goto finish_refill; }
 
     // We initialize lazily for performance reasons
     if (!static_zone_is_initalized(state)) {
