@@ -129,7 +129,11 @@ static inline bool static_zone_needs_refill(struct morecore_state *state, size_t
 static errval_t initialize_static_zone(struct morecore_state *state)
 {
     errval_t err;
-    err = paging_alloc(get_current_paging_state(), (void **)&state->static_zone.base_addr, MORECORE_VADDR_ZONE_SIZE ,BASE_PAGE_SIZE);
+    err = paging_alloc(get_current_paging_state(),
+            (void **)&state->static_zone.base_addr,
+            MORECORE_VADDR_ZONE_SIZE ,
+            BASE_PAGE_SIZE);
+
     if (err_is_fail(err)) {
         debug_printf("initialize_static_zone failed: requesting vaddr space failed\n");
         return err;

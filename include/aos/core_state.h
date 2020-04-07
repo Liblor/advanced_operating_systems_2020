@@ -33,11 +33,12 @@ struct morecore_zone {
     size_t region_size;
 };
 
+/// a morecore zone with memory which is always eagerly backed by frames
 struct morecore_static_zone {
     lvaddr_t base_addr;
-    lvaddr_t current_addr;
-    size_t backed_size;
-    size_t region_size;
+    lvaddr_t current_addr;       /// < everything below this is handed out
+    size_t backed_size;          /// < how much starting from base_addr is backed
+    size_t region_size;          /// < total area of the zone
     bool is_refilling;
 };
 
@@ -99,8 +100,6 @@ struct aos_chan;
 struct mem_rpc_client;
 struct spawn_rpc_client;
 struct paging_state;
-
-
 
 struct core_state_generic {
     struct waitset default_waitset;
