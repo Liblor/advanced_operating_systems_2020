@@ -28,7 +28,6 @@
 
 #ifdef BARRELFISH
 #include <stdint.h>
-#include <aos/aos.h>
 #endif // BARRELFISH
 
 __BEGIN_DECLS

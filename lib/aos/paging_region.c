@@ -1,3 +1,4 @@
+#include <aos/debug.h>
 #include <aos/paging_region.h>
 
 static inline errval_t paging_region_init_region(

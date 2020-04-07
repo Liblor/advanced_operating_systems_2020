@@ -15,6 +15,7 @@
 #ifndef LIBBARRELFISH_SLAB_H
 #define LIBBARRELFISH_SLAB_H
 
+#include <errors/errno.h>
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS

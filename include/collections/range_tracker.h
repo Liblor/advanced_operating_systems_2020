@@ -1,11 +1,10 @@
 #ifndef _RANGE_TRACKER_H_
 #define _RANGE_TRACKER_H_
 
-#include <sys/cdefs.h>
-#include <errors/errno.h>
-#include <aos/types.h>
 #include <aos/caddr.h>
 #include <aos/slab.h>
+#include <errors/errno.h>
+#include <sys/cdefs.h>
 
 struct range_tracker_closure {
     void (*handler)(void *arg);

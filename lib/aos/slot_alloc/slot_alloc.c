@@ -18,10 +18,11 @@
  */
 
 #include <aos/aos.h>
-#include <aos/core_state.h>
 #include <aos/caddr.h>
-#include "internal.h"
+#include <aos/core_state.h>
+#include <aos/paging.h>
 
+#include "internal.h"
 
 /**
  * \brief Returns the default slot allocator for the caller
