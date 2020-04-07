@@ -2,31 +2,24 @@
 /*
  * AOS Malloc
  *
- * Malloc implementation which is aware of a static and dynamic heapx
+ * Malloc implementation which is aware of a static and dynamic heap
  */
 
 #include "aos_malloc.h"
 #include <stddef.h> /* For NULL */
 
 #include <aos/aos.h>
-#include <aos/core_state.h> /* XXX */
+#include <aos/core_state.h>
 
 #define MALLOC_LOCK thread_mutex_lock_nested(&state->mutex)
 #define MALLOC_UNLOCK thread_mutex_unlock(&state->mutex)
-
-
 
 /*
  * malloc: general-purpose storage allocator
  */
 void *aos_malloc(size_t nbytes)
 {
-    // XXX: we dont use alt_malloc and alt_free anymore
-
     struct morecore_state *state = get_morecore_state();
-//    if (state->heap_static) {
-//        debug_printf("W\n");
-//    }
 	Header *p, *prevp;
 	unsigned nunits;
 	nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
@@ -60,7 +53,6 @@ void *aos_malloc(size_t nbytes)
 			}
 		}
 	}
-	HERE;
 	MALLOC_UNLOCK;
 }
 
@@ -117,11 +109,12 @@ void aos_free(void *ap)
 
     ((Header *)ap)[-1].s.magic = 0;
 
-    // XXX: we can be in a state where heap_static = true
-    // and a call to free() is performed with an addr
-    // that lies on the heap.
-    // We need to use the appropriate morecore_state
-    // for that address.
+    /* XXX: we can be in a state where heap_static = true
+       and a call to free() is performed with an addr
+       that lies on the heap.
+       We need to use the appropriate morecore_state
+       for that address. */
+
     Header cur_header_base = state->header_base;
     Header *cur_header_freep = state->header_freep;
 
@@ -132,6 +125,7 @@ void aos_free(void *ap)
         state->header_base = state->header_base_dynamic;
         state->header_freep = state->header_freep_dynamic;
     }
+
     MALLOC_LOCK;
     __aos_free_locked(ap);
     lesscore();
