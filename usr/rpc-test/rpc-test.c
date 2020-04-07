@@ -69,12 +69,11 @@ __unused static void test_process(void) {
 
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
 
-    // Apparently 128 processes are too much for 2GB RAM to handle.
-    const uint64_t process_number = 40;
+    const uint64_t process_number = 200;
 
     debug_printf("Testing aos_rpc_process_spawn() (spawning %u processes)...\n", process_number);
 
-    for(int i = 0; i < process_number; i ++) {
+    for(int i = 0; i < process_number; i++) {
         char *binary_name1 = "dummy";
         domainid_t pid1;
         coreid_t core = 0;
@@ -84,9 +83,9 @@ __unused static void test_process(void) {
             DEBUG_ERR(err, "aos_rpc_process_spawn()");
             return;
         }
-
-        debug_printf("spawned child: pid %d\n", pid1);
+        debug_printf("%d\n", pid1);
     }
+
 
     debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
 
@@ -117,6 +116,7 @@ __unused static void test_process(void) {
     for(int j = 0; j < pid_count; j ++){
         debug_printf("pid: %d:\n", pids[j]);
     }
+
 }
 
 __unused static void test_serial(void) {
@@ -124,13 +124,12 @@ __unused static void test_serial(void) {
 
     debug_printf("Testing serial RPC...\n");
 
-    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-    if (rpc == NULL) {
+    struct aos_rpc *rpc_serial = aos_rpc_get_serial_channel();
+    if (rpc_serial == NULL) {
         debug_printf("Could not create serial channel\n");
         return;
     }
 
-    /*
     // Explicit test not necessary since printf is redirected to rpc during the
     // execution of this entire program.
     err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
@@ -138,14 +137,13 @@ __unused static void test_serial(void) {
         DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
         return;
     }
-    */
 
     printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
     printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
 
     debug_printf("Press a button to test aos_rpc_lmp_serial_getchar(): ");
     char c;
-    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    err = aos_rpc_lmp_serial_getchar(rpc_serial, &c);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
         return;
