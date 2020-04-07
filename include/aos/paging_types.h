@@ -54,66 +54,30 @@
 #define PAGING_HASHMAP_BUCKETS 100
 #define PAGING_EXCEPTION_STACK_SIZE (8 * BASE_PAGE_SIZE)
 
-struct sanitized_range {
-    const lvaddr_t base; ///< The aligned base of the range.
-    const lvaddr_t end; ///< The aligned end of the range.
-    const size_t size; ///< The size of the aligned ends.
-};
-
-static const inline errval_t paging_sanitize_range(
-    const lvaddr_t base,
-    const size_t size,
-    struct sanitized_range *range
-)
-{
-    assert(range != NULL);
-
-    const size_t end = base + size;
-    range->base = ROUND_DOWN(base, BASE_PAGE_SIZE);
-    range->end = ROUND_UP(end, BASE_PAGE_SIZE);
-    range->size = range->end - range->base;
-
-    // Handle overflow.
-    if (range->end < base || range->size < size) {
-        return LIB_ERR_PAGING_SIZE_INVALID;
+#define PAGING_CHECK_RANGE(base, size) \
+    if (size == 0) { \
+        return LIB_ERR_PAGING_SIZE_INVALID; \
+    } \
+    if (size % BASE_PAGE_SIZE != 0) { \
+        return LIB_ERR_PAGING_SIZE_INVALID; \
+    } \
+    if (base % BASE_PAGE_SIZE != 0) { \
+        return LIB_ERR_PAGING_VADDR_NOT_ALIGNED; \
+    } \
+    if (base + size < base) { \
+        return LIB_ERR_PAGING_SIZE_INVALID; \
     }
 
-    assert(range->base <= base);
-    assert(range->end >= base);
-    assert(range->size >= size);
+#define PAGING_CHECK_SIZE(size) \
+    if (size == 0) { \
+        return LIB_ERR_PAGING_SIZE_INVALID; \
+    } \
 
-    return SYS_ERR_OK;
-}
-
-static const inline errval_t paging_sanitize_size(
-    const size_t size,
-    const size_t *ret
-)
-{
-    assert(ret != NULL);
-
-    *ret = ROUND_UP(size, BASE_PAGE_SIZE);
-
-    // Handle overflow.
-    if (*ret < size) {
-        return LIB_ERR_PAGING_SIZE_INVALID;
-    }
-
-    assert(*ret >= size);
-
-    return SYS_ERR_OK;
-}
-
-struct pt_entry {
+struct page_table {
+    enum objtype type;
     struct capref cap;
-    struct capref cap_mapping;
-    struct _collections_hash_table *pt;
-};
-
-struct pt_l2_entry {
-    struct capref cap;
-    struct capref cap_mapping;
-    struct paging_region *l3_entries[PTABLE_ENTRIES];
+    struct capref cap_mapping; ///< The mapping capability that was created when this page_table was mapped. Is NULL_CAP if the page_table represents the L0 pagetable.
+    struct _collections_hash_table *entries; ///< The hashtable containing lower level entries. Is NULL if the page_table represents an entry in a L3 table.
 };
 
 // Struct to store the paging status of a process
@@ -121,8 +85,7 @@ struct paging_state {
     struct slot_allocator *slot_alloc;
     struct slab_allocator slabs;
     struct range_tracker rt; ///< The range tracker is used to track allocated paging regions.
-    struct capref cap_l0;
-    struct _collections_hash_table *l0pt;
+    struct page_table l0pt;
     char initial_slabs_buffer[64 * RANGE_TRACKER_NODE_SIZE]; ///< Used to initially grow the slab allocator.
     char *exception_stack_base[PAGING_EXCEPTION_STACK_SIZE];
     lvaddr_t start_addr; ///< From where on this paging state is responsible.

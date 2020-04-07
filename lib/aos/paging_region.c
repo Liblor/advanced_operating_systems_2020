@@ -11,17 +11,13 @@ static inline errval_t paging_region_init_region(
 
     pr->flags = flags;
 
-    struct sanitized_range range;
+    PAGING_CHECK_RANGE(base, size);
 
-    err = paging_sanitize_range(base, size, &range);
-    if (err_is_fail(err)) {
-        return err;
-    }
+    pr->mapping_count = range->size / BASE_PAGE_SIZE;
+    pr->mappings = calloc(pr->mapping_count, sizeof(struct capref));
+    pr->frame_cap = NULL_CAP;
 
-    pr->capc = range->size / BASE_PAGE_SIZE;
-    pr->capv = calloc(pr->capc, sizeof(struct capref));
-
-    if (pr->capv == NULL) {
+    if (pr->mappings == NULL) {
         debug_printf("calloc() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_MALLOC_FAIL);
     }
@@ -37,6 +33,8 @@ static inline errval_t paging_region_init_region(
         debug_printf("range_tracker_add() failed\n");
         return err;
     }
+
+    node->shared.ptr = pr;
 
     return SYS_ERR_OK;
 }
@@ -55,7 +53,6 @@ static errval_t _paging_region_init(
 
     assert(st != NULL);
     assert(pr != NULL);
-
     assert(!fixed || base == 0);
     assert(fixed || alignment == 0);
 
@@ -86,6 +83,7 @@ static errval_t _paging_region_init(
         }
     }
 
+    // TODO Shouldn't this use the base from the node if fixed == false
     err = paging_region_init_region(pr, base, size, flags, node);
     if (err_is_fail(err)) {
         debug_printf("paging_region_init_region() failed: ?!\n");
@@ -160,13 +158,7 @@ errval_t paging_region_map(
 
     assert(pr != NULL);
     assert(retbuf != NULL);
-
-    const size_t sanitized_size;
-
-    err = paging_sanitize_size(size, &sanitized_size)
-    if (err_is_fail(err)) {
-        return err;
-    }
+    PAGING_CHECK_SIZE(size);
 
     struct rtnode *node = NULL;
 
@@ -202,13 +194,7 @@ errval_t paging_region_unmap(
     DEBUG_BEGIN;
 
     assert(pr != NULL);
-
-    struct sanitized_range range;
-
-    err = paging_sanitize_range(base, bytes, &range);
-    if (err_is_fail(err)) {
-        return err;
-    }
+    PAGING_CHECK_RANGE(base, size);
 
     struct rtnode *node;
 

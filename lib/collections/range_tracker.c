@@ -215,6 +215,8 @@ errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, ui
         return err;
     }
 
+    assert(best != NULL);
+
     return SYS_ERR_OK;
 }
 
