@@ -192,7 +192,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    char *binary_name = "rpc-test";
+    char *binary_name = "morecore-test";
     struct spawninfo si;
     domainid_t pid;
 
