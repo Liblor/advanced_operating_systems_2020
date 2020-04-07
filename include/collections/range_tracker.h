@@ -83,7 +83,7 @@ errval_t range_tracker_free(
     struct range_tracker_closure closure
 );
 
-errval_t range_tracker_find(
+errval_t range_tracker_get_fixed(
     struct range_tracker *rt,
     const uint64_t size,
     const uint64_t alignment,
