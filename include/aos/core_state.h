@@ -47,12 +47,11 @@ struct morecore_state {
     Header header_base;
     Header *header_freep;
 
-    // for "real" morecore (lib/aos/morecore.c)
     // TODO: use paging_region
     struct morecore_zone dynamic_zone;
     struct morecore_static_zone static_zone;
 
-    // for "static" morecore (see lib/aos/static_morecore.c)
+    // for initial static morecore
     char *freep;
 
     bool heap_static;
