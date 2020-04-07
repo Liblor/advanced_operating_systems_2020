@@ -31,7 +31,6 @@ extern alt_free_t alt_free_locked;
 
 // this define makes morecore use an implementation that just has a static
 // 16MB heap.
-// TODO (M4): use a dynamic heap instead,
 //#define USE_STATIC_HEAP
 
 #ifdef USE_STATIC_HEAP
@@ -99,7 +98,6 @@ void morecore_enable_dynamic(void){}
 
 #else
 
-//#define HEAP_SIZE (1<<24)
 #define HEAP_SIZE (100*BASE_PAGE_SIZE)
 static char mymem[HEAP_SIZE] = { 0 };
 static char *endp = mymem + HEAP_SIZE;
@@ -142,7 +140,6 @@ static errval_t initialize_static_zone(struct morecore_state *state)
 }
 
 
-// TODO refactor with goto
 static errval_t ensure_static_threshold(struct morecore_state *state, size_t requested_bytes)
 {
     errval_t err = SYS_ERR_OK;
