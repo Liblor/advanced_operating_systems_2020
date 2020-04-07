@@ -69,8 +69,7 @@ __unused static void test_process(void) {
 
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
 
-    // Apparently 128 processes are too much for 2GB RAM to handle.
-    const uint64_t process_number = 20;
+    const uint64_t process_number = 200;
 
     debug_printf("Testing aos_rpc_process_spawn() (spawning %u processes)...\n", process_number);
 
@@ -84,7 +83,7 @@ __unused static void test_process(void) {
             DEBUG_ERR(err, "aos_rpc_process_spawn()");
             return;
         }
-        debug_printf("spawned child: pid %d\n", pid1);
+        debug_printf("%d\n", pid1);
     }
 
 

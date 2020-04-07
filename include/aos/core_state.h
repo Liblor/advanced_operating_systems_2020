@@ -33,6 +33,14 @@ struct morecore_zone {
     size_t region_size;
 };
 
+struct morecore_static_zone {
+    lvaddr_t base_addr;
+    lvaddr_t current_addr;
+    size_t backed_size;
+    size_t region_size;
+    bool is_refilling;
+};
+
 struct morecore_state {
     struct thread_mutex mutex;
 
@@ -40,7 +48,9 @@ struct morecore_state {
     Header *header_freep;
 
     // for "real" morecore (lib/aos/morecore.c)
-    struct morecore_zone zone;
+    // TODO: use paging_region
+    struct morecore_zone dynamic_zone;
+    struct morecore_static_zone static_zone;
 
     // for "static" morecore (see lib/aos/static_morecore.c)
     char *freep;
