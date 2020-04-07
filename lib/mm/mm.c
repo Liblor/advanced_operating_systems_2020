@@ -33,7 +33,7 @@ errval_t mm_init(struct mm *mm,
 
     slab_init(&mm->slabs, RANGE_TRACKER_NODE_SIZE, slab_refill_func);
 
-    return range_tracker_init(&mm->rt, &mm->slabs);
+    return range_tracker_init_aligned(&mm->rt, &mm->slabs, BASE_PAGE_SIZE);
 }
 
 void mm_destroy(struct mm *mm)
@@ -147,7 +147,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     if (err_is_fail(err))
         return err_push(err, LIB_ERR_SLOT_FREE);
 
-    err = range_tracker_free(&mm->rt, base, size, NULL);
+    err = range_tracker_free(&mm->rt, base, size, MKRTCLOSURE(NULL, NULL));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "range_tracker_free() failed");
         return err;

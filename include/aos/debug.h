@@ -63,6 +63,10 @@ void user_panic_fn(const char *file, const char *func, int line,
                         DISP_NAME_LEN, disp_name(), disp_get_core_id(), \
                       __FILE__, __func__, __LINE__)
 
+// Please do not commit with this enabled define. The amount of time debugging
+// the consequences of this macro summed up to a worrying few hours already.
+//#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
+
 #endif
 
 #define CONFIG_PAGING_DEBUG 1

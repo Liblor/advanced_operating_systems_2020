@@ -1381,3 +1381,8 @@ errors aos AOS_ERR_ {
     failure PAGING_ADDR_NOT_RESERVED "Address was never reserved to be mapped.",
     failure PAGING_INVALID_UNHANDLED_EXCEPTION "The exception type is invalid or unhandled.",
 };
+
+// errors for collections
+errors aos COLLECTIONS_ {
+    failure RANGETRACKER_ALIGNMENT        "The base or size was not properly aligned",
+};
