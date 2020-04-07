@@ -707,7 +707,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     thread_mutex_lock_nested(&st->mutex);
 
     // run on vmem which does not pagefault
-    // TODO: switch to non-bootstrap heap which does not pagefault
+    bool is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
 
     if (bytes == 0) {
@@ -782,7 +782,9 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         vaddr += curr_pte_count * BASE_PAGE_SIZE;
         offset += curr_pte_count * BASE_PAGE_SIZE;
     }
-    morecore_enable_dynamic();
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
     thread_mutex_unlock(&st->mutex);
     return err;
 }
