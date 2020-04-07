@@ -1,0 +1,5 @@
+[ build application { target = "paging_tester",
+                      cFiles = [ "paging_tester.c" ],
+                      architectures = allArchitectures
+                    }
+]
