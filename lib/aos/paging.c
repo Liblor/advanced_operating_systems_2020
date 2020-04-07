@@ -710,26 +710,28 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     thread_mutex_lock_nested(&st->mutex);
 
     // run on vmem which does not pagefault
-    bool is_dynamic = !get_morecore_state()->heap_static;
+    const bool is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
 
     if (bytes == 0) {
-        return LIB_ERR_PAGING_SIZE_INVALID;
+        err =  LIB_ERR_PAGING_SIZE_INVALID;
+        goto clean_up;
     }
     if (vaddr % BASE_PAGE_SIZE != 0) {
-        return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
+        err = LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
+        goto clean_up;
     }
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
     struct vaddr_region *vaddr_region = NULL;
     err = alloc_vaddr_region(st, vaddr, bytes, &vaddr_region);
     if (err_is_fail(err)) {
-        return err;
+        goto clean_up;
     }
 
     err = slab_ensure_threshold(&st->slabs, 12);
     if (err_is_fail(err)) {
-        return err;
+        goto clean_up;
     }
 
     /* how many lvl3 mappings needed in total */
@@ -742,12 +744,14 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     struct paging_region *paging_region = malloc(sizeof(struct paging_region));
     if (paging_region == NULL) {
         // TODO free vaddr_region
-        return LIB_ERR_MALLOC_FAIL;
+        err = LIB_ERR_MALLOC_FAIL;
+        goto clean_up;
     }
     paging_region->cap_mapping = malloc(upper_bound_single_lvl3 * sizeof(struct capref));
     if (paging_region->cap_mapping == NULL) {
+        err = LIB_ERR_MALLOC_FAIL;
         // TODO free vaddr_region
-        return LIB_ERR_MALLOC_FAIL;
+        goto clean_up;
     }
     paging_region->base_addr = vaddr;
     paging_region->current_addr = paging_region->base_addr;
@@ -773,7 +777,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                           offset, paging_region);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "paging_map_fixed_single_pt3 failed\n");
-            return err;
+            goto clean_up;
             // TODO: undo mappings on error?
             // TODO free all slots on error
         }
@@ -782,11 +786,17 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
         vaddr += curr_pte_count * BASE_PAGE_SIZE;
         offset += curr_pte_count * BASE_PAGE_SIZE;
     }
+
+    err = SYS_ERR_OK;
+
+    clean_up:
+
     if (is_dynamic) {
         morecore_enable_dynamic();
     }
     thread_mutex_unlock(&st->mutex);
     return err;
+
 }
 
 /**
