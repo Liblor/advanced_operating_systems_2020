@@ -117,68 +117,85 @@ static inline bool static_zone_is_initalized(struct morecore_state *state)
 
 static inline bool static_zone_needs_refill(struct morecore_state *state, size_t requested_bytes)
 {
-    bool buf_too_small = state->freep + requested_bytes > endp - MORECORE_FREE_STATIC_THRESHOLD;
-    lvaddr_t new_end = state->static_zone.current_addr + requested_bytes;
-    lvaddr_t curr_end = state->static_zone.base_addr + state->static_zone.backed_size;
-    bool static_zone_too_small = new_end > curr_end - MORECORE_FREE_STATIC_THRESHOLD;
-    bool is_backed = state->static_zone.backed_size != 0;
+    const bool buf_too_small = state->freep + requested_bytes > endp - MORECORE_FREE_STATIC_THRESHOLD;
+
+    const lvaddr_t new_end = state->static_zone.current_addr + requested_bytes;
+    const lvaddr_t curr_end = state->static_zone.base_addr + state->static_zone.backed_size;
+    const bool static_zone_too_small = new_end > curr_end - MORECORE_FREE_STATIC_THRESHOLD;
+    const bool is_backed = state->static_zone.backed_size != 0;
     return (buf_too_small && (!is_backed || static_zone_too_small));
 }
 
-static void initialize_static_zone(struct morecore_state *state)
+static errval_t initialize_static_zone(struct morecore_state *state)
 {
     errval_t err;
     err = paging_alloc(get_current_paging_state(), (void **)&state->static_zone.base_addr, MORECORE_VADDR_ZONE_SIZE ,BASE_PAGE_SIZE);
     if (err_is_fail(err)) {
-        err_print_calltrace(err);
         debug_printf("initialize_static_zone failed: requesting vaddr space failed\n");
-        return;
+        return err;
     }
     state->static_zone.region_size = MORECORE_VADDR_ZONE_SIZE;
     state->static_zone.current_addr = state->static_zone.base_addr;
+    return SYS_ERR_OK;
 }
 
-static errval_t ensure_static_threshold(struct morecore_state *state, size_t aligned_bytes)
+
+// TODO refactor with goto
+static errval_t ensure_static_threshold(struct morecore_state *state, size_t requested_bytes)
 {
-    if (!state->static_zone.is_refilling) {
-        state->static_zone.is_refilling = true;
-        if (static_zone_needs_refill(state, aligned_bytes)) {
-            if (!static_zone_is_initalized(state)) {
-                initialize_static_zone(state);
-            }
-            struct capref cap;
-            size_t size = MAX(MORECORE_FREE_STATIC_THRESHOLD, aligned_bytes);
-            errval_t err = frame_alloc(&cap, size, &size);
-            if (err_is_fail(err)) {
-                state->static_zone.is_refilling = false;
-                return err;
-            }
-            err = paging_map_fixed_attr(get_current_paging_state(),
-                    state->static_zone.base_addr + state->static_zone.backed_size,
-                    cap, size, VREGION_FLAGS_READ_WRITE);
-            if (err_is_fail(err)) {
-                state->static_zone.is_refilling = false;
-                return err;
-            }
-            state->static_zone.backed_size += size;
+    errval_t err = SYS_ERR_OK;
+    if (state->static_zone.is_refilling) { return SYS_ERR_OK; }
+
+    state->static_zone.is_refilling = true;
+    if (static_zone_needs_refill(state, requested_bytes)) { goto finish_refill; }
+
+    // We initialize lazily for performance reasons
+    if (!static_zone_is_initalized(state)) {
+        err = initialize_static_zone(state);
+        if (err_is_fail(err)) {
+            goto finish_refill;
         }
-        state->static_zone.is_refilling = false;
     }
+    struct capref cap;
+    size_t size = MAX(MORECORE_FREE_STATIC_THRESHOLD, requested_bytes);
+    err = frame_alloc(&cap, size, &size);
+    if (err_is_fail(err)) {
+        goto finish_refill;
+    }
+    err = paging_map_fixed_attr(get_current_paging_state(),
+                                state->static_zone.base_addr + state->static_zone.backed_size,
+                                cap, size, VREGION_FLAGS_READ_WRITE);
+    if (err_is_fail(err)) {
+        goto finish_refill;
+    }
+    state->static_zone.backed_size += size;
+
+    err = SYS_ERR_OK;
+    finish_refill:
+    state->static_zone.is_refilling = false;
+    return err;
+
 }
 
 static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
+    errval_t err;
     size_t aligned_bytes = ROUND_UP(bytes, sizeof(Header));
     void *ret = NULL;
 
-    ensure_static_threshold(state, aligned_bytes);
+    err = ensure_static_threshold(state, aligned_bytes);
+    if (err_is_fail(err)) {
+        *retbytes = 0;
+        return ret;
+    }
 
     if (state->freep + aligned_bytes < endp) {
         ret = state->freep;
         state->freep += aligned_bytes;
     }
     else {
-        aligned_bytes = 0;
+        ret = (void *)state->static_zone.current_addr;
+        state->static_zone.current_addr += aligned_bytes;
     }
     *retbytes = aligned_bytes;
     return ret;
