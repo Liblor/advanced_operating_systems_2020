@@ -7,7 +7,10 @@
 // TODO Change errors
 // TODO Should the ensure threshold be called in here?
 
-errval_t range_tracker_init(struct range_tracker *rt, struct slab_allocator *slabs)
+errval_t range_tracker_init(
+    struct range_tracker *rt,
+    struct slab_allocator *slabs
+)
 {
     assert(rt != NULL);
     assert(slabs != NULL);
@@ -23,13 +26,19 @@ errval_t range_tracker_init(struct range_tracker *rt, struct slab_allocator *sla
     return SYS_ERR_OK;
 }
 
-errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t size, union range_tracker_shared shared)
+errval_t range_tracker_add(
+    struct range_tracker *rt,
+    const uint64_t base,
+    const uint64_t size,
+    union range_tracker_shared shared
+)
 {
     assert(rt != NULL);
 
     errval_t err;
 
     struct rtnode *next;
+
     for (next = rt->head->next; next != &rt->rt_tail; next = next->next) {
         if (next->base == base)
             return MM_ERR_ALREADY_PRESENT;
@@ -63,7 +72,14 @@ errval_t range_tracker_add(struct range_tracker *rt, uint64_t base, uint64_t siz
     return SYS_ERR_OK;
 }
 
-static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64_t offset, uint64_t size, enum range_tracker_nodetype new_type, struct rtnode **retnode)
+static errval_t split_node(
+    struct range_tracker *rt,
+    struct rtnode *node,
+    uint64_t offset,
+    uint64_t size,
+    enum range_tracker_nodetype new_type,
+    struct rtnode **retnode
+)
 {
     assert(node != NULL);
     assert(node->size >= size + offset);
@@ -107,6 +123,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
 
     if (leftover != NULL) {
         leftover->original_region_base = node->original_region_base;
+
         // TODO Should shared really always be inherited?
         leftover->shared = node->shared;
         leftover->type = RangeTracker_NodeType_Free;
@@ -121,6 +138,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
 
     if (padding != NULL) {
         padding->original_region_base = node->original_region_base;
+
         // TODO Should shared really always be inherited?
         padding->shared = node->shared;
         padding->type = RangeTracker_NodeType_Free;
@@ -140,7 +158,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
     // Sanity checks
     assert(node->size == size);
     assert(leftover == NULL || node->next->size == old_base + old_size - (new_base + new_size));
-    assert(leftover == NULL || node->next->base  == new_base + new_size);
+    assert(leftover == NULL || node->next->base == new_base + new_size);
     assert(padding == NULL || node->prev->size == offset);
     assert(padding == NULL || node->prev->base == old_base);
     assert(node->prev->next == node);
@@ -152,7 +170,7 @@ static errval_t split_node(struct range_tracker *rt, struct rtnode *node, uint64
 
     return SYS_ERR_OK;
 
-error_recovery:
+ error_recovery:
     if (leftover != NULL) {
         slab_free(rt->slabs, leftover);
     }
@@ -161,16 +179,21 @@ error_recovery:
         // GCC says that the variable might be uninitialized. That cannot be
         // the case, since it is initialized as NULL, and set using
         // slab_alloc().
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
         slab_free(rt->slabs, padding);
-        #pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
     }
 
     return err;
 }
 
-errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode)
+errval_t range_tracker_alloc_aligned(
+    struct range_tracker *rt,
+    uint64_t size,
+    uint64_t alignment,
+    struct rtnode **retnode
+)
 {
     assert(rt != NULL);
     assert(size != 0);
@@ -201,7 +224,13 @@ errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, ui
     return SYS_ERR_OK;
 }
 
-errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode) {
+errval_t range_tracker_alloc_fixed(
+    struct range_tracker *rt,
+    const uint64_t base,
+    const uint64_t size,
+    struct rtnode **retnode
+)
+{
     errval_t err;
 
     struct rtnode *node;
@@ -230,7 +259,10 @@ errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint
  * - the neighbor is free, and
  * - the node and the neighbor stem from the same original region.
  */
-static inline void range_tracker_merge_neighbors(struct range_tracker *rt, struct rtnode *node)
+static inline void range_tracker_merge_neighbors(
+    struct range_tracker *rt,
+    struct rtnode *node
+)
 {
     // Merge the node with right neighbor if possible.
     if (node->next != &rt->rt_tail &&
@@ -258,7 +290,12 @@ static inline void range_tracker_merge_neighbors(struct range_tracker *rt, struc
     }
 }
 
-errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t size, struct range_tracker_closure closure)
+errval_t range_tracker_free(
+    struct range_tracker *rt,
+    const uint64_t base,
+    const uint64_t size,
+    struct range_tracker_closure closure
+)
 {
     assert(rt != NULL);
 
@@ -297,12 +334,18 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
 /*
  * Retrieve a free node with a minimum specified size and alignment.
  */
-errval_t range_tracker_find(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode, uint64_t *retpadding)
+errval_t range_tracker_find(
+    struct range_tracker *rt,
+    uint64_t size,
+    uint64_t alignment,
+    struct rtnode **retnode,
+    uint64_t * retpadding
+)
 {
     struct rtnode *best = NULL;
 
     // Find the largest node that is still free and can hold the requested size.
-    for (struct rtnode *next = rt->head->next; next != &rt->rt_tail; next = next->next) {
+    for (struct rtnode * next = rt->head->next; next != &rt->rt_tail; next = next->next) {
         uint64_t padding_size = (next->base % alignment > 0) ? (alignment - (next->base % alignment)) : 0;
 
         // We only care about free nodes.
@@ -334,7 +377,12 @@ errval_t range_tracker_find(struct range_tracker *rt, uint64_t size, uint64_t al
 /*
  * Retrieve the node that includes the specified range.
  */
-errval_t range_tracker_get(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode)
+errval_t range_tracker_get(
+    struct range_tracker *rt,
+    const uint64_t base,
+    const uint64_t size,
+    struct rtnode **retnode
+)
 {
     assert(rt != NULL);
     assert(retnode != NULL);
@@ -368,24 +416,36 @@ errval_t range_tracker_get(struct range_tracker *rt, uint64_t base, uint64_t siz
     return SYS_ERR_OK;
 }
 
-static void print_rtnodes(struct range_tracker *rt)
+static void print_rtnodes(
+    struct range_tracker *rt
+)
 {
     if (rt->head == NULL) {
         debug_printf("        [empty list]\n");
-    } else {
-        struct rtnode *current = rt->head;
-        struct rtnode *last = rt->head;
+        return;
+    }
 
-        while (current != NULL) {
-            debug_printf("%s%p <- %p -> %p (base=%p, last=%p, size=%u)\n", current->type == RangeTracker_NodeType_Used ? "       *" : "        ", current->prev, current, current->next, current->base, current->base + current->size - 1, current->size);
-            if (current->next == NULL)
-                last = current;
-            current = current->next;
-        }
+    struct rtnode *current = rt->head;
+    struct rtnode *last = rt->head;
+
+    while (current != NULL) {
+        debug_printf(
+            "%s%p <- %p -> %p (base=%p, last=%p, size=%u)\n",
+            current->type == RangeTracker_NodeType_Used ? "       *" : "        ",
+            current->prev, current, current->next, current->base,
+            current->base + current->size - 1, current->size
+        );
+
+        if (current->next == NULL)
+            last = current;
+
+        current = current->next;
     }
 }
 
-void range_tracker_print_state(struct range_tracker *rt)
+void range_tracker_print_state(
+    struct range_tracker *rt
+)
 {
     print_rtnodes(rt);
 }
