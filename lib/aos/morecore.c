@@ -100,7 +100,7 @@ void morecore_enable_dynamic(void){}
 #else
 
 //#define HEAP_SIZE (1<<24)
-#define HEAP_SIZE (100*BASE_PAGE_SIZE)
+#define HEAP_SIZE (200*BASE_PAGE_SIZE)
 static char mymem[HEAP_SIZE] = { 0 };
 static char *endp = mymem + HEAP_SIZE;
 
@@ -158,7 +158,8 @@ static errval_t ensure_static_threshold(struct morecore_state *state, size_t req
         }
     }
     struct capref cap;
-    size_t size = MAX(MORECORE_FREE_STATIC_THRESHOLD, requested_bytes);
+    //size_t size = MAX(MORECORE_FREE_STATIC_THRESHOLD, requested_bytes);
+    size_t size = MORECORE_FREE_STATIC_THRESHOLD;
     err = frame_alloc(&cap, size, &size);
     if (err_is_fail(err)) {
         goto finish_refill;
@@ -166,6 +167,9 @@ static errval_t ensure_static_threshold(struct morecore_state *state, size_t req
     err = paging_map_fixed_attr(get_current_paging_state(),
                                 state->static_zone.base_addr + state->static_zone.backed_size,
                                 cap, size, VREGION_FLAGS_READ_WRITE);
+    // XXX: We have to reenable static as paging_map_fixed_attr disables it
+    // we should improve this
+    morecore_enable_static();
     if (err_is_fail(err)) {
         goto finish_refill;
     }
