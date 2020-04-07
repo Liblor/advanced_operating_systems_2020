@@ -7,9 +7,52 @@
 // TODO Change errors
 // TODO Should the ensure threshold be called in here?
 
-errval_t range_tracker_init(
+static inline bool is_properly_aligned_range(
     struct range_tracker *rt,
-    struct slab_allocator *slabs
+    const uint64_t base,
+    const uint64_t size
+)
+{
+    assert(rt != NULL);
+
+    if (rt->alignment == 0) {
+        return true;
+    }
+
+    if (size == 0) {
+        return false;
+    }
+
+    if (base % rt->alignment != 0) {
+        return false;
+    }
+
+    const uint64_t end = base + size;
+
+    // Check for overflow.
+    if (end < base || end < size) {
+        return false;
+    }
+
+    if (end % rt->alignment != 0) {
+        return false;
+    }
+
+    return true;
+}
+
+static inline bool is_properly_aligned_size(
+    struct range_tracker *rt,
+    const uint64_t size
+)
+{
+    return is_properly_aligned_range(rt, 0, size);
+}
+
+errval_t range_tracker_init_aligned(
+    struct range_tracker *rt,
+    struct slab_allocator *slabs,
+    const uint64_t alignment
 )
 {
     assert(rt != NULL);
@@ -22,8 +65,17 @@ errval_t range_tracker_init(
     rt->rt_head.prev = NULL;
     rt->rt_tail.prev = &rt->rt_head;
     rt->rt_tail.next = NULL;
+    rt->alignment = alignment;
 
     return SYS_ERR_OK;
+}
+
+errval_t range_tracker_init(
+    struct range_tracker *rt,
+    struct slab_allocator *slabs
+)
+{
+    return range_tracker_init_aligned(rt, slabs, 0);
 }
 
 errval_t range_tracker_add(
@@ -33,9 +85,13 @@ errval_t range_tracker_add(
     union range_tracker_shared shared
 )
 {
+    errval_t err;
+
     assert(rt != NULL);
 
-    errval_t err;
+    if (!is_properly_aligned_range(rt, base, size)) {
+        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
+    }
 
     struct rtnode *next;
 
@@ -81,10 +137,15 @@ static errval_t split_node(
     struct rtnode **retnode
 )
 {
+    errval_t err;
+
+    assert(rt != NULL);
     assert(node != NULL);
     assert(node->size >= size + offset);
 
-    errval_t err;
+    if (!is_properly_aligned_range(rt, node->base + offset, size)) {
+        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
+    }
 
     uint64_t old_base = node->base;
     uint64_t old_size = node->size;
@@ -195,11 +256,15 @@ errval_t range_tracker_alloc_aligned(
     struct rtnode **retnode
 )
 {
+    errval_t err;
+
     assert(rt != NULL);
     assert(size != 0);
     assert(alignment != 0);
 
-    errval_t err;
+    if (!is_properly_aligned_size(rt, size)) {
+        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
+    }
 
     struct rtnode *node = NULL;
     uint64_t padding_size;
@@ -233,6 +298,12 @@ errval_t range_tracker_alloc_fixed(
 {
     errval_t err;
 
+    assert(rt != NULL);
+
+    if (!is_properly_aligned_range(rt, base, size)) {
+        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
+    }
+
     struct rtnode *node;
     err = range_tracker_get(rt, base, size, &node);
     if (err_is_fail(err)) {
@@ -264,6 +335,9 @@ static inline void range_tracker_merge_neighbors(
     struct rtnode *node
 )
 {
+    assert(rt != NULL);
+    assert(node != NULL);
+
     // Merge the node with right neighbor if possible.
     if (node->next != &rt->rt_tail &&
         node->next->type == RangeTracker_NodeType_Free &&
@@ -298,6 +372,10 @@ errval_t range_tracker_free(
 )
 {
     assert(rt != NULL);
+
+    if (!is_properly_aligned_range(rt, base, size)) {
+        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
+    }
 
     const uint64_t end = base + size;
 
@@ -339,13 +417,20 @@ errval_t range_tracker_get_fixed(
     uint64_t size,
     uint64_t alignment,
     struct rtnode **retnode,
-    uint64_t * retpadding
+    uint64_t *retpadding
 )
 {
+    assert(rt != NULL);
+    assert(retnode != NULL);
+
+    if (!is_properly_aligned_size(rt, size)) {
+        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
+    }
+
     struct rtnode *best = NULL;
 
     // Find the largest node that is still free and can hold the requested size.
-    for (struct rtnode * next = rt->head->next; next != &rt->rt_tail; next = next->next) {
+    for (struct rtnode *next = rt->head->next; next != &rt->rt_tail; next = next->next) {
         uint64_t padding_size = (next->base % alignment > 0) ? (alignment - (next->base % alignment)) : 0;
 
         // We only care about free nodes.
@@ -360,7 +445,10 @@ errval_t range_tracker_get_fixed(
         // We want the largest node possible to minimize fragmentation (worst-fit).
         if (best == NULL || next->size >= best->size) {
             best = next;
-            *retpadding = padding_size;
+
+            if (retpadding != NULL) {
+                *retpadding = padding_size;
+            }
         }
     }
 
@@ -386,6 +474,10 @@ errval_t range_tracker_get(
 {
     assert(rt != NULL);
     assert(retnode != NULL);
+
+    if (!is_properly_aligned_range(rt, base, size)) {
+        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
+    }
 
     // Check for overflow.
     // TODO: Introduce a new error code.

@@ -48,7 +48,14 @@ struct range_tracker {
     struct rtnode *head;
     struct rtnode rt_head;
     struct rtnode rt_tail;
+    uint64_t alignment;
 };
+
+errval_t range_tracker_init_aligned(
+    struct range_tracker *rt,
+    struct slab_allocator *slabs,
+    const uint64_t alignment
+);
 
 errval_t range_tracker_init(
     struct range_tracker *rt,
