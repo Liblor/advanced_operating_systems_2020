@@ -26,21 +26,6 @@ static void fail(void) {
     printf("Byte at address %p is '%x'\n", addr, *addr);
 }
 
-__unused
-static void lazy_malloc(void) {
-    debug_printf("start lazy_malloc\n");
-    debug_printf("malloc 256MiB\n");
-    char *buf = malloc(1 << 26);
-
-    debug_printf("write at different locations\n");
-    buf[0] = 'A';
-    buf[1337] = 'A';
-    buf[0x1000000] = 'A';
-    buf[0x3000000] = 'A';
-    buf[0x395550B] = 'A';
-    free(buf);
-}
-
 int main(int argc, char *argv[])
 {
     printf("Faulter spawned\n");
