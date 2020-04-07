@@ -324,6 +324,6 @@ errval_t morecore_reinit(void)
 Header *get_malloc_freep(void);
 Header *get_malloc_freep(void)
 {
-    struct morecore_state *state =get_morecore_state();
+    struct morecore_state *state = get_morecore_state();
     return state->header_freep;
 }

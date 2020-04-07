@@ -38,10 +38,10 @@ void handle_user_page_fault(lvaddr_t                fault_address,
 
     assert(dcb_current->disp_cte.cap.type == ObjType_Frame);
 
-//    printk(LOG_WARN, "user page fault%s in '%.*s': addr 0x%"PRIxLVADDR
-//                      " IP 0x%"PRIxPTR"\n",
-//           disabled ? " WHILE DISABLED" : "", DISP_NAME_LEN,
-//           disp->d.name, fault_address, saved_pc);
+    printk(LOG_WARN, "user page fault%s in '%.*s': addr 0x%"PRIxLVADDR
+                      " IP 0x%"PRIxPTR"\n",
+           disabled ? " WHILE DISABLED" : "", DISP_NAME_LEN,
+           disp->d.name, fault_address, saved_pc);
 
     if (disabled) {
         assert(save_area == &disp->trap_save_area);
