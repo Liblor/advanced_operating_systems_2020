@@ -173,14 +173,10 @@ error_recovery:
 errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode)
 {
     assert(rt != NULL);
+    assert(size != 0);
+    assert(alignment != 0);
 
     errval_t err;
-
-    if (size == 0)
-        return MM_ERR_INVALID_SIZE;
-
-    if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0)
-        return MM_ERR_INVALID_ALIGNMENT;
 
     struct rtnode *node = NULL;
     uint64_t padding_size;
@@ -207,8 +203,6 @@ errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, ui
 errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode) {
     errval_t err;
 
-    assert(base % BASE_PAGE_SIZE == 0);
-
     struct rtnode *node;
     err = range_tracker_get(rt, base, size, &node);
     if (err_is_fail(err)) {
@@ -227,7 +221,7 @@ errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint
     return SYS_ERR_OK;
 }
 
-errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t size, union range_tracker_shared *shared)
+errval_t range_tracker_free_single(struct range_tracker *rt, uint64_t base, union range_tracker_shared *shared)
 {
     assert(rt != NULL);
 
@@ -238,10 +232,6 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
     for (node = rt->head->next; node != &rt->rt_tail; node = node->next) {
         // We can only free allocated nodes.
         if (node->type != RangeTracker_NodeType_Used)
-            continue;
-
-        // The sizes must match.
-        if (node->size != size)
             continue;
 
         if (node->base == base)
@@ -292,6 +282,32 @@ errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t si
     }
 
     return SYS_ERR_OK;
+}
+
+// TODO Add destroy_shared callback
+errval_t range_tracker_free_range(struct range_tracker *rt, uint64_t base, uint64_t size, union range_tracker_shared *shared)
+{
+    assert(size != 0);
+
+    struct rtnode *current;
+
+    // Check if all nodes in the given range are "used".
+    for (current = rt->head->next; current != &rt->rt_tail; current = current->next) {
+        // Check if the current node is part of the given range to be freed.
+        bool in_range = current->base < base + size && base < current->base + current->size;
+        if (in_range) {
+            if (current->type == RangeTracker_NodeType_Free) {
+            } else {
+                // TODO Should this really be an error?
+                return LIB_ERR_CAP_RETYPE; // TODO Use different error
+            }
+        }
+
+        if (current->base >= base + size) {
+            // Remaining nodes are irrelevant.
+            break;
+        }
+    }
 }
 
 errval_t range_tracker_find(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode, uint64_t *retpadding)
