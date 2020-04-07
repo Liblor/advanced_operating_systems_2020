@@ -4,7 +4,6 @@
  *
  * Malloc implementation which is aware of a static and dynamic heap
  */
-
 #include "aos_malloc.h"
 #include <stddef.h> /* For NULL */
 
@@ -56,20 +55,18 @@ void *aos_malloc(size_t nbytes)
 	MALLOC_UNLOCK;
 }
 
-/*
- * free: put block ap in free list
- */
-void
-__aos_free_locked(void *ap)
+// free ap on given header_freep
+static void
+aos_free_locked_explicit(void *ap, Header **header_freep)
 {
-    struct morecore_state *state = get_morecore_state();
 	Header *bp, *p;
 
-	if (ap == NULL)
-		return;
+	if (ap == NULL) {
+        return;
+	}
 
 	bp = (Header *) ap - 1;	/* point to block header */
-	for (p = state->header_freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
+	for (p = *header_freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
 		if (p >= p->s.ptr && (bp > p || bp < p->s.ptr))
 			break;	/* freed block at start or end of arena */
 
@@ -87,7 +84,16 @@ __aos_free_locked(void *ap)
 		p->s.ptr = bp;
 	}
 
-	state->header_freep = p;
+	*header_freep = p;
+}
+
+/*
+ * free: put block ap in free list
+ */
+void
+__aos_free_locked(void *ap) {
+    struct morecore_state *state = get_morecore_state();
+    aos_free_locked_explicit(ap, &state->header_freep);
 }
 
 void aos_free(void *ap)
@@ -109,34 +115,18 @@ void aos_free(void *ap)
 
     ((Header *)ap)[-1].s.magic = 0;
 
+    MALLOC_LOCK;
+
     /* XXX: we can be in a state where heap_static = true
        and a call to free() is performed with an addr
-       that lies on the heap.
-       We need to use the appropriate morecore_state
-       for that address. */
-
-    Header cur_header_base = state->header_base;
-    Header *cur_header_freep = state->header_freep;
-
+       that lies on the heap, i.e heap_static = false
+       We need to use the correct morecore_state
+       for this address. We pass header_freep by reference; */
     if (magic == MAGIC_STATIC) {
-        state->header_base = state->header_base_static;
-        state->header_freep = state->header_freep_static;
+        aos_free_locked_explicit(ap, &state->header_freep_static);
     } else {
-        state->header_base = state->header_base_dynamic;
-        state->header_freep = state->header_freep_dynamic;
+        aos_free_locked_explicit(ap, &state->header_freep_dynamic);
     }
-
-    MALLOC_LOCK;
-    __aos_free_locked(ap);
     lesscore();
-
-    // restore state
-    // XXX: needs refactoring
-    if (!((magic == MAGIC_STATIC) && state->heap_static) && !((magic == MAGIC_DYNAMIC) && !state->heap_static)) {
-        // true if freed block is not of the current state
-        state->header_base = cur_header_base;
-        state->header_freep = cur_header_freep;
-    }
-
     MALLOC_UNLOCK;
 }
