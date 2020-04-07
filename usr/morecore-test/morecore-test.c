@@ -83,6 +83,24 @@ static void m_f_m_f(void) {
     debug_printf("end m_f_m_f\n");
 }
 
+__unused
+static void exp_malloc(void) {
+    debug_printf("start exp_malloc\n");
+    const size_t num = 10;
+    char *buf[num];
+
+    for (int i = 1; i < num; i++) {
+        buf[i] = malloc(1 << i);
+        memset(buf[i], 'C', 1 << i);
+    }
+
+    for (int i = 1; i < num; i++) {
+        free(buf[i]);
+    }
+
+    debug_printf("end exp_malloc\n");
+}
+
 int main(int argc, char *argv[])
 {
     printf("Morecore test spawned\n");
@@ -91,6 +109,7 @@ int main(int argc, char *argv[])
     malloc_free();
     malloc_then_free();
     m_f_m_f();
+    exp_malloc();
 
     return EXIT_SUCCESS;
 }
