@@ -104,6 +104,7 @@ void morecore_enable_dynamic(void){}
 static char mymem[HEAP_SIZE] = { 0 };
 static char *endp = mymem + HEAP_SIZE;
 
+
 static void morecore_init_static(struct morecore_state *state, size_t alignment)
 {
     state->freep = mymem;

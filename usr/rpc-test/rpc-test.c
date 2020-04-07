@@ -84,7 +84,7 @@ __unused static void test_process(void) {
             DEBUG_ERR(err, "aos_rpc_process_spawn()");
             return;
         }
-        debug_printf("spawned child: pid %d\n", pid1);
+        debug_printf("%d\n", pid1);
     }
 
 
