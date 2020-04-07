@@ -38,6 +38,7 @@ struct morecore_static_zone {
     lvaddr_t current_addr;
     size_t backed_size;
     size_t region_size;
+    bool is_refilling;
 };
 
 struct morecore_state {
