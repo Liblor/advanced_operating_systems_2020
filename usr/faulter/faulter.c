@@ -6,7 +6,7 @@ __unused
 static void lazy_alloc(void) {
     void *addr;
     size_t reserved = BASE_PAGE_SIZE * 100;
-    errval_t err  = paging_alloc(get_current_paging_state(),
+    errval_t err = paging_alloc(get_current_paging_state(),
             &addr, reserved, BASE_PAGE_SIZE);
 
     if (err_is_fail(err)) {
