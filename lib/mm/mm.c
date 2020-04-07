@@ -147,7 +147,7 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     if (err_is_fail(err))
         return err_push(err, LIB_ERR_SLOT_FREE);
 
-    err = range_tracker_free(&mm->rt, base, size, NULL);
+    err = range_tracker_free(&mm->rt, base, size, MKRTCLOSURE(NULL, NULL));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "range_tracker_free() failed");
         return err;

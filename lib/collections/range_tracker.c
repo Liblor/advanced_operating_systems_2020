@@ -180,6 +180,7 @@ errval_t range_tracker_alloc_aligned(struct range_tracker *rt, uint64_t size, ui
 
     struct rtnode *node = NULL;
     uint64_t padding_size;
+
     err = range_tracker_find(rt, size, alignment, &node, &padding_size);
     if (err_is_fail(err)) {
         return err;
@@ -221,42 +222,17 @@ errval_t range_tracker_alloc_fixed(struct range_tracker *rt, uint64_t base, uint
     return SYS_ERR_OK;
 }
 
-errval_t range_tracker_free_single(struct range_tracker *rt, uint64_t base, union range_tracker_shared *shared)
+/*
+ * Merge the node with its neighbors. This is necessary so fragmentation does
+ * not lead to smaller and smaller chunks of memory. We can only merge with a
+ * neighbor if
+ * - the neighbor is not head or tail of our list,
+ * - the neighbor is free, and
+ * - the node and the neighbor stem from the same original region.
+ */
+static inline void range_tracker_merge_neighbors(struct range_tracker *rt, struct rtnode *node)
 {
-    assert(rt != NULL);
-
-    struct rtnode *node;
-
-    // TODO: See range_tracker_get() on how to optimize this loop.
-
-    for (node = rt->head->next; node != &rt->rt_tail; node = node->next) {
-        // We can only free allocated nodes.
-        if (node->type != RangeTracker_NodeType_Used)
-            continue;
-
-        if (node->base == base)
-            break;
-    }
-
-    if (node == &rt->rt_tail)
-        return MM_ERR_NOT_FOUND;
-
-    node->type = RangeTracker_NodeType_Free;
-    if (shared != NULL) {
-        *shared = node->shared;
-    }
-
-    /*
-     * Next, we need to merge the node with its neighbors. This is necessary so
-     * fragmentation does not lead to smaller and smaller chunks of memory. We
-     * can only merge with a neighbor if
-     * - the neighbor is not head or tail of our list,
-     * - the neighbor is free, and
-     * - the node and the neighbor stem from the same original region
-     *   was initially passed from the kernel.
-     */
-
-    // Merge the node with next neighbor if possible.
+    // Merge the node with right neighbor if possible.
     if (node->next != &rt->rt_tail &&
         node->next->type == RangeTracker_NodeType_Free &&
         node->original_region_base == node->next->original_region_base) {
@@ -268,7 +244,7 @@ errval_t range_tracker_free_single(struct range_tracker *rt, uint64_t base, unio
         slab_free(rt->slabs, old);
     }
 
-    // Merge the node with previous neighbor if possible.
+    // Merge the node with left neighbor if possible.
     if (node->prev != &rt->rt_head &&
         node->prev->type == RangeTracker_NodeType_Free &&
         node->original_region_base == node->prev->original_region_base) {
@@ -280,36 +256,47 @@ errval_t range_tracker_free_single(struct range_tracker *rt, uint64_t base, unio
         node->prev = node->prev->prev;
         slab_free(rt->slabs, old);
     }
+}
+
+errval_t range_tracker_free(struct range_tracker *rt, uint64_t base, uint64_t size, struct range_tracker_closure closure)
+{
+    assert(rt != NULL);
+
+    const uint64_t end = base + size;
+
+    // TODO: Check for overflow of `end`.
+
+    struct rtnode *node;
+
+    // TODO: Check if all nodes in the specified range are allocated.
+
+    // TODO: Split the ends of the specified range if necessary.
+
+    // Free all nodes in the specified range.
+    for (node = rt->head->next; node != &rt->rt_tail; node = node->next) {
+        if (node->base + node->size > end) {
+            break;
+        } else if (node->base < base) {
+            continue;
+        }
+
+        range_tracker_free_cb_t free_cb = (range_tracker_free_cb_t) closure.handler;
+
+        if (free_cb != NULL) {
+            free_cb(closure.arg, node->shared, node->base, node->size);
+        }
+
+        // Free the node.
+        node->type = RangeTracker_NodeType_Free;
+        range_tracker_merge_neighbors(rt, node);
+    }
 
     return SYS_ERR_OK;
 }
 
-// TODO Add destroy_shared callback
-errval_t range_tracker_free_range(struct range_tracker *rt, uint64_t base, uint64_t size, union range_tracker_shared *shared)
-{
-    assert(size != 0);
-
-    struct rtnode *current;
-
-    // Check if all nodes in the given range are "used".
-    for (current = rt->head->next; current != &rt->rt_tail; current = current->next) {
-        // Check if the current node is part of the given range to be freed.
-        bool in_range = current->base < base + size && base < current->base + current->size;
-        if (in_range) {
-            if (current->type == RangeTracker_NodeType_Free) {
-            } else {
-                // TODO Should this really be an error?
-                return LIB_ERR_CAP_RETYPE; // TODO Use different error
-            }
-        }
-
-        if (current->base >= base + size) {
-            // Remaining nodes are irrelevant.
-            break;
-        }
-    }
-}
-
+/*
+ * Retrieve a free node with a minimum specified size and alignment.
+ */
 errval_t range_tracker_find(struct range_tracker *rt, uint64_t size, uint64_t alignment, struct rtnode **retnode, uint64_t *retpadding)
 {
     struct rtnode *best = NULL;
@@ -335,6 +322,7 @@ errval_t range_tracker_find(struct range_tracker *rt, uint64_t size, uint64_t al
     }
 
     if (best == NULL) {
+        // TODO: Fix this error code.
         return MM_ERR_OUT_OF_MEMORY;
     }
 
@@ -343,6 +331,9 @@ errval_t range_tracker_find(struct range_tracker *rt, uint64_t size, uint64_t al
     return SYS_ERR_OK;
 }
 
+/*
+ * Retrieve the node that includes the specified range.
+ */
 errval_t range_tracker_get(struct range_tracker *rt, uint64_t base, uint64_t size, struct rtnode **retnode)
 {
     assert(rt != NULL);
