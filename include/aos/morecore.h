@@ -21,6 +21,8 @@
 __BEGIN_DECLS
 // 1TB
 #define MORECORE_VADDR_ZONE_SIZE (1024UL*1024*1024*1024)
+#define MORECORE_FREE_STATIC_THRESHOLD (1024UL*1024)
+
 errval_t morecore_init(size_t alignment);
 void morecore_use_optimal(void);
 errval_t morecore_reinit(void);

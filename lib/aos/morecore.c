@@ -107,12 +107,21 @@ static void morecore_init_static(struct morecore_state *state, size_t alignment)
 {
     state->freep = mymem;
     state->header_freep_static = NULL;
+    state->static_zone.base_addr = 0;
+    state->static_zone.current_addr = 0;
+    state->static_zone.backed_size = 0;
+    state->static_zone.region_size = 0;
 }
 
 static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
     size_t aligned_bytes = ROUND_UP(bytes, sizeof(Header));
     void *ret = NULL;
+
+    if (state->freep + aligned_bytes < endp - MORECORE_FREE_STATIC_THRESHOLD) {
+        frame_alloc(&cap, )
+    }
+
     if (state->freep + aligned_bytes < endp) {
         ret = state->freep;
         state->freep += aligned_bytes;
@@ -127,23 +136,23 @@ static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, s
 static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
     void *ret_addr = NULL;
-    const lvaddr_t end_address = state->zone.base_addr + state->zone.region_size;
-    if (end_address <= state->zone.current_addr) {
+    const lvaddr_t end_address = state->dynamic_zone.base_addr + state->dynamic_zone.region_size;
+    if (end_address <= state->dynamic_zone.current_addr) {
         *retbytes = 0;
         debug_printf("morecore_alloc failed: out of zone addresses\n");
         return NULL;
     }
 
-    lvaddr_t new_curr = MIN(state->zone.current_addr + bytes, end_address);
-    if (new_curr < state->zone.current_addr) {
+    lvaddr_t new_curr = MIN(state->dynamic_zone.current_addr + bytes, end_address);
+    if (new_curr < state->dynamic_zone.current_addr) {
         *retbytes = 0;
         debug_printf("morecore_alloc failed: overflow\n");
         return NULL;
     }
 
-    *retbytes = new_curr - state->zone.current_addr;
-    ret_addr = (void *)state->zone.current_addr;
-    state->zone.current_addr = new_curr;
+    *retbytes = new_curr - state->dynamic_zone.current_addr;
+    ret_addr = (void *)state->dynamic_zone.current_addr;
+    state->dynamic_zone.current_addr = new_curr;
     assert(new_curr <= end_address);
 
     return ret_addr;
@@ -176,9 +185,9 @@ static void morecore_init_dynamic(struct morecore_state *state, size_t alignment
 {
     void *buf;
     paging_alloc(get_current_paging_state(), &buf, MORECORE_VADDR_ZONE_SIZE, BASE_PAGE_SIZE);
-    state->zone.region_size = MORECORE_VADDR_ZONE_SIZE;
-    state->zone.base_addr = (lvaddr_t)buf;
-    state->zone.current_addr = state->zone.base_addr;
+    state->dynamic_zone.region_size = MORECORE_VADDR_ZONE_SIZE;
+    state->dynamic_zone.base_addr = (lvaddr_t)buf;
+    state->dynamic_zone.current_addr = state->dynamic_zone.base_addr;
     state->header_freep_dynamic = NULL;
 }
 
