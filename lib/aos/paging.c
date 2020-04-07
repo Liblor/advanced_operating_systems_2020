@@ -122,6 +122,7 @@ static void exception_handler(enum exception_type type, int subtype, void *addr,
 static errval_t pt_alloc(struct paging_state * st, enum objtype type,
                          struct capref *ret)
 {
+    DEBUG_BEGIN;
     errval_t err;
     err = st->slot_alloc->alloc(st->slot_alloc, ret);
     if (err_is_fail(err)) {
@@ -151,6 +152,7 @@ __attribute__((unused)) static errval_t pt_alloc_l3(struct paging_state * st, st
     return pt_alloc(st, ObjType_VNode_AARCH64_l3, ret);
 }
 
+
 /**
  * TODO(M2): Implement this function.
  * TODO(M4): Improve this function.
@@ -169,6 +171,8 @@ errval_t paging_init_state(struct paging_state *st, lvaddr_t start_vaddr,
                            struct capref cap_l0, struct slot_allocator *ca)
 {
     DEBUG_BEGIN;
+    // TODO (M4): Implement page fault handler that installs frames when a page fault
+    // occurs and keeps track of the virtual address space.
     st->slot_alloc = ca;
     st->cap_l0 = cap_l0;
     slab_init(&st->slabs, sizeof(struct vaddr_region), slab_default_refill);
@@ -387,7 +391,6 @@ errval_t paging_region_unmap(struct paging_region *pr, lvaddr_t base, size_t byt
  */
 errval_t paging_alloc(struct paging_state *st, void **buf, size_t bytes, size_t alignment)
 {
-
     errval_t err;
 
     DEBUG_BEGIN;
@@ -703,7 +706,6 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
     errval_t err;
-    
     //debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ..., bytes=%zx, ...)\n", st, vaddr, bytes);
     thread_mutex_lock_nested(&st->mutex);
 
