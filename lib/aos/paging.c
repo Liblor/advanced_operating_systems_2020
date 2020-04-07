@@ -430,6 +430,7 @@ errval_t paging_map_frame_attr(struct paging_state *st, void **buf, size_t bytes
                                struct capref frame, int flags, void *arg1, void *arg2)
 {
     errval_t err;
+
     DEBUG_BEGIN;
 
     // TODO(M2): Implement me (done, remove todo after review)
@@ -702,6 +703,7 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
                                struct capref frame, size_t bytes, int flags)
 {
     errval_t err;
+    
     //debug_printf("paging_map_fixed_attr(st=%p, vaddr=%"PRIxLVADDR", ..., bytes=%zx, ...)\n", st, vaddr, bytes);
     thread_mutex_lock_nested(&st->mutex);
 
@@ -736,18 +738,15 @@ errval_t paging_map_fixed_attr(struct paging_state *st, lvaddr_t vaddr,
     uint64_t offset = 0;
 
     struct paging_region *paging_region = malloc(sizeof(struct paging_region));
-
     if (paging_region == NULL) {
         // TODO free vaddr_region
         return LIB_ERR_MALLOC_FAIL;
     }
     paging_region->cap_mapping = malloc(upper_bound_single_lvl3 * sizeof(struct capref));
-
     if (paging_region->cap_mapping == NULL) {
         // TODO free vaddr_region
         return LIB_ERR_MALLOC_FAIL;
     }
-
     paging_region->base_addr = vaddr;
     paging_region->current_addr = paging_region->base_addr;
     paging_region->region_size = bytes;
