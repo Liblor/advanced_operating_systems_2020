@@ -101,6 +101,18 @@ static void exp_malloc(void) {
     debug_printf("end exp_malloc\n");
 }
 
+
+__unused
+static void malloc1gb(void) {
+    debug_printf("start malloc1gb\n");
+
+    char *buf = malloc(1024 * 1024 * 1024);
+    memset(buf, 'G', 1024 * 1024 * 1024);
+    free(buf);
+
+    debug_printf("end malloc1gb\n");
+}
+
 int main(int argc, char *argv[])
 {
     printf("Morecore test spawned\n");
@@ -110,6 +122,7 @@ int main(int argc, char *argv[])
     malloc_then_free();
     m_f_m_f();
     exp_malloc();
+    //malloc1gb();  // <- runs forever with page fault kprint
 
     return EXIT_SUCCESS;
 }
