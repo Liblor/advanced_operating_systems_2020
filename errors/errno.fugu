@@ -1380,6 +1380,7 @@ errors aos AOS_ERR_ {
     failure PAGING_ADDR_NOT_MANAGED "Address not within the manageable region of dispatcher",
     failure PAGING_ADDR_NOT_RESERVED "Address was never reserved to be mapped.",
     failure PAGING_INVALID_UNHANDLED_EXCEPTION "The exception type is invalid or unhandled.",
+    failure PAGING_ADDR_RESERVED "This address is reserved for an explicit region.",
 };
 
 // errors for collections

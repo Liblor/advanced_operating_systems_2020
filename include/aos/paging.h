@@ -15,11 +15,13 @@
 #ifndef LIBBARRELFISH_PAGING_H
 #define LIBBARRELFISH_PAGING_H
 
-#include <errors/errno.h>
 #include <aos/capabilities.h>
-#include <aos/slab.h>
-#include <barrelfish_kpi/paging_arch.h>
 #include <aos/paging_types.h>
+#include <aos/paging_types.h>
+#include <aos/slab.h>
+#include <aos/slot_alloc.h>
+#include <barrelfish_kpi/paging_arch.h>
+#include <errors/errno.h>
 
 // This must not be removed, as the function interface origins from the paging module.
 #include <aos/paging_region.h>
@@ -164,4 +166,30 @@ static inline lvaddr_t paging_genvaddr_to_lvaddr(
     return (lvaddr_t) genvaddr;
 }
 
-#endif                          // LIBBARRELFISH_PAGING_H
+static inline errval_t add_mapping_list_to_node(struct rtnode *node)
+{
+    const size_t l3_region_size = BASE_PAGE_SIZE * PTABLE_ENTRIES;
+    const lvaddr_t base_l3_aligned = ROUND_DOWN(node->base, l3_region_size);
+    const lvaddr_t end_l3_aligned = ROUND_UP(node->base + node->size, l3_region_size);
+
+    uint64_t mapping_count = (end_l3_aligned - base_l3_aligned) / l3_region_size;
+
+    struct mapping_list *mlist = calloc(1, sizeof(struct mapping_list));
+    if (mlist == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+
+    mlist->total = mapping_count;
+    mlist->count = 0;
+
+    mlist->caps = calloc(mapping_count, sizeof(struct capref));
+    if (mlist->caps == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+
+    node->shared.ptr = mlist;
+
+    return SYS_ERR_OK;
+}
+
+#endif // LIBBARRELFISH_PAGING_H

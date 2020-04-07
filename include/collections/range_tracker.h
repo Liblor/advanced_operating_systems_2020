@@ -4,7 +4,7 @@
 #include <sys/cdefs.h>
 #include <errors/errno.h>
 #include <aos/types.h>
-#include <aos/capabilities.h>
+#include <aos/caddr.h>
 #include <aos/slab.h>
 
 struct range_tracker_closure {
@@ -90,7 +90,7 @@ errval_t range_tracker_free(
     struct range_tracker_closure closure
 );
 
-errval_t range_tracker_get_fixed(
+errval_t range_tracker_get(
     struct range_tracker *rt,
     const uint64_t size,
     const uint64_t alignment,
@@ -98,7 +98,7 @@ errval_t range_tracker_get_fixed(
     uint64_t * padding_size
 );
 
-errval_t range_tracker_get(
+errval_t range_tracker_get_fixed(
     struct range_tracker *rt,
     const uint64_t base,
     const uint64_t size,
@@ -112,5 +112,12 @@ void range_tracker_print_state(
 void range_tracker_destroy(
     struct range_tracker *rt
 );
+
+static inline bool range_tracker_is_used(
+    struct rtnode *node
+)
+{
+    return node->type == RangeTracker_NodeType_Used;
+}
 
 #endif

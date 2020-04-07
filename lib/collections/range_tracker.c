@@ -269,7 +269,7 @@ errval_t range_tracker_alloc_aligned(
     struct rtnode *node = NULL;
     uint64_t padding_size;
 
-    err = range_tracker_get_fixed(rt, size, alignment, &node, &padding_size);
+    err = range_tracker_get(rt, size, alignment, &node, &padding_size);
     if (err_is_fail(err)) {
         return err;
     }
@@ -286,7 +286,8 @@ errval_t range_tracker_alloc_aligned(
         return err;
     }
 
-    assert(best != NULL);
+    // If no error is returned the returned node must not be NULL.
+    assert(node != NULL);
 
     return SYS_ERR_OK;
 }
@@ -307,7 +308,7 @@ errval_t range_tracker_alloc_fixed(
     }
 
     struct rtnode *node;
-    err = range_tracker_get(rt, base, size, &node);
+    err = range_tracker_get_fixed(rt, base, size, &node);
     if (err_is_fail(err)) {
         return err;
     }
@@ -414,7 +415,7 @@ errval_t range_tracker_free(
 /*
  * Retrieve a free node with a minimum specified size and alignment.
  */
-errval_t range_tracker_get_fixed(
+errval_t range_tracker_get(
     struct range_tracker *rt,
     uint64_t size,
     uint64_t alignment,
@@ -467,7 +468,7 @@ errval_t range_tracker_get_fixed(
 /*
  * Retrieve the node that includes the specified range.
  */
-errval_t range_tracker_get(
+errval_t range_tracker_get_fixed(
     struct range_tracker *rt,
     const uint64_t base,
     const uint64_t size,

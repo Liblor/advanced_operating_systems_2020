@@ -443,7 +443,7 @@ MU_TEST(test_range_tracker_minimal) {
     check_rtnode(3, RangeTracker_NodeType_Free, s+fixed_offset_pages+fixed_size_pages, space-fixed_offset_pages-fixed_size_pages);
 
     struct rtnode *node;
-    err = range_tracker_get(rt, fixed_base, fixed_size_pages * BASE_PAGE_SIZE, &node);
+    err = range_tracker_get_fixed(rt, fixed_base, fixed_size_pages * BASE_PAGE_SIZE, &node);
     mu_assert(err_no(err) == SYS_ERR_OK, "Returned error value wrong.");
 }
 

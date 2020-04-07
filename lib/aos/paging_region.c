@@ -1,10 +1,13 @@
 #include <aos/paging_region.h>
 
 static inline errval_t paging_region_init_region(
+    struct paging_state *st,
     struct paging_region *pr,
-    lvaddr_t base,
-    size_t size,
-    paging_flags_t flags
+    const lvaddr_t base,
+    const size_t size,
+    const paging_flags_t flags,
+    struct rtnode *node,
+    const bool implicit
 )
 {
     errval_t err;
@@ -13,14 +16,8 @@ static inline errval_t paging_region_init_region(
 
     PAGING_CHECK_RANGE(base, size);
 
-    pr->mapping_count = range->size / BASE_PAGE_SIZE;
-    pr->mappings = calloc(pr->mapping_count, sizeof(struct capref));
-    pr->frame_cap = NULL_CAP;
-
-    if (pr->mappings == NULL) {
-        debug_printf("calloc() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_MALLOC_FAIL);
-    }
+    pr->node = node;
+    pr->implicit = implicit;
 
     err = range_tracker_init(&pr->rt, &st->slabs);
     if (err_is_fail(err)) {
@@ -28,13 +25,11 @@ static inline errval_t paging_region_init_region(
         return err;
     }
 
-    err = range_tracker_add(&pr->rt, range->base, range->size, NULL);
+    err = range_tracker_add(&pr->rt, base, size, (union range_tracker_shared) NULL);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_add() failed\n");
         return err;
     }
-
-    node->shared.ptr = pr;
 
     return SYS_ERR_OK;
 }
@@ -42,11 +37,12 @@ static inline errval_t paging_region_init_region(
 static errval_t _paging_region_init(
     struct paging_state *st,
     struct paging_region *pr,
-    lvaddr_t base,
-    size_t size,
-    size_t alignment,
-    paging_flags_t flags,
-    bool fixed
+    const lvaddr_t base,
+    const size_t size,
+    const size_t alignment,
+    const paging_flags_t flags,
+    const bool fixed,
+    const bool implicit
 )
 {
     errval_t err;
@@ -56,39 +52,42 @@ static errval_t _paging_region_init(
     assert(!fixed || base == 0);
     assert(fixed || alignment == 0);
 
-    DEBUG_BEGIN;
-
     if ((fixed && base % BASE_PAGE_SIZE != 0) ||
         (!fixed && alignment % BASE_PAGE_SIZE != 0)) {
         debug_printf("_paging_region_init() failed: Paging region must be page aligned!\n");
         return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
 
-    err = slab_ensure_threshold(&st->rt->slabs, 16);
+    err = slab_ensure_threshold(&st->slabs, 16);
     if (err_is_fail(err)) {
         return err;
     }
 
+    memset(pr, 0x00, sizeof(struct paging_region));
+
+    struct rtnode *node;
+
     if (fixed) {
-        err = range_tracker_alloc_fixed(st->rt, base, size, NULL);
+        err = range_tracker_alloc_fixed(&st->rt, base, size, &node);
         if (err_is_fail(err)) {
             debug_printf("range_tracker_alloc_fixed() failed: Paging region must be unmapped!\n");
             return err;
         }
     } else {
-        err = range_tracker_alloc_aligned(st->rt, size, alignment, NULL);
+        err = range_tracker_alloc_aligned(&st->rt, size, alignment, &node);
         if (err_is_fail(err)) {
             debug_printf("range_tracker_alloc_aligned() failed: Paging region must be unmapped!\n");
             return err;
         }
     }
 
-    // TODO Shouldn't this use the base from the node if fixed == false
-    err = paging_region_init_region(pr, base, size, flags, node);
+    err = paging_region_init_region(st, pr, node->base, node->size, flags, node, implicit);
     if (err_is_fail(err)) {
         debug_printf("paging_region_init_region() failed: ?!\n");
         return err;
     }
+
+    node->shared.ptr = pr;
 
     return SYS_ERR_OK;
 }
@@ -105,7 +104,7 @@ errval_t paging_region_init_fixed(
     paging_flags_t flags
 )
 {
-    return _paging_region_init(st, pr, base, size, 0, flags, true);
+    return _paging_region_init(st, pr, base, size, 0, flags, true, false);
 }
 
 /**
@@ -120,7 +119,7 @@ errval_t paging_region_init_aligned(
     paging_flags_t flags
 )
 {
-    return _paging_region_init(st, pr, 0, size, alignment, flags, false);
+    return _paging_region_init(st, pr, 0, size, alignment, flags, false, false);
 }
 
 /**
@@ -154,17 +153,20 @@ errval_t paging_region_map(
 {
     errval_t err;
 
-    DEBUG_BEGIN;
-
     assert(pr != NULL);
     assert(retbuf != NULL);
     PAGING_CHECK_SIZE(size);
 
     struct rtnode *node = NULL;
 
-    err = range_tracker_alloc_aligned(&pr->rt, sanitized_size, BASE_PAGE_SIZE, &node);
+    err = range_tracker_alloc_aligned(&pr->rt, size, BASE_PAGE_SIZE, &node);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_alloc_aligned() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = add_mapping_list_to_node(node);
+    if (err_is_fail(err)) {
         return err;
     }
 
@@ -191,10 +193,8 @@ errval_t paging_region_unmap(
 {
     errval_t err;
 
-    DEBUG_BEGIN;
-
     assert(pr != NULL);
-    PAGING_CHECK_RANGE(base, size);
+    PAGING_CHECK_RANGE(base, bytes);
 
     struct rtnode *node;
 
@@ -202,7 +202,7 @@ errval_t paging_region_unmap(
     // where we pass the base does not look efficient. The region will be
     // iterated twice. We should either be able to pass the node directly for
     // freeing, or not have to get the node in the first place.
-    err = range_tracker_get(&pr->rt, base, bytes, &node);
+    err = range_tracker_get(&pr->rt, base, bytes, &node, NULL);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_get() failed: %s\n", err_getstring(err));
         return err;
@@ -211,7 +211,7 @@ errval_t paging_region_unmap(
     // TODO: This is not generalized yet. The caller may unmap mappings that
     // span over multiple nodes in the range tracker. Unfortunately, the range
     // tracker does not support such complex behavior at the point of writing.
-    err = range_tracker_free(&pr->rt, node->base, node->size, NULL)
+    err = range_tracker_free(&pr->rt, node->base, node->size, MKRTCLOSURE(NULL, NULL));
     if (err_is_fail(err)) {
         debug_printf("range_tracker_free() failed: %s\n", err_getstring(err));
         return err;
