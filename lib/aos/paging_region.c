@@ -268,6 +268,8 @@ static void range_tracker_free_cb(
     if (err_is_fail(err)) {
         debug_printf("cap_destroy() failed in paging_region_unmap() callback: %s\n", err_getstring(err));
     }
+
+    free(mapping_pair);
 }
 
 /**
