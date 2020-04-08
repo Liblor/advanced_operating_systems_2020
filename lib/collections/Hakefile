@@ -7,11 +7,11 @@
 -- ETH Zurich D-INFK, Universitaetstrasse 6, CH-8092 Zurich. Attn: Systems Group.
 --
 -- Hakefile for lib/concurrent
--- 
+--
 --------------------------------------------------------------------------
 
 [ build library { target = "collections",
                   cFiles = [ "list.c", "hash_table.c", "stack.c",
-                             "flipbuffer.c" ]
+                             "flipbuffer.c", "range_tracker.c" ]
                 }
 ]

@@ -119,8 +119,8 @@ void barrelfish_libc_glue_init(void)
 {
     // XXX: FIXME: Check whether we can use the proper kernel serial, and
     // what we need for that
-//    _libc_terminal_read_func = dummy_terminal_read;
-//    _libc_terminal_write_func = syscall_terminal_write;
+    _libc_terminal_read_func = dummy_terminal_read;
+    _libc_terminal_write_func = syscall_terminal_write;
     _libc_exit_func = libc_exit;
     _libc_assert_func = libc_assert;
     /* morecore func is setup by morecore_init() */
@@ -168,6 +168,7 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         return err_push(err, LIB_ERR_SLOT_ALLOC_INIT);
     }
 
+    // TODO Change alignment to `PTABLE_ENTRIES * BASE_PAGE_SIZE` for efficiency?
     err = morecore_init(BASE_PAGE_SIZE);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_MORECORE_INIT);

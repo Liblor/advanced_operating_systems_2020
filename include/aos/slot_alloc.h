@@ -18,7 +18,7 @@
 #include <sys/cdefs.h>
 
 #include <aos/threads.h>
-#include <aos/paging.h>
+#include <aos/paging_types.h>
 #include <aos/slab.h>
 
 __BEGIN_DECLS

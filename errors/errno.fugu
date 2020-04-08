@@ -276,6 +276,7 @@ errors libaos LIB_ERR_ {
     failure PAGING_ADDR_ALREADY_MAPPED "The virtual address is already mapped into the process space",
     failure PAGING_SIZE_INVALID "The given size is invalid",
     failure PAGING_INITIALIZATION "The initialization of the paging state failed",
+    failure PAGING_INVALID_ALIGNMENT "The initialization of the paging state failed",
     failure PAGING_VADDR_NOT_ALIGNED "The virtual address is not aligned",
 
     failure VSPACE_PINNED_INIT  "Failure in vspace_pinned_init()",
@@ -424,10 +425,11 @@ errors libaos LIB_ERR_ {
     failure NAMESERVICE_CLIENT_INIT "Failure initialising nameservice client",
 
     // Threads package
-    failure THREAD_CREATE       "A version of thread create failed",
-    failure THREAD_JOIN        "Joining more than once not allowed",
-    failure THREAD_JOIN_DETACHED    "Tried to join with a detached thread",
-    failure THREAD_DETACHED    "Thread is already detached",
+    failure THREAD_CREATE                "A version of thread create failed",
+    failure THREAD_JOIN                  "Joining more than once not allowed",
+    failure THREAD_JOIN_DETACHED         "Tried to join with a detached thread",
+    failure THREAD_DETACHED              "Thread is already detached",
+    failure THREAD_SET_EXCEPTION_HANDLER "Installing exception handler failed",
 
     // Waitset/event code
     failure CHAN_ALREADY_REGISTERED "Attempt to register for an event on a channel which is already registered",
@@ -1371,5 +1373,17 @@ errors aos AOS_ERR_ {
     failure LMP_SEND_FAILURE        "Failure while sending AOS LMP message",
     failure LMP_MSGTYPE_UNKNOWN     "Unknown message type for AOS LMP implementation",
     failure INVALID_ALIGNMENT       "The alignment given is invalid",
+
+    failure PAGING_NOT_RECOVERABLE "The pagefault is not recoverable. The Thread is killed",
+    failure PAGING_NULL_DEREF "Null pointer dereference",
+
+    failure PAGING_ADDR_NOT_MANAGED "Address not within the manageable region of dispatcher",
+    failure PAGING_ADDR_NOT_RESERVED "Address was never reserved to be mapped.",
+    failure PAGING_INVALID_UNHANDLED_EXCEPTION "The exception type is invalid or unhandled.",
+    failure PAGING_ADDR_RESERVED "This address is reserved for an explicit region.",
 };
 
+// errors for collections
+errors aos COLLECTIONS_ {
+    failure RANGETRACKER_ALIGNMENT        "The base or size was not properly aligned",
+};

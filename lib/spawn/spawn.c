@@ -86,7 +86,7 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
     // Map the new memory into the VSpace of the parent. We need this for
     // writing the sections into the segments.
     void *mapped_parent;
-    err = paging_map_frame_attr(get_current_paging_state(), &mapped_parent, size, segment_frame, VREGION_FLAGS_READ_WRITE, NULL, NULL);
+    err = paging_map_frame_attr(get_current_paging_state(), &mapped_parent, size_rounded, segment_frame, VREGION_FLAGS_READ_WRITE, NULL, NULL);
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_VSPACE_MAP);

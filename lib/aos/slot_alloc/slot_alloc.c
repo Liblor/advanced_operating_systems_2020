@@ -18,10 +18,11 @@
  */
 
 #include <aos/aos.h>
-#include <aos/core_state.h>
 #include <aos/caddr.h>
-#include "internal.h"
+#include <aos/core_state.h>
+#include <aos/paging.h>
 
+#include "internal.h"
 
 /**
  * \brief Returns the default slot allocator for the caller
@@ -58,9 +59,10 @@ errval_t slot_alloc(struct capref *ret)
 
     // We need to make sure that a threshold is enforced, otherwise the memory
     // allocator might not be able to refill in the following alloc call.
-    slab_ensure_threshold(&def->slab, 10);
+    slab_ensure_threshold(&def->slab, 32);
 
-    return ca->alloc(ca, ret);
+    errval_t err = ca->alloc(ca, ret);
+    return err;
 }
 
 /**
