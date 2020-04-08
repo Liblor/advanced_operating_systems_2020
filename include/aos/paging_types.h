@@ -114,17 +114,17 @@ static inline errval_t add_mapping_list_to_node(struct rtnode *node)
     const lvaddr_t base_l3_aligned = ROUND_DOWN(node->base, l3_region_size);
     const lvaddr_t end_l3_aligned = ROUND_UP(node->base + node->size, l3_region_size);
 
-    uint64_t mapping_count = (end_l3_aligned - base_l3_aligned) / l3_region_size;
+    uint64_t mappings_total = (end_l3_aligned - base_l3_aligned) / l3_region_size;
 
     struct mapping_list *mlist = calloc(1, sizeof(struct mapping_list));
     if (mlist == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
 
-    mlist->total = mapping_count;
+    mlist->total = mappings_total;
     mlist->count = 0;
 
-    mlist->caps = calloc(mapping_count, sizeof(struct capref));
+    mlist->caps = calloc(mappings_total, sizeof(struct capref));
     if (mlist->caps == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
