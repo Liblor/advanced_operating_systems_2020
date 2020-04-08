@@ -38,7 +38,7 @@
 
 // AOS: define this if your self-paging implementation works...
 // TODO: Uncomment this once self paging is implemented.
-//#define SELF_PAGING_WORKS
+#define SELF_PAGING_WORKS
 
 /// Maximum number of threads in a domain, used to size VM region for thread structures
 // there is no point having MAX_THREADS > LDT_NENTRIES on x86 (see ldt.c)
@@ -218,6 +218,7 @@ static errval_t refill_thread_slabs(struct slab_allocator *slabs)
         return err_push(err, LIB_ERR_VSPACE_MMU_AWARE_MAP);
     }
 
+    assert(buf != NULL);
     slab_grow(slabs, buf, size);
 
     return SYS_ERR_OK;
