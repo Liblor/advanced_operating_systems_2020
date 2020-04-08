@@ -942,7 +942,52 @@ errval_t paging_unmap(
     const void *region
 )
 {
+    errval_t err;
+
     assert(st != NULL);
+
+    const lvaddr_t vaddr = (lvaddr_t) region;
+
+    struct rtnode *pr_node = NULL;
+
+    err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
+    if (err_is_fail(err)) {
+        debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    if (!range_tracker_is_used(pr_node)) {
+        return AOS_ERR_PAGING_ADDR_NOT_RESERVED;
+    }
+
+    struct paging_region *pr = (struct paging_region *) pr_node->shared.ptr;
+    assert(pr != NULL);
+
+    /*
+     * Free all mapping nodes in this region.
+     */
+
+    err = paging_region_unmap_all(pr);
+    if (err_is_fail(err)) {
+        debug_printf("paging_region_unmap_all() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    /*
+     * Remove the page region node of this region.
+     */
+
+    err = range_tracker_free(&st->rt, pr_node->base, pr_node->size, MKRTCLOSURE(NULL, NULL));
+    if (err_is_fail(err)) {
+        debug_printf("range_tracker_free() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    /*
+     * Free the region itself.
+     */
+
+    free(pr);
 
     return SYS_ERR_NOT_IMPLEMENTED;
 }

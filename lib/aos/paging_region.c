@@ -300,3 +300,26 @@ errval_t paging_region_unmap(
 
     return SYS_ERR_OK;
 }
+
+/**
+ * \brief Free all mappings in this paging region.
+ * If some mappings do not exist in this region, skip them.
+ */
+errval_t paging_region_unmap_all(
+    struct paging_region *pr
+)
+{
+    errval_t err;
+
+    DEBUG_BEGIN;
+
+    assert(pr != NULL);
+
+    err = range_tracker_free_all(&pr->rt, MKRTCLOSURE(range_tracker_free_cb, NULL));
+    if (err_is_fail(err)) {
+        debug_printf("range_tracker_free_all() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}

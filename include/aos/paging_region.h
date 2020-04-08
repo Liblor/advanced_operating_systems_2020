@@ -42,4 +42,8 @@ errval_t paging_region_unmap(
     size_t bytes
 );
 
+errval_t paging_region_unmap_all(
+    struct paging_region *pr
+);
+
 #endif // __AOS_PAGING_REGION_H__

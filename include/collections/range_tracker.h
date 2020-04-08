@@ -82,6 +82,11 @@ errval_t range_tracker_alloc_fixed(
     struct rtnode **retnode
 );
 
+errval_t range_tracker_free_all(
+    struct range_tracker *rt,
+    struct range_tracker_closure closure
+);
+
 errval_t range_tracker_free(
     struct range_tracker *rt,
     const uint64_t base,
