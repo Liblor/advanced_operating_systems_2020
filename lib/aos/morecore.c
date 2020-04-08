@@ -3,6 +3,7 @@
  * \brief Morecore implementation for malloc
  */
 
+
 /*
  * Copyright (c) 2007, 2008, 2009, 2010, 2011, 2019 ETH Zurich.
  * Copyright (c) 2014, HP Labs.
@@ -236,7 +237,7 @@ static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, 
         return NULL;
     }
 
-    assert(*retbytes > bytes);
+    assert(*retbytes >= bytes);
 
     return ret_addr;
 }
@@ -270,7 +271,6 @@ static void morecore_init_dynamic(struct morecore_state *state, size_t alignment
 
     void *buf;
 
-    HERE;
     err = paging_region_init_aligned(
         get_current_paging_state(),
         &state->dynamic_heap_pr,

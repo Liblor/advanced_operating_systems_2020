@@ -2,6 +2,7 @@
 #include <aos/paging_region.h>
 #include <aos/domain.h>
 #include <aos/core_state.h>
+#include <aos/morecore.h>
 
 static inline errval_t paging_region_init_region(
     struct paging_state *st,
@@ -176,10 +177,14 @@ errval_t paging_region_map(
 
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
+    // run on vmem which does not pagefault
+    const bool is_dynamic = !get_morecore_state()->heap_static;
+    morecore_enable_static();
+
     struct paging_state *st = get_current_paging_state();
     err = slab_ensure_threshold(&st->slabs, 32);
     if (err_is_fail(err)) {
-        return err;
+        goto cleanup;
     }
 
     // Get large enough node from paging region.
@@ -190,7 +195,7 @@ errval_t paging_region_map(
     err = range_tracker_get(&pr->rt, size, BASE_PAGE_SIZE, &mapping_node, &padding);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
-        return err;
+        goto cleanup;
     }
 
     assert(mapping_node != NULL);
@@ -212,8 +217,8 @@ errval_t paging_region_map(
     lvaddr_t curr_vaddr = vaddr;
 
     uint64_t page_count = size / BASE_PAGE_SIZE;
+    uint64_t total_size = 0;
 
-    HERE;
     while (page_count > 0) {
         // Calculate how many remaining entries there are in the current L3 pagetable.
         const uint64_t l3_idx = VMSAv8_64_L3_INDEX(curr_vaddr);
@@ -225,29 +230,34 @@ errval_t paging_region_map(
         mapping_node = NULL;
         err = range_tracker_alloc_fixed(&pr->rt, curr_vaddr, curr_page_count * BASE_PAGE_SIZE, &mapping_node);
         if (err_is_fail(err)) {
-            return err;
+            goto cleanup;
         }
         assert(mapping_node != NULL);
 
-        debug_printf("heap_static=%d\n", get_morecore_state()->heap_static);
         struct frame_mapping_pair *mapping_pair = calloc(1, sizeof(struct frame_mapping_pair));
+
         if (mapping_pair == NULL) {
-            return LIB_ERR_MALLOC_FAIL;
+            err = LIB_ERR_MALLOC_FAIL;
+            goto cleanup;
         }
         mapping_node->shared.ptr = mapping_pair;
 
         page_count = page_count - curr_page_count;
         curr_vaddr += curr_page_count * BASE_PAGE_SIZE;
+        total_size += mapping_node->size;
     }
 
     if (ret_size != NULL) {
-        *ret_size = mapping_node->size;
+        *ret_size = total_size;
     }
-    HERE;
 
-    DEBUG_END;
+    err = SYS_ERR_OK;
 
-    return SYS_ERR_OK;
+cleanup:
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
+    return err;
 }
 
 /**
