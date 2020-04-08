@@ -77,6 +77,7 @@
 struct frame_mapping_pair {
     struct capref frame; ///< The frame capability used to back the memory of the mapping.
     struct capref mapping; ///< The mapping capability.
+    struct page_table *pt; ///< The page table in which the frame is mapped.
 };
 
 typedef int paging_flags_t;

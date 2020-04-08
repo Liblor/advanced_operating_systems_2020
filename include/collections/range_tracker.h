@@ -11,7 +11,7 @@ struct range_tracker_closure {
     void *arg;
 };
 
-#define MKRTCLOSURE(h, a) (struct range_tracker_closure) { /*handler*/ (h), /*arg*/ (a) }
+#define MKRTCLOSURE(h, a) (struct range_tracker_closure) { /*handler*/ (void (*)(void *arg))(h), /*arg*/ (a) }
 
 enum range_tracker_nodetype {
     RangeTracker_NodeType_Free,

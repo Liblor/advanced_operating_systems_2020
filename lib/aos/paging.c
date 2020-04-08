@@ -254,9 +254,11 @@ static inline errval_t map_in_l3(
 
     struct frame_mapping_pair *minfo = mapping_node->shared.ptr;
     assert(capref_is_null(minfo->mapping));
-    assert(capref_is_null(minfo->frame));
     minfo->mapping = mapping;
+    assert(capref_is_null(minfo->frame));
     minfo->frame = frame;
+    assert(minfo->pt == NULL);
+    minfo->pt = l3pt;
 
     return SYS_ERR_OK;
 

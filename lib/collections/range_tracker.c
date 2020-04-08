@@ -400,15 +400,31 @@ errval_t range_tracker_free(
 
     const uint64_t end = base + size;
 
-    // TODO: Check for overflow of `end`.
-
     struct rtnode *node;
 
-    // TODO: Check if all nodes in the specified range are allocated.
+    /*
+     * First check if all nodes in the specified range are allocated.
+     */
+
+    for (node = rt->head->next; node != &rt->rt_tail; node = node->next) {
+        if (node->base + node->size > end) {
+            break;
+        } else if (node->base < base) {
+            continue;
+        }
+
+        if (!range_tracker_is_used(node)) {
+            // TODO: Change this error code to "Cannot free unused nodes".
+            return SYS_ERR_NOT_IMPLEMENTED;
+        }
+    }
 
     // TODO: Split the ends of the specified range if necessary.
 
-    // Free all nodes in the specified range.
+    /*
+     * Free all nodes in the specified range.
+     */
+
     for (node = rt->head->next; node != &rt->rt_tail; node = node->next) {
         if (node->base + node->size > end) {
             break;

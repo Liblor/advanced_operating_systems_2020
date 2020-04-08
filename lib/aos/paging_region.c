@@ -1,5 +1,6 @@
 #include <aos/debug.h>
 #include <aos/paging_region.h>
+#include <aos/capabilities.h>
 
 static inline errval_t paging_region_init_region(
     struct paging_state *st,
@@ -237,6 +238,38 @@ errval_t paging_region_map(
     return SYS_ERR_OK;
 }
 
+static void range_tracker_free_cb(
+    void *callback_state,
+    union range_tracker_shared shared,
+    uint64_t base,
+    uint64_t size
+)
+{
+    errval_t err;
+
+    struct frame_mapping_pair *mapping_pair = shared.ptr;
+
+    err = vnode_unmap(mapping_pair->pt->cap, mapping_pair->mapping);
+    if (err_is_fail(err)) {
+        debug_printf("vnode_unmap() failed in paging_region_unmap() callback: %s\n", err_getstring(err));
+    }
+
+    /*
+     * TODO: Should we call aos_ram_free()? If so, how does it work for
+     * non-init dispatchers, which have to "return" the memory to the memory
+     * server.
+     */
+
+    /*
+     * TODO: Do we need to revoke the capability?
+     */
+
+    err = cap_destroy(mapping_pair->frame);
+    if (err_is_fail(err)) {
+        debug_printf("cap_destroy() failed in paging_region_unmap() callback: %s\n", err_getstring(err));
+    }
+}
+
 /**
  * \brief Free a bit of the paging region `pr`.
  * This function gets used in some of the code that is responsible
@@ -259,29 +292,11 @@ errval_t paging_region_unmap(
 
     PAGING_CHECK_RANGE(base, bytes);
 
-    struct rtnode *node;
-
-    // TODO: Calling range_tracker_get() by a followed range_tracker_free()
-    // where we pass the base does not look efficient. The region will be
-    // iterated twice. We should either be able to pass the node directly for
-    // freeing, or not have to get the node in the first place.
-    err = range_tracker_get(&pr->rt, base, bytes, &node, NULL);
-    if (err_is_fail(err)) {
-        debug_printf("range_tracker_get() failed: %s\n", err_getstring(err));
-        return err;
-    }
-
-    // TODO: This is not generalized yet. The caller may unmap mappings that
-    // span over multiple nodes in the range tracker. Unfortunately, the range
-    // tracker does not support such complex behavior at the point of writing.
-    err = range_tracker_free(&pr->rt, node->base, node->size, MKRTCLOSURE(NULL, NULL));
+    err = range_tracker_free(&pr->rt, base, bytes, MKRTCLOSURE(range_tracker_free_cb, NULL));
     if (err_is_fail(err)) {
         debug_printf("range_tracker_free() failed: %s\n", err_getstring(err));
         return err;
     }
 
-    // TODO: Unmap installed pages.
-
-    // TODO: Change to OK.
-    return SYS_ERR_NOT_IMPLEMENTED;
+    return SYS_ERR_OK;
 }
