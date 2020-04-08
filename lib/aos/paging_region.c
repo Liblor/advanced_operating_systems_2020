@@ -20,9 +20,9 @@ static inline errval_t paging_region_init_region(
     pr->node = node;
     pr->implicit = implicit;
 
-    err = range_tracker_init(&pr->rt, &st->slabs);
+    err = range_tracker_init_aligned(&pr->rt, &st->slabs, BASE_PAGE_SIZE);
     if (err_is_fail(err)) {
-        debug_printf("range_tracker_init() failed\n");
+        debug_printf("range_tracker_init_aligned() failed\n");
         return err;
     }
 
@@ -50,8 +50,8 @@ static errval_t _paging_region_init(
 
     assert(st != NULL);
     assert(pr != NULL);
-    assert(!fixed || base == 0);
-    assert(fixed || alignment == 0);
+    assert(fixed || base == 0);
+    assert(!fixed || alignment == 0);
 
     if ((fixed && base % BASE_PAGE_SIZE != 0) ||
         (!fixed && alignment % BASE_PAGE_SIZE != 0)) {
@@ -67,6 +67,7 @@ static errval_t _paging_region_init(
     memset(pr, 0x00, sizeof(struct paging_region));
 
     struct rtnode *node;
+    struct rtnode *check_node;
 
     if (fixed) {
         err = range_tracker_alloc_fixed(&st->rt, base, size, &node);
@@ -74,13 +75,19 @@ static errval_t _paging_region_init(
             debug_printf("range_tracker_alloc_fixed() failed: Paging region must be unmapped!\n");
             return err;
         }
+        err = range_tracker_get_fixed(&st->rt, base, 1, &check_node);
+        assert(err_no(err) == SYS_ERR_OK);
     } else {
         err = range_tracker_alloc_aligned(&st->rt, size, alignment, &node);
         if (err_is_fail(err)) {
             debug_printf("range_tracker_alloc_aligned() failed: Paging region must be unmapped!\n");
             return err;
         }
+        err = range_tracker_get_fixed(&st->rt, node->base, 1, &check_node);
+        assert(err_no(err) == SYS_ERR_OK);
     }
+
+    assert(node == check_node);
 
     err = paging_region_init_region(st, pr, node->base, node->size, flags, node, implicit);
     if (err_is_fail(err)) {
@@ -105,6 +112,8 @@ errval_t paging_region_init_fixed(
     paging_flags_t flags
 )
 {
+    DEBUG_BEGIN;
+
     return _paging_region_init(st, pr, base, size, 0, flags, true, false);
 }
 
@@ -120,6 +129,8 @@ errval_t paging_region_init_aligned(
     paging_flags_t flags
 )
 {
+    DEBUG_BEGIN;
+
     return _paging_region_init(st, pr, 0, size, alignment, flags, false, false);
 }
 
@@ -137,6 +148,8 @@ errval_t paging_region_init(
     paging_flags_t flags
 )
 {
+    DEBUG_BEGIN;
+
     return paging_region_init_aligned(st, pr, size, BASE_PAGE_SIZE, flags);
 }
 
@@ -154,9 +167,13 @@ errval_t paging_region_map(
 {
     errval_t err;
 
+    DEBUG_BEGIN;
+
     assert(pr != NULL);
     assert(retbuf != NULL);
     PAGING_CHECK_SIZE(size);
+
+    size = ROUND_UP(size, BASE_PAGE_SIZE);
 
     struct rtnode *node = NULL;
 
@@ -194,7 +211,12 @@ errval_t paging_region_unmap(
 {
     errval_t err;
 
+    DEBUG_BEGIN;
+
     assert(pr != NULL);
+
+    bytes = ROUND_DOWN(bytes, BASE_PAGE_SIZE);
+
     PAGING_CHECK_RANGE(base, bytes);
 
     struct rtnode *node;
@@ -220,5 +242,6 @@ errval_t paging_region_unmap(
 
     // TODO: Unmap installed pages.
 
-    return SYS_ERR_OK;
+    // TODO: Change to OK.
+    return SYS_ERR_NOT_IMPLEMENTED;
 }
