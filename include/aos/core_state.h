@@ -26,14 +26,45 @@
 #include <barrelfish_kpi/capabilities.h>
 #include <barrelfish_kpi/init.h> // for CNODE_SLOTS_*
 
+// "region" of addresses that are reserved in morecore_state
+struct morecore_zone {
+    lvaddr_t base_addr;
+    lvaddr_t current_addr;
+    size_t region_size;
+};
+
+/// a morecore zone with memory which is always eagerly backed by frames
+struct morecore_static_zone {
+    lvaddr_t base_addr;
+    lvaddr_t current_addr;       /// < everything below this is handed out
+    size_t backed_size;          /// < how much starting from base_addr is backed
+    size_t region_size;          /// < total area of the zone
+    bool is_refilling;
+};
+
 struct morecore_state {
     struct thread_mutex mutex;
+
     Header header_base;
     Header *header_freep;
-    // for "real" morecore (lib/aos/morecore.c)
-    struct paging_region region;
-    // for "static" morecore (see lib/aos/static_morecore.c)
+
+    struct morecore_zone dynamic_zone;
+    struct morecore_static_zone static_zone;
+
+    struct paging_region dynamic_heap_pr;
+
+    // for initial static morecore
     char *freep;
+
+    bool heap_static;
+
+    // malloc state for static
+    Header header_base_static;
+    Header *header_freep_static;
+
+    // malloc state for dynamic
+    Header header_base_dynamic;
+    Header *header_freep_dynamic;
 };
 
 struct ram_alloc_state {
@@ -70,8 +101,6 @@ struct aos_chan;
 struct mem_rpc_client;
 struct spawn_rpc_client;
 struct paging_state;
-
-
 
 struct core_state_generic {
     struct waitset default_waitset;

@@ -242,6 +242,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     strlcpy(send->msg.payload + sizeof(core), cmdline, str_len);
 
     struct rpc_message *recv = NULL;
+
     err = aos_rpc_lmp_send_and_wait_recv(rpc, send, &recv, validate_process_spawn);
     if (err_is_fail(err)) {
         goto clean_up;
