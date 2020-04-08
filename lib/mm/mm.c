@@ -51,6 +51,9 @@ errval_t mm_add(struct mm *mm, struct capref cap, genpaddr_t base, size_t size)
 
     errval_t err;
 
+    // We cannot assume that more is available than specified.
+    size = ROUND_DOWN(size, BASE_PAGE_SIZE);
+
     union range_tracker_shared shared;
     shared.cap = cap;
     err = range_tracker_add(&mm->rt, base, size, shared);
@@ -70,6 +73,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
     if (alignment == 0 || alignment % BASE_PAGE_SIZE != 0)
         return MM_ERR_INVALID_ALIGNMENT;
 
+    size = ROUND_UP(size, BASE_PAGE_SIZE);
 
     struct rtnode *new_node = NULL;
     err = range_tracker_alloc_aligned(&mm->rt, size, alignment, &new_node);
@@ -131,6 +135,8 @@ errval_t mm_free(struct mm *mm, struct capref cap, genpaddr_t base, gensize_t si
     assert(mm != NULL);
 
     errval_t err;
+
+    size = ROUND_UP(size, BASE_PAGE_SIZE);
 
     // TODO: Revoke the capability to prevent further use.
     //err = cap_revoke(cap);
