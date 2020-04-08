@@ -74,11 +74,9 @@
         return LIB_ERR_PAGING_SIZE_INVALID; \
     } \
 
-struct mapping_list {
-    struct capref frame; ///< The capability used to back the memory of the mapping.
-    size_t count; ///< Number of mappings that are stored in this list.
-    size_t total; ///< Number of mappings that can be stored in this list.
-    struct capref *caps; ///< Array of mappings within this region.
+struct frame_mapping_pair {
+    struct capref frame; ///< The frame capability used to back the memory of the mapping.
+    struct capref mapping; ///< The mapping capability.
 };
 
 typedef int paging_flags_t;
@@ -107,31 +105,5 @@ struct paging_state {
     char *exception_stack_base[PAGING_EXCEPTION_STACK_SIZE];
     lvaddr_t start_addr; ///< From where on this paging state is responsible.
 };
-
-static inline errval_t add_mapping_list_to_node(struct rtnode *node)
-{
-    const size_t l3_region_size = BASE_PAGE_SIZE * PTABLE_ENTRIES;
-    const lvaddr_t base_l3_aligned = ROUND_DOWN(node->base, l3_region_size);
-    const lvaddr_t end_l3_aligned = ROUND_UP(node->base + node->size, l3_region_size);
-
-    uint64_t mappings_total = (end_l3_aligned - base_l3_aligned) / l3_region_size;
-
-    struct mapping_list *mlist = calloc(1, sizeof(struct mapping_list));
-    if (mlist == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-
-    mlist->total = mappings_total;
-    mlist->count = 0;
-
-    mlist->caps = calloc(mappings_total, sizeof(struct capref));
-    if (mlist->caps == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-
-    node->shared.ptr = mlist;
-
-    return SYS_ERR_OK;
-}
 
 #endif // PAGING_TYPES_H_

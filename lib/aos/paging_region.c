@@ -55,7 +55,6 @@ static errval_t _paging_region_init(
 
     if ((fixed && base % BASE_PAGE_SIZE != 0) ||
         (!fixed && alignment % BASE_PAGE_SIZE != 0)) {
-        debug_printf("_paging_region_init() failed: Paging region must be page aligned!\n");
         return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
 
@@ -175,23 +174,64 @@ errval_t paging_region_map(
 
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
-    struct rtnode *node = NULL;
+    // Get large enough node from paging region.
+    struct rtnode *mapping_node = NULL;
+    // Set this to something other than 0, so we can check if it's explicitly set.
+    uint64_t padding = 1;
 
-    err = range_tracker_alloc_aligned(&pr->rt, size, BASE_PAGE_SIZE, &node);
+    err = range_tracker_get(&pr->rt, size, BASE_PAGE_SIZE, &mapping_node, &padding);
     if (err_is_fail(err)) {
-        debug_printf("range_tracker_alloc_aligned() failed: %s\n", err_getstring(err));
+        debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
         return err;
     }
 
-    err = add_mapping_list_to_node(node);
+    assert(mapping_node != NULL);
+    assert(padding == 0);
+
+    // TODO: The following loop is very similar to the one in
+    // paging_map_fixed_attr(), and could be generalized.
+
+    /*
+    err = create_mapping_nodes(st, pr, vaddr, size, node_cb);
     if (err_is_fail(err)) {
+        debug_printf("create_mapping_nodes() failed: %s\n", err_getstring(err));
         return err;
     }
+    */
 
-    *retbuf = (void *) node->base;
+    const lvaddr_t vaddr = mapping_node->base;
+    *retbuf = (void *) vaddr;
+    lvaddr_t curr_vaddr = vaddr;
+
+    uint64_t page_count = size / BASE_PAGE_SIZE;
+
+    while (page_count > 0) {
+        // Calculate how many remaining entries there are in the current L3 pagetable.
+        const uint64_t l3_idx = VMSAv8_64_L3_INDEX(curr_vaddr);
+        const uint64_t free_l3_entries = PTABLE_ENTRIES - l3_idx;
+
+        uint64_t curr_page_count = MIN(page_count, free_l3_entries);
+
+        // Create mapping node.
+        mapping_node = NULL;
+        err = range_tracker_alloc_fixed(&pr->rt, curr_vaddr, curr_page_count * BASE_PAGE_SIZE, &mapping_node);
+        if (err_is_fail(err)) {
+            return err;
+        }
+        assert(mapping_node != NULL);
+
+        struct frame_mapping_pair *mapping_pair = calloc(1, sizeof(struct frame_mapping_pair));
+        if (mapping_pair == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        mapping_node->shared.ptr = mapping_pair;
+
+        page_count = page_count - curr_page_count;
+        curr_vaddr += curr_page_count * BASE_PAGE_SIZE;
+    }
 
     if (ret_size != NULL) {
-        *ret_size = node->size;
+        *ret_size = mapping_node->size;
     }
 
     return SYS_ERR_OK;

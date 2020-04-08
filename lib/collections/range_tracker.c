@@ -115,13 +115,12 @@ errval_t range_tracker_add(
     // Add the new node into the linked list.
     // [next->prev] <--> [node] <--> [next]
 
-    // TODO Should this not be inserted in order?
     next->prev->next = node;
     node->prev = next->prev;
     next->prev = node;
     node->next = next;
 
-    err = slab_ensure_threshold(rt->slabs, 40);
+    err = slab_ensure_threshold(rt->slabs, 20);
     if (err_is_fail(err))
         return err;
 
@@ -281,13 +280,21 @@ errval_t range_tracker_alloc_aligned(
 
     // We refill at the very end, so all other mandatory tasks are already done
     // in case of any error.
-    err = slab_ensure_threshold(rt->slabs, 40);
+    err = slab_ensure_threshold(rt->slabs, 20);
     if (err_is_fail(err)) {
         return err;
     }
 
     // If no error is returned the returned node must not be NULL.
     assert(node != NULL);
+
+#ifndef NDEBUG
+    struct rtnode *check_node;
+    err = range_tracker_get_fixed(rt, node->base, 1, &check_node);
+    assert(err_no(err) == SYS_ERR_OK);
+    assert(node == check_node);
+    assert(range_tracker_is_used(check_node));
+#endif
 
     return SYS_ERR_OK;
 }
@@ -324,6 +331,14 @@ errval_t range_tracker_alloc_fixed(
     }
 
     assert((*retnode)->type == RangeTracker_NodeType_Used);
+
+#ifndef NDEBUG
+    struct rtnode *check_node;
+    err = range_tracker_get_fixed(rt, base, 1, &check_node);
+    assert(err_no(err) == SYS_ERR_OK);
+    assert(node == check_node);
+    assert(range_tracker_is_used(check_node));
+#endif
 
     return SYS_ERR_OK;
 }
@@ -427,6 +442,8 @@ errval_t range_tracker_get(
 )
 {
     assert(rt != NULL);
+    assert(size != 0);
+    assert(alignment != 0);
     assert(retnode != NULL);
 
     if (!is_properly_aligned_size(rt, size)) {
@@ -482,6 +499,7 @@ errval_t range_tracker_get_fixed(
 )
 {
     assert(rt != NULL);
+    assert(size != 0);
     assert(retnode != NULL);
 
     // Check for overflow.
