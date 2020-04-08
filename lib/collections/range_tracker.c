@@ -121,7 +121,7 @@ errval_t range_tracker_add(
     next->prev = node;
     node->next = next;
 
-    err = slab_ensure_threshold(rt->slabs, 20);
+    err = slab_ensure_threshold(rt->slabs, 40);
     if (err_is_fail(err))
         return err;
 
@@ -281,7 +281,7 @@ errval_t range_tracker_alloc_aligned(
 
     // We refill at the very end, so all other mandatory tasks are already done
     // in case of any error.
-    err = slab_ensure_threshold(rt->slabs, 20);
+    err = slab_ensure_threshold(rt->slabs, 40);
     if (err_is_fail(err)) {
         return err;
     }
@@ -302,6 +302,7 @@ errval_t range_tracker_alloc_fixed(
     errval_t err;
 
     assert(rt != NULL);
+    assert(retnode != NULL);
 
     if (!is_properly_aligned_range(rt, base, size)) {
         return COLLECTIONS_RANGETRACKER_ALIGNMENT;
@@ -321,6 +322,8 @@ errval_t range_tracker_alloc_fixed(
     if (err_is_fail(err)) {
         return err;
     }
+
+    assert((*retnode)->type == RangeTracker_NodeType_Used);
 
     return SYS_ERR_OK;
 }
@@ -434,6 +437,8 @@ errval_t range_tracker_get(
 
     // Find the largest node that is still free and can hold the requested size.
     for (struct rtnode *next = rt->head->next; next != &rt->rt_tail; next = next->next) {
+        assert(next != NULL);
+
         uint64_t padding_size = (next->base % alignment > 0) ? (alignment - (next->base % alignment)) : 0;
 
         // We only care about free nodes.
@@ -468,6 +473,7 @@ errval_t range_tracker_get(
 /*
  * Retrieve the node that includes the specified range.
  */
+// TODO: Remove size parameter (careful, some callers depend on that size check).
 errval_t range_tracker_get_fixed(
     struct range_tracker *rt,
     const uint64_t base,
@@ -477,10 +483,6 @@ errval_t range_tracker_get_fixed(
 {
     assert(rt != NULL);
     assert(retnode != NULL);
-
-    if (!is_properly_aligned_range(rt, base, size)) {
-        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
-    }
 
     // Check for overflow.
     // TODO: Introduce a new error code.
@@ -542,5 +544,8 @@ void range_tracker_print_state(
     struct range_tracker *rt
 )
 {
+    debug_printf("        HEAD ADDRESS: %p\n", &rt->rt_head);
+    debug_printf("        TAIL ADDRESS: %p\n", &rt->rt_tail);
+
     print_rtnodes(rt);
 }
