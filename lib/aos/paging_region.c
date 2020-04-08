@@ -1,5 +1,7 @@
 #include <aos/debug.h>
 #include <aos/paging_region.h>
+#include <aos/domain.h>
+#include <aos/core_state.h>
 
 static inline errval_t paging_region_init_region(
     struct paging_state *st,
@@ -58,7 +60,7 @@ static errval_t _paging_region_init(
         return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
 
-    err = slab_ensure_threshold(&st->slabs, 16);
+    err = slab_ensure_threshold(&st->slabs, 32);
     if (err_is_fail(err)) {
         return err;
     }
@@ -174,6 +176,12 @@ errval_t paging_region_map(
 
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
+    struct paging_state *st = get_current_paging_state();
+    err = slab_ensure_threshold(&st->slabs, 32);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
     // Get large enough node from paging region.
     struct rtnode *mapping_node = NULL;
     // Set this to something other than 0, so we can check if it's explicitly set.
@@ -205,6 +213,7 @@ errval_t paging_region_map(
 
     uint64_t page_count = size / BASE_PAGE_SIZE;
 
+    HERE;
     while (page_count > 0) {
         // Calculate how many remaining entries there are in the current L3 pagetable.
         const uint64_t l3_idx = VMSAv8_64_L3_INDEX(curr_vaddr);
@@ -220,6 +229,7 @@ errval_t paging_region_map(
         }
         assert(mapping_node != NULL);
 
+        debug_printf("heap_static=%d\n", get_morecore_state()->heap_static);
         struct frame_mapping_pair *mapping_pair = calloc(1, sizeof(struct frame_mapping_pair));
         if (mapping_pair == NULL) {
             return LIB_ERR_MALLOC_FAIL;
@@ -233,6 +243,9 @@ errval_t paging_region_map(
     if (ret_size != NULL) {
         *ret_size = mapping_node->size;
     }
+    HERE;
+
+    DEBUG_END;
 
     return SYS_ERR_OK;
 }

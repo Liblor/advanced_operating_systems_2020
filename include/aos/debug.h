@@ -72,7 +72,7 @@ void user_panic_fn(const char *file, const char *func, int line,
 
 #endif
 
-#define CONFIG_PAGING_DEBUG 0
+#define CONFIG_PAGING_DEBUG 1
 
 #if CONFIG_PAGING_DEBUG == 1
 #define DEBUG_BEGIN printf("\033[0;36m%s %s\033[0m\n",  __PRETTY_FUNCTION__,  "begin")

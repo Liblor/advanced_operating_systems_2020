@@ -347,6 +347,7 @@
     "int_route/int_route_debug.h",
     "int_route/int_route_server.h",
     "k_r_malloc.h",
+    "aos_malloc.h",
     "libgen.h",
     "limits.h",
     "linenoise/linenoise.h",

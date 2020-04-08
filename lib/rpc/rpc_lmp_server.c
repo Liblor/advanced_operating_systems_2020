@@ -106,13 +106,10 @@ static void service_recv_cb(void *arg)
             // TODO Also pass a callback here to send a reply message
             server->service_recv_handler(state->msg, state->shared, lc, server->shared);
         }
-
         reset_state(state);
-        goto reregister;
     }
 
-    return;
-
+    // always reregister callback to continue to receive requests
 reregister:
     err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
     if (err_is_fail(err)) {

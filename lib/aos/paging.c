@@ -16,6 +16,7 @@
 #include <aos/paging.h>
 #include <aos/except.h>
 #include <aos/slab.h>
+#include <aos/morecore.h>
 
 #include <stdio.h>
 
@@ -416,7 +417,7 @@ static inline errval_t back_vaddr(
 
     struct capref frame;
     size_t size;
-    slab_ensure_threshold(&st->slabs, 10);
+    slab_ensure_threshold(&st->slabs, 32);
 
     err = frame_alloc(&frame, mapping_node->size, &size);
     if (err_is_fail(err)) {
@@ -453,6 +454,8 @@ static errval_t paging_handler(
 )
 {
     errval_t err;
+
+    debug_printf("paging_handler(), addr=%p", addr);
 
     if (addr == 0) {
         debug_printf("NULL pointer dereferenced!\n");
@@ -510,6 +513,8 @@ static void exception_handler(
 {
     errval_t err = SYS_ERR_OK;
 
+    morecore_enable_static();
+
     switch (type) {
     case EXCEPT_PAGEFAULT:
         err = paging_handler(type, subtype, addr, regs);
@@ -518,6 +523,8 @@ static void exception_handler(
         err = AOS_ERR_PAGING_INVALID_UNHANDLED_EXCEPTION;
         debug_printf("Unknown exception type\n");
     }
+
+    morecore_enable_dynamic();
 
     if (err_is_fail(err)) {
         // we die here ... RIP
@@ -564,6 +571,8 @@ errval_t paging_init_state(
     slab_init(&st->slabs, RANGE_TRACKER_NODE_SIZE, slab_default_refill);
 
     slab_grow(&st->slabs, st->initial_slabs_buffer, sizeof(st->initial_slabs_buffer));
+
+    thread_mutex_init(&st->mutex);
 
     err = range_tracker_init_aligned(&st->rt, &st->slabs, BASE_PAGE_SIZE);
     if (err_is_fail(err)) {
@@ -636,7 +645,7 @@ errval_t paging_init(
 
     set_current_paging_state(&current);
 
-    char *exception_stack_top = (char *)current.exception_stack_base + sizeof(current.exception_stack_base);
+    char *exception_stack_top = (char *) current.exception_stack_base + sizeof(current.exception_stack_base);
 
     err = thread_set_exception_handler(
         exception_handler,
@@ -663,11 +672,15 @@ void paging_init_onthread(
 {
     DEBUG_BEGIN;
 
+    morecore_enable_static();
     void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
+    morecore_enable_dynamic();
+
     if (stack == NULL) {
         debug_printf("Allocating exception stack failed\n");
         return;
     }
+
     void *stack_top = stack + PAGING_EXCEPTION_STACK_SIZE;
 
     t->exception_stack = stack;
@@ -707,16 +720,20 @@ errval_t paging_alloc(
 
     *buf = NULL;
 
-    err = slab_ensure_threshold(&st->slabs, 12);
+    err = slab_ensure_threshold(&st->slabs, 32);
     if (err_is_fail(err)) {
         return err;
     }
 
     struct paging_region *pr = calloc(1, sizeof(struct paging_region));
+    // TODO Check pr == NULL
 
+    thread_mutex_lock_nested(&st->mutex);
     // flags = 0, because it will not be used for implicit paging regions.
     err = paging_region_init_aligned(st, pr, bytes, alignment, 0);
+    thread_mutex_unlock(&st->mutex);
     if (err_is_fail(err)) {
+        // TODO Free pr
         return err;
     }
 
@@ -811,12 +828,17 @@ errval_t paging_map_fixed_attr(
     assert(st != NULL);
 
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
-
     PAGING_CHECK_RANGE(vaddr, bytes);
 
-    err = slab_ensure_threshold(&st->slabs, 12);
+    thread_mutex_lock_nested(&st->mutex);
+
+    // run on vmem which does not pagefault
+    const bool is_dynamic = !get_morecore_state()->heap_static;
+    morecore_enable_static();
+
+    err = slab_ensure_threshold(&st->slabs, 32);
     if (err_is_fail(err)) {
-        return err;
+        goto clean_up;
     }
 
     struct rtnode *node = NULL;
@@ -824,7 +846,7 @@ errval_t paging_map_fixed_attr(
     err = range_tracker_get_fixed(&st->rt, vaddr, bytes, &node);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
-        return err;
+        goto clean_up;
     }
 
     assert(node != NULL);
@@ -840,7 +862,8 @@ errval_t paging_map_fixed_attr(
             // This is an explicit paging region. We don't want the user to
             // mess with it.
 
-            return AOS_ERR_PAGING_ADDR_RESERVED;
+            err = AOS_ERR_PAGING_ADDR_RESERVED;
+            goto clean_up;
         }
 
         // Check if there aren't already other mappings that would collide with the new mappings.
@@ -849,19 +872,22 @@ errval_t paging_map_fixed_attr(
         err = range_tracker_get_fixed(&pr->rt, vaddr, bytes, &mapping_node);
         if (err_is_fail(err)) {
             debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
-            return err;
+            err = AOS_ERR_PAGING_ADDR_RESERVED;
+            goto clean_up;
         }
 
         assert(mapping_node != NULL);
 
         if (range_tracker_is_used(mapping_node)) {
             // TODO: Change error to "region already used".
-            return AOS_ERR_PAGING_ADDR_RESERVED;
+            err = AOS_ERR_PAGING_ADDR_RESERVED;
+            goto clean_up;
         }
 
         if (mapping_node->base + mapping_node->size < vaddr + bytes) {
             // TODO: Change error to "not enough space for given size at given address".
-            return AOS_ERR_PAGING_ADDR_RESERVED;
+            err = AOS_ERR_PAGING_ADDR_RESERVED;
+            goto clean_up;
         }
     } else {
         assert(node->shared.ptr == NULL);
@@ -869,12 +895,13 @@ errval_t paging_map_fixed_attr(
         // TODO: Free this pr if subsequent error occurs.
         pr = calloc(1, sizeof(struct paging_region));
         if (pr == NULL) {
-            return LIB_ERR_MALLOC_FAIL;
+            err = LIB_ERR_MALLOC_FAIL;
+            goto clean_up;
         }
 
         err = paging_region_init_fixed(st, pr, vaddr, bytes, 0);
         if (err_is_fail(err)) {
-            return err;
+            goto clean_up;
         }
 
         pr->implicit = true;
@@ -899,13 +926,14 @@ errval_t paging_map_fixed_attr(
         struct rtnode *mapping_node = NULL;
         err = range_tracker_alloc_fixed(&pr->rt, curr_vaddr, curr_page_count * BASE_PAGE_SIZE, &mapping_node);
         if (err_is_fail(err)) {
-            return err;
+            goto clean_up;
         }
         assert(mapping_node != NULL);
 
         struct frame_mapping_pair *mapping_pair = calloc(1, sizeof(struct frame_mapping_pair));
         if (mapping_pair == NULL) {
-            return LIB_ERR_MALLOC_FAIL;
+            err = LIB_ERR_MALLOC_FAIL;
+            goto clean_up;
         }
         mapping_node->shared.ptr = mapping_pair;
 
@@ -915,7 +943,7 @@ errval_t paging_map_fixed_attr(
         err = get_and_map_into_l3(st, pr, curr_vaddr, frame, frame_offset, curr_page_count, mapping_node, flags);
         if (err_is_fail(err)) {
             debug_printf("get_and_map_into_l3() failed: %s\n", err_getstring(err));
-            return err;
+            goto clean_up;
         }
 
 #ifndef NDEBUG
@@ -927,7 +955,14 @@ errval_t paging_map_fixed_attr(
         frame_offset += curr_page_count * BASE_PAGE_SIZE;
     }
 
-    return SYS_ERR_OK;
+    err = SYS_ERR_OK;
+
+clean_up:
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
+    thread_mutex_unlock(&st->mutex);
+    return err;
 }
 
 /**

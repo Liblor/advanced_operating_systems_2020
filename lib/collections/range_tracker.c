@@ -120,7 +120,7 @@ errval_t range_tracker_add(
     next->prev = node;
     node->next = next;
 
-    err = slab_ensure_threshold(rt->slabs, 20);
+    err = slab_ensure_threshold(rt->slabs, 32);
     if (err_is_fail(err))
         return err;
 
@@ -280,7 +280,7 @@ errval_t range_tracker_alloc_aligned(
 
     // We refill at the very end, so all other mandatory tasks are already done
     // in case of any error.
-    err = slab_ensure_threshold(rt->slabs, 20);
+    err = slab_ensure_threshold(rt->slabs, 32);
     if (err_is_fail(err)) {
         return err;
     }
