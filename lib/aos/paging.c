@@ -431,7 +431,7 @@ static inline errval_t back_vaddr(
 
     uint64_t page_count = mapping_node->size / BASE_PAGE_SIZE;
 
-    err = get_and_map_into_l3(st, pr, vaddr, frame, 0, page_count, mapping_node, pr->flags);
+    err = get_and_map_into_l3(st, pr, mapping_node->base, frame, 0, page_count, mapping_node, pr->flags);
     if (err_is_fail(err)) {
         debug_printf("get_and_map_into_l3() failed: %s\n", err_getstring(err));
         return err;
@@ -455,7 +455,7 @@ static errval_t paging_handler(
 {
     errval_t err;
 
-    debug_printf("paging_handler(), addr=%p", addr);
+    //debug_printf("paging_handler(), addr=%p\n", addr);
 
     if (addr == 0) {
         debug_printf("NULL pointer dereferenced!\n");
