@@ -249,7 +249,7 @@ static inline errval_t map_in_l3(
     err = vnode_map(l3pt->cap, frame, l3_idx, flags, frame_offset, page_count, mapping);
     if (err_is_fail(err)) {
         debug_printf("vnode_map failed: %s\n", err_getstring(err));
-        err_push(err, LIB_ERR_VNODE_MAP);
+        err = err_push(err, LIB_ERR_VNODE_MAP);
         goto error_recovery;
     }
 
