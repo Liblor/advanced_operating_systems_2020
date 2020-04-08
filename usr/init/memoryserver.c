@@ -23,6 +23,7 @@ static errval_t reply_cap(struct lmp_chan *lc, struct capref *cap, size_t bytes)
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
 
+
     err = aos_rpc_lmp_send_message(lc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_send_message failed\n");

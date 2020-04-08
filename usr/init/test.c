@@ -181,7 +181,7 @@ void test_libmm(void)
 
 static bool test_paging_multiple(const lvaddr_t base, lvaddr_t *newbase, const int count, const size_t size)
 {
-    debug_printf("test_paging_multiple(base=%"PRIxLVADDR", newbase=%p, count=%d, size=%zx)\n", base, newbase, count, size);
+    debug_printf("_test_paging_multiple(base=%"PRIxLVADDR", newbase=%p, count=%d, size=%zx)\n", base, newbase, count, size);
 
     errval_t err;
 
