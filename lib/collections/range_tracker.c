@@ -385,7 +385,11 @@ static inline void range_tracker_merge_neighbors(
     }
 }
 
-errval_t range_tracker_free(
+/*
+ * Free all nodes in the specified range. This function does not check if all
+ * nodes in the range are allocated prior to starting with the free.
+ */
+static errval_t range_tracker_free_unchecked(
     struct range_tracker *rt,
     const uint64_t base,
     const uint64_t size,
@@ -400,15 +404,12 @@ errval_t range_tracker_free(
 
     const uint64_t end = base + size;
 
-    // TODO: Check for overflow of `end`.
-
     struct rtnode *node;
 
-    // TODO: Check if all nodes in the specified range are allocated.
+    /*
+     * Free all nodes in the specified range.
+     */
 
-    // TODO: Split the ends of the specified range if necessary.
-
-    // Free all nodes in the specified range.
     for (node = rt->head->next; node != &rt->rt_tail; node = node->next) {
         if (node->base + node->size > end) {
             break;
@@ -425,6 +426,97 @@ errval_t range_tracker_free(
         // Free the node.
         node->type = RangeTracker_NodeType_Free;
         range_tracker_merge_neighbors(rt, node);
+    }
+
+    return SYS_ERR_OK;
+}
+
+static inline uint64_t range_tracker_get_base(
+    struct range_tracker *rt
+)
+{
+    assert(rt != NULL);
+
+    return rt->head->next->base;
+}
+
+static inline uint64_t range_tracker_get_size(
+    struct range_tracker *rt
+)
+{
+    assert(rt != NULL);
+
+    const uint64_t from = range_tracker_get_base(rt);
+    const uint64_t to = rt->rt_tail.prev->base + rt->rt_tail.prev->size;
+
+    return to - from;
+}
+
+errval_t range_tracker_free_all(
+    struct range_tracker *rt,
+    struct range_tracker_closure closure
+)
+{
+    errval_t err;
+
+    assert(rt != NULL);
+
+    const uint64_t from = range_tracker_get_base(rt);
+    const uint64_t size = range_tracker_get_size(rt);
+
+    err = range_tracker_free_unchecked(rt, from, size, closure);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
+errval_t range_tracker_free(
+    struct range_tracker *rt,
+    const uint64_t base,
+    const uint64_t size,
+    struct range_tracker_closure closure
+)
+{
+    errval_t err;
+
+    assert(rt != NULL);
+
+    if (!is_properly_aligned_range(rt, base, size)) {
+        return COLLECTIONS_RANGETRACKER_ALIGNMENT;
+    }
+
+    const uint64_t end = base + size;
+
+    struct rtnode *node;
+
+    /*
+     * First check if all nodes in the specified range are allocated.
+     */
+
+    for (node = rt->head->next; node != &rt->rt_tail; node = node->next) {
+        if (node->base + node->size > end) {
+            break;
+        } else if (node->base < base) {
+            continue;
+        }
+
+        if (!range_tracker_is_used(node)) {
+            // TODO: Change this error code to "Cannot free unused nodes".
+            return SYS_ERR_NOT_IMPLEMENTED;
+        }
+    }
+
+    // TODO: Split the ends of the specified range if necessary.
+
+    /*
+     * Free all nodes in the specified range.
+     */
+
+    err = range_tracker_free_unchecked(rt, base, size, closure);
+    if (err_is_fail(err)) {
+        return err;
     }
 
     return SYS_ERR_OK;

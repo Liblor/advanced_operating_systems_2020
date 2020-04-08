@@ -11,7 +11,7 @@ struct range_tracker_closure {
     void *arg;
 };
 
-#define MKRTCLOSURE(h, a) (struct range_tracker_closure) { /*handler*/ (h), /*arg*/ (a) }
+#define MKRTCLOSURE(h, a) (struct range_tracker_closure) { /*handler*/ (void (*)(void *arg))(h), /*arg*/ (a) }
 
 enum range_tracker_nodetype {
     RangeTracker_NodeType_Free,
@@ -80,6 +80,11 @@ errval_t range_tracker_alloc_fixed(
     const uint64_t base,
     const uint64_t size,
     struct rtnode **retnode
+);
+
+errval_t range_tracker_free_all(
+    struct range_tracker *rt,
+    struct range_tracker_closure closure
 );
 
 errval_t range_tracker_free(
