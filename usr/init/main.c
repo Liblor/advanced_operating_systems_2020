@@ -156,17 +156,8 @@ static int bsp_main(int argc, char *argv[])
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
 
-    // TODO: Remove.
-    //test_libmm();
-    //test_paging();
-    //test_paging_multi_pagetable();
-
-    // TODO: initialize mem allocator, vspace management here
-
     // Grading
-    //grading_test_early();
-
-    // TODO: Spawn system processes, boot second core etc. here
+    grading_test_early();
 
     err = initserver_init(number_cb, string_cb);
     if (err_is_fail(err)) {
@@ -192,7 +183,10 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    char *binary_name = "rpc-test";
+    // Grading
+    grading_test_late();
+
+    char *binary_name = "morecore-test";
     struct spawninfo si;
     domainid_t pid;
 
@@ -201,9 +195,6 @@ static int bsp_main(int argc, char *argv[])
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
-
-    // Grading
-    grading_test_late();
 
     debug_printf("Message handler loop\n");
     // Hang around
