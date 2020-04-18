@@ -72,7 +72,8 @@ struct armv8_core_data {
     genvaddr_t cpu_driver_entry;
 
     /**
-     * CPU driver command line arguments
+     * CPU driver command line arguments. Setting everything to zero
+     * is valid for passing no arguments.
      */
     char cpu_driver_cmdline[128];
 
@@ -134,7 +135,8 @@ struct armv8_core_data {
 
 
     /**
-     * Logical core id of the invoking core
+     * Logical core id of the invoking core. You are free to use any 
+     * naming scheme you like. A simple solution is to use the ARM mpid.
      */
     coreid_t src_core_id;
 
@@ -144,12 +146,13 @@ struct armv8_core_data {
     coreid_t dst_core_id;
 
     /**
-     * Architecture of the invoking core
+     * Physical core id of the invoking core. This must be a valid ARM mpid.
+     * You can use disp_get_core_id() to obtain the current's core mpid. 
      */
     hwid_t src_arch_id;
 
     /**
-     * Architecture of the started core
+     * Physical core id of the started core. This must be a valid ARM mpid
      */
     hwid_t dst_arch_id;
 

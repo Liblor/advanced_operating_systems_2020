@@ -5,6 +5,7 @@
 #include <string.h>
 #include <barrelfish_kpi/arm_core_data.h>
 #include <aos/kernel_cap_invocations.h>
+#include <aos/cache.h>
 
 #define ARMv8_KERNEL_OFFSET 0xffff000000000000
 
