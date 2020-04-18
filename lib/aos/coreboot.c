@@ -411,15 +411,11 @@ errval_t coreboot(coreid_t mpid,
     }
 
     // TODO:
+    // Memory for CPU driver's allocations
+//    ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE
+//    * + the size of the monitor process (use elf_virtual_size
     core_data->memory.base = 0;
     core_data->memory.length = 0;
-
-
-
-
-
-
-
 
 
 
