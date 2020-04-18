@@ -205,11 +205,41 @@ errval_t coreboot(coreid_t mpid,
     struct capref kcb;
     err = cap_retype(kcb, ram_cap, 0, ObjType_KernelControlBlock, OBJSIZE_KCB, 1);
     if (err_is_fail(err)) {
-        return err;
+        goto err_clean_up_ram_cap;
     }
 
-
     // - Get and load the CPU and boot driver binary.
+    // we might be able to reuse code from spawn.c by generalizing a bit (see load_module)
+    struct mem_region *cpu_module = multiboot_find_module(bi, "cpu_imx8x");
+    if (cpu_module == NULL) {
+        err = SPAWN_ERR_FIND_MODULE;
+        goto err_clean_up_kcb_cap;
+    }
+    struct capref child_frame = {
+            .cnode = cnode_module,
+            .slot = cpu_module->mrmod_slot,
+    };
+    void *cpu_module_addr = NULL;
+    err = paging_map_frame_attr(
+            get_current_paging_state(),
+            cpu_module_addr,
+            cpu_module->mrmod_size,
+            child_frame,
+            VREGION_FLAGS_READ,
+            NULL,
+            NULL
+    );
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
+    // TODO: determine entrypoint (?)
+    /*
+    genvaddr_t reloc_entry_point;
+    err = load_elf_binary(cpu_module_addr, mem,
+                          entrypoint, &reloc_entry_point);
+    */
+
     // - Relocate the boot and CPU driver. The boot driver runs with a 1:1
     //   VA->PA mapping. The CPU driver is expected to be loaded at the
     //   high virtual address space, at offset ARMV8_KERNEL_OFFSET.
@@ -225,6 +255,10 @@ errval_t coreboot(coreid_t mpid,
     //   of the boot driver and pass the (physical, of course) address of the
     //   boot struct as argument.
 
-    return SYS_ERR_OK;
-
+    return SYS_ERR_OK;  // only remove resources in case of error
+err_clean_up_kcb_cap:
+    cap_destroy(kcb);
+err_clean_up_ram_cap:
+    cap_destroy(ram_cap);
+    return err;
 }
