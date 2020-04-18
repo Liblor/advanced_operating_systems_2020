@@ -316,14 +316,14 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
-     mem = (struct mem_info) {
+    struct mem_info mem_boot = (struct mem_info) {
             .size = boot_module->mrmod_size,
             .buf = boot_module_addr,
             .phys_base = boot_frame_identiy.base,
     };
 
     genvaddr_t boot_reloc_entry_point;
-    err = load_elf_binary((genvaddr_t) boot_module_addr, &mem,
+    err = load_elf_binary((genvaddr_t) boot_module_addr, &mem_boot,
                           (genvaddr_t) sym->st_value, &boot_reloc_entry_point);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
