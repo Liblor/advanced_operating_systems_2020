@@ -537,13 +537,17 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
-    invoke_monitor_spawn_core(
+    err = invoke_monitor_spawn_core(
             mpid,
             CPU_ARM8,
             boot_entry_psci_reloc,
             core_data_frame_identity.base,
             0
     );
+
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
 
     return SYS_ERR_OK;  // only remove resources in case of error
 err_clean_up_kcb_cap:
