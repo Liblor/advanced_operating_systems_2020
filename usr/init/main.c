@@ -186,7 +186,7 @@ static int bsp_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-    char *binary_name = "morecore-test";
+    char *binary_name = "hello";
     struct spawninfo si;
     domainid_t pid;
 

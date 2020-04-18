@@ -507,7 +507,7 @@ static struct aos_rpc *aos_rpc_lmp_get_channel(
 
     if (rpc == NULL) {
         was_unset = true;
-        rpc = aos_rpc_lmp_setup_channel(cap_chan_serial, service_name);
+        rpc = aos_rpc_lmp_setup_channel(cap, service_name);
     }
 
     thread_mutex_unlock(&rpc_lmp_mutex);
