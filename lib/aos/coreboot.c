@@ -264,7 +264,9 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
-    // relocate cpu driver
+    // Relocate cpu driver
+    // The CPU driver is expected to be loaded at the
+    // high virtual address space, at offset ARMV8_KERNEL_OFFSET
     err = relocate_elf(
             (genvaddr_t) cpu_module_addr,
             &mem,
@@ -328,6 +330,20 @@ errval_t coreboot(coreid_t mpid,
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
+
+    // Relocate the boot driver
+    // The boot driver runs with a 1:1  VA->PA mapping.
+    // relocate cpu driver
+    err = relocate_elf(
+            (genvaddr_t) boot_module_addr,
+            &mem,
+            0);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+    // TODO: store this somewhere, 1:1, use boot_reloc_entry_point directly
+    __unused const lvaddr_t boot_entry_psci_reloc = boot_reloc_entry_point;
+
 
     // - Relocate the boot and CPU driver. The boot driver runs with a 1:1
     //   VA->PA mapping. The CPU driver is expected to be loaded at the
