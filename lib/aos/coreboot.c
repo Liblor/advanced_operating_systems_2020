@@ -185,7 +185,7 @@ relocate_elf(genvaddr_t binary, struct mem_info *mem, lvaddr_t load_offset)
     return SYS_ERR_OK;
 }
 
-#define err_is_fail(err) ((err_is_fail(err) ? (HERE, DEBUG_ERR(err, "error occured"), true) : (HERE, false)))
+//#define err_is_fail(err) ((err_is_fail(err) ? (HERE, DEBUG_ERR(err, "error occured"), true) : (HERE, false)))
 
 errval_t coreboot(coreid_t mpid,
         const char *boot_driver,
@@ -395,8 +395,7 @@ errval_t coreboot(coreid_t mpid,
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
-    // TODO: store this somewhere, 1:1, use boot_reloc_entry_point directly
-    __unused const lvaddr_t boot_entry_psci_reloc = boot_reloc_entry_point;
+    const lvaddr_t boot_entry_psci_reloc = boot_reloc_entry_point;
 
     // - Allocate a page for the core data struct
     struct capref core_data_frame;
