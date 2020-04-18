@@ -559,7 +559,7 @@ errval_t coreboot(coreid_t mpid,
     core_data->dst_core_id = mpid;
 
     //  Physical core id of the started core
-    core_data->dst_arch_id = 1;
+    core_data->dst_arch_id = mpid;
 
     // - Fill in the core data struct, for a description, see the definition
     //   in include/target/aarch64/barrelfish_kpi/arm_core_data.h
