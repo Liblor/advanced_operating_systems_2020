@@ -726,7 +726,7 @@ errval_t paging_alloc(
     pr = calloc(1, sizeof(struct paging_region));
     if (pr == NULL) {
         debug_printf("calloc() failed\n");
-        err = MALLOC_FAIL;
+        err = LIB_ERR_MALLOC_FAIL;
         goto error_cleanup;
     }
 
