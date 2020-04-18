@@ -429,6 +429,11 @@ errval_t coreboot(coreid_t mpid,
     //   the address in the core data struct.
     // - Find the boot driver entry point. Look for the symbol "boot_entry_psci"
     // - Flush the cache.
+    arm64_dcache_wb_range(core_data, core_data_size);
+    arm64_idcache_wbinv_range(core_data, core_data_size);
+    arm64_dcache_wb_range(stack, stack_size);
+    arm64_idcache_wbinv_range(stack, stack_size);
+
     // - Call the invoke_monitor_spawn_core with the entry point
     //   of the boot driver and pass the (physical, of course) address of the
     //   boot struct as argument.
