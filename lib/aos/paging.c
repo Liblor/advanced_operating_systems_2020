@@ -1024,5 +1024,5 @@ errval_t paging_unmap(
 
     free(pr);
 
-    return SYS_ERR_NOT_IMPLEMENTED;
+    return SYS_ERR_OK;
 }
