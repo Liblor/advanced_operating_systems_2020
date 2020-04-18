@@ -5,8 +5,33 @@
 #include <aos/sys_debug.h>
 #include <grading.h>
 
+static bool multithreading_test = true;
+
+static void multithreading_rpc_handle_number(uintptr_t val)
+{
+    static uint64_t sum = 0;
+    static uint64_t cnt = 0;
+
+    sum += val;
+    cnt++;
+
+    assert(cnt <= TEST_NUM_THREADS * TEST_AOS_RPC_SEND_NUMBER_COUNT);
+    if (cnt == TEST_NUM_THREADS * TEST_AOS_RPC_SEND_NUMBER_COUNT) {
+        uint64_t expected_sum = 0;
+        for (int i = 0; i < TEST_AOS_RPC_SEND_NUMBER_COUNT; i++) {
+            expected_sum += i;
+        }
+        expected_sum *= TEST_NUM_THREADS;
+
+        assert(sum == expected_sum);
+    }
+}
+
 void grading_rpc_handle_number(uintptr_t val)
 {
+    if (multithreading_test) {
+        multithreading_rpc_handle_number(val);
+    }
 }
 
 void grading_rpc_handler_string(const char* string)

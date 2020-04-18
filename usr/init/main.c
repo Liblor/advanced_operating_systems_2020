@@ -186,7 +186,7 @@ static int bsp_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-    char *binary_name = "hello";
+    char *binary_name = "multithreading";
     struct spawninfo si;
     domainid_t pid;
 

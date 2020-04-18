@@ -3,6 +3,15 @@
 
 #include <aos/aos.h>
 
+
+
+// This cannot simply be changed to any higher number. Check uses to make sure
+// tests will still work before changing it. For example, it must be an even
+// number (or 1).
+// TODO Change to at least 2
+#define TEST_NUM_THREADS (2)
+#define TEST_AOS_RPC_SEND_NUMBER_COUNT (1000)
+
 /**
  * Initialises the grading library within the init process on bootstrap core.
  * It will use the address provided in argc/v to consult the bootinfo
