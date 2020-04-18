@@ -185,7 +185,7 @@ relocate_elf(genvaddr_t binary, struct mem_info *mem, lvaddr_t load_offset)
     return SYS_ERR_OK;
 }
 
-
+#define err_is_fail(err) ((err_is_fail(err) ? (HERE, true) : (HERE, false)))
 
 errval_t coreboot(coreid_t mpid,
         const char *boot_driver,
