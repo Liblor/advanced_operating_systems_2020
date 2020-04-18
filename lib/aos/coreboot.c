@@ -258,47 +258,42 @@ errval_t coreboot(coreid_t mpid,
                                                                 0,
                                                                 STT_FUNC,
                                                                 &sindex);
-    // get physical base addr for cpu_driver
-    struct frame_identity cpu_frame_identiy;
-    err = frame_identify(cpu_frame, &cpu_frame_identiy);
-    if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
-    }
 
-    struct capref mem_frame;
-    size_t mem_size;
-    err = frame_alloc(&mem_frame, cpu_module->mrmod_size, &mem_size);
-    if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
-    }
+    struct mem_info cpu_module_mem;
+    {
+        struct capref mem_frame;
+        size_t mem_size;
+        err = frame_alloc(&mem_frame, cpu_module->mrmod_size, &mem_size);
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
 
-    struct frame_identity mem_frame_identiy;
-    err = frame_identify(mem_frame, &mem_frame_identiy);
-    if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
-    }
-    void *mem_buf;
-    err = paging_map_frame_attr(
-            get_current_paging_state(),
-            &mem_buf,
-            mem_size,
-            mem_frame,
-            VREGION_FLAGS_READ_WRITE,
-            NULL,
-            NULL
-    );
-    if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
-    }
+        struct frame_identity mem_frame_identiy;
+        err = frame_identify(mem_frame, &mem_frame_identiy);
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
+        void *mem_buf;
+        err = paging_map_frame_attr(
+                get_current_paging_state(),
+                &mem_buf,
+                mem_size,
+                mem_frame,
+                VREGION_FLAGS_READ_WRITE,
+                NULL,
+                NULL
+        );
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
 
-    struct mem_info mem = {
-            .size = cpu_module->mrmod_size,
-            .buf = mem_buf,
-            .phys_base = mem_frame_identiy.base,
-    };
+        cpu_module_mem.size = cpu_module->mrmod_size;
+        cpu_module_mem.buf = mem_buf;
+        cpu_module_mem.phys_base = mem_frame_identiy.base;
+    }
 
     genvaddr_t reloc_entry_point;
-    err = load_elf_binary((genvaddr_t) cpu_module_addr, &mem,
+    err = load_elf_binary((genvaddr_t) cpu_module_addr, &cpu_module_mem,
                           (genvaddr_t) sym_arch_init->st_value, &reloc_entry_point);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
@@ -309,7 +304,7 @@ errval_t coreboot(coreid_t mpid,
     // high virtual address space, at offset ARMV8_KERNEL_OFFSET
     err = relocate_elf(
             (genvaddr_t) cpu_module_addr,
-            &mem,
+            &cpu_module_mem,
             ARMv8_KERNEL_OFFSET);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
@@ -398,7 +393,7 @@ errval_t coreboot(coreid_t mpid,
     // The boot driver runs with a 1:1  VA->PA mapping.
     err = relocate_elf(
             (genvaddr_t) boot_module_addr,
-            &mem,
+            &cpu_module_mem,
             0);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
