@@ -340,30 +340,6 @@ errval_t coreboot(coreid_t mpid,
     // TODO: store this somewhere, 1:1, use boot_reloc_entry_point directly
     __unused const lvaddr_t boot_entry_psci_reloc = boot_reloc_entry_point;
 
-    // Get init monitor
-    struct mem_region *init_module = multiboot_find_module(bi, init);
-    if (init_module == NULL) {
-        err = SPAWN_ERR_FIND_MODULE;
-        goto err_clean_up_kcb_cap;
-    }
-    struct capref init_frame = {
-            .cnode = cnode_module,
-            .slot = init_module->mrmod_slot,
-    };
-    void *init_module_addr = NULL;
-    err = paging_map_frame_attr(
-            get_current_paging_state(),
-            init_module_addr,
-            init_module->mrmod_size,
-            init_frame,
-            VREGION_FLAGS_READ,
-            NULL,
-            NULL
-    );
-    if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
-    }
-
     // - Allocate a page for the core data struct
     struct capref core_data_frame;
     size_t core_data_size;
@@ -434,8 +410,27 @@ errval_t coreboot(coreid_t mpid,
     }
 
     // init monitor
-    core_data->monitor_binary.base = init_module_addr;
-    core_data->monitor_binary.length = init_module->mrmod_size;
+    {
+        // Get init monitor
+        struct mem_region *init_module = multiboot_find_module(bi, init);
+        if (init_module == NULL) {
+            err = SPAWN_ERR_FIND_MODULE;
+            goto err_clean_up_kcb_cap;
+        }
+        struct capref init_frame = {
+                .cnode = cnode_module,
+                .slot = init_module->mrmod_slot,
+        };
+
+        struct frame_identity init_frame_identity;
+        err = frame_identify(init_frame, &init_frame_identity);
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
+
+        core_data->monitor_binary.base = init_frame_identity.base;
+        core_data->monitor_binary.length = init_frame_identity.bytes;
+    }
 
     // TODO:
     core_data->memory.base = 0;
