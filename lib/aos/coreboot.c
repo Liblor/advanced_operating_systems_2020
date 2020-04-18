@@ -333,7 +333,6 @@ errval_t coreboot(coreid_t mpid,
 
     // Relocate the boot driver
     // The boot driver runs with a 1:1  VA->PA mapping.
-    // relocate cpu driver
     err = relocate_elf(
             (genvaddr_t) boot_module_addr,
             &mem,
@@ -345,11 +344,43 @@ errval_t coreboot(coreid_t mpid,
     __unused const lvaddr_t boot_entry_psci_reloc = boot_reloc_entry_point;
 
 
-    // - Relocate the boot and CPU driver. The boot driver runs with a 1:1
-    //   VA->PA mapping. The CPU driver is expected to be loaded at the
-    //   high virtual address space, at offset ARMV8_KERNEL_OFFSET.
     // - Allocate a page for the core data struct
+    struct capref core_data_frame;
+    size_t core_data_size;
+    err = frame_alloc(&core_data_frame, BASE_PAGE_SIZE, &core_data_size);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+    struct armv8_core_data *core_data;
+    paging_map_frame_attr(
+            get_current_paging_state(),
+            (void **)&core_data,
+            core_data_size,
+            core_data_frame,
+            VREGION_FLAGS_READ_WRITE,
+            0,
+            0
+    );
+
     // - Allocate stack memory for the new cpu driver (at least 16 pages)
+    struct capref stack_frame;
+    size_t stack_size;
+    err = frame_alloc(&stack_frame, 16*BASE_PAGE_SIZE, &stack_size);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+    void *stack;
+    paging_map_frame_attr(
+            get_current_paging_state(),
+            &stack,
+            stack_size,
+            stack_frame,
+            VREGION_FLAGS_READ_WRITE,
+            0,
+            0
+    );
+
+
     // - Fill in the core data struct, for a description, see the definition
     //   in include/target/aarch64/barrelfish_kpi/arm_core_data.h
     // - Find the CPU driver entry point. Look for the symbol "arch_init". Put
