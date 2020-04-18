@@ -217,6 +217,7 @@ errors libaos LIB_ERR_ {
 
     // nested errors in specific functions
     failure FRAME_ALLOC         "Failure in frame_alloc()",
+    failure FRAME_ALLOC_SIZE    "Frame_alloc() returned too small frame",
     failure FRAME_CREATE        "Failure in frame_create()",
     failure FRAME_CREATE_MS_CONSTRAINTS "frame_create() failed due to constraints to mem_serv in ram_alloc",
     failure VNODE_CREATE        "Failure in vnode_create()",
