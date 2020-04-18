@@ -449,10 +449,10 @@ errval_t coreboot(coreid_t mpid,
 
     // Memory for CPU driver's allocations
     {
-        struct capref cpu_driver_alloc_frame;
         size_t size = ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE
                 + elf_virtual_size((lvaddr_t) init_monitor_module_vaddr);
 
+        struct capref cpu_driver_alloc_frame;
         err = frame_alloc(
                 &cpu_driver_alloc_frame,
                 size,
