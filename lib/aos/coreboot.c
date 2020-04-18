@@ -311,7 +311,7 @@ errval_t coreboot(coreid_t mpid,
 
     genvaddr_t boot_reloc_entry_point;
     err = load_elf_binary((genvaddr_t) boot_module_addr, &mem,
-                          (genvaddr_t) sym->st_value, &reloc_entry_point);
+                          (genvaddr_t) sym->st_value, &boot_reloc_entry_point);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
