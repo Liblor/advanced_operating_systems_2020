@@ -453,7 +453,8 @@ errval_t coreboot(coreid_t mpid,
             goto err_clean_up_kcb_cap;
         }
         // stack grows downwards
-        core_data->cpu_driver_stack = cpu_driver_stack_id.base + cpu_driver_stack_id.bytes;
+        // XXX: stack needs to be aligned to 8 bytes acc. to moodle
+        core_data->cpu_driver_stack = ROUND_DOWN(cpu_driver_stack_id.base + cpu_driver_stack_id.bytes, 8);
         core_data->cpu_driver_stack_limit = cpu_driver_stack_id.base;
     }
 
@@ -558,7 +559,7 @@ errval_t coreboot(coreid_t mpid,
     core_data->dst_core_id = mpid;
 
     //  Physical core id of the started core
-    core_data->dst_arch_id = 1;
+    core_data->dst_arch_id = mpid;
 
     // - Fill in the core data struct, for a description, see the definition
     //   in include/target/aarch64/barrelfish_kpi/arm_core_data.h
