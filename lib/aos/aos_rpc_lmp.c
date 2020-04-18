@@ -136,6 +136,8 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 {
     errval_t err;
 
+    thread_mutex_lock_nested(&rpc->mutex);
+
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
@@ -180,6 +182,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     if (recv != NULL) {
         free(recv);
     }
+    thread_mutex_unlock(&rpc->mutex);
     return err;
 }
 

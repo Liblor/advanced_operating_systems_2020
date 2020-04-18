@@ -167,14 +167,13 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     err = SYS_ERR_OK;
 
 clean_up:
-    thread_mutex_unlock(&rpc->mutex);
-
     // free slot in case no cap was received
     if (*recv != NULL) {
         if (capref_is_null((*recv)->cap)) {
             slot_free(rpc->lc.endpoint->recv_slot);
         }
     }
+    thread_mutex_unlock(&rpc->mutex);
     free(state.message);
     state.message = NULL;
     waitset_destroy(&state.ws);

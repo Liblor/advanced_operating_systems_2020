@@ -210,26 +210,6 @@ static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, 
     errval_t err;
 
     void *ret_addr = NULL;
-    /*
-    const lvaddr_t end_address = state->dynamic_zone.base_addr + state->dynamic_zone.region_size;
-    if (end_address <= state->dynamic_zone.current_addr) {
-        *retbytes = 0;
-        debug_printf("morecore_alloc failed: out of zone addresses\n");
-        return NULL;
-    }
-
-    lvaddr_t new_curr = MIN(state->dynamic_zone.current_addr + bytes, end_address);
-    if (new_curr < state->dynamic_zone.current_addr) {
-        *retbytes = 0;
-        debug_printf("morecore_alloc failed: overflow\n");
-        return NULL;
-    }
-
-    *retbytes = new_curr - state->dynamic_zone.current_addr;
-    ret_addr = (void *)state->dynamic_zone.current_addr;
-    state->dynamic_zone.current_addr = new_curr;
-    assert(new_curr <= end_address);
-    */
 
     err = paging_region_map(&state->dynamic_heap_pr, bytes, &ret_addr, retbytes);
     if (err_is_fail(err)) {

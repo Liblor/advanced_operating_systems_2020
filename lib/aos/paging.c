@@ -376,6 +376,10 @@ static inline errval_t back_vaddr(
     assert(vaddr != 0);
     assert(vaddr % BASE_PAGE_SIZE == 0);
 
+    while (!thread_mutex_trylock(&st->mutex)) {
+        thread_yield();
+    }
+
     /*
      * First, we lookup the corresponding node on the upper layer.
      */
@@ -404,6 +408,8 @@ static inline errval_t back_vaddr(
         return AOS_ERR_PAGING_ADDR_RESERVED;
     }
 
+    // TODO: Check if paging_region belongs to another thread (stack or heap).
+
     struct rtnode *mapping_node;
     err = range_tracker_get_fixed(&pr->rt, vaddr, 1, &mapping_node);
     if (err_is_fail(err)) {
@@ -411,6 +417,7 @@ static inline errval_t back_vaddr(
         return err;
     }
 
+    thread_mutex_unlock(&st->mutex);
     assert(mapping_node != NULL);
 
     /*
@@ -419,7 +426,7 @@ static inline errval_t back_vaddr(
 
     struct capref frame;
     size_t size;
-    slab_ensure_threshold(&st->slabs, 32);
+    slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
 
     err = frame_alloc(&frame, mapping_node->size, &size);
     if (err_is_fail(err)) {
@@ -433,11 +440,13 @@ static inline errval_t back_vaddr(
 
     uint64_t page_count = mapping_node->size / BASE_PAGE_SIZE;
 
+    thread_mutex_lock_nested(&st->mutex);
     err = get_and_map_into_l3(st, pr, mapping_node->base, frame, 0, page_count, mapping_node, pr->flags);
     if (err_is_fail(err)) {
         debug_printf("get_and_map_into_l3() failed: %s\n", err_getstring(err));
         return err;
     }
+    thread_mutex_unlock(&st->mutex);
 
 #ifndef NDEBUG
     ensure_correct_pagetable_mapping(st, vaddr, page_count);
@@ -446,8 +455,6 @@ static inline errval_t back_vaddr(
     return SYS_ERR_OK;
 }
 
-// TODO: check that addr is in valid stack bounds of current thread or
-// TODO: check that addr is in valid heap bounds
 static errval_t paging_handler(
     enum exception_type type,
     int subtype,
@@ -718,6 +725,7 @@ errval_t paging_alloc(
     assert(alignment % BASE_PAGE_SIZE == 0);
     PAGING_CHECK_SIZE(bytes)
 
+    bool is_dynamic = false;
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
     struct paging_region *pr = NULL;
@@ -735,8 +743,10 @@ errval_t paging_alloc(
      * order to ensure the threshold directly before acquiring the page.
      */
     thread_mutex_lock_nested(&st->mutex);
+    is_dynamic = !get_morecore_state()->heap_static;
+    morecore_enable_static();
 
-    err = slab_ensure_threshold(&st->slabs, 32);
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
         goto error_cleanup;
     }
@@ -758,10 +768,14 @@ errval_t paging_alloc(
     err = SYS_ERR_OK;
 
 exit_cleanup:
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
     thread_mutex_unlock(&st->mutex);
     return err;
 
 error_cleanup:
+    debug_printf("error during paging_alloc() failed: %s\n", err_getstring(err));
     free(pr);
     goto exit_cleanup;
 }
@@ -853,16 +867,15 @@ errval_t paging_map_fixed_attr(
 
     assert(st != NULL);
 
+    bool is_dynamic = false;
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
     PAGING_CHECK_RANGE(vaddr, bytes);
 
     thread_mutex_lock_nested(&st->mutex);
-
-    // run on vmem which does not pagefault
-    const bool is_dynamic = !get_morecore_state()->heap_static;
+    is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
 
-    err = slab_ensure_threshold(&st->slabs, 32);
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
         goto clean_up;
     }
@@ -1005,11 +1018,14 @@ errval_t paging_unmap(
 
     assert(st != NULL);
 
+    bool is_dynamic = false;
     const lvaddr_t vaddr = (lvaddr_t) region;
 
     struct rtnode *pr_node = NULL;
 
     thread_mutex_lock_nested(&st->mutex);
+    is_dynamic = !get_morecore_state()->heap_static;
+    morecore_enable_static();
 
     err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
     if (err_is_fail(err)) {
@@ -1044,6 +1060,9 @@ errval_t paging_unmap(
         return err;
     }
 
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
     thread_mutex_unlock(&st->mutex);
 
     /*

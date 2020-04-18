@@ -9,7 +9,7 @@
 // tests will still work before changing it. For example, it must be an even
 // number (or 1).
 // TODO Change to at least 2
-#define TEST_NUM_THREADS (2)
+#define TEST_NUM_THREADS (10)
 #define TEST_AOS_RPC_SEND_NUMBER_COUNT (1000)
 
 /**

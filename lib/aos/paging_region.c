@@ -64,6 +64,7 @@ static errval_t _paging_region_init(
         return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
 
+    bool is_dynamic = false;
     bool exit_do_unlock = false;
 
     memset(pr, 0x00, sizeof(struct paging_region));
@@ -75,7 +76,10 @@ static errval_t _paging_region_init(
     thread_mutex_lock_nested(&st->mutex);
     exit_do_unlock = true;
 
-    err = slab_ensure_threshold(&st->slabs, 32);
+    is_dynamic = !get_morecore_state()->heap_static;
+    morecore_enable_static();
+
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
         goto cleanup;
     }
@@ -100,14 +104,14 @@ static errval_t _paging_region_init(
         }
     }
 
-    thread_mutex_unlock(&st->mutex);
-    exit_do_unlock = false;
-
 #ifndef NDEBUG
     err = range_tracker_get_fixed(&st->rt, fixed ? base : node->base, 1, &check_node);
     assert(err_no(err) == SYS_ERR_OK);
     assert(node == check_node);
 #endif
+
+    thread_mutex_unlock(&st->mutex);
+    exit_do_unlock = false;
 
     err = paging_region_init_region(st, pr, node->base, node->size, flags, node, implicit);
     if (err_is_fail(err)) {
@@ -120,6 +124,9 @@ static errval_t _paging_region_init(
     err = SYS_ERR_OK;
 
 cleanup:
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
     if (exit_do_unlock) {
         thread_mutex_unlock(&st->mutex);
     }
@@ -210,7 +217,7 @@ errval_t paging_region_map(
 
     thread_mutex_lock_nested(&pr->mutex);
 
-    err = slab_ensure_threshold(&st->slabs, 32);
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
         goto cleanup;
     }

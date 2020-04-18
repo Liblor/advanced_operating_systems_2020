@@ -74,6 +74,8 @@
         return LIB_ERR_PAGING_SIZE_INVALID; \
     } \
 
+#define PAGING_SLAB_THRESHOLD (48)
+
 struct frame_mapping_pair {
     struct capref frame; ///< The frame capability used to back the memory of the mapping.
     struct capref mapping; ///< The mapping capability.

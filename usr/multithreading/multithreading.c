@@ -9,13 +9,13 @@
 #include <grading.h>
 
 
-#define TEST_PAGING_ALLOC_COUNT (100)
+#define TEST_PAGING_ALLOC_COUNT (50)
 #define TEST_PAGING_ALLOC_SIZE (10 * BASE_PAGE_SIZE)
-#define TEST_PAGING_MAP_FIXED_ATTR_COUNT (100)
+#define TEST_PAGING_MAP_FIXED_ATTR_COUNT (50)
 #define TEST_PAGING_MAP_FIXED_ATTR_SIZE (10 * BASE_PAGE_SIZE)
-#define TEST_PAGING_REGION_INIT_ALIGNED_COUNT (100)
+#define TEST_PAGING_REGION_INIT_ALIGNED_COUNT (50)
 #define TEST_PAGING_REGION_INIT_ALIGNED_SIZE (10 * BASE_PAGE_SIZE)
-#define TEST_PAGING_REGION_MAP_COUNT (100)
+#define TEST_PAGING_REGION_MAP_COUNT (50)
 #define TEST_PAGING_REGION_MAP_SIZE (10 * BASE_PAGE_SIZE)
 
 const char long_string[] = "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
@@ -147,7 +147,8 @@ static int thread_paging_region_init_aligned(void *data)
     struct paging_region prs[TEST_PAGING_REGION_INIT_ALIGNED_COUNT];
     memset(prs, 0, sizeof(prs));
 
-    for(int i = 0; i < TEST_PAGING_REGION_INIT_ALIGNED_COUNT; i++) {
+    for (int i = 0; i < TEST_PAGING_REGION_INIT_ALIGNED_COUNT; i++) {
+        debug_printf("Iteration %d/%d\n", i + 1, TEST_PAGING_REGION_INIT_ALIGNED_COUNT);
         err = paging_region_init_aligned(pgst, &prs[i], TEST_PAGING_REGION_INIT_ALIGNED_SIZE, BASE_PAGE_SIZE, VREGION_FLAGS_READ_WRITE);
         assert(err_is_ok(err));
     }
