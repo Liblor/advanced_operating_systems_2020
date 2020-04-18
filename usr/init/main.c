@@ -24,6 +24,7 @@
 #include <mm/mm.h>
 #include <spawn/spawn.h>
 #include <grading.h>
+#include <aos/coreboot.h>
 
 #include "mem_alloc.h"
 #include "initserver.h"
@@ -183,9 +184,13 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
+    struct frame_identity dummy_urpc_frame_id;
+    coreboot(1, "boot_armv8_generic", "cpu_imx8x", "init", dummy_urpc_frame_id);
+
     // Grading
     grading_test_late();
 
+    /*
     char *binary_name = "morecore-test";
     struct spawninfo si;
     domainid_t pid;
@@ -195,6 +200,7 @@ static int bsp_main(int argc, char *argv[])
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
+     */
 
     debug_printf("Message handler loop\n");
     // Hang around
