@@ -361,7 +361,7 @@ errval_t coreboot(coreid_t mpid,
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
-    struct armv8_core_data *core_data;
+    struct armv8_core_data *core_data = NULL;
     err = paging_map_frame_attr(
             get_current_paging_state(),
             (void **)&core_data,
