@@ -184,10 +184,15 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
+    size_t urpc_frame_size;
+    err = frame_alloc(&cap_urpc, 4*BASE_PAGE_SIZE, &urpc_frame_size);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "FRAME ALLOC FAILED");
+    }
     struct frame_identity urpc_frame_id;
     err = frame_identify(cap_urpc, &urpc_frame_id);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "frame identify failed");
+        DEBUG_ERR(err, "FRAME IDENTIFY FAILED");
     }
     err = coreboot(1, "boot_armv8_generic", "cpu_imx8x", "init", urpc_frame_id);
     if (err_is_fail(err)) {
