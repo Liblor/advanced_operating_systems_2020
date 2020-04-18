@@ -190,11 +190,25 @@ errval_t coreboot(coreid_t mpid,
         const char *init,
         struct frame_identity urpc_frame_id)
 {
+    errval_t err;
 
     // Implement me!
     // - Get a new KCB by retyping a RAM cap to ObjType_KernelControlBlock.
     //   Note that it should at least OBJSIZE_KCB, and it should also be aligned
     //   to a multiple of 16k.
+    struct capref ram_cap;
+    err = ram_alloc_aligned(&ram_cap, OBJSIZE_KCB, 4*BASE_PAGE_SIZE);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    struct capref kcb;
+    err = cap_retype(kcb, ram_cap, 0, ObjType_KernelControlBlock, OBJSIZE_KCB, 1);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+
     // - Get and load the CPU and boot driver binary.
     // - Relocate the boot and CPU driver. The boot driver runs with a 1:1
     //   VA->PA mapping. The CPU driver is expected to be loaded at the
