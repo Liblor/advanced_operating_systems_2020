@@ -239,7 +239,7 @@ errval_t coreboot(coreid_t mpid,
     void *cpu_module_addr = NULL;
     err = paging_map_frame_attr(
             get_current_paging_state(),
-            cpu_module_addr,
+            &cpu_module_addr,
             cpu_module->mrmod_size,
             cpu_frame,
             VREGION_FLAGS_READ,
@@ -303,7 +303,7 @@ errval_t coreboot(coreid_t mpid,
     void *boot_module_addr = NULL;
     err = paging_map_frame_attr(
             get_current_paging_state(),
-            boot_module_addr,
+            &boot_module_addr,
             boot_module->mrmod_size,
             boot_frame,
             VREGION_FLAGS_READ,
