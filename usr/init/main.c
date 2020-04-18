@@ -187,7 +187,7 @@ static int bsp_main(int argc, char *argv[])
     struct frame_identity urpc_frame_id;
     err = frame_identify(cap_urpc, &urpc_frame_id);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "COREBOOT FAILED");
+        DEBUG_ERR(err, "frame identify failed");
     }
     err = coreboot(1, "boot_armv8_generic", "cpu_imx8x", "init", urpc_frame_id);
     if (err_is_fail(err)) {
