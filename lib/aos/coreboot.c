@@ -206,6 +206,7 @@ errval_t coreboot(coreid_t mpid,
     }
 
     struct capref kcb;
+    slot_alloc(&kcb);
     err = cap_retype(kcb, ram_cap, 0, ObjType_KernelControlBlock, OBJSIZE_KCB, 1);
     if (err_is_fail(err)) {
         goto err_clean_up_ram_cap;
@@ -461,6 +462,16 @@ errval_t coreboot(coreid_t mpid,
     // URPC Frame
     core_data->urpc_frame.base = urpc_frame_id.base;
     core_data->urpc_frame.length = urpc_frame_id.bytes;
+
+    // KCB
+    {
+        struct frame_identity kcb_frame_identity;
+        err = frame_identify(kcb, &kcb_frame_identity);
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
+        core_data->kcb = kcb_frame_identity.base;
+    }
 
 
 
