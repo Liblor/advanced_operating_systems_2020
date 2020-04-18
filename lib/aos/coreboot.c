@@ -453,7 +453,8 @@ errval_t coreboot(coreid_t mpid,
             goto err_clean_up_kcb_cap;
         }
         // stack grows downwards
-        core_data->cpu_driver_stack = cpu_driver_stack_id.base + cpu_driver_stack_id.bytes;
+        // XXX: stack needs to be aligned to 8 bytes acc. to moodle
+        core_data->cpu_driver_stack = ROUND_DOWN(cpu_driver_stack_id.base + cpu_driver_stack_id.bytes, 8);
         core_data->cpu_driver_stack_limit = cpu_driver_stack_id.base;
     }
 
