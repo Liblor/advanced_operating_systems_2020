@@ -238,12 +238,12 @@ errval_t coreboot(coreid_t mpid,
 
     // get entrypoint of arch_init
     uintptr_t sindex = 0;
-    struct Elf64_Sym *sym = elf64_find_symbol_by_name((genvaddr_t) cpu_module_addr,
-                                                      cpu_module->mrmod_size,
-                                                      "arch_init",
-                                                      0,
-                                                      STT_FUNC,
-                                                      &sindex);
+    struct Elf64_Sym *sym_arch_init = elf64_find_symbol_by_name((genvaddr_t) cpu_module_addr,
+                                                                cpu_module->mrmod_size,
+                                                                "arch_init",
+                                                                0,
+                                                                STT_FUNC,
+                                                                &sindex);
     // get physical base addr for cpu_driver
     struct frame_identity cpu_frame_identiy;
     err = frame_identify(cpu_frame, &cpu_frame_identiy);
@@ -259,7 +259,7 @@ errval_t coreboot(coreid_t mpid,
 
     genvaddr_t reloc_entry_point;
     err = load_elf_binary((genvaddr_t) cpu_module_addr, &mem,
-                          (genvaddr_t) sym->st_value, &reloc_entry_point);
+                          (genvaddr_t) sym_arch_init->st_value, &reloc_entry_point);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
@@ -274,10 +274,7 @@ errval_t coreboot(coreid_t mpid,
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
-    // TODO: write this into core data
-    __unused const lvaddr_t arch_init_reloc = reloc_entry_point + ARMv8_KERNEL_OFFSET;
-
-
+    const lvaddr_t arch_init_reloc = reloc_entry_point + ARMv8_KERNEL_OFFSET;
 
     // - Get and load the boot driver binary.
     struct mem_region *boot_module = multiboot_find_module(bi, boot_driver);
@@ -305,12 +302,12 @@ errval_t coreboot(coreid_t mpid,
 
     // get entrypoint
     sindex = 0;
-    sym = elf64_find_symbol_by_name((genvaddr_t) boot_module_addr,
-                                    boot_module->mrmod_size,
-                                    "boot_entry_psci",
-                                    0,
-                                    STT_FUNC,
-                                    &sindex);
+    sym_arch_init = elf64_find_symbol_by_name((genvaddr_t) boot_module_addr,
+                                              boot_module->mrmod_size,
+                                              "boot_entry_psci",
+                                              0,
+                                              STT_FUNC,
+                                              &sindex);
     // get physical base addr
     struct frame_identity boot_frame_identiy;
     err = frame_identify(boot_frame, &boot_frame_identiy);
@@ -326,7 +323,7 @@ errval_t coreboot(coreid_t mpid,
 
     genvaddr_t boot_reloc_entry_point;
     err = load_elf_binary((genvaddr_t) boot_module_addr, &mem_boot,
-                          (genvaddr_t) sym->st_value, &boot_reloc_entry_point);
+                          (genvaddr_t) sym_arch_init->st_value, &boot_reloc_entry_point);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
@@ -352,7 +349,7 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
     struct armv8_core_data *core_data;
-    paging_map_frame_attr(
+    err = paging_map_frame_attr(
             get_current_paging_state(),
             (void **)&core_data,
             core_data_size,
@@ -361,6 +358,9 @@ errval_t coreboot(coreid_t mpid,
             0,
             0
     );
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
 
     // - Allocate stack memory for the new cpu driver (at least 16 pages)
     struct capref stack_frame;
@@ -370,7 +370,7 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
     void *stack;
-    paging_map_frame_attr(
+    err = paging_map_frame_attr(
             get_current_paging_state(),
             &stack,
             stack_size,
@@ -379,6 +379,45 @@ errval_t coreboot(coreid_t mpid,
             0,
             0
     );
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
+    // iMX8 is using PSCI
+    core_data->boot_magic = ARMV8_BOOTMAGIC_PSCI;
+    {
+        // get physical addr of cpu_driver_stack
+        struct frame_identity cpu_driver_stack_id;
+        err = frame_identify(
+                stack_frame,
+                &cpu_driver_stack_id);
+
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
+        // stack grows downwards
+        core_data->cpu_driver_stack = cpu_driver_stack_id.base + cpu_driver_stack_id.bytes;
+        core_data->cpu_driver_stack_limit = cpu_driver_stack_id.base;
+    }
+
+    core_data->cpu_driver_entry = arch_init_reloc;
+
+    // kernel command line args
+    const size_t cmd_len = sizeof(core_data->cpu_driver_cmdline);
+    memset(core_data->cpu_driver_cmdline, 0, cmd_len);
+    const char *opts = multiboot_module_opts(cpu_module);
+    if (opts != NULL) {
+        strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len),
+        memcpy(core_data->cpu_driver_cmdline, 0, sizeof(core_data->cpu_driver_cmdline));
+    }
+
+    
+
+
+
+
+
+
 
 
     // - Fill in the core data struct, for a description, see the definition
