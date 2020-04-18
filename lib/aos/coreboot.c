@@ -260,6 +260,9 @@ errval_t coreboot(coreid_t mpid,
     genvaddr_t reloc_entry_point;
     err = load_elf_binary((genvaddr_t) cpu_module_addr, &mem,
                           (genvaddr_t) sym->st_value, &reloc_entry_point);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
 
     // - Get and load the boot driver binary.
 
