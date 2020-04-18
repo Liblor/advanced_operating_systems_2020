@@ -349,10 +349,36 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
+    struct capref mem_boot_frame;
+    size_t mem_boot_size;
+    err = frame_alloc(&mem_boot_frame, boot_module->mrmod_size, &mem_boot_size);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
+    struct frame_identity mem_boot_frame_identiy;
+    err = frame_identify(mem_boot_frame, &mem_boot_frame_identiy);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+    void *mem_boot_buf;
+    err = paging_map_frame_attr(
+            get_current_paging_state(),
+            &mem_boot_buf,
+            mem_boot_size,
+            mem_boot_frame,
+            VREGION_FLAGS_READ_WRITE,
+            NULL,
+            NULL
+    );
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
     struct mem_info mem_boot = (struct mem_info) {
             .size = boot_module->mrmod_size,
-            .buf = boot_module_addr,
-            .phys_base = boot_frame_identiy.base,
+            .buf = mem_boot_buf,
+            .phys_base = mem_boot_frame_identiy.base,
     };
 
     genvaddr_t boot_reloc_entry_point;
