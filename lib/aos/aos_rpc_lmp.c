@@ -68,6 +68,8 @@ aos_rpc_lmp_init(struct aos_rpc *rpc)
 errval_t
 aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
+    errval_t err;
+
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(num)];
 
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
@@ -77,13 +79,21 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     msg->cap = NULL_CAP;
     memcpy(msg->msg.payload, &num, sizeof(num));
 
-    return aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+        return err;
+    }
+
+    return SYS_ERR_OK;
 }
 
 
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 {
+    errval_t err;
+
     const uint32_t str_len = MIN(strnlen(string, RPC_LMP_MAX_STR_LEN) + 1,
                                  RPC_LMP_MAX_STR_LEN);  //  strln \0 not included
 
@@ -96,7 +106,13 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     msg->msg.status = Status_Ok;
     strlcpy(msg->msg.payload, string, str_len);
 
-    return aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+        return err;
+    }
+
+    return SYS_ERR_OK;
 }
 
 static errval_t
@@ -199,6 +215,8 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
+    errval_t err;
+
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(char)];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
@@ -208,11 +226,12 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &c, sizeof(char));
 
-    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_send_message()\n");
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
         return err;
     }
+
     return SYS_ERR_OK;
 }
 

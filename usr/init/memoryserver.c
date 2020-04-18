@@ -11,7 +11,7 @@ static struct rpc_lmp_server server;
 
 static ram_cap_callback_t ram_cap_cb = NULL;
 
-static errval_t reply_cap(struct lmp_chan *lc, struct capref *cap, size_t bytes) {
+static errval_t reply_cap(struct aos_rpc *rpc, struct capref *cap, size_t bytes) {
     errval_t err;
 
     char msg_buf[sizeof(struct rpc_message) + sizeof(bytes)];
@@ -24,7 +24,7 @@ static errval_t reply_cap(struct lmp_chan *lc, struct capref *cap, size_t bytes)
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
 
 
-    err = aos_rpc_lmp_send_message(lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_send_message failed\n");
         return err;
@@ -33,7 +33,7 @@ static errval_t reply_cap(struct lmp_chan *lc, struct capref *cap, size_t bytes)
     return SYS_ERR_OK;
 }
 
-static errval_t reply_error(struct lmp_chan *lc) {
+static errval_t reply_error(struct aos_rpc *rpc) {
     errval_t err;
 
     struct rpc_message msg;
@@ -43,7 +43,7 @@ static errval_t reply_error(struct lmp_chan *lc) {
     msg.msg.payload_length = 0;
     msg.msg.status = Status_Error;
 
-    err = aos_rpc_lmp_send_message(lc, &msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, &msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_send_message failed\n");
         return err;
@@ -54,7 +54,7 @@ static errval_t reply_error(struct lmp_chan *lc) {
 
 // Allocate RAM and send it to the client. Also, we notify our dispatcher that
 // we allocated RAM.
-static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct lmp_chan *reply_chan, void *server_state)
+static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
 {
     errval_t err;
 
@@ -72,11 +72,11 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
             size_t retbytes;
             err = ram_cap_cb(bytes, alignment, &retcap, &retbytes);
             if (err_is_fail(err)) {
-                err = reply_error(reply_chan);
+                err = reply_error(rpc);
             }
-            err = reply_cap(reply_chan, &retcap, retbytes);
+            err = reply_cap(rpc, &retcap, retbytes);
         } else {
-            err = reply_error(reply_chan);
+            err = reply_error(rpc);
         }
         break;
     default:

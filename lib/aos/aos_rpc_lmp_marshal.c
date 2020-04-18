@@ -96,6 +96,14 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
                                struct rpc_message **recv, validate_recv_msg_t validate_cb)
 {
     errval_t err;
+
+    assert(rpc != NULL);
+    assert(send != NULL);
+
+    if (recv != NULL) {
+        *recv = NULL;
+    }
+
     struct client_response_state state;
     memset(&state, 0, sizeof(struct client_response_state));
 
@@ -105,7 +113,8 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     state.pending_state = EmptyState;
     state.validate_recv_msg = validate_cb;
     state.message = NULL;
-    *recv = NULL;
+
+    thread_mutex_lock_nested(&rpc->mutex);
 
     // allocate recv slot in case we get a cap in result
     // need to free again if not used
@@ -121,7 +130,7 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
         goto clean_up;
     }
 
-    err = aos_rpc_lmp_send_message(&rpc->lc, send, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, send, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
         goto clean_up;
@@ -144,19 +153,22 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     }
 
     assert(state.message != NULL);
-    assert(recv != NULL);
 
-    *recv = malloc(sizeof(struct rpc_message) + state.message->msg.payload_length);
-    if (*recv == NULL) {
-        err = LIB_ERR_MALLOC_FAIL;
-        goto clean_up;
+    if (recv != NULL) {
+        *recv = malloc(sizeof(struct rpc_message) + state.message->msg.payload_length);
+        if (*recv == NULL) {
+            err = LIB_ERR_MALLOC_FAIL;
+            goto clean_up;
+        }
+
+        memcpy(*recv, state.message, sizeof(struct rpc_message) + state.message->msg.payload_length);
     }
-    memcpy(*recv, state.message, sizeof(struct rpc_message) + state.message->msg.payload_length);
 
     err = SYS_ERR_OK;
-    goto clean_up;
 
-    clean_up:
+clean_up:
+    thread_mutex_unlock(&rpc->mutex);
+
     // free slot in case no cap was received
     if (*recv != NULL) {
         if (capref_is_null((*recv)->cap)) {
@@ -171,9 +183,13 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
 }
 
 errval_t
-aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags)
+aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_flags_t flags)
 {
     errval_t err;
+
+    assert(rpc != NULL);
+    assert(msg != NULL);
+
     const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;
 
     uintptr_t words[LMP_MSG_LENGTH];
@@ -184,12 +200,14 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
     uint64_t retries = 0;
     err = SYS_ERR_OK;
 
+    thread_mutex_lock_nested(&rpc->mutex);
+
     while (size_sent < msg_size && retries < TRANSIENT_ERR_RETRIES) {
         uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);
 
-        err = lmp_chan_send4(c, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
+        err = lmp_chan_send4(&rpc->lc, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
 
         if (lmp_err_is_transient(err)) {
             retries++;
@@ -202,6 +220,9 @@ aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_f
         first = false;
         retries = 0;
     }
+
+    thread_mutex_unlock(&rpc->mutex);
+
     if (err_is_fail(err)) {
         if (retries >= TRANSIENT_ERR_RETRIES) {
             debug_printf("a transient error occured %u times, retries exceeded\n", retries);

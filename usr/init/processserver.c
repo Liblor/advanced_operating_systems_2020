@@ -220,7 +220,7 @@ errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
     return SYS_ERR_OK;
 }
 
-static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct lmp_chan *reply_chan, void *server_state)
+static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct aos_rpc *rpc, void *server_state)
 {
     errval_t err;
     struct rpc_message *ret = NULL;
@@ -231,7 +231,7 @@ static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct 
         goto cleanup;
     }
 
-    err = aos_rpc_lmp_send_message(reply_chan, ret, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, ret, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_message() failed");
     }
