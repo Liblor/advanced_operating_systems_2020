@@ -195,6 +195,8 @@ errval_t coreboot(coreid_t mpid,
 {
     errval_t err;
 
+    // TODO: free all slots created by frame alloc
+
     // Implement me!
     // - Get a new KCB by retyping a RAM cap to ObjType_KernelControlBlock.
     //   Note that it should at least OBJSIZE_KCB, and it should also be aligned
@@ -210,7 +212,7 @@ errval_t coreboot(coreid_t mpid,
     if (err_is_fail(err)) {
         goto err_clean_up_ram_cap;
     }
-    
+
     err = cap_retype(
             kcb,
             ram_cap,
@@ -501,7 +503,17 @@ errval_t coreboot(coreid_t mpid,
         core_data->kcb = kcb_frame_identity.base;
     }
 
+    // Logical core id of the invoking core.
+    core_data->src_core_id = disp_get_core_id();
 
+    // Physical core id of the invoking core
+    core_data->src_arch_id = disp_get_core_id();
+
+    // Logical core id of the started core
+    core_data->dst_core_id = 1; // XXX: we always boot core 1
+
+    //  Physical core id of the started core
+    core_data->dst_arch_id = 1;
 
     // - Fill in the core data struct, for a description, see the definition
     //   in include/target/aarch64/barrelfish_kpi/arm_core_data.h
@@ -513,6 +525,8 @@ errval_t coreboot(coreid_t mpid,
     arm64_idcache_wbinv_range((vm_offset_t) core_data, core_data_size);
     arm64_dcache_wb_range((vm_offset_t) stack, stack_size);
     arm64_idcache_wbinv_range((vm_offset_t) stack, stack_size);
+
+
 
     // - Call the invoke_monitor_spawn_core with the entry point
     //   of the boot driver and pass the (physical, of course) address of the
