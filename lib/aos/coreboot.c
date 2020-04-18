@@ -213,7 +213,7 @@ errval_t coreboot(coreid_t mpid,
 
     // - Get and load the CPU binary.
     // we might be able to reuse code from spawn.c by generalizing a bit (see load_module)
-    struct mem_region *cpu_module = multiboot_find_module(bi, "cpu_imx8x");
+    struct mem_region *cpu_module = multiboot_find_module(bi, cpu_driver);
     if (cpu_module == NULL) {
         err = SPAWN_ERR_FIND_MODULE;
         goto err_clean_up_kcb_cap;
@@ -236,7 +236,7 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
-    // get entrypoint
+    // get entrypoint of arch_init
     uintptr_t sindex = 0;
     struct Elf64_Sym *sym = elf64_find_symbol_by_name((genvaddr_t) cpu_module_addr,
                                                       cpu_module->mrmod_size,
@@ -244,7 +244,7 @@ errval_t coreboot(coreid_t mpid,
                                                       0,
                                                       STT_FUNC,
                                                       &sindex);
-    // get physical base addr
+    // get physical base addr for cpu_driver
     struct frame_identity cpu_frame_identiy;
     err = frame_identify(cpu_frame, &cpu_frame_identiy);
     if (err_is_fail(err)) {
@@ -265,6 +265,56 @@ errval_t coreboot(coreid_t mpid,
     }
 
     // - Get and load the boot driver binary.
+    struct mem_region *boot_module = multiboot_find_module(bi, boot_driver);
+    if (boot_module == NULL) {
+        err = SPAWN_ERR_FIND_MODULE;
+        goto err_clean_up_kcb_cap;
+    }
+    struct capref boot_frame = {
+            .cnode = cnode_module,
+            .slot = boot_module->mrmod_slot,
+    };
+    void *boot_module_addr = NULL;
+    err = paging_map_frame_attr(
+            get_current_paging_state(),
+            boot_module_addr,
+            boot_module->mrmod_size,
+            boot_frame,
+            VREGION_FLAGS_READ,
+            NULL,
+            NULL
+    );
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
+    // get entrypoint
+    sindex = 0;
+    sym = elf64_find_symbol_by_name((genvaddr_t) boot_module_addr,
+                                    boot_module->mrmod_size,
+                                    "boot_entry_psci",
+                                    0,
+                                    STT_FUNC,
+                                    &sindex);
+    // get physical base addr
+    struct frame_identity boot_frame_identiy;
+    err = frame_identify(boot_frame, &boot_frame_identiy);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
+     mem = (struct mem_info) {
+            .size = boot_module->mrmod_size,
+            .buf = boot_module_addr,
+            .phys_base = boot_frame_identiy.base,
+    };
+
+    genvaddr_t boot_reloc_entry_point;
+    err = load_elf_binary((genvaddr_t) boot_module_addr, &mem,
+                          (genvaddr_t) sym->st_value, &reloc_entry_point);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
 
     // - Relocate the boot and CPU driver. The boot driver runs with a 1:1
     //   VA->PA mapping. The CPU driver is expected to be loaded at the
