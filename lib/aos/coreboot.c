@@ -340,7 +340,6 @@ errval_t coreboot(coreid_t mpid,
     // TODO: store this somewhere, 1:1, use boot_reloc_entry_point directly
     __unused const lvaddr_t boot_entry_psci_reloc = boot_reloc_entry_point;
 
-
     // - Allocate a page for the core data struct
     struct capref core_data_frame;
     size_t core_data_size;
@@ -410,11 +409,33 @@ errval_t coreboot(coreid_t mpid,
         strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len);
     }
 
+    // init monitor
+    {
+        // Get init monitor
+        struct mem_region *init_module = multiboot_find_module(bi, init);
+        if (init_module == NULL) {
+            err = SPAWN_ERR_FIND_MODULE;
+            goto err_clean_up_kcb_cap;
+        }
+        struct capref init_frame = {
+                .cnode = cnode_module,
+                .slot = init_module->mrmod_slot,
+        };
+
+        struct frame_identity init_frame_identity;
+        err = frame_identify(init_frame, &init_frame_identity);
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
+
+        core_data->monitor_binary.base = init_frame_identity.base;
+        core_data->monitor_binary.length = init_frame_identity.bytes;
+    }
+
     // Memory for CPU driver's allocations
     {
         struct capref cpu_driver_alloc_frame;
         size_t size = ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE + elf_virtual_size(0); // TODO: find correct virtual_size
-
         err = frame_alloc(
                 &cpu_driver_alloc_frame,
                 size,
@@ -436,8 +457,6 @@ errval_t coreboot(coreid_t mpid,
         core_data->memory.base = physical_id.base;
         core_data->memory.length = physical_id.bytes;
     }
-
-
 
 
     // - Fill in the core data struct, for a description, see the definition
