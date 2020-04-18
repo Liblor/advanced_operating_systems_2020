@@ -410,8 +410,8 @@ errval_t coreboot(coreid_t mpid,
     }
 
     // init monitor
+    void *init_monitor_module_vaddr = NULL;
     {
-        // Get init monitor
         struct mem_region *init_module = multiboot_find_module(bi, init);
         if (init_module == NULL) {
             err = SPAWN_ERR_FIND_MODULE;
@@ -430,12 +430,29 @@ errval_t coreboot(coreid_t mpid,
 
         core_data->monitor_binary.base = init_frame_identity.base;
         core_data->monitor_binary.length = init_frame_identity.bytes;
+
+        // we need to map init_module into vaddr space for elf_virtual_size in
+        // CPU driver's allocations
+        err = paging_map_frame_attr(
+                get_current_paging_state(),
+                &init_monitor_module_vaddr,
+                init_frame_identity.bytes,
+                init_frame,
+                VREGION_FLAGS_READ_WRITE,
+                0,
+                0
+        );
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
     }
 
     // Memory for CPU driver's allocations
     {
         struct capref cpu_driver_alloc_frame;
-        size_t size = ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE + elf_virtual_size(0); // TODO: find correct virtual_size
+        size_t size = ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE
+                + elf_virtual_size((lvaddr_t) init_monitor_module_vaddr);
+
         err = frame_alloc(
                 &cpu_driver_alloc_frame,
                 size,
