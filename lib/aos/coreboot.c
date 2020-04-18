@@ -210,7 +210,7 @@ errval_t coreboot(coreid_t mpid,
     if (err_is_fail(err)) {
         goto err_clean_up_ram_cap;
     }
-    
+
     err = cap_retype(
             kcb,
             ram_cap,
@@ -501,7 +501,17 @@ errval_t coreboot(coreid_t mpid,
         core_data->kcb = kcb_frame_identity.base;
     }
 
+    // Logical core id of the invoking core.
+    core_data->src_core_id = disp_get_core_id();
 
+    // Physical core id of the invoking core
+    core_data->src_arch_id = disp_get_core_id();
+
+    // Logical core id of the started core
+    core_data->dst_core_id = 2; // TODO find scheme to name cores
+
+    //  Physical core id of the started core
+    core_data->dst_arch_id = 2; // TODO
 
     // - Fill in the core data struct, for a description, see the definition
     //   in include/target/aarch64/barrelfish_kpi/arm_core_data.h
