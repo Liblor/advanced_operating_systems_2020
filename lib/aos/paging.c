@@ -720,23 +720,33 @@ errval_t paging_alloc(
 
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
+    struct paging_region *pr = NULL;
     *buf = NULL;
+
+    pr = calloc(1, sizeof(struct paging_region));
+    if (pr == NULL) {
+        debug_printf("calloc() failed\n");
+        err = MALLOC_FAIL;
+        goto error_cleanup;
+    }
+
+    /*
+     * The slab_ensure_threshold() needs to be guarded by a mutex, too, in
+     * order to ensure the threshold directly before acquiring the page.
+     */
+    thread_mutex_lock_nested(&st->mutex);
 
     err = slab_ensure_threshold(&st->slabs, 32);
     if (err_is_fail(err)) {
-        return err;
+        goto error_cleanup;
     }
 
-    struct paging_region *pr = calloc(1, sizeof(struct paging_region));
-    // TODO Check pr == NULL
-
-    thread_mutex_lock_nested(&st->mutex);
-    // flags = 0, because it will not be used for implicit paging regions.
+    /*
+     * flags = 0, because it will not be used for implicit paging regions.
+     */
     err = paging_region_init_aligned(st, pr, bytes, alignment, 0);
-    thread_mutex_unlock(&st->mutex);
     if (err_is_fail(err)) {
-        // TODO Free pr
-        return err;
+        goto error_cleanup;
     }
 
     pr->implicit = true;
@@ -745,7 +755,15 @@ errval_t paging_alloc(
 
     assert(((lvaddr_t) *buf) % alignment == 0);
 
-    return SYS_ERR_OK;
+    err = SYS_ERR_OK;
+
+exit_cleanup:
+    thread_mutex_unlock(&st->mutex);
+    return err;
+
+error_cleanup:
+    free(pr);
+    goto exit_cleanup;
 }
 
 /**
@@ -799,6 +817,7 @@ errval_t paging_map_frame_attr(
     return SYS_ERR_OK;
 }
 
+// Refill the two-level slot allocator without causing a page-fault
 errval_t slab_refill_no_pagefault(
     struct slab_allocator *slabs,
     struct capref frame,
@@ -806,7 +825,12 @@ errval_t slab_refill_no_pagefault(
 )
 {
     DEBUG_BEGIN;
-    // Refill the two-level slot allocator without causing a page-fault
+
+    /*
+     * TODO: Why is this function not implemented? Why does it have to be
+     * exposed in the first place?
+     */
+
     return SYS_ERR_OK;
 }
 
@@ -985,6 +1009,8 @@ errval_t paging_unmap(
 
     struct rtnode *pr_node = NULL;
 
+    thread_mutex_lock_nested(&st->mutex);
+
     err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
@@ -1017,6 +1043,8 @@ errval_t paging_unmap(
         debug_printf("range_tracker_free() failed: %s\n", err_getstring(err));
         return err;
     }
+
+    thread_mutex_unlock(&st->mutex);
 
     /*
      * Free the region itself.
