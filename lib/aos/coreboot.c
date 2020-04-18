@@ -259,37 +259,35 @@ errval_t coreboot(coreid_t mpid,
                                                                 STT_FUNC,
                                                                 &sindex);
     struct mem_info cpu_module_mem;
-    {
-        struct capref mem_frame;
-        size_t mem_size;
-        err = frame_alloc(&mem_frame, cpu_module->mrmod_size, &mem_size);
-        if (err_is_fail(err)) {
-            goto err_clean_up_kcb_cap;
-        }
-
-        struct frame_identity mem_frame_identiy;
-        err = frame_identify(mem_frame, &mem_frame_identiy);
-        if (err_is_fail(err)) {
-            goto err_clean_up_kcb_cap;
-        }
-        void *mem_buf;
-        err = paging_map_frame_attr(
-                get_current_paging_state(),
-                &mem_buf,
-                mem_size,
-                mem_frame,
-                VREGION_FLAGS_READ_WRITE,
-                NULL,
-                NULL
-        );
-        if (err_is_fail(err)) {
-            goto err_clean_up_kcb_cap;
-        }
-
-        cpu_module_mem.size = cpu_module->mrmod_size;
-        cpu_module_mem.buf = mem_buf;
-        cpu_module_mem.phys_base = mem_frame_identiy.base;
+    struct capref mem_frame;
+    size_t mem_size;
+    err = frame_alloc(&mem_frame, cpu_module->mrmod_size, &mem_size);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
     }
+
+    struct frame_identity mem_frame_identiy;
+    err = frame_identify(mem_frame, &mem_frame_identiy);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+    void *mem_buf;
+    err = paging_map_frame_attr(
+            get_current_paging_state(),
+            &mem_buf,
+            mem_size,
+            mem_frame,
+            VREGION_FLAGS_READ_WRITE,
+            NULL,
+            NULL
+    );
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
+    cpu_module_mem.size = cpu_module->mrmod_size;
+    cpu_module_mem.buf = mem_buf;
+    cpu_module_mem.phys_base = mem_frame_identiy.base;
 
     genvaddr_t reloc_entry_point;
     err = load_elf_binary((genvaddr_t) cpu_module_addr, &cpu_module_mem,
@@ -542,7 +540,8 @@ errval_t coreboot(coreid_t mpid,
     // KCB
     {
         struct frame_identity kcb_frame_identity;
-        err = frame_identify(kcb, &kcb_frame_identity);
+        //err = frame_identify(kcb, &kcb_frame_identity);
+        err = invoke_kcb_identify(kcb, &kcb_frame_identity);
         if (err_is_fail(err)) {
             goto err_clean_up_kcb_cap;
         }
@@ -571,6 +570,10 @@ errval_t coreboot(coreid_t mpid,
     arm64_idcache_wbinv_range((vm_offset_t) core_data, core_data_size);
     arm64_dcache_wb_range((vm_offset_t) stack, stack_size);
     arm64_idcache_wbinv_range((vm_offset_t) stack, stack_size);
+    arm64_dcache_wb_range((vm_offset_t) mem_buf, mem_size);
+    arm64_idcache_wbinv_range((vm_offset_t) mem_buf, mem_size);
+    arm64_dcache_wb_range((vm_offset_t) mem_boot_buf, mem_boot_size);
+    arm64_idcache_wbinv_range((vm_offset_t) mem_boot_buf, mem_boot_size);
 
 
 

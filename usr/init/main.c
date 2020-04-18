@@ -185,7 +185,10 @@ static int bsp_main(int argc, char *argv[])
     }
 
     struct frame_identity dummy_urpc_frame_id;
-    coreboot(1, "boot_armv8_generic", "cpu_imx8x", "init", dummy_urpc_frame_id);
+    err = coreboot(1, "boot_armv8_generic", "cpu_imx8x", "init", dummy_urpc_frame_id);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "COREBOOT FAILED");
+    }
 
     // Grading
     grading_test_late();
