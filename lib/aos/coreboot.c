@@ -258,7 +258,6 @@ errval_t coreboot(coreid_t mpid,
                                                                 0,
                                                                 STT_FUNC,
                                                                 &sindex);
-
     struct mem_info cpu_module_mem;
     {
         struct capref mem_frame;
