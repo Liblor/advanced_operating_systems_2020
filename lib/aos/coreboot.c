@@ -410,12 +410,33 @@ errval_t coreboot(coreid_t mpid,
         strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len);
     }
 
-    // TODO:
     // Memory for CPU driver's allocations
-//    ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE
-//    * + the size of the monitor process (use elf_virtual_size
-    core_data->memory.base = 0;
-    core_data->memory.length = 0;
+    {
+        struct capref cpu_driver_alloc_frame;
+        size_t size = ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE + elf_virtual_size(0); // TODO: find correct virtual_size
+
+        err = frame_alloc(
+                &cpu_driver_alloc_frame,
+                size,
+                &size);
+
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
+
+        // get physical addr
+        struct frame_identity physical_id;
+        err = frame_identify(
+                cpu_driver_alloc_frame,
+                &physical_id);
+
+        if (err_is_fail(err)) {
+            goto err_clean_up_kcb_cap;
+        }
+        core_data->memory.base = physical_id.base;
+        core_data->memory.length = physical_id.bytes;
+    }
+
 
 
 
