@@ -254,7 +254,7 @@ errval_t coreboot(coreid_t mpid,
     struct mem_info mem = {
             .size = cpu_module->mrmod_size,
             .buf = cpu_module_addr,
-            .phys_base = cpu_frame_identiy.base;
+            .phys_base = cpu_frame_identiy.base,
     };
 
     genvaddr_t reloc_entry_point;
