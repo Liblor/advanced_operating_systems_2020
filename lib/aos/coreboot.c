@@ -517,6 +517,19 @@ errval_t coreboot(coreid_t mpid,
     // - Call the invoke_monitor_spawn_core with the entry point
     //   of the boot driver and pass the (physical, of course) address of the
     //   boot struct as argument.
+    struct frame_identity core_data_frame_identity;
+    err = frame_identify(core_data_frame, &core_data_frame_identity);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
+    invoke_monitor_spawn_core(
+            mpid,
+            CPU_ARM8,
+            boot_entry_psci_reloc,
+            core_data_frame_identity.base,
+            0
+    );
 
     return SYS_ERR_OK;  // only remove resources in case of error
 err_clean_up_kcb_cap:
