@@ -510,7 +510,7 @@ errval_t coreboot(coreid_t mpid,
     core_data->src_arch_id = disp_get_core_id();
 
     // Logical core id of the started core
-    core_data->dst_core_id = 1; // XXX: we always boot core 1
+    core_data->dst_core_id = mpid;
 
     //  Physical core id of the started core
     core_data->dst_arch_id = 1;
