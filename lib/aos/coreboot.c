@@ -206,10 +206,21 @@ errval_t coreboot(coreid_t mpid,
     }
 
     struct capref kcb;
-    slot_alloc(&kcb);
-    err = cap_retype(kcb, ram_cap, 0, ObjType_KernelControlBlock, OBJSIZE_KCB, 1);
+    err = slot_alloc(&kcb);
     if (err_is_fail(err)) {
         goto err_clean_up_ram_cap;
+    }
+    
+    err = cap_retype(
+            kcb,
+            ram_cap,
+            0,
+            ObjType_KernelControlBlock,
+            OBJSIZE_KCB,
+            1);
+
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
     }
 
     // - Get and load the CPU binary.
