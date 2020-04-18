@@ -264,6 +264,19 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
+    // relocate cpu driver
+    err = relocate_elf(
+            (genvaddr_t) cpu_module_addr,
+            &mem,
+            ARMv8_KERNEL_OFFSET);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+    // TODO: write this into core data
+    __unused const lvaddr_t arch_init_reloc = reloc_entry_point + ARMv8_KERNEL_OFFSET;
+
+
+
     // - Get and load the boot driver binary.
     struct mem_region *boot_module = multiboot_find_module(bi, boot_driver);
     if (boot_module == NULL) {
