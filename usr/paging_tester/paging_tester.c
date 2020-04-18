@@ -2,7 +2,7 @@
 
 #include <aos/aos.h>
 
-#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
+//#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
 
 __unused
 static inline errval_t _create_map_write_frame(lvaddr_t vaddr, size_t bytes)
