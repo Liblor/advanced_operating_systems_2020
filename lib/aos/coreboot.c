@@ -407,7 +407,7 @@ errval_t coreboot(coreid_t mpid,
     memset(core_data->cpu_driver_cmdline, 0, cmd_len);
     const char *opts = multiboot_module_opts(cpu_module);
     if (opts != NULL) {
-        strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len),
+        strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len);
     }
 
     // TODO:
