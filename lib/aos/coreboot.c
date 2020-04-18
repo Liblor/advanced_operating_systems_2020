@@ -475,6 +475,11 @@ errval_t coreboot(coreid_t mpid,
         core_data->memory.length = physical_id.bytes;
     }
 
+    // URPC Frame
+    core_data->urpc_frame.base = urpc_frame_id.base;
+    core_data->urpc_frame.length = urpc_frame_id.bytes;
+
+
 
     // - Fill in the core data struct, for a description, see the definition
     //   in include/target/aarch64/barrelfish_kpi/arm_core_data.h
