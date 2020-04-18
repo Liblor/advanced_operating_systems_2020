@@ -274,10 +274,7 @@ errval_t coreboot(coreid_t mpid,
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
-    // TODO: write this into core data
-    __unused const lvaddr_t arch_init_reloc = reloc_entry_point + ARMv8_KERNEL_OFFSET;
-
-
+    const lvaddr_t arch_init_reloc = reloc_entry_point + ARMv8_KERNEL_OFFSET;
 
     // - Get and load the boot driver binary.
     struct mem_region *boot_module = multiboot_find_module(bi, boot_driver);
@@ -403,7 +400,19 @@ errval_t coreboot(coreid_t mpid,
         core_data->cpu_driver_stack_limit = cpu_driver_stack_id.base;
     }
 
-//    core_data->cpu_driver_entry = sym_arch_init->st_value;
+    core_data->cpu_driver_entry = arch_init_reloc;
+
+    // kernel command line args
+    const size_t cmd_len = sizeof(core_data->cpu_driver_cmdline);
+    memset(core_data->cpu_driver_cmdline, 0, cmd_len);
+    const char *opts = multiboot_module_opts(cpu_module);
+    if (opts != NULL) {
+        strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len),
+        memcpy(core_data->cpu_driver_cmdline, 0, sizeof(core_data->cpu_driver_cmdline));
+    }
+
+    
+
 
 
 
