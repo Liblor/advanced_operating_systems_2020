@@ -195,6 +195,8 @@ errval_t coreboot(coreid_t mpid,
 {
     errval_t err;
 
+    // TODO: free all slots created by frame alloc
+
     // Implement me!
     // - Get a new KCB by retyping a RAM cap to ObjType_KernelControlBlock.
     //   Note that it should at least OBJSIZE_KCB, and it should also be aligned
@@ -523,6 +525,8 @@ errval_t coreboot(coreid_t mpid,
     arm64_idcache_wbinv_range((vm_offset_t) core_data, core_data_size);
     arm64_dcache_wb_range((vm_offset_t) stack, stack_size);
     arm64_idcache_wbinv_range((vm_offset_t) stack, stack_size);
+
+
 
     // - Call the invoke_monitor_spawn_core with the entry point
     //   of the boot driver and pass the (physical, of course) address of the
