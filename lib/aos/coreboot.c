@@ -242,7 +242,7 @@ errval_t coreboot(coreid_t mpid,
             &cpu_module_addr,
             cpu_module->mrmod_size,
             cpu_frame,
-            VREGION_FLAGS_READ,
+            VREGION_FLAGS_READ_WRITE,
             NULL,
             NULL
     );
@@ -306,7 +306,7 @@ errval_t coreboot(coreid_t mpid,
             &boot_module_addr,
             boot_module->mrmod_size,
             boot_frame,
-            VREGION_FLAGS_READ,
+            VREGION_FLAGS_READ_WRITE,
             NULL,
             NULL
     );
