@@ -6,10 +6,12 @@
 #include <barrelfish_kpi/arm_core_data.h>
 #include <aos/kernel_cap_invocations.h>
 #include <aos/cache.h>
+#include <init.h>
 
 #define ARMv8_KERNEL_OFFSET 0xffff000000000000
 
 extern struct bootinfo *bi;
+extern void boot_entry_psci(void);
 
 struct mem_info {
     size_t                size;      // Size in bytes of the memory region
@@ -209,14 +211,14 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_ram_cap;
     }
 
-    // - Get and load the CPU and boot driver binary.
+    // - Get and load the CPU binary.
     // we might be able to reuse code from spawn.c by generalizing a bit (see load_module)
     struct mem_region *cpu_module = multiboot_find_module(bi, "cpu_imx8x");
     if (cpu_module == NULL) {
         err = SPAWN_ERR_FIND_MODULE;
         goto err_clean_up_kcb_cap;
     }
-    struct capref child_frame = {
+    struct capref cpu_frame = {
             .cnode = cnode_module,
             .slot = cpu_module->mrmod_slot,
     };
@@ -225,7 +227,7 @@ errval_t coreboot(coreid_t mpid,
             get_current_paging_state(),
             cpu_module_addr,
             cpu_module->mrmod_size,
-            child_frame,
+            cpu_frame,
             VREGION_FLAGS_READ,
             NULL,
             NULL
@@ -234,12 +236,32 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
-    // TODO: determine entrypoint (?)
-    /*
+    // get entrypoint
+    uintptr_t sindex = 0;
+    struct Elf64_Sym *sym = elf64_find_symbol_by_name((genvaddr_t) cpu_module_addr,
+                                                      cpu_module->mrmod_size,
+                                                      "arch_init",
+                                                      0,
+                                                      STT_FUNC,
+                                                      &sindex);
+    // get physical base addr
+    struct frame_identity cpu_frame_identiy;
+    err = frame_identify(cpu_frame, &cpu_frame_identiy);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
+    struct mem_info mem = {
+            .size = cpu_module->mrmod_size,
+            .buf = cpu_module_addr,
+            .phys_base = cpu_frame_identiy.base;
+    };
+
     genvaddr_t reloc_entry_point;
-    err = load_elf_binary(cpu_module_addr, mem,
-                          entrypoint, &reloc_entry_point);
-    */
+    err = load_elf_binary((genvaddr_t) cpu_module_addr, &mem,
+                          (genvaddr_t) sym->st_value, &reloc_entry_point);
+
+    // - Get and load the boot driver binary.
 
     // - Relocate the boot and CPU driver. The boot driver runs with a 1:1
     //   VA->PA mapping. The CPU driver is expected to be loaded at the
