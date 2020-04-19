@@ -437,7 +437,6 @@ initialize_core_data(
         core_data->cpu_driver_entry = arch_init_reloc;
     }
 
-
     // kernel command line args
     {
         const size_t cmd_len = sizeof(core_data->cpu_driver_cmdline);
@@ -561,13 +560,13 @@ errval_t coreboot(coreid_t mpid,
     }
 
     // - Allocate stack memory for the new cpu driver (at least 16 pages)
-    struct capref stack_frame;
-    void *stack;
+    struct capref cpu_driver_stack_cap;
+    void *cpu_driver_stack;
     size_t stack_size;
     err = alloc_frame_and_map(
-            16*BASE_PAGE_SIZE,
-            (void **) &stack,
-            &stack_frame,
+            16 * BASE_PAGE_SIZE,
+            (void **) &cpu_driver_stack,
+            &cpu_driver_stack_cap,
             &stack_size
     );
     if (err_is_fail(err)) {
@@ -603,7 +602,7 @@ errval_t coreboot(coreid_t mpid,
     // - Setup core_data structure for boot
     err = initialize_core_data(
             core_data,
-            stack_frame,
+            cpu_driver_stack_cap,
             arch_init_reloc,
             cpu_module,
             mpid,
@@ -618,8 +617,8 @@ errval_t coreboot(coreid_t mpid,
     // - Flush the cache.
     arm64_dcache_wb_range((vm_offset_t) core_data, core_data_size);
     arm64_idcache_wbinv_range((vm_offset_t) core_data, core_data_size);
-    arm64_dcache_wb_range((vm_offset_t) stack, stack_size);
-    arm64_idcache_wbinv_range((vm_offset_t) stack, stack_size);
+    arm64_dcache_wb_range((vm_offset_t) cpu_driver_stack, stack_size);
+    arm64_idcache_wbinv_range((vm_offset_t) cpu_driver_stack, stack_size);
 
 
     // - Call the invoke_monitor_spawn_core with the entry point
