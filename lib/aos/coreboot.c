@@ -639,7 +639,7 @@ errval_t coreboot(coreid_t mpid,
     }
 
     return SYS_ERR_OK;  // only remove resources in case of error
-    
+
 err_clean_up_kcb_cap:
     cap_destroy(kcb);
     return err;
