@@ -358,18 +358,68 @@ static errval_t load_and_relocate_binary(
 }
 
 
-__unused static errval_t initialize_core_data(
+static errval_t load_init_binary_in_curr_vspace(
+        const char *binary_name,
+        struct armv8_coredata_memreg *ret_binary_memreg,
+        void **ret_init_binary_loaded
+){
+errval_t  err;
+
+    struct mem_region *init_module = multiboot_find_module(bi, binary_name);
+    if (init_module == NULL) {
+        err = SPAWN_ERR_FIND_MODULE;
+        goto error_handling;
+    }
+    struct capref init_frame = {
+            .cnode = cnode_module,
+            .slot = init_module->mrmod_slot,
+    };
+
+    err = frame_base_size(
+            init_frame,
+            &ret_binary_memreg->base,
+            &ret_binary_memreg->length
+    );
+    if (err_is_fail(err)) {
+        goto error_handling;
+    }
+
+    // we need to map init_module into vaddr space for elf_virtual_size in
+    // CPU driver's allocations
+    err = paging_map_frame_attr(
+            get_current_paging_state(),
+            ret_init_binary_loaded,
+            ret_binary_memreg->length,
+            init_frame,
+            VREGION_FLAGS_READ_WRITE,
+            0,
+            0
+    );
+    if (err_is_fail(err)) {
+        goto error_handling;
+    }
+
+    return SYS_ERR_OK;
+
+    error_handling:
+    return err;
+}
+
+__unused static errval_t
+initialize_core_data(
         struct armv8_core_data *core_data,
         struct capref stack_frame,
         const genvaddr_t arch_init_reloc,
         struct mem_region *cpu_module,
         coreid_t mpid,
         struct capref kcb,
-        const char *init_binary,
+        void *init_monitor_module_vaddr,                    //< ref to init monitor mapped in current vspace
+        struct armv8_coredata_memreg *init_monitor_memreg,  //< ref to init monitor frame identity
         struct frame_identity urpc_frame_id
 ) {
     errval_t err;
 
+    // CPU driver
     // iMX8 is using PSCI
     core_data->boot_magic = ARMV8_BOOTMAGIC_PSCI;
     {
@@ -383,9 +433,10 @@ __unused static errval_t initialize_core_data(
         // XXX: stack needs to be aligned to 8 bytes acc. to moodle
         core_data->cpu_driver_stack = ROUND_DOWN(cpu_driver_stack_paddr + cpu_driver_stack_size, 8);
         core_data->cpu_driver_stack_limit = cpu_driver_stack_paddr;
+
+        core_data->cpu_driver_entry = arch_init_reloc;
     }
 
-    core_data->cpu_driver_entry = arch_init_reloc;
 
     // kernel command line args
     {
@@ -394,46 +445,14 @@ __unused static errval_t initialize_core_data(
         const char *opts = multiboot_module_opts(cpu_module);
         if (opts != NULL) {
             strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len);
+        } else {
+            debug_printf("no command line args are given to cpu driver");
         }
     }
 
     // init monitor
-    void *init_monitor_module_vaddr = NULL;
-    {
-        struct mem_region *init_module = multiboot_find_module(bi, init_binary);
-        if (init_module == NULL) {
-            err = SPAWN_ERR_FIND_MODULE;
-            goto errror_handling;
-        }
-        struct capref init_frame = {
-                .cnode = cnode_module,
-                .slot = init_module->mrmod_slot,
-        };
-
-        err = frame_base_size(
-                init_frame,
-                &core_data->monitor_binary.base,
-                &core_data->monitor_binary.length
-        );
-        if (err_is_fail(err)) {
-            goto errror_handling;
-        }
-
-        // we need to map init_module into vaddr space for elf_virtual_size in
-        // CPU driver's allocations
-        err = paging_map_frame_attr(
-                get_current_paging_state(),
-                &init_monitor_module_vaddr,
-                core_data->monitor_binary.length,
-                init_frame,
-                VREGION_FLAGS_READ_WRITE,
-                0,
-                0
-        );
-        if (err_is_fail(err)) {
-            goto errror_handling;
-        }
-    }
+    core_data->monitor_binary.base = init_monitor_memreg->base;
+    core_data->monitor_binary.length = init_monitor_memreg->length;
 
     // Memory for CPU driver's allocations
     {
@@ -489,7 +508,7 @@ __unused static errval_t initialize_core_data(
     //  Physical core id of the started core
     core_data->dst_arch_id = mpid;
 
-    return err;
+    return SYS_ERR_OK;
 
     errror_handling:
     return err;
@@ -499,7 +518,7 @@ __unused static errval_t initialize_core_data(
 errval_t coreboot(coreid_t mpid,
         const char *boot_driver,
         const char *cpu_driver,
-        const char *init,
+        const char *init_binary_name,
         struct frame_identity urpc_frame_id)
 {
     errval_t err;
@@ -513,7 +532,7 @@ errval_t coreboot(coreid_t mpid,
         return err;
     }
 
-    // - Load and reloc the CPU binary.
+    // - Load and reloc the CPU driver binary.
     struct mem_region *cpu_module;
     genvaddr_t arch_init_reloc;
     err = load_and_relocate_binary(
@@ -555,6 +574,18 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
+    // - Load init monitor binary into current vspace
+    struct armv8_coredata_memreg init_monitor_phy_memreg;  // reference to phyaddr
+    void *init_monitor_vaddr;                              // ref. to vaddr
+
+    err = load_init_binary_in_curr_vspace(
+            init_binary_name,
+            &init_monitor_phy_memreg,
+            &init_monitor_vaddr);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
+    }
+
     // - Allocate a page for the core data struct
     struct armv8_core_data *core_data = NULL;
     struct capref core_data_frame;
@@ -569,7 +600,7 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
-    // fill up core_data structure for boot
+    // - Setup core_data structure for boot
     err = initialize_core_data(
             core_data,
             stack_frame,
@@ -577,7 +608,8 @@ errval_t coreboot(coreid_t mpid,
             cpu_module,
             mpid,
             kcb,
-            init,
+            init_monitor_vaddr,
+            &init_monitor_phy_memreg,
             urpc_frame_id);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;

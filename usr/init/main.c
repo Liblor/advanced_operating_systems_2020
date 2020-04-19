@@ -235,6 +235,7 @@ static int app_main(int argc, char *argv[])
     // - grading_setup_app_init(..);
     // - grading_test_early();
     // - grading_test_late();
+    debug_printf("hello world from app_main\n");
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
