@@ -311,14 +311,14 @@ static errval_t load_and_relocate_binary(
             NULL
     );
     if (err_is_fail(err)) {
-        return err;
+        goto err_cleanup_mem_frame;
     }
 
     struct mem_info module_mem;
     module_mem.buf = mem_buf;
     err = frame_base_size(mem_frame, &module_mem.phys_base, &module_mem.size);
     if (err_is_fail(err)) {
-        return err;
+        goto err_cleanup_mem_frame;
     }
 
     // get entry point
@@ -331,6 +331,10 @@ static errval_t load_and_relocate_binary(
             STT_FUNC,
             &sindex
     );
+    if (entrypoint == NULL) {
+        err = ELF_ERR_SYMBOL_BY_NAME_NOT_FOUND;
+        goto err_cleanup_mem_frame;
+    }
     err = load_elf_binary(
             (genvaddr_t) module_addr,
             &module_mem,
@@ -338,7 +342,7 @@ static errval_t load_and_relocate_binary(
             ret_reloc_entry_point
     );
     if (err_is_fail(err)) {
-        return err;
+        goto err_cleanup_mem_frame;
     }
     *ret_reloc_entry_point += reloc_offset;
 
@@ -349,10 +353,14 @@ static errval_t load_and_relocate_binary(
             reloc_offset
     );
     if (err_is_fail(err)) {
-        return err;
+        goto err_cleanup_mem_frame;
     }
 
     return SYS_ERR_OK;
+
+err_cleanup_mem_frame:
+    cap_destroy(mem_frame);
+    return err;
 }
 
 
@@ -365,8 +373,7 @@ errval_t  err;
 
     struct mem_region *init_module = multiboot_find_module(bi, binary_name);
     if (init_module == NULL) {
-        err = SPAWN_ERR_FIND_MODULE;
-        goto error_handling;
+        return SPAWN_ERR_FIND_MODULE;
     }
     struct capref init_frame = {
             .cnode = cnode_module,
@@ -379,7 +386,7 @@ errval_t  err;
             &ret_binary_memreg->length
     );
     if (err_is_fail(err)) {
-        goto error_handling;
+        return err;
     }
 
     // we need to map init_module into vaddr space for elf_virtual_size in
@@ -394,13 +401,10 @@ errval_t  err;
             0
     );
     if (err_is_fail(err)) {
-        goto error_handling;
+        return err;
     }
 
     return SYS_ERR_OK;
-
-    error_handling:
-    return err;
 }
 
 static errval_t initialize_core_data(
@@ -451,18 +455,18 @@ static errval_t initialize_core_data(
     core_data->monitor_binary.length = init_monitor_memreg->length;
 
     // Memory for CPU driver's allocations
+    struct capref cpu_driver_alloc_frame = NULL_CAP;
     {
         size_t size = ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE
                       + elf_virtual_size((lvaddr_t) init_monitor_module_vaddr);
 
-        struct capref cpu_driver_alloc_frame;
         err = frame_alloc(
                 &cpu_driver_alloc_frame,
                 size,
                 &size);
 
         if (err_is_fail(err)) {
-            goto errror_handling;
+            return err;
         }
 
         // get physical addr
@@ -472,7 +476,7 @@ static errval_t initialize_core_data(
                 &physical_id);
 
         if (err_is_fail(err)) {
-            goto errror_handling;
+            goto err_cleanup_cpu_frame;
         }
         core_data->memory.base = physical_id.base;
         core_data->memory.length = physical_id.bytes;
@@ -487,7 +491,7 @@ static errval_t initialize_core_data(
         struct frame_identity kcb_frame_identity;
         err = invoke_kcb_identify(kcb, &kcb_frame_identity);
         if (err_is_fail(err)) {
-            goto errror_handling;
+            goto err_cleanup_cpu_frame;
         }
         core_data->kcb = kcb_frame_identity.base;
     }
@@ -506,7 +510,8 @@ static errval_t initialize_core_data(
 
     return SYS_ERR_OK;
 
-    errror_handling:
+err_cleanup_cpu_frame:
+    cap_destroy(cpu_driver_alloc_frame);
     return err;
 }
 
@@ -519,7 +524,11 @@ errval_t coreboot(coreid_t mpid,
 {
     errval_t err;
 
-    // TODO: free all slots created by frame alloc
+    // TODO: implement error handling for paging_map_frame_attr to clean up pages
+    //       (paging unmap not yet impl.)
+    // TODO: frames with function scope are not freed on error in caller functions
+    //       how to fix this: return all frames to caller
+    //       ex: cpu_driver_alloc_frame on error in invoke_monitor_spawn_core
 
     // - Get a new KCB by retyping a RAM cap to ObjType_KernelControlBlock.
     struct capref kcb;
@@ -539,7 +548,7 @@ errval_t coreboot(coreid_t mpid,
             &cpu_driver_reloc
     );
     if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
+        goto err_cleanup_kcb_cap;
     }
 
     // - Load and reloc the boot driver binary.
@@ -553,7 +562,7 @@ errval_t coreboot(coreid_t mpid,
             &boot_driver_reloc
     );
     if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
+        goto err_cleanup_kcb_cap;
     }
 
     // - Allocate stack memory for the new cpu driver (at least 16 pages)
@@ -567,7 +576,7 @@ errval_t coreboot(coreid_t mpid,
             &stack_size
     );
     if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
+        goto err_cleanup_kcb_cap;
     }
 
     // - Load init monitor binary into current vspace
@@ -579,7 +588,7 @@ errval_t coreboot(coreid_t mpid,
             &init_monitor_memreg,
             &init_monitor_vaddr);
     if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
+        goto err_cleanup_cpu_driver_stack_cap;
     }
 
     // - Allocate a page for the core data struct
@@ -593,7 +602,7 @@ errval_t coreboot(coreid_t mpid,
             &core_data_size
     );
     if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
+        goto err_cleanup_cpu_driver_stack_cap;
     }
 
     // - Setup core_data structure for boot
@@ -608,7 +617,7 @@ errval_t coreboot(coreid_t mpid,
             &init_monitor_memreg,
             urpc_frame_id);
     if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
+        goto err_cleanup_core_data_frame;
     }
 
     // - Flush the cache.
@@ -617,14 +626,13 @@ errval_t coreboot(coreid_t mpid,
     arm64_dcache_wb_range((vm_offset_t) cpu_driver_stack, stack_size);
     arm64_idcache_wbinv_range((vm_offset_t) cpu_driver_stack, stack_size);
 
-
     // - Call the invoke_monitor_spawn_core with the entry point
     //   of the boot driver and pass the (physical, of course) address of the
     //   boot struct as argument.
     struct frame_identity core_data_frame_identity;
     err = frame_identify(core_data_frame, &core_data_frame_identity);
     if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
+        goto err_cleanup_core_data_frame;
     }
 
     err = invoke_monitor_spawn_core(
@@ -635,12 +643,16 @@ errval_t coreboot(coreid_t mpid,
             0
     );
     if (err_is_fail(err)) {
-        goto err_clean_up_kcb_cap;
+        goto err_cleanup_core_data_frame;
     }
 
     return SYS_ERR_OK;  // only remove resources in case of error
 
-err_clean_up_kcb_cap:
+err_cleanup_core_data_frame:
+    cap_destroy(core_data_frame);
+err_cleanup_cpu_driver_stack_cap:
+    cap_destroy(cpu_driver_stack_cap);
+err_cleanup_kcb_cap:
     cap_destroy(kcb);
     return err;
 }

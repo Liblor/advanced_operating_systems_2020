@@ -713,6 +713,7 @@ errors libelf ELF_ERR_ {
     failure PROGHDR             "Failed program header sanity checks",
     failure ALLOCATE            "Nested failure in allocator function",
     failure NOT_PAGE_ALIGNED    "Unaligned load address specified in ELF header",
+    failure SYMBOL_BY_NAME_NOT_FOUND    "elf64_find_symbol_by_name() symbol not found",
 };
 
 // errors from memory management library
