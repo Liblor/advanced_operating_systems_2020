@@ -361,13 +361,137 @@ static errval_t load_and_relocate_binary(
 __unused static errval_t initialize_core_data(
         struct armv8_core_data *core_data,
         struct capref stack_frame,
-        genvaddr_t arch_init_reloc,
-        struct mem_region *cpu_module
+        const genvaddr_t arch_init_reloc,
+        struct mem_region *cpu_module,
+        coreid_t mpid,
+        struct capref kcb,
+        const char *init_binary,
+        struct frame_identity urpc_frame_id
 ) {
     errval_t err;
 
-    // TODO: refactor to use this function
+    // iMX8 is using PSCI
+    core_data->boot_magic = ARMV8_BOOTMAGIC_PSCI;
+    {
+        genpaddr_t cpu_driver_stack_paddr;
+        gensize_t cpu_driver_stack_size;
+        err = frame_base_size(stack_frame, &cpu_driver_stack_paddr, &cpu_driver_stack_size);
+        if (err_is_fail(err)) {
+            return err;
+        }
+        // stack grows downwards
+        // XXX: stack needs to be aligned to 8 bytes acc. to moodle
+        core_data->cpu_driver_stack = ROUND_DOWN(cpu_driver_stack_paddr + cpu_driver_stack_size, 8);
+        core_data->cpu_driver_stack_limit = cpu_driver_stack_paddr;
+    }
 
+    core_data->cpu_driver_entry = arch_init_reloc;
+
+    // kernel command line args
+    {
+        const size_t cmd_len = sizeof(core_data->cpu_driver_cmdline);
+        memset(core_data->cpu_driver_cmdline, 0, cmd_len);
+        const char *opts = multiboot_module_opts(cpu_module);
+        if (opts != NULL) {
+            strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len);
+        }
+    }
+
+    // init monitor
+    void *init_monitor_module_vaddr = NULL;
+    {
+        struct mem_region *init_module = multiboot_find_module(bi, init_binary);
+        if (init_module == NULL) {
+            err = SPAWN_ERR_FIND_MODULE;
+            goto errror_handling;
+        }
+        struct capref init_frame = {
+                .cnode = cnode_module,
+                .slot = init_module->mrmod_slot,
+        };
+
+        err = frame_base_size(
+                init_frame,
+                &core_data->monitor_binary.base,
+                &core_data->monitor_binary.length
+        );
+        if (err_is_fail(err)) {
+            goto errror_handling;
+        }
+
+        // we need to map init_module into vaddr space for elf_virtual_size in
+        // CPU driver's allocations
+        err = paging_map_frame_attr(
+                get_current_paging_state(),
+                &init_monitor_module_vaddr,
+                core_data->monitor_binary.length,
+                init_frame,
+                VREGION_FLAGS_READ_WRITE,
+                0,
+                0
+        );
+        if (err_is_fail(err)) {
+            goto errror_handling;
+        }
+    }
+
+    // Memory for CPU driver's allocations
+    {
+        size_t size = ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE
+                      + elf_virtual_size((lvaddr_t) init_monitor_module_vaddr);
+
+        struct capref cpu_driver_alloc_frame;
+        err = frame_alloc(
+                &cpu_driver_alloc_frame,
+                size,
+                &size);
+
+        if (err_is_fail(err)) {
+            goto errror_handling;
+        }
+
+        // get physical addr
+        struct frame_identity physical_id;
+        err = frame_identify(
+                cpu_driver_alloc_frame,
+                &physical_id);
+
+        if (err_is_fail(err)) {
+            goto errror_handling;
+        }
+        core_data->memory.base = physical_id.base;
+        core_data->memory.length = physical_id.bytes;
+    }
+
+    // URPC Frame
+    core_data->urpc_frame.base = urpc_frame_id.base;
+    core_data->urpc_frame.length = urpc_frame_id.bytes;
+
+    // KCB
+    {
+        struct frame_identity kcb_frame_identity;
+        err = invoke_kcb_identify(kcb, &kcb_frame_identity);
+        if (err_is_fail(err)) {
+            goto errror_handling;
+        }
+        core_data->kcb = kcb_frame_identity.base;
+    }
+
+    // Logical core id of the invoking core.
+    core_data->src_core_id = disp_get_core_id();
+
+    // Physical core id of the invoking core
+    core_data->src_arch_id = disp_get_core_id();
+
+    // Logical core id of the started core
+    core_data->dst_core_id = mpid;
+
+    //  Physical core id of the started core
+    core_data->dst_arch_id = mpid;
+
+    return err;
+
+    errror_handling:
     return err;
 }
 
@@ -445,123 +569,19 @@ errval_t coreboot(coreid_t mpid,
         goto err_clean_up_kcb_cap;
     }
 
-    // - Initialize core_data
-    // iMX8 is using PSCI
-    core_data->boot_magic = ARMV8_BOOTMAGIC_PSCI;
-    {
-        genpaddr_t cpu_driver_stack_paddr;
-        gensize_t cpu_driver_stack_size;
-        err = frame_base_size(stack_frame, &cpu_driver_stack_paddr, &cpu_driver_stack_size);
-        if (err_is_fail(err)) {
-            return err;
-        }
-        // stack grows downwards
-        // XXX: stack needs to be aligned to 8 bytes acc. to moodle
-        core_data->cpu_driver_stack = ROUND_DOWN(cpu_driver_stack_paddr + cpu_driver_stack_size, 8);
-        core_data->cpu_driver_stack_limit = cpu_driver_stack_paddr;
+    // fill up core_data structure for boot
+    err = initialize_core_data(
+            core_data,
+            stack_frame,
+            arch_init_reloc,
+            cpu_module,
+            mpid,
+            kcb,
+            init,
+            urpc_frame_id);
+    if (err_is_fail(err)) {
+        goto err_clean_up_kcb_cap;
     }
-
-    core_data->cpu_driver_entry = arch_init_reloc;
-
-    // kernel command line args
-    const size_t cmd_len = sizeof(core_data->cpu_driver_cmdline);
-    memset(core_data->cpu_driver_cmdline, 0, cmd_len);
-    const char *opts = multiboot_module_opts(cpu_module);
-    if (opts != NULL) {
-        strlcpy(core_data->cpu_driver_cmdline, opts, cmd_len);
-    }
-
-    // init monitor
-    void *init_monitor_module_vaddr = NULL;
-    {
-        struct mem_region *init_module = multiboot_find_module(bi, init);
-        if (init_module == NULL) {
-            err = SPAWN_ERR_FIND_MODULE;
-            goto err_clean_up_kcb_cap;
-        }
-        struct capref init_frame = {
-                .cnode = cnode_module,
-                .slot = init_module->mrmod_slot,
-        };
-
-        err = frame_base_size(
-                init_frame,
-                &core_data->monitor_binary.base,
-                &core_data->monitor_binary.length
-        );
-        if (err_is_fail(err)) {
-            goto err_clean_up_kcb_cap;
-        }
-
-        // we need to map init_module into vaddr space for elf_virtual_size in
-        // CPU driver's allocations
-        err = paging_map_frame_attr(
-                get_current_paging_state(),
-                &init_monitor_module_vaddr,
-                core_data->monitor_binary.length,
-                init_frame,
-                VREGION_FLAGS_READ_WRITE,
-                0,
-                0
-        );
-        if (err_is_fail(err)) {
-            goto err_clean_up_kcb_cap;
-        }
-    }
-
-    // Memory for CPU driver's allocations
-    {
-        size_t size = ARMV8_CORE_DATA_PAGES * BASE_PAGE_SIZE
-                      + elf_virtual_size((lvaddr_t) init_monitor_module_vaddr);
-
-        struct capref cpu_driver_alloc_frame;
-        err = frame_alloc(
-                &cpu_driver_alloc_frame,
-                size,
-                &size);
-
-        if (err_is_fail(err)) {
-            goto err_clean_up_kcb_cap;
-        }
-
-        // get physical addr
-        struct frame_identity physical_id;
-        err = frame_identify(
-                cpu_driver_alloc_frame,
-                &physical_id);
-
-        if (err_is_fail(err)) {
-            goto err_clean_up_kcb_cap;
-        }
-        core_data->memory.base = physical_id.base;
-        core_data->memory.length = physical_id.bytes;
-    }
-
-    // URPC Frame
-    core_data->urpc_frame.base = urpc_frame_id.base;
-    core_data->urpc_frame.length = urpc_frame_id.bytes;
-
-    // KCB
-    {
-        struct frame_identity kcb_frame_identity;
-        err = invoke_kcb_identify(kcb, &kcb_frame_identity);
-        if (err_is_fail(err)) {
-            goto err_clean_up_kcb_cap;
-        }
-        core_data->kcb = kcb_frame_identity.base;
-    }
-
-    // Logical core id of the invoking core.
-    core_data->src_core_id = disp_get_core_id();
-
-    // Physical core id of the invoking core
-    core_data->src_arch_id = disp_get_core_id();
-
-    // Logical core id of the started core
-    core_data->dst_core_id = mpid;
-
-    //  Physical core id of the started core
-    core_data->dst_arch_id = mpid;
 
     // - Flush the cache.
     arm64_dcache_wb_range((vm_offset_t) core_data, core_data_size);
