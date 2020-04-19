@@ -7,6 +7,21 @@
 // TODO Change errors
 // TODO Should the ensure threshold be called in here?
 
+static inline void check_rt_valid_state(struct range_tracker *rt)
+{
+#ifndef NDEBUG
+    struct rtnode *current;
+    for (current = rt->head->next; current != &rt->rt_tail; current = current->next) {
+        assert(current->size != 0);
+        assert(current->next != NULL);
+        assert(current->prev != NULL);
+        assert(current->prev->next == current);
+        assert(current->next->prev == current);
+        assert(rt->head == &rt->rt_head);
+    }
+#endif
+}
+
 static inline bool is_properly_aligned_range(
     struct range_tracker *rt,
     const uint64_t base,
@@ -124,6 +139,7 @@ errval_t range_tracker_add(
     if (err_is_fail(err))
         return err;
 
+    check_rt_valid_state(rt);
     return SYS_ERR_OK;
 }
 
@@ -223,6 +239,7 @@ static errval_t split_node(
     assert(padding == NULL || node->prev->base == old_base);
     assert(node->prev->next == node);
     assert(node->next->prev == node);
+    check_rt_valid_state(rt);
 
     if (retnode != NULL) {
         *retnode = node;
@@ -296,6 +313,7 @@ errval_t range_tracker_alloc_aligned(
     assert(range_tracker_is_used(check_node));
 #endif
 
+    check_rt_valid_state(rt);
     return SYS_ERR_OK;
 }
 
@@ -340,6 +358,7 @@ errval_t range_tracker_alloc_fixed(
     assert(range_tracker_is_used(check_node));
 #endif
 
+    check_rt_valid_state(rt);
     return SYS_ERR_OK;
 }
 
@@ -469,6 +488,7 @@ errval_t range_tracker_free_all(
         return err;
     }
 
+    check_rt_valid_state(rt);
     return SYS_ERR_OK;
 }
 
@@ -519,6 +539,7 @@ errval_t range_tracker_free(
         return err;
     }
 
+    check_rt_valid_state(rt);
     return SYS_ERR_OK;
 }
 
@@ -576,6 +597,7 @@ errval_t range_tracker_get(
 
     *retnode = best;
 
+    check_rt_valid_state(rt);
     return SYS_ERR_OK;
 }
 
@@ -620,6 +642,7 @@ errval_t range_tracker_get_fixed(
 
     *retnode = node;
 
+    check_rt_valid_state(rt);
     return SYS_ERR_OK;
 }
 
@@ -637,7 +660,7 @@ static void print_rtnodes(
 
     while (current != NULL) {
         debug_printf(
-            "%s%p <- %p -> %p (base=%p, last=%p, size=%u)\n",
+            "%s%p <- %p -> %p (base=%p, last=%p, size=%llu)\n",
             current->type == RangeTracker_NodeType_Used ? "       *" : "        ",
             current->prev, current, current->next, current->base,
             current->base + current->size - 1, current->size
