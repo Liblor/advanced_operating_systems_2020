@@ -18,14 +18,7 @@
 #define TEST_PAGING_REGION_MAP_COUNT (50)
 #define TEST_PAGING_REGION_MAP_SIZE (10 * BASE_PAGE_SIZE)
 
-const char long_string[] = "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string\n";
+const char long_string[] = TEST_LONG_STRING;
 
 
 static struct paging_state *pgst;
@@ -69,7 +62,8 @@ static int thread_paging_alloc(void *data)
     void *buffers[TEST_PAGING_ALLOC_COUNT];
     memset(buffers, 0, sizeof(buffers));
 
-    for(int i = 0; i < TEST_PAGING_ALLOC_COUNT; i++) {
+    for (int i = 0; i < TEST_PAGING_ALLOC_COUNT; i++) {
+        debug_printf("Iteration %d/%d\n", i, TEST_PAGING_ALLOC_COUNT);
         void *buf;
         err = paging_alloc(pgst, &buf, TEST_PAGING_ALLOC_SIZE, BASE_PAGE_SIZE);
         assert(err_is_ok(err));
@@ -79,7 +73,7 @@ static int thread_paging_alloc(void *data)
 
     // TODO Uncomment
     /*
-    for(int i = 0; i < TEST_PAGING_ALLOC_COUNT; i++) {
+    for (int i = 0; i < TEST_PAGING_ALLOC_COUNT; i++) {
         err = paging_unmap(pgst, buffers[i]);
         assert(err_is_ok(err));
     }
@@ -99,7 +93,8 @@ static int thread_paging_map_fixed_attr(void *data)
 
     uint64_t successes = 0;
 
-    for(int i = 0; i < TEST_PAGING_MAP_FIXED_ATTR_COUNT; i++) {
+    for (int i = 0; i < TEST_PAGING_MAP_FIXED_ATTR_COUNT; i++) {
+        debug_printf("Iteration %d/%d\n", i, TEST_PAGING_MAP_FIXED_ATTR_COUNT);
         struct capref frame;
         size_t size;
 
@@ -121,7 +116,7 @@ static int thread_paging_map_fixed_attr(void *data)
 
     debug_printf("Successfully mapped %lu fixed addresses.\n", successes);
 
-    for(int i = 0; i < TEST_PAGING_MAP_FIXED_ATTR_COUNT; i++) {
+    for (int i = 0; i < TEST_PAGING_MAP_FIXED_ATTR_COUNT; i++) {
         if (buffers[i] != NULL) {
             check_access((lvaddr_t) buffers[i], TEST_PAGING_MAP_FIXED_ATTR_SIZE);
         }
@@ -129,7 +124,7 @@ static int thread_paging_map_fixed_attr(void *data)
 
     // TODO Uncomment
     /*
-    for(int i = 0; i < TEST_PAGING_MAP_FIXED_ATTR_COUNT; i++) {
+    for (int i = 0; i < TEST_PAGING_MAP_FIXED_ATTR_COUNT; i++) {
         if (buffers[i] != NULL) {
             err = paging_unmap(pgst, buffers[i]);
             assert(err_is_ok(err));
@@ -148,14 +143,14 @@ static int thread_paging_region_init_aligned(void *data)
     memset(prs, 0, sizeof(prs));
 
     for (int i = 0; i < TEST_PAGING_REGION_INIT_ALIGNED_COUNT; i++) {
-        debug_printf("Iteration %d/%d\n", i + 1, TEST_PAGING_REGION_INIT_ALIGNED_COUNT);
+        debug_printf("Iteration %d/%d\n", i, TEST_PAGING_REGION_INIT_ALIGNED_COUNT);
         err = paging_region_init_aligned(pgst, &prs[i], TEST_PAGING_REGION_INIT_ALIGNED_SIZE, BASE_PAGE_SIZE, VREGION_FLAGS_READ_WRITE);
         assert(err_is_ok(err));
     }
 
     // TODO Uncomment
     /*
-    for(int i = 0; i < TEST_PAGING_REGION_INIT_ALIGNED_COUNT; i++) {
+    for (int i = 0; i < TEST_PAGING_REGION_INIT_ALIGNED_COUNT; i++) {
         err = paging_unmap(pgst, prs[i].node->base);
         assert(err_is_ok(err));
     }
@@ -173,7 +168,8 @@ static int thread_paging_region_map(void *data)
     void *buffers[thread_alloc_count];
     memset(buffers, 0, sizeof(buffers));
 
-    for(int i = 0; i < thread_alloc_count; i++) {
+    for (int i = 0; i < thread_alloc_count; i++) {
+        debug_printf("Iteration %d/%d\n", i, thread_alloc_count);
         void *buf;
         size_t size;
         err = paging_region_map(pr, TEST_PAGING_REGION_MAP_SIZE, &buf, &size);
@@ -183,13 +179,13 @@ static int thread_paging_region_map(void *data)
         buffers[i] = buf;
     }
 
-    for(int i = 0; i < thread_alloc_count; i++) {
+    for (int i = 0; i < thread_alloc_count; i++) {
         check_access((lvaddr_t) buffers[i], TEST_PAGING_REGION_MAP_SIZE);
     }
 
     // TODO Uncomment
     /*
-    for(int i = 0; i < thread_alloc_count; i++) {
+    for (int i = 0; i < thread_alloc_count; i++) {
         err = paging_region_unmap(pr, (lvaddr_t) buffers[i], TEST_PAGING_REGION_MAP_SIZE);
         assert(err_is_ok(err));
     }
@@ -210,7 +206,49 @@ static int thread_aos_rpc_send_number(void *data)
     return 0;
 }
 
+static int thread_aos_rpc_send_string(void *data)
+{
+    errval_t err;
 
+    for (int i = 0; i < TEST_AOS_RPC_SEND_STRING_COUNT; i++) {
+        err = aos_rpc_send_string(init_rpc, long_string);
+        assert(err_is_ok(err));
+    }
+
+    return 0;
+}
+
+static int thread_aos_rpc_get_ram_cap(void *data)
+{
+    errval_t err;
+    struct capref ram_caps[TEST_AOS_RPC_GET_RAM_CAP_COUNT];
+
+    for (int i = 0; i < TEST_AOS_RPC_GET_RAM_CAP_COUNT; i++) {
+        size_t size;
+        err = aos_rpc_get_ram_cap(mem_rpc, TEST_AOS_RPC_GET_RAM_CAP_SIZE, BASE_PAGE_SIZE, &ram_caps[i], &size);
+        assert(err_is_ok(err));
+        assert(size == TEST_AOS_RPC_GET_RAM_CAP_SIZE);
+    }
+
+    for (int i = 0; i < TEST_AOS_RPC_GET_RAM_CAP_COUNT; i++) {
+        debug_printf("Iteration %d/%d\n", i, TEST_AOS_RPC_GET_RAM_CAP_COUNT);
+        struct capref frame;
+
+        err = slot_alloc(&frame);
+        assert(err_is_ok(err));
+
+        err = cap_retype(frame, ram_caps[i], 0, ObjType_Frame, TEST_AOS_RPC_GET_RAM_CAP_SIZE, 1);
+        assert(err_is_ok(err));
+
+        err = cap_destroy(frame);
+        assert(err_is_ok(err));
+
+        err = cap_destroy(ram_caps[i]);
+        assert(err_is_ok(err));
+    }
+
+    return 0;
+}
 
 __unused
 static void test_multithreading_paging_alloc(void)
@@ -296,13 +334,21 @@ static void test_multithreading_aos_rpc_send_number(void)
 __unused
 static void test_multithreading_aos_rpc_send_string(void)
 {
-//errval_t aos_rpc_send_string(struct aos_rpc *chan, const char *string);
+    debug_printf("Running test_multithreading_aos_rpc_send_string()...\n");
+
+    run_threads(thread_aos_rpc_send_string, NULL);
+
+    debug_printf("Test done\n");
 }
 
 __unused
 static void test_multithreading_aos_rpc_get_ram_cap(void)
 {
-//errval_t aos_rpc_get_ram_cap(struct aos_rpc *chan, size_t bytes, size_t alignment, struct capref *retcap, size_t *ret_bytes);
+    debug_printf("Running test_multithreading_aos_rpc_get_ram_cap()...\n");
+
+    run_threads(thread_aos_rpc_get_ram_cap, NULL);
+
+    debug_printf("Test done\n");
 }
 
 __unused
@@ -341,32 +387,33 @@ int main(int argc, char *argv[])
     debug_printf("Multithreading test spawned\n");
 
     pgst = get_current_paging_state();
-    //init_rpc = aos_rpc_get_init_channel();
-    //assert(init_rpc != NULL);
-    //mem_rpc = aos_rpc_get_memory_channel();
-    //assert(mem_rpc != NULL);
-    //proc_rpc = aos_rpc_get_process_channel();
-    //assert(proc_rpc != NULL);
-    //serial_rpc = aos_rpc_get_serial_channel();
-    //assert(serial_rpc != NULL);
+    init_rpc = aos_rpc_get_init_channel();
+    assert(init_rpc != NULL);
+    mem_rpc = aos_rpc_get_memory_channel();
+    assert(mem_rpc != NULL);
+    proc_rpc = aos_rpc_get_process_channel();
+    assert(proc_rpc != NULL);
+    serial_rpc = aos_rpc_get_serial_channel();
+    assert(serial_rpc != NULL);
 
-    //debug_printf("Testing multithreading capabilities of paging");
-    //test_multithreading_paging_alloc();
+    // TODO Check if tests would fail with wrong synchronization
+    debug_printf("Testing multithreading capabilities of aos_rpc\n");
+    test_multithreading_aos_rpc_send_number();
+    test_multithreading_aos_rpc_send_string();
+    test_multithreading_aos_rpc_get_ram_cap();
+    test_multithreading_aos_rpc_serial_getchar();
+    test_multithreading_aos_rpc_serial_putchar();
+    test_multithreading_aos_rpc_process_spawn();
+    test_multithreading_aos_rpc_process_get_name();
+    test_multithreading_aos_rpc_process_get_all_pids();
+
+    debug_printf("Testing multithreading capabilities of paging\n");
+    test_multithreading_paging_alloc();
     test_multithreading_paging_map_fixed_attr();
-    //test_multithreading_paging_region_init_fixed();
-    //test_multithreading_paging_region_init_aligned();
-    //test_multithreading_paging_region_map();
-    //test_multithreading_paging_combined();
-
-    //debug_printf("Testing multithreading capabilities of aos_rpc");
-    //test_multithreading_aos_rpc_send_number();
-    //test_multithreading_aos_rpc_send_string();
-    //test_multithreading_aos_rpc_get_ram_cap();
-    //test_multithreading_aos_rpc_serial_getchar();
-    //test_multithreading_aos_rpc_serial_putchar();
-    //test_multithreading_aos_rpc_process_spawn();
-    //test_multithreading_aos_rpc_process_get_name();
-    //test_multithreading_aos_rpc_process_get_all_pids();
+    test_multithreading_paging_region_init_fixed();
+    test_multithreading_paging_region_init_aligned();
+    test_multithreading_paging_region_map();
+    test_multithreading_paging_combined();
 
     return EXIT_SUCCESS;
 }

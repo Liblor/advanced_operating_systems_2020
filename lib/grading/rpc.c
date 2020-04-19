@@ -7,6 +7,8 @@
 
 static bool multithreading_test = true;
 
+const char long_string[] = TEST_LONG_STRING;
+
 static void multithreading_rpc_handle_number(uintptr_t val)
 {
     static uint64_t sum = 0;
@@ -16,6 +18,7 @@ static void multithreading_rpc_handle_number(uintptr_t val)
     cnt++;
 
     assert(cnt <= TEST_NUM_THREADS * TEST_AOS_RPC_SEND_NUMBER_COUNT);
+
     if (cnt == TEST_NUM_THREADS * TEST_AOS_RPC_SEND_NUMBER_COUNT) {
         uint64_t expected_sum = 0;
         for (int i = 0; i < TEST_AOS_RPC_SEND_NUMBER_COUNT; i++) {
@@ -24,6 +27,21 @@ static void multithreading_rpc_handle_number(uintptr_t val)
         expected_sum *= TEST_NUM_THREADS;
 
         assert(sum == expected_sum);
+        debug_printf("Received all numbers\n");
+    }
+}
+
+static void multithreading_rpc_handle_string(const char *string)
+{
+    static uint64_t cnt = 0;
+
+    cnt++;
+
+    assert(cnt <= TEST_NUM_THREADS * TEST_AOS_RPC_SEND_STRING_COUNT);
+    assert(strncmp(string, long_string, sizeof(long_string)) == 0);
+
+    if (cnt == TEST_NUM_THREADS * TEST_AOS_RPC_SEND_STRING_COUNT) {
+        debug_printf("Received all strings.\n");
     }
 }
 
@@ -36,7 +54,9 @@ void grading_rpc_handle_number(uintptr_t val)
 
 void grading_rpc_handler_string(const char* string)
 {
-
+    if (multithreading_test) {
+        multithreading_rpc_handle_string(string);
+    }
 }
 
 void grading_rpc_handler_serial_getchar(void)

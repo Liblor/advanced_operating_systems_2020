@@ -9,8 +9,23 @@
 // tests will still work before changing it. For example, it must be an even
 // number (or 1).
 // TODO Change to at least 2
+// TODO Use TEST_NUM_THREADS in a way that it doesn't matter how many threads are used to test.
 #define TEST_NUM_THREADS (10)
 #define TEST_AOS_RPC_SEND_NUMBER_COUNT (1000)
+#define TEST_AOS_RPC_SEND_STRING_COUNT (1000)
+#define TEST_AOS_RPC_GET_RAM_CAP_COUNT (1000)
+#define TEST_AOS_RPC_GET_RAM_CAP_SIZE (10 * BASE_PAGE_SIZE)
+
+#define TEST_LONG_STRING ( \
+    "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string" \
+    "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string" \
+    "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string" \
+    "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string" \
+    "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string" \
+    "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string" \
+    "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string" \
+    "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string")
+
 
 /**
  * Initialises the grading library within the init process on bootstrap core.
