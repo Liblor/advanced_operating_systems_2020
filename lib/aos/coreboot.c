@@ -185,7 +185,7 @@ relocate_elf(genvaddr_t binary, struct mem_info *mem, lvaddr_t load_offset)
     return SYS_ERR_OK;
 }
 
-
+/* utility, returns frame_identity information for cap */
 static inline errval_t frame_base_size(
         struct capref frame,
         genpaddr_t *ret_base,
@@ -201,7 +201,6 @@ static inline errval_t frame_base_size(
     *ret_size = frame_identity.bytes;
     return SYS_ERR_OK;
 }
-
 
 static inline errval_t alloc_frame_and_map(
         size_t size,
@@ -264,7 +263,6 @@ err_clean_up_ram_cap:
     cap_destroy(ram_cap);
     return err;
 }
-
 
 static errval_t load_and_relocate_binary(
         const char *module_name,
@@ -405,8 +403,7 @@ errval_t  err;
     return err;
 }
 
-__unused static errval_t
-initialize_core_data(
+static errval_t initialize_core_data(
         struct armv8_core_data *core_data,
         struct capref stack_frame,
         const genvaddr_t arch_init_reloc,
@@ -515,8 +512,8 @@ initialize_core_data(
 
 
 errval_t coreboot(coreid_t mpid,
-        const char *boot_driver,
-        const char *cpu_driver,
+        const char *boot_driver_name,
+        const char *cpu_driver_name,
         const char *init_binary_name,
         struct frame_identity urpc_frame_id)
 {
@@ -532,28 +529,28 @@ errval_t coreboot(coreid_t mpid,
     }
 
     // - Load and reloc the CPU driver binary.
-    struct mem_region *cpu_module;
-    genvaddr_t arch_init_reloc;
+    struct mem_region *cpu_driver_module;
+    genvaddr_t cpu_driver_reloc;
     err = load_and_relocate_binary(
-            cpu_driver,
+            cpu_driver_name,
             "arch_init",
             ARMv8_KERNEL_OFFSET,
-            &cpu_module,
-            &arch_init_reloc
+            &cpu_driver_module,
+            &cpu_driver_reloc
     );
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
     }
 
     // - Load and reloc the boot driver binary.
-    struct mem_region *boot_module;
-    genvaddr_t boot_entry_psci_reloc;
+    struct mem_region *boot_driver_module;
+    genvaddr_t boot_driver_reloc;
     err = load_and_relocate_binary(
-            boot_driver,
+            boot_driver_name,
             "boot_entry_psci",
             0,
-            &boot_module,
-            &boot_entry_psci_reloc
+            &boot_driver_module,
+            &boot_driver_reloc
     );
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
@@ -574,12 +571,12 @@ errval_t coreboot(coreid_t mpid,
     }
 
     // - Load init monitor binary into current vspace
-    struct armv8_coredata_memreg init_monitor_phy_memreg;  // reference to phyaddr
+    struct armv8_coredata_memreg init_monitor_memreg;      // reference to phyaddr
     void *init_monitor_vaddr;                              // ref. to vaddr
 
     err = load_init_binary_in_curr_vspace(
             init_binary_name,
-            &init_monitor_phy_memreg,
+            &init_monitor_memreg,
             &init_monitor_vaddr);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
@@ -603,12 +600,12 @@ errval_t coreboot(coreid_t mpid,
     err = initialize_core_data(
             core_data,
             cpu_driver_stack_cap,
-            arch_init_reloc,
-            cpu_module,
+            cpu_driver_reloc,
+            cpu_driver_module,
             mpid,
             kcb,
             init_monitor_vaddr,
-            &init_monitor_phy_memreg,
+            &init_monitor_memreg,
             urpc_frame_id);
     if (err_is_fail(err)) {
         goto err_clean_up_kcb_cap;
@@ -633,7 +630,7 @@ errval_t coreboot(coreid_t mpid,
     err = invoke_monitor_spawn_core(
             mpid,
             CPU_ARM8,
-            boot_entry_psci_reloc,
+            boot_driver_reloc,
             core_data_frame_identity.base,
             0
     );
