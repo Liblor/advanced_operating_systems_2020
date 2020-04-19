@@ -91,26 +91,84 @@ client_response_cb(void *arg)
     return;
 }
 
+static void
+client_response_cb_one_no_alloc(void *arg)
+{
+    struct client_response_state *state = (struct client_response_state *) arg;
+    struct aos_rpc *rpc = (struct aos_rpc *) state->rpc;
+    struct lmp_chan *lc = &rpc->lc;
+
+    struct capref cap = NULL_CAP;
+    struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
+
+    errval_t err = lmp_chan_recv(lc, &msg, &cap);
+
+    if (err_is_fail(err) && lmp_err_is_transient(err)) { // reregister
+        err = lmp_chan_register_recv(lc, &state->ws, MKCLOSURE(client_response_cb_one_no_alloc, arg));
+        if (err_is_fail(err)) {
+            state->err = LIB_ERR_CHAN_REGISTER_RECV;
+            goto clean_up;
+        }
+    } else if (err_is_fail(err)) {
+        state->err = err;
+        goto clean_up;
+    }
+
+    if (state->pending_state == EmptyState) {
+        if (state->validate_recv_msg != NULL) {
+            err = state->validate_recv_msg(&msg, EmptyState);
+            if (err_is_fail(err)) {
+                state->err = err;
+                state->pending_state = InvalidState;
+                goto clean_up;
+            }
+        }
+
+        struct rpc_message_part *msg_part = (struct rpc_message_part *) msg.words;
+        state->total_length = msg_part->payload_length; // TODO: introduce max len
+        state->bytes_received = 0;
+
+        // copy header
+        state->message->msg.method = msg_part->method;
+        state->message->msg.status = msg_part->status;
+        state->message->msg.payload_length = msg_part->payload_length;
+        state->message->cap = cap;
+
+        // copy payload
+        const uint64_t to_copy = MIN(MAX_RPC_MSG_PART_PAYLOAD, msg_part->payload_length);
+        memcpy(state->message->msg.payload, msg_part->payload, to_copy);
+        state->bytes_received += to_copy;
+    }
+    if (state->bytes_received < state->total_length) {
+        assert(false);
+    } else {
+        state->pending_state = EmptyState;
+        assert(state->total_length == state->bytes_received);
+        assert(state->message != NULL);
+    }
+    state->err = SYS_ERR_OK;
+    goto clean_up;
+
+    clean_up:
+    return;
+}
+
 // Receive just a single packet, and do not allocate any dynamic memory.
 errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     struct aos_rpc *rpc,
     struct rpc_message *send,
-    struct rpc_message **recv,
+    struct rpc_message *recv,
     validate_recv_msg_t validate_cb,
-    struct capref cap
+    struct capref ret_cap
 )
 {
     errval_t err;
 
     assert(rpc != NULL);
     assert(send != NULL);
+    assert(recv != NULL);
 
-    if (recv != NULL) {
-        *recv = NULL;
-    }
-
-    lmp_chan_set_recv_slot(&rpc->lc, *ret_cap);
-
+    lmp_chan_set_recv_slot(&rpc->lc, ret_cap);
     struct client_response_state state;
     memset(&state, 0, sizeof(struct client_response_state));
 
@@ -119,12 +177,12 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     state.rpc = rpc;
     state.pending_state = EmptyState;
     state.validate_recv_msg = validate_cb;
-    state.message = NULL;
+    state.message = recv;
 
     thread_mutex_lock_nested(&rpc->mutex);
 
     // TODO: Use custom callback.
-    err = lmp_chan_register_recv(&rpc->lc, &state.ws, MKCLOSURE(client_response_cb, &state));
+    err = lmp_chan_register_recv(&rpc->lc, &state.ws, MKCLOSURE(client_response_cb_one_no_alloc, &state));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_register_recv failed");
         goto clean_up;
@@ -139,7 +197,7 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     // TODO: Implement threshold?
     do {
         err = event_dispatch(&state.ws);
-    } while (err_is_ok(err));
+    } while (err_is_ok(err) && state.pending_state == DataInTransmit);
 
     if (err_is_fail(state.err)) {
         err = state.err;
@@ -155,12 +213,6 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     err = SYS_ERR_OK;
 
 clean_up:
-    // free slot in case no cap was received
-    if (*recv != NULL) {
-        if (capref_is_null((*recv)->cap)) {
-            slot_free(rpc->lc.endpoint->recv_slot);
-        }
-    }
     thread_mutex_unlock(&rpc->mutex);
     state.message = NULL;
     waitset_destroy(&state.ws);

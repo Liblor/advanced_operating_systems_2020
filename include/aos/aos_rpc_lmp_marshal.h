@@ -29,7 +29,7 @@ struct client_response_state {
 errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     struct aos_rpc *rpc,
     struct rpc_message *send,
-    struct rpc_message **recv,
+    struct rpc_message *recv,
     validate_recv_msg_t validate_cb,
     struct capref cap
 );

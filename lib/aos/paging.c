@@ -22,9 +22,6 @@
 
 #include "threads_priv.h"
 
-//#define thread_mutex_unlock HERE; thread_mutex_unlock
-//#define thread_mutex_lock_nested HERE; thread_mutex_lock_nested
-
 static struct paging_state current;
 
 static inline void create_hashtable(
@@ -381,10 +378,8 @@ static inline errval_t back_vaddr(
 
     bool exit_do_unlock = false;
 
-    HERE;
     thread_mutex_lock_nested(&st->mutex);
     exit_do_unlock = true;
-    HERE;
 
     /*
      * First, we lookup the corresponding node on the upper layer.
@@ -396,7 +391,6 @@ static inline errval_t back_vaddr(
         debug_printf("Page fault handler: Cannot find node at base %p.\n", vaddr);
         goto cleanup;
     }
-    HERE;
 
     /*
      * The pr_node must be allocated, and it must have been reserved explicitly.
@@ -410,7 +404,6 @@ static inline errval_t back_vaddr(
 
     struct paging_region *pr = (struct paging_region *) pr_node->shared.ptr;
     assert(pr != NULL);
-    HERE;
 
     if (pr->implicit) {
         debug_printf("Page fault handler: Paging region %p at node %p was implicitly reserved.\n", pr, pr_node);
@@ -419,6 +412,7 @@ static inline errval_t back_vaddr(
     }
 
     // TODO: Check if paging_region belongs to another thread (stack or heap).
+    //range_tracker_print_state(&pr->rt);
 
     struct rtnode *mapping_node;
     err = range_tracker_get_fixed(&pr->rt, vaddr, 1, &mapping_node);
@@ -427,10 +421,8 @@ static inline errval_t back_vaddr(
         goto cleanup;
     }
 
-    HERE;
     thread_mutex_unlock(&st->mutex);
     exit_do_unlock = false;
-    HERE;
 
     assert(mapping_node != NULL);
 
@@ -441,7 +433,6 @@ static inline errval_t back_vaddr(
     struct capref frame;
     size_t size;
     slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
-    HERE;
 
     err = frame_alloc(&frame, mapping_node->size, &size);
     if (err_is_fail(err)) {
@@ -455,10 +446,8 @@ static inline errval_t back_vaddr(
 
     uint64_t page_count = mapping_node->size / BASE_PAGE_SIZE;
 
-    HERE;
     thread_mutex_lock_nested(&st->mutex);
     exit_do_unlock = true;
-    HERE;
 
     err = get_and_map_into_l3(st, pr, mapping_node->base, frame, 0, page_count, mapping_node, pr->flags);
     if (err_is_fail(err)) {
@@ -469,7 +458,6 @@ static inline errval_t back_vaddr(
 #ifndef NDEBUG
     ensure_correct_pagetable_mapping(st, vaddr, page_count);
 #endif
-    HERE;
 
     thread_mutex_unlock(&st->mutex);
     exit_do_unlock = false;
@@ -478,11 +466,8 @@ static inline errval_t back_vaddr(
 
 cleanup:
     if (exit_do_unlock) {
-        HERE;
         thread_mutex_unlock(&st->mutex);
-        HERE;
     }
-    HERE;
 
     return err;
 }
@@ -554,6 +539,7 @@ static void exception_handler(
 {
     errval_t err = SYS_ERR_OK;
 
+    const bool is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
 
     switch (type) {
@@ -565,7 +551,9 @@ static void exception_handler(
         debug_printf("Unknown exception type\n");
     }
 
-    morecore_enable_dynamic();
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
 
     if (err_is_fail(err)) {
         // we die here ... RIP
@@ -713,9 +701,12 @@ void paging_init_onthread(
 {
     DEBUG_BEGIN;
 
+    const bool is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
     void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
-    morecore_enable_dynamic();
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
 
     if (stack == NULL) {
         debug_printf("Allocating exception stack failed\n");

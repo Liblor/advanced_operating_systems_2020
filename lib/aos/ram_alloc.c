@@ -21,16 +21,13 @@ static errval_t ram_alloc_remote(struct capref *ret, size_t size, size_t alignme
 {
     errval_t err;
 
-    HERE;
     struct aos_rpc *mem_rpc = aos_rpc_get_memory_channel();
 
-    HERE;
     err = aos_rpc_get_ram_cap(mem_rpc, size, alignment, ret, NULL);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_get_ram_cap() failed");
         return err;
     }
-    HERE;
     return SYS_ERR_OK;
 }
 

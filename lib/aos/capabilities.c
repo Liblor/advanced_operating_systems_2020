@@ -714,13 +714,11 @@ errval_t vnode_create(struct capref dest, enum objtype type)
 errval_t frame_create(struct capref dest, size_t bytes, size_t *retbytes)
 {
     DEBUG_BEGIN;
-    HERE;
     assert(bytes > 0);
     errval_t err;
 
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
-    HERE;
     struct capref ram;
     err = ram_alloc(&ram, bytes);
     if (err_is_fail(err)) {
@@ -730,13 +728,11 @@ errval_t frame_create(struct capref dest, size_t bytes, size_t *retbytes)
         }
         return err_push(err, LIB_ERR_RAM_ALLOC);
     }
-    HERE;
     err = cap_retype(dest, ram, 0, ObjType_Frame, bytes, 1);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_CAP_RETYPE);
     }
 
-    HERE;
     err = cap_destroy(ram);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_CAP_DESTROY);
@@ -746,7 +742,6 @@ errval_t frame_create(struct capref dest, size_t bytes, size_t *retbytes)
         *retbytes = bytes;
     }
 
-    HERE;
     return SYS_ERR_OK;
 }
 
@@ -815,12 +810,10 @@ errval_t endpoint_create(size_t buflen, struct capref *retcap,
  */
 errval_t frame_alloc(struct capref *dest, size_t bytes, size_t *retbytes)
 {
-    HERE;
     errval_t err = slot_alloc(dest);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_SLOT_ALLOC);
     }
-    HERE;
 
     return frame_create(*dest, bytes, retbytes);
 }
