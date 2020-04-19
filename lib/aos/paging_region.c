@@ -21,7 +21,7 @@ static inline errval_t paging_region_init_region(
 
     PAGING_CHECK_RANGE(base, size);
 
-    thread_mutex_init(&pr->mutex);
+    pr->mutex = &st->mutex;
 
     pr->node = node;
     pr->implicit = implicit;
@@ -215,7 +215,7 @@ errval_t paging_region_map(
 
     struct paging_state *st = get_current_paging_state();
 
-    thread_mutex_lock_nested(&pr->mutex);
+    thread_mutex_lock_nested(pr->mutex);
 
     err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
@@ -292,7 +292,7 @@ cleanup:
     if (is_dynamic) {
         morecore_enable_dynamic();
     }
-    thread_mutex_unlock(&pr->mutex);
+    thread_mutex_unlock(pr->mutex);
     return err;
 }
 
@@ -352,7 +352,7 @@ errval_t paging_region_unmap(
 
     PAGING_CHECK_RANGE(base, bytes);
 
-    thread_mutex_lock_nested(&pr->mutex);
+    thread_mutex_lock_nested(pr->mutex);
 
     err = range_tracker_free(&pr->rt, base, bytes, MKRTCLOSURE(range_tracker_free_cb, NULL));
     if (err_is_fail(err)) {
@@ -363,7 +363,7 @@ errval_t paging_region_unmap(
     err = SYS_ERR_OK;
 
 cleanup:
-    thread_mutex_unlock(&pr->mutex);
+    thread_mutex_unlock(pr->mutex);
     return err;
 }
 
@@ -381,7 +381,7 @@ errval_t paging_region_unmap_all(
 
     assert(pr != NULL);
 
-    thread_mutex_lock_nested(&pr->mutex);
+    thread_mutex_lock_nested(pr->mutex);
 
     err = range_tracker_free_all(&pr->rt, MKRTCLOSURE(range_tracker_free_cb, NULL));
     if (err_is_fail(err)) {
@@ -392,6 +392,6 @@ errval_t paging_region_unmap_all(
     err = SYS_ERR_OK;
 
 cleanup:
-    thread_mutex_unlock(&pr->mutex);
+    thread_mutex_unlock(pr->mutex);
     return err;
 }
