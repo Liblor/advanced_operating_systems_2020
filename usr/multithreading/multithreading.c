@@ -17,6 +17,8 @@
 #define TEST_PAGING_REGION_INIT_ALIGNED_SIZE (10 * BASE_PAGE_SIZE)
 #define TEST_PAGING_REGION_MAP_COUNT (50)
 #define TEST_PAGING_REGION_MAP_SIZE (10 * BASE_PAGE_SIZE)
+#define TEST_PAGING_COMBINED_STAGE_COUNT (4)
+#define TEST_PAGING_COMBINED_COUNT (10)
 
 const char long_string[] = TEST_LONG_STRING;
 
@@ -27,6 +29,11 @@ struct aos_rpc *mem_rpc;
 struct aos_rpc *proc_rpc;
 struct aos_rpc *serial_rpc;
 
+struct thread_data_paging_combined {
+    struct paging_region pr;
+    void *map_fixed_buf;
+    uint8_t stage;
+};
 
 static void run_threads(thread_func_t start_func, void *data)
 {
@@ -63,7 +70,7 @@ static int thread_paging_alloc(void *data)
     memset(buffers, 0, sizeof(buffers));
 
     for (int i = 0; i < TEST_PAGING_ALLOC_COUNT; i++) {
-        debug_printf("Iteration %d/%d\n", i, TEST_PAGING_ALLOC_COUNT);
+        debug_printf("paging_alloc() %d/%d\n", i+1, TEST_PAGING_ALLOC_COUNT);
         void *buf;
         err = paging_alloc(pgst, &buf, TEST_PAGING_ALLOC_SIZE, BASE_PAGE_SIZE);
         assert(err_is_ok(err));
@@ -94,28 +101,28 @@ static int thread_paging_map_fixed_attr(void *data)
     uint64_t successes = 0;
 
     for (int i = 0; i < TEST_PAGING_MAP_FIXED_ATTR_COUNT; i++) {
-        debug_printf("Iteration %d/%d\n", i, TEST_PAGING_MAP_FIXED_ATTR_COUNT);
+        debug_printf("paging_map_fixed_attr() %d/%d\n", i+1, TEST_PAGING_MAP_FIXED_ATTR_COUNT);
         struct capref frame;
         size_t size;
 
-        debug_printf("frame_alloc()\n");
         err = frame_alloc(&frame, TEST_PAGING_MAP_FIXED_ATTR_SIZE, &size);
         assert(err_is_ok(err));
         assert(size == TEST_PAGING_MAP_FIXED_ATTR_SIZE);
 
         lvaddr_t vaddr = base_offset + i * TEST_PAGING_MAP_FIXED_ATTR_SIZE;
-        debug_printf("paging_map_fixed_attr()\n");
         err = paging_map_fixed_attr(pgst, vaddr, frame, size, VREGION_FLAGS_READ_WRITE);
         if (err_is_ok(err)) {
             buffers[i] = (void *) vaddr;
             successes++;
         } else {
+            // TODO Check how often that happens
             assert(err_no(err) == AOS_ERR_PAGING_ADDR_RESERVED);
         }
     }
 
     debug_printf("Successfully mapped %lu fixed addresses.\n", successes);
 
+    debug_printf("Checking access...\n");
     for (int i = 0; i < TEST_PAGING_MAP_FIXED_ATTR_COUNT; i++) {
         if (buffers[i] != NULL) {
             check_access((lvaddr_t) buffers[i], TEST_PAGING_MAP_FIXED_ATTR_SIZE);
@@ -143,7 +150,7 @@ static int thread_paging_region_init_aligned(void *data)
     memset(prs, 0, sizeof(prs));
 
     for (int i = 0; i < TEST_PAGING_REGION_INIT_ALIGNED_COUNT; i++) {
-        debug_printf("Iteration %d/%d\n", i, TEST_PAGING_REGION_INIT_ALIGNED_COUNT);
+        debug_printf("paging_region_init_aligned() %d/%d\n", i+1, TEST_PAGING_REGION_INIT_ALIGNED_COUNT);
         err = paging_region_init_aligned(pgst, &prs[i], TEST_PAGING_REGION_INIT_ALIGNED_SIZE, BASE_PAGE_SIZE, VREGION_FLAGS_READ_WRITE);
         assert(err_is_ok(err));
     }
@@ -169,7 +176,7 @@ static int thread_paging_region_map(void *data)
     memset(buffers, 0, sizeof(buffers));
 
     for (int i = 0; i < thread_alloc_count; i++) {
-        debug_printf("Iteration %d/%d\n", i, thread_alloc_count);
+        debug_printf("paging_region_map() %d/%d\n", i+1, thread_alloc_count);
         void *buf;
         size_t size;
         err = paging_region_map(pr, TEST_PAGING_REGION_MAP_SIZE, &buf, &size);
@@ -179,6 +186,7 @@ static int thread_paging_region_map(void *data)
         buffers[i] = buf;
     }
 
+    debug_printf("Checking access...\n");
     for (int i = 0; i < thread_alloc_count; i++) {
         check_access((lvaddr_t) buffers[i], TEST_PAGING_REGION_MAP_SIZE);
     }
@@ -194,11 +202,46 @@ static int thread_paging_region_map(void *data)
     return 0;
 }
 
+static int thread_paging_combined(void *data)
+{
+    struct thread_data_paging_combined *d = data;
+
+    // TODO If tests are added, also add them here
+    for (int i = 0; i < TEST_PAGING_COMBINED_COUNT; i++) {
+        assert(0 <= d->stage && d->stage <= TEST_PAGING_COMBINED_STAGE_COUNT - 1);
+
+        debug_printf("STAGE %u (iteration %u)\n", d->stage, i+1);
+        switch (d->stage) {
+        case 0:
+            thread_paging_alloc(NULL);
+            break;
+        case 1:
+            thread_paging_map_fixed_attr(d->map_fixed_buf);
+            break;
+        case 2:
+            thread_paging_region_init_aligned(NULL);
+            break;
+        case 3:
+            thread_paging_region_map(&d->pr);
+            break;
+        default:
+            assert(false);
+            break;
+        }
+
+        d->stage++;
+        d->stage %= TEST_PAGING_COMBINED_STAGE_COUNT;
+    }
+
+    return 0;
+}
+
 static int thread_aos_rpc_send_number(void *data)
 {
     errval_t err;
 
     for (int i = 0; i < TEST_AOS_RPC_SEND_NUMBER_COUNT; i++) {
+        debug_printf("aos_rpc_send_number() %d/%d\n", i+1, TEST_AOS_RPC_SEND_NUMBER_COUNT);
         err = aos_rpc_send_number(init_rpc, i);
         assert(err_is_ok(err));
     }
@@ -211,6 +254,7 @@ static int thread_aos_rpc_send_string(void *data)
     errval_t err;
 
     for (int i = 0; i < TEST_AOS_RPC_SEND_STRING_COUNT; i++) {
+        debug_printf("aos_rpc_send_string() %d/%d\n", i+1, TEST_AOS_RPC_SEND_STRING_COUNT);
         err = aos_rpc_send_string(init_rpc, long_string);
         assert(err_is_ok(err));
     }
@@ -224,14 +268,15 @@ static int thread_aos_rpc_get_ram_cap(void *data)
     struct capref ram_caps[TEST_AOS_RPC_GET_RAM_CAP_COUNT];
 
     for (int i = 0; i < TEST_AOS_RPC_GET_RAM_CAP_COUNT; i++) {
+        debug_printf("aos_rpc_get_ram_cap() %d/%d\n", i+1, TEST_AOS_RPC_GET_RAM_CAP_COUNT);
         size_t size;
         err = aos_rpc_get_ram_cap(mem_rpc, TEST_AOS_RPC_GET_RAM_CAP_SIZE, BASE_PAGE_SIZE, &ram_caps[i], &size);
         assert(err_is_ok(err));
         assert(size == TEST_AOS_RPC_GET_RAM_CAP_SIZE);
     }
 
+    debug_printf("Testing RAM capabilities...\n");
     for (int i = 0; i < TEST_AOS_RPC_GET_RAM_CAP_COUNT; i++) {
-        debug_printf("Iteration %d/%d\n", i, TEST_AOS_RPC_GET_RAM_CAP_COUNT);
         struct capref frame;
 
         err = slot_alloc(&frame);
@@ -299,12 +344,12 @@ static void test_multithreading_paging_region_map(void)
 {
     errval_t err;
 
+    debug_printf("Running test_multithreading_paging_region_map()...\n");
+
     // Allocate one paging region for both threads to allocate from
     struct paging_region pr;
     err = paging_region_init_aligned(pgst, &pr, TEST_PAGING_REGION_MAP_COUNT * TEST_PAGING_REGION_MAP_SIZE, BASE_PAGE_SIZE, VREGION_FLAGS_READ_WRITE);
     assert(err_is_ok(err));
-
-    debug_printf("Running test_multithreading_paging_region_map()...\n");
 
     run_threads(thread_paging_region_map, &pr);
 
@@ -318,7 +363,34 @@ static void test_multithreading_paging_region_map(void)
 __unused
 static void test_multithreading_paging_combined(void)
 {
-    // TODO Implement test that does all operations at the same time in different threads
+    errval_t err;
+
+    debug_printf("Running test_multithreading_paging_combined()...\n");
+
+    struct thread_data_paging_combined common_data;
+    err = paging_region_init_aligned(pgst, &common_data.pr, TEST_PAGING_REGION_MAP_COUNT * TEST_PAGING_REGION_MAP_SIZE, BASE_PAGE_SIZE, VREGION_FLAGS_READ_WRITE);
+    assert(err_is_ok(err));
+    err = paging_alloc(pgst, &common_data.map_fixed_buf, TEST_PAGING_MAP_FIXED_ATTR_COUNT * TEST_PAGING_MAP_FIXED_ATTR_SIZE , BASE_PAGE_SIZE);
+    assert(err_is_ok(err));
+
+    struct thread_data_paging_combined data[TEST_NUM_THREADS];
+    struct thread *threads[TEST_NUM_THREADS];
+
+    for (int i = 0; i < TEST_NUM_THREADS; i++) {
+        memcpy(&data[i], &common_data, sizeof(data[i]));
+        data[i].stage = i % TEST_PAGING_COMBINED_STAGE_COUNT;
+
+        threads[i] = thread_create(thread_paging_combined, &data[i]);
+        assert(threads[i] != NULL);
+    }
+
+    for (int i = 0; i < TEST_NUM_THREADS; i++) {
+        int retval;
+        err = thread_join(threads[i], &retval);
+        assert(err_is_ok(err));
+    }
+
+    debug_printf("Test done\n");
 }
 
 __unused
@@ -413,6 +485,7 @@ int main(int argc, char *argv[])
     test_multithreading_paging_region_init_fixed();
     test_multithreading_paging_region_init_aligned();
     test_multithreading_paging_region_map();
+    // TODO This test is failing (even with only 1 thread)
     test_multithreading_paging_combined();
 
     return EXIT_SUCCESS;
