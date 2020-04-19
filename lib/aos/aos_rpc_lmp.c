@@ -136,6 +136,11 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 {
     errval_t err;
 
+    errval_t err = slot_alloc(ret_cap);
+    if (err_is_fail(err)) {
+        return err_push(err, LIB_ERR_SLOT_ALLOC);
+    }
+
     thread_mutex_lock_nested(&rpc->mutex);
 
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
@@ -150,7 +155,7 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
 
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_get_ram_cap);
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_get_ram_cap, *ret_cap);
     if (err_is_fail(err)) {
         goto clean_up;
     }
@@ -419,11 +424,15 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(
 {
     errval_t err;
 
+    HERE;
+
     struct aos_rpc *rpc = calloc(1, sizeof(struct aos_rpc));
     if (rpc == NULL) {
         debug_printf("malloc returned NULL\n");
         goto error;
     }
+
+    HERE;
 
     err = aos_rpc_lmp_init(rpc);
     if (err_is_fail(err)) {
@@ -499,7 +508,7 @@ error:
 }
 
 static struct aos_rpc *aos_rpc_lmp_get_channel(
-    struct aos_rpc *rpc,
+    struct aos_rpc **rpc,
     struct capref cap,
     const char *service_name
 )
@@ -508,18 +517,20 @@ static struct aos_rpc *aos_rpc_lmp_get_channel(
 
     thread_mutex_lock_nested(&rpc_lmp_mutex);
 
-    if (rpc == NULL) {
+    if (*rpc == NULL) {
         was_unset = true;
-        rpc = aos_rpc_lmp_setup_channel(cap, service_name);
+        HERE;
+        *rpc = aos_rpc_lmp_setup_channel(cap, service_name);
+        HERE;
     }
 
     thread_mutex_unlock(&rpc_lmp_mutex);
 
-    if (was_unset && rpc == NULL) {
+    if (was_unset && *rpc == NULL) {
         debug_printf("aos_rpc_lmp_setup_channel() failed\n");
     }
 
-    return rpc;
+    return *rpc;
 }
 
 /**
@@ -527,7 +538,8 @@ static struct aos_rpc *aos_rpc_lmp_get_channel(
  */
 struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
-    return aos_rpc_lmp_get_channel(init_channel, cap_chan_init, "init");
+    HERE;
+    return aos_rpc_lmp_get_channel(&init_channel, cap_chan_init, "init");
 }
 
 /**
@@ -535,7 +547,8 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
-    return aos_rpc_lmp_get_channel(memory_channel, cap_chan_memory, "memory");
+    HERE;
+    return aos_rpc_lmp_get_channel(&memory_channel, cap_chan_memory, "memory");
 }
 
 /**
@@ -543,7 +556,8 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
-    return aos_rpc_lmp_get_channel(process_channel, cap_chan_process, "process");
+    HERE;
+    return aos_rpc_lmp_get_channel(&process_channel, cap_chan_process, "process");
 }
 
 /**
@@ -551,5 +565,6 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-    return aos_rpc_lmp_get_channel(serial_channel, cap_chan_serial, "serial");
+    HERE;
+    return aos_rpc_lmp_get_channel(&serial_channel, cap_chan_serial, "serial");
 }

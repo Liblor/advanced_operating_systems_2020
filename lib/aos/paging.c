@@ -22,6 +22,9 @@
 
 #include "threads_priv.h"
 
+//#define thread_mutex_unlock HERE; thread_mutex_unlock
+//#define thread_mutex_lock_nested HERE; thread_mutex_lock_nested
+
 static struct paging_state current;
 
 static inline void create_hashtable(
@@ -376,9 +379,12 @@ static inline errval_t back_vaddr(
     assert(vaddr != 0);
     assert(vaddr % BASE_PAGE_SIZE == 0);
 
-    while (!thread_mutex_trylock(&st->mutex)) {
-        thread_yield();
-    }
+    bool exit_do_unlock = false;
+
+    HERE;
+    thread_mutex_lock_nested(&st->mutex);
+    exit_do_unlock = true;
+    HERE;
 
     /*
      * First, we lookup the corresponding node on the upper layer.
@@ -388,8 +394,9 @@ static inline errval_t back_vaddr(
     err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
     if (err_is_fail(err)) {
         debug_printf("Page fault handler: Cannot find node at base %p.\n", vaddr);
-        return err;
+        goto cleanup;
     }
+    HERE;
 
     /*
      * The pr_node must be allocated, and it must have been reserved explicitly.
@@ -397,15 +404,18 @@ static inline errval_t back_vaddr(
 
     if (!range_tracker_is_used(pr_node)) {
         debug_printf("Page fault handler: Node %p is not being used.\n", pr_node);
-        return AOS_ERR_PAGING_ADDR_RESERVED;
+        err = AOS_ERR_PAGING_ADDR_RESERVED;
+        goto cleanup;
     }
 
     struct paging_region *pr = (struct paging_region *) pr_node->shared.ptr;
     assert(pr != NULL);
+    HERE;
 
     if (pr->implicit) {
         debug_printf("Page fault handler: Paging region %p at node %p was implicitly reserved.\n", pr, pr_node);
-        return AOS_ERR_PAGING_ADDR_RESERVED;
+        err = AOS_ERR_PAGING_ADDR_RESERVED;
+        goto cleanup;
     }
 
     // TODO: Check if paging_region belongs to another thread (stack or heap).
@@ -414,10 +424,14 @@ static inline errval_t back_vaddr(
     err = range_tracker_get_fixed(&pr->rt, vaddr, 1, &mapping_node);
     if (err_is_fail(err)) {
         debug_printf("Page fault handler: Cannot find node at base %p.\n", vaddr);
-        return err;
+        goto cleanup;
     }
 
+    HERE;
     thread_mutex_unlock(&st->mutex);
+    exit_do_unlock = false;
+    HERE;
+
     assert(mapping_node != NULL);
 
     /*
@@ -427,12 +441,13 @@ static inline errval_t back_vaddr(
     struct capref frame;
     size_t size;
     slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
+    HERE;
 
     err = frame_alloc(&frame, mapping_node->size, &size);
     if (err_is_fail(err)) {
         debug_printf("Page fault handler: frame_alloc failed, while lazily mapping 0x%lx.\n", vaddr);
         debug_printf("%s\n", err_getstring(err));
-        return err;
+        goto cleanup;
     }
 
     assert(size >= mapping_node->size);
@@ -440,19 +455,36 @@ static inline errval_t back_vaddr(
 
     uint64_t page_count = mapping_node->size / BASE_PAGE_SIZE;
 
+    HERE;
     thread_mutex_lock_nested(&st->mutex);
+    exit_do_unlock = true;
+    HERE;
+
     err = get_and_map_into_l3(st, pr, mapping_node->base, frame, 0, page_count, mapping_node, pr->flags);
     if (err_is_fail(err)) {
         debug_printf("get_and_map_into_l3() failed: %s\n", err_getstring(err));
-        return err;
+        goto cleanup;
     }
-    thread_mutex_unlock(&st->mutex);
 
 #ifndef NDEBUG
     ensure_correct_pagetable_mapping(st, vaddr, page_count);
 #endif
+    HERE;
 
-    return SYS_ERR_OK;
+    thread_mutex_unlock(&st->mutex);
+    exit_do_unlock = false;
+
+    err = SYS_ERR_OK;
+
+cleanup:
+    if (exit_do_unlock) {
+        HERE;
+        thread_mutex_unlock(&st->mutex);
+        HERE;
+    }
+    HERE;
+
+    return err;
 }
 
 static errval_t paging_handler(

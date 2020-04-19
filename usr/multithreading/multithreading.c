@@ -341,32 +341,32 @@ int main(int argc, char *argv[])
     debug_printf("Multithreading test spawned\n");
 
     pgst = get_current_paging_state();
-    init_rpc = aos_rpc_get_init_channel();
-    assert(init_rpc != NULL);
-    mem_rpc = aos_rpc_get_memory_channel();
-    assert(mem_rpc != NULL);
-    proc_rpc = aos_rpc_get_process_channel();
-    assert(proc_rpc != NULL);
-    serial_rpc = aos_rpc_get_serial_channel();
-    assert(serial_rpc != NULL);
+    //init_rpc = aos_rpc_get_init_channel();
+    //assert(init_rpc != NULL);
+    //mem_rpc = aos_rpc_get_memory_channel();
+    //assert(mem_rpc != NULL);
+    //proc_rpc = aos_rpc_get_process_channel();
+    //assert(proc_rpc != NULL);
+    //serial_rpc = aos_rpc_get_serial_channel();
+    //assert(serial_rpc != NULL);
 
-    debug_printf("Testing multithreading capabilities of paging");
-    test_multithreading_paging_alloc();
+    //debug_printf("Testing multithreading capabilities of paging");
+    //test_multithreading_paging_alloc();
     test_multithreading_paging_map_fixed_attr();
-    test_multithreading_paging_region_init_fixed();
-    test_multithreading_paging_region_init_aligned();
-    test_multithreading_paging_region_map();
-    test_multithreading_paging_combined();
+    //test_multithreading_paging_region_init_fixed();
+    //test_multithreading_paging_region_init_aligned();
+    //test_multithreading_paging_region_map();
+    //test_multithreading_paging_combined();
 
-    debug_printf("Testing multithreading capabilities of aos_rpc");
-    test_multithreading_aos_rpc_send_number();
-    test_multithreading_aos_rpc_send_string();
-    test_multithreading_aos_rpc_get_ram_cap();
-    test_multithreading_aos_rpc_serial_getchar();
-    test_multithreading_aos_rpc_serial_putchar();
-    test_multithreading_aos_rpc_process_spawn();
-    test_multithreading_aos_rpc_process_get_name();
-    test_multithreading_aos_rpc_process_get_all_pids();
+    //debug_printf("Testing multithreading capabilities of aos_rpc");
+    //test_multithreading_aos_rpc_send_number();
+    //test_multithreading_aos_rpc_send_string();
+    //test_multithreading_aos_rpc_get_ram_cap();
+    //test_multithreading_aos_rpc_serial_getchar();
+    //test_multithreading_aos_rpc_serial_putchar();
+    //test_multithreading_aos_rpc_process_spawn();
+    //test_multithreading_aos_rpc_process_get_name();
+    //test_multithreading_aos_rpc_process_get_all_pids();
 
     return EXIT_SUCCESS;
 }

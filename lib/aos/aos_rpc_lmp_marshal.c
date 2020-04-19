@@ -91,6 +91,83 @@ client_response_cb(void *arg)
     return;
 }
 
+// Receive just a single packet, and do not allocate any dynamic memory.
+errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
+    struct aos_rpc *rpc,
+    struct rpc_message *send,
+    struct rpc_message **recv,
+    validate_recv_msg_t validate_cb,
+    struct capref cap
+)
+{
+    errval_t err;
+
+    assert(rpc != NULL);
+    assert(send != NULL);
+
+    if (recv != NULL) {
+        *recv = NULL;
+    }
+
+    lmp_chan_set_recv_slot(&rpc->lc, *ret_cap);
+
+    struct client_response_state state;
+    memset(&state, 0, sizeof(struct client_response_state));
+
+    waitset_init(&state.ws);
+    state.err = SYS_ERR_OK;
+    state.rpc = rpc;
+    state.pending_state = EmptyState;
+    state.validate_recv_msg = validate_cb;
+    state.message = NULL;
+
+    thread_mutex_lock_nested(&rpc->mutex);
+
+    // TODO: Use custom callback.
+    err = lmp_chan_register_recv(&rpc->lc, &state.ws, MKCLOSURE(client_response_cb, &state));
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "lmp_chan_register_recv failed");
+        goto clean_up;
+    }
+
+    err = aos_rpc_lmp_send_message(rpc, send, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message failed\n");
+        goto clean_up;
+    }
+
+    // TODO: Implement threshold?
+    do {
+        err = event_dispatch(&state.ws);
+    } while (err_is_ok(err));
+
+    if (err_is_fail(state.err)) {
+        err = state.err;
+        goto clean_up;
+    }
+    if (state.pending_state == InvalidState) {
+        err = LIB_ERR_LMP_INVALID_RESPONSE;
+        goto clean_up;
+    }
+
+    assert(state.message != NULL);
+
+    err = SYS_ERR_OK;
+
+clean_up:
+    // free slot in case no cap was received
+    if (*recv != NULL) {
+        if (capref_is_null((*recv)->cap)) {
+            slot_free(rpc->lc.endpoint->recv_slot);
+        }
+    }
+    thread_mutex_unlock(&rpc->mutex);
+    state.message = NULL;
+    waitset_destroy(&state.ws);
+
+    return err;
+}
+
 errval_t
 aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
                                struct rpc_message **recv, validate_recv_msg_t validate_cb)

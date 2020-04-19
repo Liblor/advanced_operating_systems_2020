@@ -10,8 +10,8 @@
 #include <aos/aos.h>
 #include <aos/core_state.h>
 
-#define MALLOC_LOCK thread_mutex_lock_nested(&state->mutex)
-#define MALLOC_UNLOCK thread_mutex_unlock(&state->mutex)
+#define MALLOC_LOCK thread_mutex_lock_nested(state->mutex)
+#define MALLOC_UNLOCK thread_mutex_unlock(state->mutex)
 
 /*
  * malloc: general-purpose storage allocator
