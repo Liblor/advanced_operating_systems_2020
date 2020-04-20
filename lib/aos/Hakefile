@@ -52,6 +52,7 @@
                              "thread_once.c",
                              "thread_sync.c",
                              "threads.c",
+                             "urpc.c",
                              "waitset.c" ],
                   assemblyFiles = [
                         "arch/aarch64/context.S",
