@@ -682,7 +682,6 @@ boot_bsp_init(uint32_t magic, lpaddr_t pointer) {
 
     stop:
     while(1) {
-
         __asm volatile("wfi \n");
     }
 }
