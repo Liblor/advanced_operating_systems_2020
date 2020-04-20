@@ -20,6 +20,7 @@
 #include <aos/paging.h>
 #include <aos/waitset.h>
 #include <aos/aos_rpc.h>
+#include <aos/urpc.h>
 #include <aos/capabilities.h>
 #include <mm/mm.h>
 #include <spawn/spawn.h>
@@ -184,12 +185,8 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    size_t urpc_frame_size;
-    err = frame_alloc(&cap_urpc, 4*BASE_PAGE_SIZE, &urpc_frame_size);
-    if (err_is_fail(err)) {
-        debug_printf("frame alloc for urpc failed: %s\n", err_getstring(err));
-        abort();
-    }
+    // TODO: Discuss about aos_rpc_init, as it is unused
+    urpc_init();
     struct frame_identity urpc_frame_id;
     err = frame_identify(cap_urpc, &urpc_frame_id);
     if (err_is_fail(err)) {

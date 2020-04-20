@@ -3,6 +3,8 @@
 
 #include <aos/aos.h>
 
+#define URPC_SHARED_MEM_SIZE 4*BASE_PAGE_SIZE
+
 enum urpc_status {
     Empty,
     ServerData,     // core 1 is server
@@ -36,5 +38,8 @@ struct urpc_shared_mem {
         struct urpc_spawn_response spawn_resp;
     };
 };
+
+errval_t urpc_init(void);
+errval_t urpc_send_boot_info(void);
 
 #endif //BF_AOS_URPC_H
