@@ -187,7 +187,7 @@ static int bsp_main(int argc, char *argv[])
     }
 
     // TODO: Discuss about aos_rpc_init, as it is unused
-    urpc_init();
+    master_urpc_init();
     struct frame_identity urpc_frame_id;
     err = frame_identify(cap_urpc, &urpc_frame_id);
     if (err_is_fail(err)) {
