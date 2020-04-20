@@ -187,7 +187,7 @@ static int bsp_main(int argc, char *argv[])
     }
 
     // TODO: Discuss about aos_rpc_init, as it is unused
-    urpc_init();
+    master_urpc_init();
     struct frame_identity urpc_frame_id;
     err = frame_identify(cap_urpc, &urpc_frame_id);
     if (err_is_fail(err)) {
@@ -257,7 +257,7 @@ static int app_main(int argc, char *argv[])
 
     urpc_slave_spawn_process = app_urpc_slave_spawn;
     urpc_slave_init_memsys = app_urpc_init_memsys;
-    err = urpc_init();
+    err = master_urpc_init();
     if (err_is_fail(err)) {
         debug_printf("failure in urpc_init: %s", err_getstring(err));
         return LIB_ERR_NOT_IMPLEMENTED;

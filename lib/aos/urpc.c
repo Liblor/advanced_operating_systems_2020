@@ -9,7 +9,7 @@ urpc_slave_spawn_process_cb urpc_slave_spawn_process = NULL;
 urpc_slave_init_memsys_cb urpc_slave_init_memsys = NULL;
 
 
-errval_t urpc_init(void)
+errval_t master_urpc_init(void)
 {
     errval_t err;
     size_t urpc_frame_size;
