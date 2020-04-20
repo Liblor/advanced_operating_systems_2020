@@ -30,7 +30,7 @@ struct aos_rpc *proc_rpc;
 struct aos_rpc *serial_rpc;
 
 struct thread_data_paging_combined {
-    struct paging_region pr;
+    struct paging_region *pr;
     void *map_fixed_buf;
     uint8_t stage;
 };
@@ -222,7 +222,7 @@ static int thread_paging_combined(void *data)
             thread_paging_region_init_aligned(NULL);
             break;
         case 3:
-            thread_paging_region_map(&d->pr);
+            thread_paging_region_map(d->pr);
             break;
         default:
             assert(false);
@@ -367,17 +367,21 @@ static void test_multithreading_paging_combined(void)
 
     debug_printf("Running test_multithreading_paging_combined()...\n");
 
-    struct thread_data_paging_combined common_data;
-    err = paging_region_init_aligned(pgst, &common_data.pr, TEST_PAGING_REGION_MAP_COUNT * TEST_PAGING_REGION_MAP_SIZE, BASE_PAGE_SIZE, VREGION_FLAGS_READ_WRITE);
+    struct paging_region pr;
+    // TODO Remove TEST_PAGING_COMBINED_COUNT from calculation when unmap works.
+    err = paging_region_init_aligned(pgst, &pr, TEST_PAGING_REGION_MAP_COUNT * TEST_PAGING_REGION_MAP_SIZE * TEST_PAGING_COMBINED_COUNT, BASE_PAGE_SIZE, VREGION_FLAGS_READ_WRITE);
     assert(err_is_ok(err));
-    err = paging_alloc(pgst, &common_data.map_fixed_buf, TEST_PAGING_MAP_FIXED_ATTR_COUNT * TEST_PAGING_MAP_FIXED_ATTR_SIZE , BASE_PAGE_SIZE);
+
+    void *map_fixed_buf;
+    err = paging_alloc(pgst, &map_fixed_buf, TEST_PAGING_MAP_FIXED_ATTR_COUNT * TEST_PAGING_MAP_FIXED_ATTR_SIZE , BASE_PAGE_SIZE);
     assert(err_is_ok(err));
 
     struct thread_data_paging_combined data[TEST_NUM_THREADS];
     struct thread *threads[TEST_NUM_THREADS];
 
     for (int i = 0; i < TEST_NUM_THREADS; i++) {
-        memcpy(&data[i], &common_data, sizeof(data[i]));
+        data[i].pr = &pr;
+        data[i].map_fixed_buf = map_fixed_buf;
         data[i].stage = i % TEST_PAGING_COMBINED_STAGE_COUNT;
 
         threads[i] = thread_create(thread_paging_combined, &data[i]);
@@ -459,6 +463,7 @@ int main(int argc, char *argv[])
     debug_printf("Multithreading test spawned\n");
 
     pgst = get_current_paging_state();
+
     init_rpc = aos_rpc_get_init_channel();
     assert(init_rpc != NULL);
     mem_rpc = aos_rpc_get_memory_channel();
@@ -485,7 +490,6 @@ int main(int argc, char *argv[])
     test_multithreading_paging_region_init_fixed();
     test_multithreading_paging_region_init_aligned();
     test_multithreading_paging_region_map();
-    // TODO This test is failing (even with only 1 thread)
     test_multithreading_paging_combined();
 
     return EXIT_SUCCESS;
