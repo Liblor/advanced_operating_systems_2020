@@ -72,12 +72,13 @@ errval_t initialize_ram_alloc(size_t num_cores)
     for (int i = 0; i < bi->regions_length; i++) {
         if (bi->regions[i].mr_type == RegionType_Empty) {
             gensize_t mr_bytes = bi->regions[i].mr_bytes / num_cores;
-            genpaddr_t base = bi->regions[i].mr_base + disp_get_core_id() * mr_bytes;
+            // TODO: Fix
+            genpaddr_t base = ROUND_UP(bi->regions[i].mr_base + disp_get_core_id() * mr_bytes, BASE_PAGE_SIZE);
             err = mm_add(&aos_mm, mem_cap, base, mr_bytes);
             if (err_is_ok(err)) {
                 mem_avail += mr_bytes;
             } else {
-                DEBUG_ERR(err, "Warning: adding RAM region %d (%p/%zu) FAILED", i, bi->regions[i].mr_base, bi->regions[i].mr_bytes);
+                DEBUG_ERR(err, "Warning: adding RAM region %d (%p/%zu) FAILED", i, base, mr_bytes);
             }
 
             err = slot_prealloc_refill(aos_mm.slot_alloc_inst);

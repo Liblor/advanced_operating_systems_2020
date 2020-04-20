@@ -3,7 +3,7 @@
 
 
 static volatile struct urpc_shared_mem *urpc_shared_mem;
-static struct bootinfo bi;
+static struct bootinfo *bi;
 
 urpc_slave_spawn_process_cb urpc_slave_spawn_process = NULL;
 urpc_slave_init_memsys_cb urpc_slave_init_memsys = NULL;
@@ -41,6 +41,7 @@ errval_t urpc_send_boot_info(struct bootinfo *bootinfo)
     while (urpc_shared_mem->status != UrpcEmpty);
     urpc_shared_mem->status = UrpcWritting;
     urpc_shared_mem->type = BootInfo;
+    // TODO: Error handling
     memcpy((void *) &urpc_shared_mem->bi, bootinfo,
             sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region));
     urpc_shared_mem->status = UrpcMasterData;
@@ -124,11 +125,16 @@ errval_t urpc_slave_serve_req(void)
             case BootInfo:
                 debug_printf("got BootInfo\n");
 
-                // TODO: bug: copy
-                // struct mem_region   regions[]; correctly
-                memcpy(&bi, (void *) &urpc_shared_mem->bi, sizeof(struct bootinfo));
+                // TODO: error handling
+                bi = malloc(sizeof(struct bootinfo)
+                        + urpc_shared_mem->bi.regions_length * sizeof(struct mem_region));
+                memcpy(bi,
+                       (void *) &urpc_shared_mem->bi,
+                       sizeof(struct bootinfo)
+                               + urpc_shared_mem->bi.regions_length * sizeof(struct mem_region)
+                );
 
-                err = urpc_slave_init_memsys(&bi);
+                err = urpc_slave_init_memsys(bi);
                 if (err_is_fail(err)) {
                     debug_printf("failed to init slave mem sys, aborting...\n");
                     return err;

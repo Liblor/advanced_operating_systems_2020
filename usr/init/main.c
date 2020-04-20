@@ -245,8 +245,6 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
     debug_printf("app_urpc_init_memsys\n");
     bi = b;
 
-//    return SYS_ERR_OK;
-
     struct capref mem_cap = {
         .cnode = cnode_super,
         .slot = 0,
@@ -288,6 +286,18 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
         debug_printf("initialize_ram_alloc failed: %s\n", err_getstring(err));
         return err;
     }
+
+    /*
+    char *binary_name = "hello";
+    struct spawninfo si;
+    domainid_t pid;
+
+    err = spawn_load_by_name(binary_name, &si, &pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in event_dispatch");
+        abort();
+    }
+    */
     return SYS_ERR_OK;
 }
 
