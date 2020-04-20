@@ -40,6 +40,6 @@ struct urpc_shared_mem {
 };
 
 errval_t urpc_init(void);
-errval_t urpc_send_boot_info(void);
+errval_t urpc_send_boot_info(struct bootinfo *bi);
 
 #endif //BF_AOS_URPC_H
