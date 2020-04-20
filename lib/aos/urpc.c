@@ -89,7 +89,6 @@ errval_t urpc_slave_init(void)
         debug_printf("frame alloc for urpc failed: %s\n", err_getstring(err));
         return err;
     }
-    urpc_shared_mem->status = UrpcEmpty;
 
     return SYS_ERR_OK;
 }
