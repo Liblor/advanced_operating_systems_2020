@@ -35,13 +35,13 @@ errval_t urpc_init(void)
     return SYS_ERR_OK;
 }
 
-errval_t urpc_send_boot_info(struct bootinfo *bi)
+errval_t urpc_send_boot_info(struct bootinfo *bootinfo)
 {
     // TODO: Barriers?
     while (urpc_shared_mem->status != UrpcEmpty);
     urpc_shared_mem->status = UrpcWritting;
     urpc_shared_mem->type = BootInfo;
-    urpc_shared_mem->bi = *bi;
+    urpc_shared_mem->bi = *bootinfo;
     urpc_shared_mem->status = UrpcMasterData;
     return SYS_ERR_OK;
 }
