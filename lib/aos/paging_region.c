@@ -21,6 +21,9 @@ static inline errval_t paging_region_init_region(
 
     PAGING_CHECK_RANGE(base, size);
 
+    bool exit_do_unlock = false;
+    bool is_dynamic = false;
+
     pr->mutex = &st->mutex;
 
     pr->node = node;
@@ -29,16 +32,32 @@ static inline errval_t paging_region_init_region(
     err = range_tracker_init_aligned(&pr->rt, &st->slabs, BASE_PAGE_SIZE);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_init_aligned() failed\n");
-        return err;
+        goto cleanup;
     }
+
+    thread_mutex_lock_nested(&st->mutex);
+    exit_do_unlock = true;
+
+    is_dynamic = !get_morecore_state()->heap_static;
+    morecore_enable_static();
 
     err = range_tracker_add(&pr->rt, base, size, (union range_tracker_shared) NULL);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_add() failed\n");
-        return err;
+        goto cleanup;
     }
 
-    return SYS_ERR_OK;
+    err = SYS_ERR_OK;
+
+cleanup:
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
+    if (exit_do_unlock) {
+        thread_mutex_unlock(&st->mutex);
+    }
+
+    return err;
 }
 
 static errval_t _paging_region_init(
@@ -209,6 +228,8 @@ errval_t paging_region_map(
 
     size = ROUND_UP(size, BASE_PAGE_SIZE);
 
+    uint64_t page_count = size / BASE_PAGE_SIZE;
+
     // run on vmem which does not pagefault
     const bool is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
@@ -217,7 +238,9 @@ errval_t paging_region_map(
 
     thread_mutex_lock_nested(pr->mutex);
 
-    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
+    // The amount of slabs that will be needed depends on the number of mapping
+    // nodes that will be created.
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD + (page_count / PTABLE_ENTRIES + 2));
     if (err_is_fail(err)) {
         goto cleanup;
     }
@@ -229,7 +252,7 @@ errval_t paging_region_map(
 
     err = range_tracker_get(&pr->rt, size, BASE_PAGE_SIZE, &mapping_node, &padding);
     if (err_is_fail(err)) {
-        debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
+        debug_printf("range_tracker_get() failed: %s\n", err_getstring(err));
         goto cleanup;
     }
 
@@ -251,7 +274,6 @@ errval_t paging_region_map(
     *retbuf = (void *) vaddr;
     lvaddr_t curr_vaddr = vaddr;
 
-    uint64_t page_count = size / BASE_PAGE_SIZE;
     uint64_t total_size = 0;
 
     while (page_count > 0) {

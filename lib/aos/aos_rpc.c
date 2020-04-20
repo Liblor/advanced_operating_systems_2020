@@ -44,7 +44,7 @@ errval_t aos_rpc_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment
     // the channel. We have to make sure the channel is used atomically, i.e.,
     // there are no subsequent calls in the same callstack, so that the channel
     // context can be used.
-    slot_ensure_threshold(10);
+    slot_ensure_threshold(32);
 
     return aos_rpc_lmp_get_ram_cap(rpc, bytes, alignment, ret_cap, ret_bytes);
 }
