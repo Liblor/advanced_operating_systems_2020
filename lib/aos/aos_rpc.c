@@ -15,6 +15,7 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
+#include <aos/urpc.h>
 #include <aos/slot_alloc.h>
 
 void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
@@ -61,7 +62,11 @@ errval_t aos_rpc_serial_putchar(struct aos_rpc *rpc, char c)
 
 errval_t aos_rpc_process_spawn(struct aos_rpc *rpc, char *cmdline, coreid_t core, domainid_t *newpid)
 {
-    return aos_rpc_lmp_process_spawn(rpc, cmdline, core, newpid);
+    if (disp_get_core_id() == core) {
+        return aos_rpc_lmp_process_spawn(rpc, cmdline, core, newpid);
+    } else {
+        return urpc_send_spawn_request(cmdline, core, newpid);
+    }
 }
 
 errval_t aos_rpc_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)
