@@ -245,7 +245,7 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
     debug_printf("app_urpc_init_memsys\n");
     bi = b;
 
-    return SYS_ERR_OK;
+//    return SYS_ERR_OK;
 
     struct capref mem_cap = {
         .cnode = cnode_super,
