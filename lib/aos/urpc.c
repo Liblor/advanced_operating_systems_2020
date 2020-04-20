@@ -41,7 +41,8 @@ errval_t urpc_send_boot_info(struct bootinfo *bootinfo)
     while (urpc_shared_mem->status != UrpcEmpty);
     urpc_shared_mem->status = UrpcWritting;
     urpc_shared_mem->type = BootInfo;
-    urpc_shared_mem->bi = *bootinfo;
+    memcpy((void *) &urpc_shared_mem->bi, bootinfo,
+            sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region));
     urpc_shared_mem->status = UrpcMasterData;
     return SYS_ERR_OK;
 }

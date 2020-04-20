@@ -206,6 +206,7 @@ static int bsp_main(int argc, char *argv[])
         debug_printf("coreboot failed: %s\n", err_getstring(err));
         abort();
     }
+
     urpc_send_boot_info(bi);
 
     // Grading
@@ -239,19 +240,42 @@ static int bsp_main(int argc, char *argv[])
 static
 errval_t app_urpc_init_memsys(struct bootinfo *b)
 {
+    errval_t err;
+
     debug_printf("app_urpc_init_memsys\n");
     bi = b;
+
+    return SYS_ERR_OK;
+
     struct capref mem_cap = {
         .cnode = cnode_super,
         .slot = 0,
     };
-    genpaddr_t base = 0;
-    gensize_t bytes = 0;
 
-    errval_t err = ram_forge(
+    // TODO
+    // only use first region we find, as we only use one cap in mem_alloc
+    struct mem_region mem;
+    bool found = false;
+    for (int i = 0; i < bi->regions_length; i++) {
+        if (bi->regions[i].mr_type == RegionType_Empty) {
+            debug_printf("base[%i]: %p\n", i, bi->regions[i].mr_base);
+            debug_printf("bytes[%i]: %u bytes\n", i, bi->regions[i].mr_bytes);
+            mem = bi->regions[i];
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        debug_printf("no memory available in bootinfo\n");
+        return MM_ERR_OUT_OF_MEMORY;
+    }
+    debug_printf("base: %p\n", mem.mr_base);
+    debug_printf("bytes: %u bytes\n", mem.mr_bytes);
+
+    err = ram_forge(
             mem_cap,
-            base,
-            bytes,
+            mem.mr_base,
+            mem.mr_bytes,
             disp_get_core_id());
 
     if (err_is_fail(err)) {
@@ -259,7 +283,7 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
         return err;
     }
 
-    err = initialize_ram_alloc();
+    err = initialize_ram_alloc(2);
     if (err_is_fail(err)) {
         debug_printf("initialize_ram_alloc failed: %s\n", err_getstring(err));
         return err;
