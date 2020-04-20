@@ -32,6 +32,7 @@
 #include "serialserver.h"
 #include "processserver.h"
 #include "test.h"
+#include "aos/urpc.h"
 
 struct bootinfo *bi;
 
@@ -231,6 +232,19 @@ static int bsp_main(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
+__unused static
+errval_t app_urpc_init_memsys(struct bootinfo *b) {
+    // TODO
+    return SYS_ERR_OK;
+
+}
+__unused
+static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid) {
+    // TODO
+    *ret_pid = 1337;
+    return SYS_ERR_OK;
+}
+
 static int app_main(int argc, char *argv[])
 {
     // Implement me in Milestone 5
@@ -239,6 +253,17 @@ static int app_main(int argc, char *argv[])
     // - grading_test_early();
     // - grading_test_late();
     debug_printf("hello world from app_main\n");
+
+    // TODO: init urpc code
+    return LIB_ERR_NOT_IMPLEMENTED;
+
+    urpc_slave_spawn_process = app_urpc_slave_spawn;
+    urpc_slave_init_memsys = app_urpc_init_memsys;
+
+    errval_t err = urpc_slave_serve_req();
+    if (err_is_fail(err)) {
+        debug_printf("failure in urpc_slave_serve_req: %s", err_getstring(err));
+    }
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 

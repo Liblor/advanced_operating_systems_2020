@@ -37,10 +37,14 @@ struct urpc_shared_mem {
     };
 };
 
-errval_t urpc_slave_serve_req();
+errval_t urpc_slave_serve_req(void);
 
 typedef errval_t (* urpc_slave_spawn_process_cb)(char *cmdline, domainid_t *ret_pid);
 typedef errval_t (* urpc_slave_init_memsys_cb) (struct bootinfo *b);
+
+extern urpc_slave_spawn_process_cb urpc_slave_spawn_process;
+extern urpc_slave_init_memsys_cb urpc_slave_init_memsys;
+
 
 
 #endif //BF_AOS_URPC_H
