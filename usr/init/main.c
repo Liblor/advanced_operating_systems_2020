@@ -26,6 +26,7 @@
 #include <spawn/spawn.h>
 #include <grading.h>
 #include <aos/coreboot.h>
+#include <aos/kernel_cap_invocations.h>
 
 #include "mem_alloc.h"
 #include "initserver.h"
@@ -226,16 +227,38 @@ static int bsp_main(int argc, char *argv[])
             abort();
         }
     }
-
     return EXIT_SUCCESS;
 }
 
-__unused static
-errval_t app_urpc_init_memsys(struct bootinfo *b) {
-    // TODO
+static
+errval_t app_urpc_init_memsys(struct bootinfo *b)
+{
     debug_printf("app_urpc_init_memsys\n");
-    return SYS_ERR_OK;
+    bi = b;
+    struct capref mem_cap = {
+        .cnode = cnode_super,
+        .slot = 0,
+    };
+    genpaddr_t base = 0;
+    gensize_t bytes = 0;
 
+    errval_t err = ram_forge(
+            mem_cap,
+            base,
+            bytes,
+            disp_get_core_id());
+
+    if (err_is_fail(err)) {
+        debug_printf("ram_forge failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = initialize_ram_alloc();
+    if (err_is_fail(err)) {
+        debug_printf("initialize_ram_alloc failed: %s\n", err_getstring(err));
+        return err;
+    }
+    return SYS_ERR_OK;
 }
 
 static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
@@ -275,6 +298,7 @@ static int app_main(int argc, char *argv[])
     if (err_is_fail(err)) {
         debug_printf("failure in urpc_slave_serve_req: %s", err_getstring(err));
     }
+
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
