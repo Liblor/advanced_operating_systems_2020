@@ -58,10 +58,8 @@ errval_t urpc_slave_serve_req(void)
                 resp->err = err;
                 urpc_shared_mem->type = SpawnResponse;
                 urpc_shared_mem->status = UrpcSlaveData;
-                debug_printf("setting shared memory to UrpcSlaveData\n");
                 break;
             }
-
             case SpawnResponse:
                 assert(false);
                 break;
@@ -70,6 +68,5 @@ errval_t urpc_slave_serve_req(void)
                 break;
         }
     }
-
     return SYS_ERR_OK;
 }
