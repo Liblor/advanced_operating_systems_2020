@@ -168,7 +168,6 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     assert(send != NULL);
     assert(recv != NULL);
 
-    lmp_chan_set_recv_slot(&rpc->lc, ret_cap);
     struct client_response_state state;
     memset(&state, 0, sizeof(struct client_response_state));
 
@@ -180,6 +179,8 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     state.message = recv;
 
     thread_mutex_lock_nested(&rpc->mutex);
+
+    lmp_chan_set_recv_slot(&rpc->lc, ret_cap);
 
     // TODO: Use custom callback.
     err = lmp_chan_register_recv(&rpc->lc, &state.ws, MKCLOSURE(client_response_cb_one_no_alloc, &state));
@@ -194,10 +195,7 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
         goto clean_up;
     }
 
-    // TODO: Implement threshold?
-    do {
-        err = event_dispatch(&state.ws);
-    } while (err_is_ok(err) && state.pending_state == DataInTransmit);
+    err = event_dispatch(&state.ws);
 
     if (err_is_fail(state.err)) {
         err = state.err;
