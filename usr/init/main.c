@@ -108,12 +108,18 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
 
     struct spawninfo si;
 
+    // TODO: Also store coreid
     err = add_to_proc_list(processserver_state, name, ret_pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
     }
-    err = spawn_load_by_name(name, &si, ret_pid);
+
+    if (coreid == disp_get_core_id()) {
+        err = spawn_load_by_name(name, &si, ret_pid);
+    } else {
+        err = urpc_send_spawn_request(name, coreid, ret_pid);
+    }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
         // TODO: If spawn failed, remove the process from the processserver state list.
