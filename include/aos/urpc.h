@@ -4,9 +4,10 @@
 #include <aos/aos.h>
 
 enum urpc_status {
-    Empty,
-    ServerData,     // core 1 is server
-    ClientData,     // core 0 is client
+    UrpcEmpty,
+    UrpcWritting,
+    UrpcMasterData,
+    UrpcSlaveData,
 };
 
 enum urpc_msg_type {
@@ -16,7 +17,6 @@ enum urpc_msg_type {
 };
 
 struct urpc_spawn_request {
-    uint64_t name_len;
     uint64_t cmdline_len;
     char args[0];
 };
@@ -36,5 +36,11 @@ struct urpc_shared_mem {
         struct urpc_spawn_response spawn_resp;
     };
 };
+
+errval_t urpc_slave_serve_req();
+
+typedef errval_t (* urpc_slave_spawn_process_cb)(char *cmdline, domainid_t *ret_pid);
+typedef errval_t (* urpc_slave_init_memsys_cb) (struct bootinfo *b);
+
 
 #endif //BF_AOS_URPC_H
