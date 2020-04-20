@@ -257,7 +257,7 @@ static int app_main(int argc, char *argv[])
 
     urpc_slave_spawn_process = app_urpc_slave_spawn;
     urpc_slave_init_memsys = app_urpc_init_memsys;
-    err = urpc_init();
+    err = urpc_slave_init();
     if (err_is_fail(err)) {
         debug_printf("failure in urpc_init: %s", err_getstring(err));
         return LIB_ERR_NOT_IMPLEMENTED;

@@ -41,6 +41,7 @@ struct urpc_shared_mem {
 };
 
 errval_t urpc_init(void);
+errval_t urpc_slave_init(void);
 errval_t urpc_send_boot_info(struct bootinfo *bi);
 errval_t urpc_send_spawn_request(char *cmdline, coreid_t core, domainid_t *newpid);
 errval_t urpc_slave_serve_req(void);

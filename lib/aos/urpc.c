@@ -74,6 +74,25 @@ errval_t urpc_send_spawn_request(
 }
 
 
+errval_t urpc_slave_init(void)
+{
+    errval_t err;
+    err = paging_map_frame(
+            get_current_paging_state(),
+            (void **) &urpc_shared_mem,
+            URPC_SHARED_MEM_SIZE,
+            cap_urpc,
+            0,
+            0
+    );
+    if (err_is_fail(err)) {
+        debug_printf("frame alloc for urpc failed: %s\n", err_getstring(err));
+        return err;
+    }
+    urpc_shared_mem->status = UrpcEmpty;
+
+    return SYS_ERR_OK;
+}
 
 __unused static
 errval_t dummy_slave_init_memsys(struct bootinfo *b)
