@@ -62,11 +62,7 @@ errval_t aos_rpc_serial_putchar(struct aos_rpc *rpc, char c)
 
 errval_t aos_rpc_process_spawn(struct aos_rpc *rpc, char *cmdline, coreid_t core, domainid_t *newpid)
 {
-    if (disp_get_core_id() == core) {
-        return aos_rpc_lmp_process_spawn(rpc, cmdline, core, newpid);
-    } else {
-        return urpc_send_spawn_request(cmdline, core, newpid);
-    }
+    return aos_rpc_lmp_process_spawn(rpc, cmdline, core, newpid);
 }
 
 errval_t aos_rpc_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name)

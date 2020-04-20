@@ -31,7 +31,7 @@ errval_t aos_ram_free(struct capref cap, size_t bytes)
  * \brief Setups a local memory allocator for init to use till the memory server
  * is ready to be used. Inspects bootinfo for finding memory region.
  */
-errval_t initialize_ram_alloc(void)
+errval_t initialize_ram_alloc(size_t num_cores)
 {
     errval_t err;
 
@@ -71,9 +71,11 @@ errval_t initialize_ram_alloc(void)
 
     for (int i = 0; i < bi->regions_length; i++) {
         if (bi->regions[i].mr_type == RegionType_Empty) {
-            err = mm_add(&aos_mm, mem_cap, bi->regions[i].mr_base, bi->regions[i].mr_bytes);
+            gensize_t mr_bytes = bi->regions[i].mr_bytes / num_cores;
+            genpaddr_t base = bi->regions[i].mr_base + disp_get_core_id() * mr_bytes;
+            err = mm_add(&aos_mm, mem_cap, base, mr_bytes);
             if (err_is_ok(err)) {
-                mem_avail += bi->regions[i].mr_bytes;
+                mem_avail += mr_bytes;
             } else {
                 DEBUG_ERR(err, "Warning: adding RAM region %d (%p/%zu) FAILED", i, bi->regions[i].mr_base, bi->regions[i].mr_bytes);
             }
