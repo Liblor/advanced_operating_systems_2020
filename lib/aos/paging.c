@@ -421,9 +421,6 @@ static inline errval_t back_vaddr(
         goto cleanup;
     }
 
-    thread_mutex_unlock(&st->mutex);
-    exit_do_unlock = false;
-
     assert(mapping_node != NULL);
 
     /*
@@ -445,9 +442,6 @@ static inline errval_t back_vaddr(
     assert(mapping_node->size % BASE_PAGE_SIZE == 0);
 
     uint64_t page_count = mapping_node->size / BASE_PAGE_SIZE;
-
-    thread_mutex_lock_nested(&st->mutex);
-    exit_do_unlock = true;
 
     err = get_and_map_into_l3(st, pr, mapping_node->base, frame, 0, page_count, mapping_node, pr->flags);
     if (err_is_fail(err)) {
