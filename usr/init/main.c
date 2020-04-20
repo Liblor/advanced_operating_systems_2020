@@ -160,7 +160,7 @@ static int bsp_main(int argc, char *argv[])
     bi = (struct bootinfo*)strtol(argv[1], NULL, 10);
     assert(bi);
 
-    err = initialize_ram_alloc();
+    err = initialize_ram_alloc(2);
     if(err_is_fail(err)){
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
