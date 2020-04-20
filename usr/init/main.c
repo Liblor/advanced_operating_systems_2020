@@ -233,12 +233,14 @@ static int bsp_main(int argc, char *argv[])
 __unused static
 errval_t app_urpc_init_memsys(struct bootinfo *b) {
     // TODO
+    debug_printf("app_urpc_init_memsys\n");
     return SYS_ERR_OK;
 
 }
 __unused
 static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid) {
     // TODO
+    debug_printf("app_urpc_slave_spawn\n");
     *ret_pid = 1337;
     return SYS_ERR_OK;
 }
