@@ -24,6 +24,7 @@
 #include <mm/mm.h>
 #include <spawn/spawn.h>
 #include <grading.h>
+#include <aos/coreboot.h>
 
 #include "mem_alloc.h"
 #include "initserver.h"
@@ -183,9 +184,28 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
+    size_t urpc_frame_size;
+    err = frame_alloc(&cap_urpc, 4*BASE_PAGE_SIZE, &urpc_frame_size);
+    if (err_is_fail(err)) {
+        debug_printf("frame alloc for urpc failed: %s\n", err_getstring(err));
+        abort();
+    }
+    struct frame_identity urpc_frame_id;
+    err = frame_identify(cap_urpc, &urpc_frame_id);
+    if (err_is_fail(err)) {
+        debug_printf("frame identity for urpc failed: %s\n", err_getstring(err));
+        abort();
+    }
+    err = coreboot(1, "boot_armv8_generic", "cpu_imx8x", "init", urpc_frame_id);
+    if (err_is_fail(err)) {
+        debug_printf("coreboot failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     // Grading
     grading_test_late();
 
+    /*
     char *binary_name = "morecore-test";
     struct spawninfo si;
     domainid_t pid;
@@ -195,6 +215,7 @@ static int bsp_main(int argc, char *argv[])
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
+     */
 
     debug_printf("Message handler loop\n");
     // Hang around
@@ -217,6 +238,7 @@ static int app_main(int argc, char *argv[])
     // - grading_setup_app_init(..);
     // - grading_test_early();
     // - grading_test_late();
+    debug_printf("hello world from app_main\n");
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
