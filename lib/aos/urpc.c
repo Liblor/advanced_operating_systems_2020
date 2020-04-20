@@ -124,7 +124,10 @@ errval_t urpc_slave_serve_req(void)
             case BootInfo:
                 debug_printf("got BootInfo\n");
 
+                // TODO: bug: copy
+                // struct mem_region   regions[]; correctly
                 memcpy(&bi, (void *) &urpc_shared_mem->bi, sizeof(struct bootinfo));
+
                 err = urpc_slave_init_memsys(&bi);
                 if (err_is_fail(err)) {
                     debug_printf("failed to init slave mem sys, aborting...\n");
