@@ -237,11 +237,17 @@ errval_t app_urpc_init_memsys(struct bootinfo *b) {
     return SYS_ERR_OK;
 
 }
-__unused
-static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid) {
-    // TODO
-    debug_printf("app_urpc_slave_spawn\n");
-    *ret_pid = 1337;
+
+static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
+{
+    errval_t err;
+    struct spawninfo si;
+    err = spawn_load_by_name(cmdline, &si, ret_pid);
+    if (err_is_fail(err)) {
+        debug_printf("error in app_urpc_slave_spawn, cannot spawn %s: %s\n",
+                cmdline, err_getstring(err));
+        return err;
+    }
     return SYS_ERR_OK;
 }
 
