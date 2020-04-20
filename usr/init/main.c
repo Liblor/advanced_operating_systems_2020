@@ -245,20 +245,25 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid) {
 
 static int app_main(int argc, char *argv[])
 {
+    // TODO
     // Implement me in Milestone 5
     // Remember to call
     // - grading_setup_app_init(..);
     // - grading_test_early();
     // - grading_test_late();
-    debug_printf("hello world from app_main\n");
 
-    // TODO: init urpc code
-    return LIB_ERR_NOT_IMPLEMENTED;
+    errval_t err;
+    debug_printf("hello world from app_main\n");
 
     urpc_slave_spawn_process = app_urpc_slave_spawn;
     urpc_slave_init_memsys = app_urpc_init_memsys;
+    err = urpc_init();
+    if (err_is_fail(err)) {
+        debug_printf("failure in urpc_init: %s", err_getstring(err));
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
 
-    errval_t err = urpc_slave_serve_req();
+    err = urpc_slave_serve_req();
     if (err_is_fail(err)) {
         debug_printf("failure in urpc_slave_serve_req: %s", err_getstring(err));
     }
