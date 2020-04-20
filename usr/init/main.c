@@ -198,6 +198,7 @@ static int bsp_main(int argc, char *argv[])
         debug_printf("coreboot failed: %s\n", err_getstring(err));
         abort();
     }
+    urpc_send_boot_info(bi);
 
     // Grading
     grading_test_late();

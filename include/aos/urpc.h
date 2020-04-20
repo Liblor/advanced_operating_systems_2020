@@ -6,9 +6,10 @@
 #define URPC_SHARED_MEM_SIZE 4*BASE_PAGE_SIZE
 
 enum urpc_status {
-    Empty,
-    ServerData,     // core 1 is server
-    ClientData,     // core 0 is client
+    UrpcEmpty,
+    UrpcWritting,
+    UrpcMasterData,
+    UrpcSlaveData,
 };
 
 enum urpc_msg_type {
@@ -18,7 +19,7 @@ enum urpc_msg_type {
 };
 
 struct urpc_spawn_request {
-    uint64_t name_len;
+    // TODO: rename to cmdline_size
     uint64_t cmdline_len;
     char args[0];
 };
@@ -41,5 +42,6 @@ struct urpc_shared_mem {
 
 errval_t urpc_init(void);
 errval_t urpc_send_boot_info(struct bootinfo *bi);
+errval_t urpc_send_spawn_request(char *cmdline, coreid_t core, domainid_t *newpid);
 
 #endif //BF_AOS_URPC_H
