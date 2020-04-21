@@ -26,7 +26,7 @@ struct bootinfo_msg {
 
 struct urpc_spawn_request {
     // TODO: rename to cmdline_size
-    uint64_t cmdline_len;
+    uint64_t cmdline_size;
     char args[0];
 };
 

@@ -69,7 +69,7 @@ errval_t urpc_send_spawn_request(
         urpc_shared_mem->status = UrpcEmpty;
         return LIB_ERR_STRING_TOO_LONG;
     }
-    urpc_shared_mem->spawn_req.cmdline_len = cmdline_size;
+    urpc_shared_mem->spawn_req.cmdline_size = cmdline_size;
     strlcpy((char *)&urpc_shared_mem->spawn_req.args[0], cmdline, cmdline_size);
     urpc_shared_mem->status = UrpcMasterData;
 
