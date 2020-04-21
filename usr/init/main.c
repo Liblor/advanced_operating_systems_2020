@@ -212,17 +212,14 @@ static int bsp_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-    /*
-    char *binary_name = "morecore-test";
-    struct spawninfo si;
     domainid_t pid;
-
-    err = spawn_load_by_name(binary_name, &si, &pid);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in event_dispatch");
-        abort();
+    for(int i = 0; i < 10; i ++ ) {
+        err = urpc_send_spawn_request("hello", 1, &pid);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in slave spawn");
+            abort();
+        }
     }
-     */
 
     debug_printf("Message handler loop\n");
     // Hang around
@@ -238,9 +235,13 @@ static int bsp_main(int argc, char *argv[])
 }
 
 static
-errval_t app_urpc_init_memsys(struct bootinfo *b)
-{
+errval_t app_urpc_init_memsys(
+        struct bootinfo *b,
+        genpaddr_t mmstring_base,
+        gensize_t mmstring_size
+) {
     errval_t err;
+    coreid_t coreid = disp_get_core_id();
 
     debug_printf("app_urpc_init_memsys\n");
     bi = b;
@@ -274,7 +275,7 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
             mem_cap,
             mem.mr_base,
             mem.mr_bytes,
-            disp_get_core_id());
+            coreid);
 
     if (err_is_fail(err)) {
         debug_printf("ram_forge failed: %s\n", err_getstring(err));
@@ -287,6 +288,31 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
         return err;
     }
 
+    err = cnode_create_foreign_l2(cap_root, ROOTCN_SLOT_MODULECN, &cnode_module);
+    if (err_is_fail(err)) {
+        debug_printf("cnode_create_foreing_l2 failed: %s\n", err_getstring(err));
+        return err;
+    }
+    err = frame_forge(cap_mmstrings, mmstring_base, mmstring_size, coreid);
+    if (err_is_fail(err)) {
+        debug_printf("frame_forge of mmstring failed: %s\n", err_getstring(err));
+        return err;
+    }
+    for (int i = 0; i < bi->regions_length; i++) {
+        struct mem_region reg = bi->regions[i];
+        if (reg.mr_type == RegionType_Module) {
+            struct capref module_cap = {
+                .cnode = cnode_module,
+                .slot = reg.mrmod_slot,
+            };
+            err = frame_forge(module_cap, reg.mr_base, reg.mrmod_size, coreid);
+            if (err_is_fail(err)) {
+                debug_printf("frame_forge failed: %s\n", err_getstring(err));
+                return err;
+            }
+        }
+    }
+
     /*
     char *binary_name = "hello";
     struct spawninfo si;
@@ -297,7 +323,7 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
-    */
+     */
     return SYS_ERR_OK;
 }
 
@@ -314,6 +340,15 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
     return SYS_ERR_OK;
 }
 
+static int app_run_thread_slave(void *args) {
+    errval_t err = urpc_slave_serve_req();
+    if (err_is_fail(err)) {
+        debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
+    }
+    return 0;
+
+}
+
 static int app_main(int argc, char *argv[])
 {
     // TODO
@@ -326,6 +361,31 @@ static int app_main(int argc, char *argv[])
     errval_t err;
     debug_printf("hello world from app_main\n");
 
+    // TODO: Decide which servers do we really need?
+    err = initserver_init(number_cb, string_cb);
+    if (err_is_fail(err)) {
+        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = memoryserver_init(ram_cap_cb);
+    if (err_is_fail(err)) {
+        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = serialserver_init(putchar_cb, getchar_cb);
+    if (err_is_fail(err)) {
+        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
+    if (err_is_fail(err)) {
+        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     urpc_slave_spawn_process = app_urpc_slave_spawn;
     urpc_slave_init_memsys = app_urpc_init_memsys;
     err = urpc_slave_init();
@@ -334,9 +394,22 @@ static int app_main(int argc, char *argv[])
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    err = urpc_slave_serve_req();
+    err = urpc_receive_bootinfo();
     if (err_is_fail(err)) {
-        debug_printf("failure in urpc_slave_serve_req: %s", err_getstring(err));
+        debug_printf("failure in urpc_receive_bootinfo: %s", err_getstring(err));
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    __unused struct thread *t = thread_create(app_run_thread_slave, NULL);
+
+    // Hang around
+    struct waitset *default_ws = get_default_waitset();
+    while (true) {
+        err = event_dispatch(default_ws);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in event_dispatch");
+            abort();
+        }
     }
 
     return LIB_ERR_NOT_IMPLEMENTED;
