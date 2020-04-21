@@ -125,7 +125,7 @@ errval_t urpc_slave_serve_req(void)
     while (1) {
         // wait until receive message from master
         debug_printf("waiting for UrpcMasterData\n");
-        while (urpc_shared_mem->status != UrpcMasterData) { __asm volatile("nop \n"); }
+        while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
 
         debug_printf("got UrpcMasterData\n");
         switch (urpc_shared_mem->type) {
