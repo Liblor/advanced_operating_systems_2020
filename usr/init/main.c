@@ -285,6 +285,8 @@ static int app_main(int argc, char *argv[])
     errval_t err;
     debug_printf("hello world from app_main\n");
 
+    grading_test_early();
+
     // TODO: Decide which servers do we really need?
     err = initserver_init(number_cb, string_cb);
     if (err_is_fail(err)) {
@@ -312,7 +314,7 @@ static int app_main(int argc, char *argv[])
     err = urpc_slave_init();
     if (err_is_fail(err)) {
         debug_printf("failure in urpc_init: %s", err_getstring(err));
-        return LIB_ERR_NOT_IMPLEMENTED;
+        return err;
     }
     genpaddr_t mmstrings_base;
     gensize_t mmstrings_size;
@@ -320,13 +322,15 @@ static int app_main(int argc, char *argv[])
     err = urpc_receive_bootinfo(&bi, &mmstrings_base, &mmstrings_size);
     if (err_is_fail(err)) {
         debug_printf("failure in urpc_receive_bootinfo: %s", err_getstring(err));
-        return LIB_ERR_NOT_IMPLEMENTED;
+        return err;
     }
     err = forge_bootinfo_ram(bi);
     if (err_is_fail(err)) {
         debug_printf("forging ram failed: %s\n", err_getstring(err));
         return err;
     }
+    grading_setup_app_init(bi);
+
     err = initialize_ram_alloc(2);
     if (err_is_fail(err)) {
         debug_printf("initialize_ram_alloc failed: %s\n", err_getstring(err));
@@ -338,7 +342,10 @@ static int app_main(int argc, char *argv[])
         return err;
     }
 
+    // run a thread on a loop to receive urpc spawn messages
     thread_create(app_run_thread_slave, NULL);
+
+    grading_test_late();
 
     // Hang around
     struct waitset *default_ws = get_default_waitset();
@@ -350,7 +357,7 @@ static int app_main(int argc, char *argv[])
         }
     }
 
-    return LIB_ERR_NOT_IMPLEMENTED;
+    return SYS_ERR_OK;
 }
 
 int main(int argc, char *argv[])
