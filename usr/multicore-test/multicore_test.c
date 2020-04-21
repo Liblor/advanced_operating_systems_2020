@@ -5,15 +5,17 @@
 #include <aos/aos_rpc.h>
 #include <spawn/spawn.h>
 
+
+
 __unused
 static void simple_spawn_core1(void) {
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
     errval_t err;
 
-    const uint64_t process_number = 10;
+    const uint64_t process_number = 100;
 
     for(int i = 0; i < process_number; i ++) {
-        char *binary_name1 = "dummy";
+        char *binary_name1 = "hello";
         domainid_t pid1;
         coreid_t core = i % 2;
 
@@ -29,8 +31,12 @@ static void simple_spawn_core1(void) {
 
 int main(int argc, char *argv[])
 {
-    printf("Multicore test spawned\n");
+    debug_printf("Multicore test spawned\n");
     simple_spawn_core1();
+
+    debug_printf("Multicore test finished\n");
+    assert(false);
+
 
     return EXIT_SUCCESS;
 }
