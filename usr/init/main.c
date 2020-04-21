@@ -228,9 +228,10 @@ static int bsp_main(int argc, char *argv[])
 
     {
         domainid_t pid;
-        err = urpc_send_spawn_request("hello", 1, &pid);
+        struct spawninfo si;
+        err = spawn_load_by_name("multicore_test", &si, &pid);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in slave spawn");
+            DEBUG_ERR(err, "spawn_load_by_name failed");
             abort();
         }
     }
@@ -324,12 +325,14 @@ static int app_main(int argc, char *argv[])
         debug_printf("failure in urpc_receive_bootinfo: %s", err_getstring(err));
         return err;
     }
+
+    grading_setup_app_init(bi);
+
     err = forge_bootinfo_ram(bi);
     if (err_is_fail(err)) {
         debug_printf("forging ram failed: %s\n", err_getstring(err));
         return err;
     }
-    grading_setup_app_init(bi);
 
     err = initialize_ram_alloc(2);
     if (err_is_fail(err)) {
