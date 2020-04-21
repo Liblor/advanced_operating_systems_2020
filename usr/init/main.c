@@ -213,10 +213,12 @@ static int bsp_main(int argc, char *argv[])
     grading_test_late();
 
     domainid_t pid;
-    err = urpc_send_spawn_request("hello", 1, &pid);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in slave spawn");
-        abort();
+    for(int i = 0; i < 10; i ++ ) {
+        err = urpc_send_spawn_request("hello", 1, &pid);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in slave spawn");
+            abort();
+        }
     }
 
     debug_printf("Message handler loop\n");
