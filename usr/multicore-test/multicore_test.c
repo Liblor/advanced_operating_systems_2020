@@ -12,19 +12,19 @@ static void simple_spawn_core1(void) {
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
     errval_t err;
 
-    const uint64_t process_number = 1;
+    const uint64_t process_number = 10;
 
     for(int i = 0; i < process_number; i ++) {
         char *binary_name1 = "dummy";
         domainid_t pid1;
-        coreid_t core = 1;
+        coreid_t core = i % 2;
 
         err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "aos_rpc_process_spawn()");
             return;
         }
-        debug_printf("spawned child: pid %d\n", pid1);
+        debug_printf("spawned %s: pid %d on core %i\n", binary_name1, pid1, core);
     }
 
 }
