@@ -52,6 +52,7 @@ errval_t urpc_send_boot_info(struct bootinfo *bi);
 errval_t urpc_send_spawn_request(char *cmdline, coreid_t core, domainid_t *newpid);
 
 errval_t urpc_slave_init(void);
+errval_t urpc_receive_bootinfo(void);
 errval_t urpc_slave_serve_req(void);
 
 typedef errval_t (* urpc_slave_spawn_process_cb)(char *cmdline, domainid_t *ret_pid);
