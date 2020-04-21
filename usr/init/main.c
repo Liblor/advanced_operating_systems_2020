@@ -116,10 +116,15 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
         return err;
     }
 
+    // XXX: we currently use add_to_proc_list to get a ret_pid
+    // and ignore the ret_pid set by urpc_send_spawn_request or spawn_load_by_name
+    // reason: legacy, spawn_load_by_name does not set pid itself, so
+    // add_to_proc_list implemented the behavior
     if (coreid == disp_get_core_id()) {
         err = spawn_load_by_name(name, &si, ret_pid);
     } else {
-        err = urpc_send_spawn_request(name, coreid, ret_pid);
+        domainid_t pid;
+        err = urpc_send_spawn_request(name, coreid, &pid);
     }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
@@ -212,8 +217,10 @@ static int bsp_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
+
+
     domainid_t pid;
-    for(int i = 0; i < 10; i ++ ) {
+    for(int i = 0; i < 1; i ++ ) {
         err = urpc_send_spawn_request("hello", 1, &pid);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "in slave spawn");
