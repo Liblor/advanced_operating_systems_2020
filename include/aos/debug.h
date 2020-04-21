@@ -54,7 +54,7 @@ void user_panic_fn(const char *file, const char *func, int line,
     __attribute__((noreturn));
 
 
-bool err_is_fail_debug;
+// bool err_is_fail_debug;
 
 #ifdef NDEBUG
 # define DEBUG_PRINTF(fmt...) ((void)0)
