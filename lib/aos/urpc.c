@@ -100,20 +100,6 @@ errval_t urpc_slave_init(void)
     return SYS_ERR_OK;
 }
 
-__unused static
-errval_t dummy_slave_init_memsys(struct bootinfo *b)
-{
-    // TODO initialize memory system with received bootinfo
-    return SYS_ERR_OK;
-}
-
-__unused static
-errval_t dummy_slave_spawn_process(char *cmdline, domainid_t *ret_pid)
-{
-    *ret_pid = 1337;
-    return SYS_ERR_OK;
-}
-
 errval_t urpc_receive_bootinfo(
         struct bootinfo **bootinfo,
         genpaddr_t *ret_mmstrings_base,
@@ -123,7 +109,6 @@ errval_t urpc_receive_bootinfo(
     errval_t err;
     debug_printf("waiting for UrpcMasterData\n");
     while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
-    debug_printf("got BootInfo\n");
 
     *ret_mmstrings_base = urpc_shared_mem->bootinfo_msg.mmstring_base;
     *ret_mmstrings_size = urpc_shared_mem->bootinfo_msg.mmstring_size;
@@ -153,17 +138,14 @@ errval_t urpc_slave_serve_req(void)
     debug_printf("waiting for UrpcMasterData\n");
     while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
 
-    debug_printf("got UrpcMasterData\n");
     switch (urpc_shared_mem->type) {
         case BootInfo:
             assert(false);
             break;
         case SpawnRequest: {
-            debug_printf("got SpawnRequest\n");
             struct urpc_spawn_request *req = (struct urpc_spawn_request *) &urpc_shared_mem->spawn_req;
             domainid_t pid;
             err = urpc_slave_spawn_process(req->args, &pid);
-            debug_printf("slave_spawn_process returned: %s\n", err_getstring(err));
 
             struct urpc_spawn_response *resp = (struct urpc_spawn_response *) &urpc_shared_mem->spawn_resp;
             resp->newpid = pid;
@@ -173,6 +155,7 @@ errval_t urpc_slave_serve_req(void)
             break;
         }
         case SpawnResponse:
+            // we never receive a spawn response as slave
             assert(false);
             break;
         default:

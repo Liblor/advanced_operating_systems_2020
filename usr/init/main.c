@@ -308,6 +308,7 @@ static int app_main(int argc, char *argv[])
     }
 
     urpc_slave_spawn_process = app_urpc_slave_spawn;
+
     err = urpc_slave_init();
     if (err_is_fail(err)) {
         debug_printf("failure in urpc_init: %s", err_getstring(err));
@@ -315,6 +316,7 @@ static int app_main(int argc, char *argv[])
     }
     genpaddr_t mmstrings_base;
     gensize_t mmstrings_size;
+
     err = urpc_receive_bootinfo(&bi, &mmstrings_base, &mmstrings_size);
     if (err_is_fail(err)) {
         debug_printf("failure in urpc_receive_bootinfo: %s", err_getstring(err));
@@ -336,7 +338,7 @@ static int app_main(int argc, char *argv[])
         return err;
     }
 
-    __unused struct thread *t = thread_create(app_run_thread_slave, NULL);
+    thread_create(app_run_thread_slave, NULL);
 
     // Hang around
     struct waitset *default_ws = get_default_waitset();
