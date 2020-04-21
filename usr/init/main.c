@@ -238,9 +238,13 @@ static int bsp_main(int argc, char *argv[])
 }
 
 static
-errval_t app_urpc_init_memsys(struct bootinfo *b)
-{
+errval_t app_urpc_init_memsys(
+        struct bootinfo *b,
+        genpaddr_t mmstring_base,
+        gensize_t mmstring_size
+) {
     errval_t err;
+    coreid_t coreid = disp_get_core_id();
 
     debug_printf("app_urpc_init_memsys\n");
     bi = b;
@@ -274,7 +278,7 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
             mem_cap,
             mem.mr_base,
             mem.mr_bytes,
-            disp_get_core_id());
+            coreid);
 
     if (err_is_fail(err)) {
         debug_printf("ram_forge failed: %s\n", err_getstring(err));
@@ -287,7 +291,32 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
         return err;
     }
 
-    /*
+    err = cnode_create_foreign_l2(cap_root, ROOTCN_SLOT_MODULECN, &cnode_module);
+    if (err_is_fail(err)) {
+        debug_printf("cnode_create_foreing_l2 failed: %s\n", err_getstring(err));
+        return err;
+    }
+    err = frame_forge(cap_mmstrings, mmstring_base, mmstring_size, coreid);
+    if (err_is_fail(err)) {
+        debug_printf("frame_forge of mmstring failed: %s\n", err_getstring(err));
+        return err;
+    }
+    for (int i = 0; i < bi->regions_length; i++) {
+        struct mem_region reg = bi->regions[i];
+        if (reg.mr_type == RegionType_Module) {
+            struct capref module_cap = {
+                .cnode = cnode_module,
+                .slot = reg.mrmod_slot,
+            };
+            err = frame_forge(module_cap, reg.mr_base, reg.mrmod_size, coreid);
+            if (err_is_fail(err)) {
+                debug_printf("frame_forge failed: %s\n", err_getstring(err));
+                return err;
+            }
+        }
+    }
+
+
     char *binary_name = "hello";
     struct spawninfo si;
     domainid_t pid;
@@ -297,7 +326,6 @@ errval_t app_urpc_init_memsys(struct bootinfo *b)
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
-    */
     return SYS_ERR_OK;
 }
 

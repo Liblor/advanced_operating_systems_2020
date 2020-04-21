@@ -41,9 +41,16 @@ errval_t urpc_send_boot_info(struct bootinfo *bootinfo)
     while (urpc_shared_mem->status != UrpcEmpty);
     urpc_shared_mem->status = UrpcWritting;
     urpc_shared_mem->type = BootInfo;
-    // TODO: Error handling
-    memcpy((void *) &urpc_shared_mem->bi, bootinfo,
+    memcpy((void *) &urpc_shared_mem->bootinfo_msg.bi, bootinfo,
             sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region));
+    struct frame_identity mmstring_identity;
+    errval_t err = frame_identify(cap_mmstrings, &mmstring_identity);
+    if (err_is_fail(err)) {
+        urpc_shared_mem->status = UrpcEmpty;
+        return err;
+    }
+    urpc_shared_mem->bootinfo_msg.mmstring_base = mmstring_identity.base;
+    urpc_shared_mem->bootinfo_msg.mmstring_size = mmstring_identity.bytes;
     urpc_shared_mem->status = UrpcMasterData;
     return SYS_ERR_OK;
 }
@@ -125,16 +132,17 @@ errval_t urpc_slave_serve_req(void)
             case BootInfo:
                 debug_printf("got BootInfo\n");
 
+                genpaddr_t mmstring_base = urpc_shared_mem->bootinfo_msg.mmstring_base;
+                gensize_t mmstring_size = urpc_shared_mem->bootinfo_msg.mmstring_size;
+                size_t bi_region_len = urpc_shared_mem->bootinfo_msg.bi.regions_length;
                 // TODO: error handling
-                bi = malloc(sizeof(struct bootinfo)
-                        + urpc_shared_mem->bi.regions_length * sizeof(struct mem_region));
+                bi = malloc(sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region));
                 memcpy(bi,
-                       (void *) &urpc_shared_mem->bi,
-                       sizeof(struct bootinfo)
-                               + urpc_shared_mem->bi.regions_length * sizeof(struct mem_region)
+                       (void *) &urpc_shared_mem->bootinfo_msg.bi,
+                       sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region)
                 );
 
-                err = urpc_slave_init_memsys(bi);
+                err = urpc_slave_init_memsys(bi, mmstring_base, mmstring_size);
                 if (err_is_fail(err)) {
                     debug_printf("failed to init slave mem sys, aborting...\n");
                     return err;

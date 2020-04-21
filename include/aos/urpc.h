@@ -18,6 +18,12 @@ enum urpc_msg_type {
     SpawnResponse
 };
 
+struct bootinfo_msg {
+    genpaddr_t mmstring_base;
+    gensize_t mmstring_size;
+    struct bootinfo bi;
+};
+
 struct urpc_spawn_request {
     // TODO: rename to cmdline_size
     uint64_t cmdline_len;
@@ -34,7 +40,8 @@ struct urpc_shared_mem {
     enum urpc_status status;
 
     union {
-        struct bootinfo bi;
+        //struct bootinfo bi;
+        struct bootinfo_msg bootinfo_msg;
         struct urpc_spawn_request spawn_req;
         struct urpc_spawn_response spawn_resp;
     };
@@ -48,7 +55,11 @@ errval_t urpc_slave_init(void);
 errval_t urpc_slave_serve_req(void);
 
 typedef errval_t (* urpc_slave_spawn_process_cb)(char *cmdline, domainid_t *ret_pid);
-typedef errval_t (* urpc_slave_init_memsys_cb) (struct bootinfo *b);
+typedef errval_t (* urpc_slave_init_memsys_cb) (
+        struct bootinfo *b,
+        genpaddr_t mmstring_base,
+        gensize_t mmstring_size
+);
 
 extern urpc_slave_spawn_process_cb urpc_slave_spawn_process;
 extern urpc_slave_init_memsys_cb urpc_slave_init_memsys;
