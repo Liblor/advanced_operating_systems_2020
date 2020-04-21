@@ -341,12 +341,14 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
 }
 
 static int app_run_thread_slave(void *args) {
-    errval_t err = urpc_slave_serve_req();
-    if (err_is_fail(err)) {
-        debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
+    errval_t err;
+    while (true) {
+        err = urpc_slave_serve_req();
+        if (err_is_fail(err)) {
+            debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
+        }
     }
     return 0;
-
 }
 
 static int app_main(int argc, char *argv[])

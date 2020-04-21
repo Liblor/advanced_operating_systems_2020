@@ -154,37 +154,35 @@ errval_t urpc_slave_serve_req(void)
     assert(urpc_slave_init_memsys != NULL);
 
     errval_t err;
-    while (1) {
-        // wait until receive message from master
-        debug_printf("waiting for UrpcMasterData\n");
-        while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
+    // wait until receive message from master
+    debug_printf("waiting for UrpcMasterData\n");
+    while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
 
-        debug_printf("got UrpcMasterData\n");
-        switch (urpc_shared_mem->type) {
-            case BootInfo:
-                assert(false);
-                break;
-            case SpawnRequest: {
-                debug_printf("got SpawnRequest\n");
-                struct urpc_spawn_request *req = (struct urpc_spawn_request *) &urpc_shared_mem->spawn_req;
-                domainid_t pid;
-                err = urpc_slave_spawn_process(req->args, &pid);
-                debug_printf("slave_spawn_process returned: %s\n", err_getstring(err));
+    debug_printf("got UrpcMasterData\n");
+    switch (urpc_shared_mem->type) {
+        case BootInfo:
+            assert(false);
+            break;
+        case SpawnRequest: {
+            debug_printf("got SpawnRequest\n");
+            struct urpc_spawn_request *req = (struct urpc_spawn_request *) &urpc_shared_mem->spawn_req;
+            domainid_t pid;
+            err = urpc_slave_spawn_process(req->args, &pid);
+            debug_printf("slave_spawn_process returned: %s\n", err_getstring(err));
 
-                struct urpc_spawn_response *resp = (struct urpc_spawn_response *) &urpc_shared_mem->spawn_resp;
-                resp->newpid = pid;
-                resp->err = err;
-                urpc_shared_mem->type = SpawnResponse;
-                urpc_shared_mem->status = UrpcSlaveData;
-                break;
-            }
-            case SpawnResponse:
-                assert(false);
-                break;
-            default:
-                debug_printf("unknown urpc type: %p\n", urpc_shared_mem->type);
-                break;
+            struct urpc_spawn_response *resp = (struct urpc_spawn_response *) &urpc_shared_mem->spawn_resp;
+            resp->newpid = pid;
+            resp->err = err;
+            urpc_shared_mem->type = SpawnResponse;
+            urpc_shared_mem->status = UrpcSlaveData;
+            break;
         }
+        case SpawnResponse:
+            assert(false);
+            break;
+        default:
+            debug_printf("unknown urpc type: %p\n", urpc_shared_mem->type);
+            break;
     }
     return SYS_ERR_OK;
 }
