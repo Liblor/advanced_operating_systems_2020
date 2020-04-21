@@ -5,8 +5,6 @@
 #include <aos/aos_rpc.h>
 #include <spawn/spawn.h>
 
-
-
 __unused
 static void simple_spawn_core1(void) {
     struct aos_rpc *rpc = aos_rpc_get_process_channel();

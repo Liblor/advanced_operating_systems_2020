@@ -50,7 +50,7 @@ static void check_mm_valid_state(void) {
     struct rtnode *curr;
     struct rtnode *prev = test_mm->rt.head;
 
-    // If this end in a unhandled pagefault or something similar fatal then the
+    // If this ends in a unhandled pagefault or something similar fatal then the
     // tail is probably corrupted.
     for (curr = test_mm->rt.head->next; curr != &test_mm->rt.rt_tail; curr = curr->next) {
         mu_assert(prev->next == curr && curr->prev == prev, "Linked list is corrupted. Next/curr in neighboring nodes is inconsistent.");

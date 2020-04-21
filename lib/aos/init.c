@@ -198,7 +198,7 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         // ram_alloc_fixed().
         aos_rpc_get_memory_channel();
 
-        slot_ensure_threshold(10);
+        slot_ensure_threshold(32);
 
         // Reset ram allocator to use remote ram allocator
         err = ram_alloc_set(NULL);

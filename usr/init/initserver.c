@@ -11,7 +11,7 @@ static struct rpc_lmp_server server;
 static recv_number_callback_t recv_number_cb = NULL;
 static recv_string_callback_t recv_string_cb = NULL;
 
-static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct lmp_chan *reply_chan, void *server_state)
+static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
 {
     uintptr_t num;
     size_t last_idx;

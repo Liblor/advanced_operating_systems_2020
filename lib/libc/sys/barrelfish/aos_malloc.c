@@ -10,8 +10,8 @@
 #include <aos/aos.h>
 #include <aos/core_state.h>
 
-#define MALLOC_LOCK thread_mutex_lock_nested(&state->mutex)
-#define MALLOC_UNLOCK thread_mutex_unlock(&state->mutex)
+#define MALLOC_LOCK thread_mutex_lock_nested(state->mutex)
+#define MALLOC_UNLOCK thread_mutex_unlock(state->mutex)
 
 /*
  * malloc: general-purpose storage allocator
@@ -107,9 +107,9 @@ void aos_free(void *ap)
     unsigned magic = ((Header *)ap)[-1].s.magic;
 
     if (magic != MAGIC_STATIC && magic != MAGIC_DYNAMIC) {
-        assert(false);
         debug_printf("%s: Trying to free not malloced region %p by %p\n",
                      __func__, ap, __builtin_return_address(0));
+        assert(false);
         return;
     }
 
