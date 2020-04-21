@@ -36,6 +36,14 @@ errval_t coreboot(coreid_t mpid,
         struct frame_identity urpc_frame_id);
 
 
+errval_t forge_bootinfo_ram(struct bootinfo *bootinfo);
+errval_t forge_bootinfo_capabilities(
+        struct bootinfo *bootinfo,
+        genpaddr_t mmstrings_base,
+        gensize_t mmstrings_size
+);
+
+
 __END_DECLS
 
 #endif

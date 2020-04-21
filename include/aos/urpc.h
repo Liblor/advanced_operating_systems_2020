@@ -52,18 +52,16 @@ errval_t urpc_send_boot_info(struct bootinfo *bi);
 errval_t urpc_send_spawn_request(char *cmdline, coreid_t core, domainid_t *newpid);
 
 errval_t urpc_slave_init(void);
-errval_t urpc_receive_bootinfo(void);
+errval_t urpc_receive_bootinfo(
+        struct bootinfo **bootinfo,
+        genpaddr_t *ret_mmstrings_base,
+        gensize_t *ret_mmstrings_size
+);
 errval_t urpc_slave_serve_req(void);
 
 typedef errval_t (* urpc_slave_spawn_process_cb)(char *cmdline, domainid_t *ret_pid);
-typedef errval_t (* urpc_slave_init_memsys_cb) (
-        struct bootinfo *b,
-        genpaddr_t mmstring_base,
-        gensize_t mmstring_size
-);
 
 extern urpc_slave_spawn_process_cb urpc_slave_spawn_process;
-extern urpc_slave_init_memsys_cb urpc_slave_init_memsys;
 
 
 #endif //BF_AOS_URPC_H
