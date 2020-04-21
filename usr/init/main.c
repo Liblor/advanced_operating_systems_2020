@@ -212,17 +212,12 @@ static int bsp_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-    /*
-    char *binary_name = "morecore-test";
-    struct spawninfo si;
     domainid_t pid;
-
-    err = spawn_load_by_name(binary_name, &si, &pid);
+    err = urpc_send_spawn_request("hello", 1, &pid);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in event_dispatch");
+        DEBUG_ERR(err, "in slave spawn");
         abort();
     }
-     */
 
     debug_printf("Message handler loop\n");
     // Hang around
@@ -316,7 +311,7 @@ errval_t app_urpc_init_memsys(
         }
     }
 
-
+    /*
     char *binary_name = "hello";
     struct spawninfo si;
     domainid_t pid;
@@ -326,6 +321,7 @@ errval_t app_urpc_init_memsys(
         DEBUG_ERR(err, "in event_dispatch");
         abort();
     }
+     */
     return SYS_ERR_OK;
 }
 
@@ -353,6 +349,33 @@ static int app_main(int argc, char *argv[])
 
     errval_t err;
     debug_printf("hello world from app_main\n");
+
+    // TODO: Decide which servers do we really need?
+    err = initserver_init(number_cb, string_cb);
+    if (err_is_fail(err)) {
+        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = memoryserver_init(ram_cap_cb);
+    if (err_is_fail(err)) {
+        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = serialserver_init(putchar_cb, getchar_cb);
+    if (err_is_fail(err)) {
+        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
+    if (err_is_fail(err)) {
+        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+
 
     urpc_slave_spawn_process = app_urpc_slave_spawn;
     urpc_slave_init_memsys = app_urpc_init_memsys;

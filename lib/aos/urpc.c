@@ -75,7 +75,7 @@ errval_t urpc_send_spawn_request(
 
     // TODO: Barriers?
     while (urpc_shared_mem->status != UrpcSlaveData);
-    assert(urpc_shared_mem->type == SpawnRequest);
+    assert(urpc_shared_mem->type == SpawnResponse);
     *newpid = urpc_shared_mem->spawn_resp.newpid;
     errval_t err = urpc_shared_mem->spawn_resp.err;
     urpc_shared_mem->status = UrpcEmpty;
