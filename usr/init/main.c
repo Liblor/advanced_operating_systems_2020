@@ -199,7 +199,12 @@ static int bsp_main(int argc, char *argv[])
     }
 
     // TODO: Discuss about aos_rpc_init, as it is unused
-    master_urpc_init();
+    err = master_urpc_init();
+    if (err_is_fail(err)) {
+        debug_printf("master_urpc_init failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     struct frame_identity urpc_frame_id;
     err = frame_identify(cap_urpc, &urpc_frame_id);
     if (err_is_fail(err)) {
@@ -212,15 +217,17 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    urpc_send_boot_info(bi);
+    err = urpc_send_boot_info(bi);
+    if (err_is_fail(err)) {
+        debug_printf("urpc_send_boot_info failed: %s\n", err_getstring(err));
+        abort();
+    }
 
     // Grading
     grading_test_late();
 
-
-
-    domainid_t pid;
-    for(int i = 0; i < 1; i ++ ) {
+    {
+        domainid_t pid;
         err = urpc_send_spawn_request("hello", 1, &pid);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "in slave spawn");
@@ -229,6 +236,7 @@ static int bsp_main(int argc, char *argv[])
     }
 
     debug_printf("Message handler loop\n");
+
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
