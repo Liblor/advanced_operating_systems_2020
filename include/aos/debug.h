@@ -53,6 +53,7 @@ void user_panic_fn(const char *file, const char *func, int line,
                    const char *msg, ...)
     __attribute__((noreturn));
 
+
 bool err_is_fail_debug;
 
 #ifdef NDEBUG
@@ -75,8 +76,7 @@ bool err_is_fail_debug;
 // enable only in hello
 // #define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : ((strncmp(disp_name(), "hello", 20) == 0) ? (HERE, false) : false)))
 
-//#define err_is_fail(err) \
-//((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : (err_is_fail_debug) ? (HERE, false) : false))
+//#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : (err_is_fail_debug) ? (HERE, false) : false))
 
 #endif
 
