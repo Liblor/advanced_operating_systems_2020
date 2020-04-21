@@ -38,7 +38,7 @@ errval_t master_urpc_init(void)
 errval_t urpc_send_boot_info(struct bootinfo *bootinfo)
 {
     // TODO: Barriers?
-    while (urpc_shared_mem->status != UrpcEmpty);
+    while (urpc_shared_mem->status != UrpcEmpty) { thread_yield(); }
     urpc_shared_mem->status = UrpcWritting;
     urpc_shared_mem->type = BootInfo;
     memcpy((void *) &urpc_shared_mem->bootinfo_msg.bi, bootinfo,
@@ -61,7 +61,7 @@ errval_t urpc_send_spawn_request(
         domainid_t *newpid
 ) {
     // TODO: Barriers?
-    while (urpc_shared_mem->status != UrpcEmpty);
+    while (urpc_shared_mem->status != UrpcEmpty) { thread_yield(); }
     urpc_shared_mem->status = UrpcWritting;
     urpc_shared_mem->type = SpawnRequest;
     size_t cmdline_size = strlen(cmdline) + 1;
@@ -74,7 +74,7 @@ errval_t urpc_send_spawn_request(
     urpc_shared_mem->status = UrpcMasterData;
 
     // TODO: Barriers?
-    while (urpc_shared_mem->status != UrpcSlaveData);
+    while (urpc_shared_mem->status != UrpcSlaveData) { thread_yield(); }
     assert(urpc_shared_mem->type == SpawnResponse);
     *newpid = urpc_shared_mem->spawn_resp.newpid;
     errval_t err = urpc_shared_mem->spawn_resp.err;
