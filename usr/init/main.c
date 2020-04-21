@@ -394,6 +394,12 @@ static int app_main(int argc, char *argv[])
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
+    err = urpc_receive_bootinfo();
+    if (err_is_fail(err)) {
+        debug_printf("failure in urpc_receive_bootinfo: %s", err_getstring(err));
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
     __unused struct thread *t = thread_create(app_run_thread_slave, NULL);
 
     // Hang around
