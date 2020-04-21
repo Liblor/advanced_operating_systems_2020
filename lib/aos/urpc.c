@@ -126,8 +126,11 @@ errval_t urpc_receive_bootinfo(void)
     genpaddr_t mmstring_base = urpc_shared_mem->bootinfo_msg.mmstring_base;
     gensize_t mmstring_size = urpc_shared_mem->bootinfo_msg.mmstring_size;
     size_t bi_region_len = urpc_shared_mem->bootinfo_msg.bi.regions_length;
-    // TODO: error handling
     bi = malloc(sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region));
+    if (bi == NULL) {
+        err = LIB_ERR_MALLOC_FAIL;
+        goto clean_up;
+    }
     memcpy(bi,
            (void *) &urpc_shared_mem->bootinfo_msg.bi,
            sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region)
@@ -136,8 +139,11 @@ errval_t urpc_receive_bootinfo(void)
     err = urpc_slave_init_memsys(bi, mmstring_base, mmstring_size);
     if (err_is_fail(err)) {
         debug_printf("failed to init slave mem sys, aborting...\n");
-        return err;
+        goto clean_up;
     }
+
+    err = SYS_ERR_OK;
+clean_up:
     urpc_shared_mem->status = UrpcEmpty;
     return err;
 }
@@ -156,26 +162,8 @@ errval_t urpc_slave_serve_req(void)
         debug_printf("got UrpcMasterData\n");
         switch (urpc_shared_mem->type) {
             case BootInfo:
-                debug_printf("got BootInfo\n");
-
-                genpaddr_t mmstring_base = urpc_shared_mem->bootinfo_msg.mmstring_base;
-                gensize_t mmstring_size = urpc_shared_mem->bootinfo_msg.mmstring_size;
-                size_t bi_region_len = urpc_shared_mem->bootinfo_msg.bi.regions_length;
-                // TODO: error handling
-                bi = malloc(sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region));
-                memcpy(bi,
-                       (void *) &urpc_shared_mem->bootinfo_msg.bi,
-                       sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region)
-                );
-
-                err = urpc_slave_init_memsys(bi, mmstring_base, mmstring_size);
-                if (err_is_fail(err)) {
-                    debug_printf("failed to init slave mem sys, aborting...\n");
-                    return err;
-                }
-                urpc_shared_mem->status = UrpcEmpty;
+                assert(false);
                 break;
-
             case SpawnRequest: {
                 debug_printf("got SpawnRequest\n");
                 struct urpc_spawn_request *req = (struct urpc_spawn_request *) &urpc_shared_mem->spawn_req;
