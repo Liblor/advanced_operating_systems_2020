@@ -53,6 +53,9 @@ void user_panic_fn(const char *file, const char *func, int line,
                    const char *msg, ...)
     __attribute__((noreturn));
 
+
+// bool err_is_fail_debug;
+
 #ifdef NDEBUG
 # define DEBUG_PRINTF(fmt...) ((void)0)
 # define DEBUG_ERR(err, msg...) ((void)0)
@@ -69,6 +72,11 @@ void user_panic_fn(const char *file, const char *func, int line,
 // the consequences of this macro summed up to a worrying few hours already.
 //#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
 //#define err_is_fail(err) ((err_is_fail(err) ? (HERE, true) : (HERE, false)))
+
+// enable only in hello
+// #define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : ((strncmp(disp_name(), "hello", 20) == 0) ? (HERE, false) : false)))
+
+//#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : (err_is_fail_debug) ? (HERE, false) : false))
 
 #endif
 

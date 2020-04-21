@@ -20,11 +20,13 @@
 #include <aos/paging.h>
 #include <aos/waitset.h>
 #include <aos/aos_rpc.h>
+#include <aos/urpc.h>
 #include <aos/capabilities.h>
 #include <mm/mm.h>
 #include <spawn/spawn.h>
 #include <grading.h>
 #include <aos/coreboot.h>
+#include <aos/kernel_cap_invocations.h>
 
 #include "mem_alloc.h"
 #include "initserver.h"
@@ -32,6 +34,7 @@
 #include "serialserver.h"
 #include "processserver.h"
 #include "test.h"
+#include "aos/urpc.h"
 
 struct bootinfo *bi;
 
@@ -106,12 +109,18 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
 
     struct spawninfo si;
 
+    // TODO: Also store coreid
     err = add_to_proc_list(processserver_state, name, ret_pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
     }
-    err = spawn_load_by_name(name, &si, ret_pid);
+
+    if (coreid == disp_get_core_id()) {
+        err = spawn_load_by_name(name, &si, ret_pid);
+    } else {
+        err = urpc_send_spawn_request(name, coreid, ret_pid);
+    }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
         // TODO: If spawn failed, remove the process from the processserver state list.
@@ -152,7 +161,7 @@ static int bsp_main(int argc, char *argv[])
     bi = (struct bootinfo*)strtol(argv[1], NULL, 10);
     assert(bi);
 
-    err = initialize_ram_alloc();
+    err = initialize_ram_alloc(2);
     if(err_is_fail(err)){
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
@@ -184,12 +193,8 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    size_t urpc_frame_size;
-    err = frame_alloc(&cap_urpc, 4*BASE_PAGE_SIZE, &urpc_frame_size);
-    if (err_is_fail(err)) {
-        debug_printf("frame alloc for urpc failed: %s\n", err_getstring(err));
-        abort();
-    }
+    // TODO: Discuss about aos_rpc_init, as it is unused
+    master_urpc_init();
     struct frame_identity urpc_frame_id;
     err = frame_identify(cap_urpc, &urpc_frame_id);
     if (err_is_fail(err)) {
@@ -202,20 +207,19 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
+    urpc_send_boot_info(bi);
+
     // Grading
     grading_test_late();
 
-    /*
-    char *binary_name = "morecore-test";
-    struct spawninfo si;
     domainid_t pid;
-
-    err = spawn_load_by_name(binary_name, &si, &pid);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in event_dispatch");
-        abort();
+    for(int i = 0; i < 10; i ++ ) {
+        err = urpc_send_spawn_request("hello", 1, &pid);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in slave spawn");
+            abort();
+        }
     }
-     */
 
     debug_printf("Message handler loop\n");
     // Hang around
@@ -227,18 +231,187 @@ static int bsp_main(int argc, char *argv[])
             abort();
         }
     }
-
     return EXIT_SUCCESS;
+}
+
+static
+errval_t app_urpc_init_memsys(
+        struct bootinfo *b,
+        genpaddr_t mmstring_base,
+        gensize_t mmstring_size
+) {
+    errval_t err;
+    coreid_t coreid = disp_get_core_id();
+
+    debug_printf("app_urpc_init_memsys\n");
+    bi = b;
+
+    struct capref mem_cap = {
+        .cnode = cnode_super,
+        .slot = 0,
+    };
+
+    // TODO
+    // only use first region we find, as we only use one cap in mem_alloc
+    struct mem_region mem;
+    bool found = false;
+    for (int i = 0; i < bi->regions_length; i++) {
+        if (bi->regions[i].mr_type == RegionType_Empty) {
+            debug_printf("base[%i]: %p\n", i, bi->regions[i].mr_base);
+            debug_printf("bytes[%i]: %u bytes\n", i, bi->regions[i].mr_bytes);
+            mem = bi->regions[i];
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        debug_printf("no memory available in bootinfo\n");
+        return MM_ERR_OUT_OF_MEMORY;
+    }
+    debug_printf("base: %p\n", mem.mr_base);
+    debug_printf("bytes: %u bytes\n", mem.mr_bytes);
+
+    err = ram_forge(
+            mem_cap,
+            mem.mr_base,
+            mem.mr_bytes,
+            coreid);
+
+    if (err_is_fail(err)) {
+        debug_printf("ram_forge failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = initialize_ram_alloc(2);
+    if (err_is_fail(err)) {
+        debug_printf("initialize_ram_alloc failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = cnode_create_foreign_l2(cap_root, ROOTCN_SLOT_MODULECN, &cnode_module);
+    if (err_is_fail(err)) {
+        debug_printf("cnode_create_foreing_l2 failed: %s\n", err_getstring(err));
+        return err;
+    }
+    err = frame_forge(cap_mmstrings, mmstring_base, mmstring_size, coreid);
+    if (err_is_fail(err)) {
+        debug_printf("frame_forge of mmstring failed: %s\n", err_getstring(err));
+        return err;
+    }
+    for (int i = 0; i < bi->regions_length; i++) {
+        struct mem_region reg = bi->regions[i];
+        if (reg.mr_type == RegionType_Module) {
+            struct capref module_cap = {
+                .cnode = cnode_module,
+                .slot = reg.mrmod_slot,
+            };
+            err = frame_forge(module_cap, reg.mr_base, reg.mrmod_size, coreid);
+            if (err_is_fail(err)) {
+                debug_printf("frame_forge failed: %s\n", err_getstring(err));
+                return err;
+            }
+        }
+    }
+
+    /*
+    char *binary_name = "hello";
+    struct spawninfo si;
+    domainid_t pid;
+
+    err = spawn_load_by_name(binary_name, &si, &pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in event_dispatch");
+        abort();
+    }
+     */
+    return SYS_ERR_OK;
+}
+
+static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
+{
+    errval_t err;
+    struct spawninfo si;
+    err = spawn_load_by_name(cmdline, &si, ret_pid);
+    if (err_is_fail(err)) {
+        debug_printf("error in app_urpc_slave_spawn, cannot spawn %s: %s\n",
+                cmdline, err_getstring(err));
+        return err;
+    }
+    return SYS_ERR_OK;
+}
+
+static int app_run_thread_slave(void *args) {
+    errval_t err = urpc_slave_serve_req();
+    if (err_is_fail(err)) {
+        debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
+    }
+    return 0;
+
 }
 
 static int app_main(int argc, char *argv[])
 {
+    // TODO
     // Implement me in Milestone 5
     // Remember to call
     // - grading_setup_app_init(..);
     // - grading_test_early();
     // - grading_test_late();
+
+    errval_t err;
     debug_printf("hello world from app_main\n");
+
+    // TODO: Decide which servers do we really need?
+    err = initserver_init(number_cb, string_cb);
+    if (err_is_fail(err)) {
+        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = memoryserver_init(ram_cap_cb);
+    if (err_is_fail(err)) {
+        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = serialserver_init(putchar_cb, getchar_cb);
+    if (err_is_fail(err)) {
+        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
+    if (err_is_fail(err)) {
+        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    urpc_slave_spawn_process = app_urpc_slave_spawn;
+    urpc_slave_init_memsys = app_urpc_init_memsys;
+    err = urpc_slave_init();
+    if (err_is_fail(err)) {
+        debug_printf("failure in urpc_init: %s", err_getstring(err));
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    err = urpc_receive_bootinfo();
+    if (err_is_fail(err)) {
+        debug_printf("failure in urpc_receive_bootinfo: %s", err_getstring(err));
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    __unused struct thread *t = thread_create(app_run_thread_slave, NULL);
+
+    // Hang around
+    struct waitset *default_ws = get_default_waitset();
+    while (true) {
+        err = event_dispatch(default_ws);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in event_dispatch");
+            abort();
+        }
+    }
+
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
