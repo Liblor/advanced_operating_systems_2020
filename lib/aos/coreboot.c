@@ -7,6 +7,7 @@
 #include <aos/kernel_cap_invocations.h>
 #include <aos/cache.h>
 #include <init.h>
+#include <sys/time.h>
 
 #define ARMv8_KERNEL_OFFSET 0xffff000000000000
 
@@ -655,4 +656,95 @@ err_cleanup_cpu_driver_stack_cap:
 err_cleanup_kcb_cap:
     cap_destroy(kcb);
     return err;
+}
+
+
+/**
+ * Create ram capabilities on newly booted core. This function has to be called
+ * in the init process of the new core.
+ * @param bootinfo
+ * @return
+ */
+errval_t forge_bootinfo_ram(
+        struct bootinfo *bootinfo
+) {
+    errval_t err;
+    // TODO
+    // only use first region we find, as we only use one cap in mem_alloc
+    struct mem_region mem;
+    bool found = false;
+    for (int i = 0; i < bootinfo->regions_length; i++) {
+        if (bootinfo->regions[i].mr_type == RegionType_Empty) {
+            mem = bootinfo->regions[i];
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        debug_printf("no memory available in bootinfo\n");
+        return MM_ERR_OUT_OF_MEMORY;
+    }
+
+    struct capref mem_cap = {
+            .cnode = cnode_super,
+            .slot = 0,
+    };
+    err = ram_forge(
+            mem_cap,
+            mem.mr_base,
+            mem.mr_bytes,
+            disp_get_core_id()
+    );
+    if (err_is_fail(err)) {
+        debug_printf("ram_forge failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
+
+/**
+ * We have to give a newly spawend init process on another core access to the
+ * caps of the received bootinfo. This function has to be called on the newly
+ * spawned init process.
+ *
+ * @param bootinfo The received bootinfo of the parent core
+ * @param mmstrings_base Physical base address of the mmstrings cap
+ * @param mmstrings_size Size of the mmstrings cap
+ * @return Error
+ */
+errval_t forge_bootinfo_capabilities(
+        struct bootinfo *bootinfo,
+        genpaddr_t mmstrings_base,
+        gensize_t mmstrings_size
+) {
+    errval_t err;
+    coreid_t coreid = disp_get_core_id();
+    err = cnode_create_foreign_l2(cap_root, ROOTCN_SLOT_MODULECN, &cnode_module);
+    if (err_is_fail(err)) {
+        debug_printf("cnode_create_foreing_l2 failed: %s\n", err_getstring(err));
+        return err;
+    }
+    err = frame_forge(cap_mmstrings, mmstrings_base, mmstrings_size, coreid);
+    if (err_is_fail(err)) {
+        debug_printf("frame_forge of mmstring failed: %s\n", err_getstring(err));
+        return err;
+    }
+    for (int i = 0; i < bi->regions_length; i++) {
+        struct mem_region reg = bi->regions[i];
+        if (reg.mr_type == RegionType_Module) {
+            struct capref module_cap = {
+                    .cnode = cnode_module,
+                    .slot = reg.mrmod_slot,
+            };
+            err = frame_forge(module_cap, reg.mr_base, reg.mrmod_size, coreid);
+            if (err_is_fail(err)) {
+                debug_printf("frame_forge failed: %s\n", err_getstring(err));
+                return err;
+            }
+        }
+    }
+
+    return SYS_ERR_OK;
 }

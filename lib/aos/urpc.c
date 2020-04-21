@@ -1,13 +1,11 @@
 #include <aos/aos.h>
 #include <aos/urpc.h>
+#include <aos/kernel_cap_invocations.h>
 
 
 static volatile struct urpc_shared_mem *urpc_shared_mem;
-static struct bootinfo *bi;
 
 urpc_slave_spawn_process_cb urpc_slave_spawn_process = NULL;
-urpc_slave_init_memsys_cb urpc_slave_init_memsys = NULL;
-
 
 errval_t master_urpc_init(void)
 {
@@ -116,31 +114,29 @@ errval_t dummy_slave_spawn_process(char *cmdline, domainid_t *ret_pid)
     return SYS_ERR_OK;
 }
 
-errval_t urpc_receive_bootinfo(void)
+errval_t urpc_receive_bootinfo(
+        struct bootinfo **bootinfo,
+        genpaddr_t *ret_mmstrings_base,
+        gensize_t *ret_mmstrings_size
+)
 {
     errval_t err;
     debug_printf("waiting for UrpcMasterData\n");
     while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
     debug_printf("got BootInfo\n");
 
-    genpaddr_t mmstring_base = urpc_shared_mem->bootinfo_msg.mmstring_base;
-    gensize_t mmstring_size = urpc_shared_mem->bootinfo_msg.mmstring_size;
+    *ret_mmstrings_base = urpc_shared_mem->bootinfo_msg.mmstring_base;
+    *ret_mmstrings_size = urpc_shared_mem->bootinfo_msg.mmstring_size;
     size_t bi_region_len = urpc_shared_mem->bootinfo_msg.bi.regions_length;
-    bi = malloc(sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region));
-    if (bi == NULL) {
+    *bootinfo = malloc(sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region));
+    if (*bootinfo == NULL) {
         err = LIB_ERR_MALLOC_FAIL;
         goto clean_up;
     }
-    memcpy(bi,
+    memcpy(*bootinfo,
            (void *) &urpc_shared_mem->bootinfo_msg.bi,
            sizeof(struct bootinfo) + bi_region_len * sizeof(struct mem_region)
     );
-
-    err = urpc_slave_init_memsys(bi, mmstring_base, mmstring_size);
-    if (err_is_fail(err)) {
-        debug_printf("failed to init slave mem sys, aborting...\n");
-        goto clean_up;
-    }
 
     err = SYS_ERR_OK;
 clean_up:
@@ -151,7 +147,6 @@ clean_up:
 errval_t urpc_slave_serve_req(void)
 {
     assert(urpc_slave_spawn_process != NULL);
-    assert(urpc_slave_init_memsys != NULL);
 
     errval_t err;
     // wait until receive message from master
