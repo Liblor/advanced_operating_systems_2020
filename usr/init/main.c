@@ -339,7 +339,10 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
 }
 
 static int app_run_thread_slave(void *args) {
-    urpc_slave_serve_req();
+    errval_t err = urpc_slave_serve_req();
+    if (err_is_fail(err)) {
+        debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
+    }
     return 0;
 
 }
@@ -390,8 +393,8 @@ static int app_main(int argc, char *argv[])
     }
 
     __unused struct thread *t = thread_create(app_run_thread_slave, NULL);
-    // Hang around
 
+    // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
         err = event_dispatch(default_ws);
@@ -400,10 +403,6 @@ static int app_main(int argc, char *argv[])
             abort();
         }
     }
-
-//    if (err_is_fail(err)) {
-//        debug_printf("failure in urpc_slave_serve_req: %s", err_getstring(err));
-//    }
 
     return LIB_ERR_NOT_IMPLEMENTED;
 }
