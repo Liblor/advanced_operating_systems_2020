@@ -738,7 +738,14 @@ errval_t forge_bootinfo_capabilities(
                     .cnode = cnode_module,
                     .slot = reg.mrmod_slot,
             };
-            err = frame_forge(module_cap, reg.mr_base, reg.mrmod_size, coreid);
+            err = frame_forge(
+                    module_cap,
+                    reg.mr_base,
+                    // we have to round up to BASE_PAGE_SIZE, as our paging code expects
+                    // that the size of frames is BASE_PAGE_SIZE aligned
+                    ROUND_UP(reg.mrmod_size, BASE_PAGE_SIZE),
+                    coreid
+            );
             if (err_is_fail(err)) {
                 debug_printf("frame_forge failed: %s\n", err_getstring(err));
                 return err;
