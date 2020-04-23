@@ -28,28 +28,40 @@ errval_t master_urpc_init(void)
         debug_printf("frame alloc for urpc failed: %s\n", err_getstring(err));
         return err;
     }
+    URPC_BARRIER;
     urpc_shared_mem->status = UrpcEmpty;
+    URPC_BARRIER;
 
     return SYS_ERR_OK;
 }
 
 errval_t urpc_send_boot_info(struct bootinfo *bootinfo)
 {
-    // TODO: Barriers?
-    while (urpc_shared_mem->status != UrpcEmpty) { thread_yield(); }
+    URPC_BARRIER;
+    while (urpc_shared_mem->status != UrpcEmpty) {
+        URPC_BARRIER;
+        thread_yield();
+        URPC_BARRIER;
+    }
+    URPC_BARRIER;
     urpc_shared_mem->status = UrpcWritting;
+    URPC_BARRIER;
     urpc_shared_mem->type = BootInfo;
     memcpy((void *) &urpc_shared_mem->bootinfo_msg.bi, bootinfo,
             sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region));
     struct frame_identity mmstring_identity;
     errval_t err = frame_identify(cap_mmstrings, &mmstring_identity);
     if (err_is_fail(err)) {
+        URPC_BARRIER;
         urpc_shared_mem->status = UrpcEmpty;
+        URPC_BARRIER;
         return err;
     }
     urpc_shared_mem->bootinfo_msg.mmstring_base = mmstring_identity.base;
     urpc_shared_mem->bootinfo_msg.mmstring_size = mmstring_identity.bytes;
+    URPC_BARRIER;
     urpc_shared_mem->status = UrpcMasterData;
+    URPC_BARRIER;
     return SYS_ERR_OK;
 }
 
@@ -59,24 +71,42 @@ errval_t urpc_send_spawn_request(
         domainid_t *newpid
 ) {
     // TODO: Barriers?
-    while (urpc_shared_mem->status != UrpcEmpty) { thread_yield(); }
+    URPC_BARRIER;
+    while (urpc_shared_mem->status != UrpcEmpty) {
+        URPC_BARRIER;
+        thread_yield();
+        URPC_BARRIER;
+    }
+    URPC_BARRIER;
     urpc_shared_mem->status = UrpcWritting;
+    URPC_BARRIER;
     urpc_shared_mem->type = SpawnRequest;
     size_t cmdline_size = strlen(cmdline) + 1;
     if (cmdline_size > URPC_SHARED_MEM_SIZE - sizeof(struct urpc_shared_mem)) {
+        URPC_BARRIER;
         urpc_shared_mem->status = UrpcEmpty;
+        URPC_BARRIER;
         return LIB_ERR_STRING_TOO_LONG;
     }
     urpc_shared_mem->spawn_req.cmdline_size = cmdline_size;
     strlcpy((char *)&urpc_shared_mem->spawn_req.args[0], cmdline, cmdline_size);
+    URPC_BARRIER;
     urpc_shared_mem->status = UrpcMasterData;
+    URPC_BARRIER;
 
     // TODO: Barriers?
-    while (urpc_shared_mem->status != UrpcSlaveData) { thread_yield(); }
+    URPC_BARRIER;
+    while (urpc_shared_mem->status != UrpcSlaveData) {
+        URPC_BARRIER;
+        thread_yield();
+        URPC_BARRIER;
+    }
     assert(urpc_shared_mem->type == SpawnResponse);
     *newpid = urpc_shared_mem->spawn_resp.newpid;
     errval_t err = urpc_shared_mem->spawn_resp.err;
+    URPC_BARRIER;
     urpc_shared_mem->status = UrpcEmpty;
+    URPC_BARRIER;
     return err;
 }
 
@@ -108,7 +138,12 @@ errval_t urpc_receive_bootinfo(
 {
     errval_t err;
     debug_printf("waiting for UrpcMasterData\n");
-    while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
+    URPC_BARRIER;
+    while (urpc_shared_mem->status != UrpcMasterData) {
+        URPC_BARRIER;
+        thread_yield();
+        URPC_BARRIER;
+    }
 
     *ret_mmstrings_base = urpc_shared_mem->bootinfo_msg.mmstring_base;
     *ret_mmstrings_size = urpc_shared_mem->bootinfo_msg.mmstring_size;
@@ -125,7 +160,9 @@ errval_t urpc_receive_bootinfo(
 
     err = SYS_ERR_OK;
 clean_up:
+    URPC_BARRIER;
     urpc_shared_mem->status = UrpcEmpty;
+    URPC_BARRIER;
     return err;
 }
 
@@ -134,9 +171,11 @@ errval_t urpc_slave_serve_non_block(void)
 {
     assert(urpc_slave_spawn_process != NULL);
     errval_t err;
+    URPC_BARRIER;
     if (urpc_shared_mem->status != UrpcMasterData) {
         return LIB_ERR_NO_EVENT;
     }
+    URPC_BARRIER;
     debug_printf("got UrpcMasterData\n");
 
     switch (urpc_shared_mem->type) {
@@ -151,7 +190,9 @@ errval_t urpc_slave_serve_non_block(void)
             resp->newpid = pid;
             resp->err = err;
             urpc_shared_mem->type = SpawnResponse;
+            URPC_BARRIER;
             urpc_shared_mem->status = UrpcSlaveData;
+            URPC_BARRIER;
             break;
         }
         case SpawnResponse:

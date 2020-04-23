@@ -5,6 +5,8 @@
 
 #define URPC_SHARED_MEM_SIZE 4*BASE_PAGE_SIZE
 
+#define URPC_BARRIER __asm volatile("dsb sy\ndmb sy\nisb \n");
+
 enum urpc_status {
     UrpcEmpty,
     UrpcWritting,
