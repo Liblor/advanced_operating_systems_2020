@@ -15,12 +15,12 @@ static void simple_spawn_core1(void) {
     const uint64_t process_number = 100;
 
     for(int i = 0; i < process_number; i ++) {
-        char *binary_name1 = "dummy";
+        char *binary_name1 = "hello";
         domainid_t pid1;
-//        coreid_t core = 1;
+        coreid_t core = 1;
         
         // also causing troubles
-         coreid_t core = i % 2;
+//         coreid_t core = i % 2;
 
         err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
         if (err_is_fail(err)) {
