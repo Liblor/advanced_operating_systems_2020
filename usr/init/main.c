@@ -265,18 +265,6 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
     return SYS_ERR_OK;
 }
 
-//__unused
-//static int app_run_thread_slave(void *args) {
-//    errval_t err;
-//    while (true) {
-//        err = urpc_slave_probe_req();
-//        if (err_is_fail(err)) {
-//            debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
-//        }
-//    }
-//    return 0;
-//}
-
 static int app_main(int argc, char *argv[])
 {
     // TODO
@@ -359,12 +347,10 @@ static int app_main(int argc, char *argv[])
             debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
             abort();
         }
+
         err = event_dispatch_non_block(default_ws);
-        if (err == LIB_ERR_NO_EVENT) {
-            continue;
-        }
-        else if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in event_dispatch");
+        if (err != LIB_ERR_NO_EVENT &&  err_is_fail(err)) {
+            DEBUG_ERR(err, "err in event_dispatch");
             abort();
         }
     }
