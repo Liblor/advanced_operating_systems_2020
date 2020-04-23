@@ -223,6 +223,7 @@ static int bsp_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
+    /*
     {
         domainid_t pid;
         struct spawninfo si;
@@ -232,6 +233,7 @@ static int bsp_main(int argc, char *argv[])
             abort();
         }
     }
+     */
 
     debug_printf("Message handler loop\n");
 
@@ -263,8 +265,6 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
 
 static int app_main(int argc, char *argv[])
 {
-    // TODO
-    // Implement me in Milestone 5
     // Remember to call
     // - grading_setup_app_init(..);
     // - grading_test_early();
@@ -272,8 +272,6 @@ static int app_main(int argc, char *argv[])
 
     errval_t err;
     debug_printf("hello world from app_main\n");
-
-    grading_test_early();
 
     // TODO: Decide which servers do we really need?
     err = initserver_init(number_cb, string_cb);
@@ -313,8 +311,6 @@ static int app_main(int argc, char *argv[])
         return err;
     }
 
-    grading_setup_app_init(bi);
-
     err = forge_bootinfo_ram(bi);
     if (err_is_fail(err)) {
         debug_printf("forging ram failed: %s\n", err_getstring(err));
@@ -331,6 +327,9 @@ static int app_main(int argc, char *argv[])
         debug_printf("forging capabilities failed: %s\n", err_getstring(err));
         return err;
     }
+    grading_setup_app_init(bi);
+
+    grading_test_early();
 
     grading_test_late();
 
