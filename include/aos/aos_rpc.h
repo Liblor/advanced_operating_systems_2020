@@ -19,7 +19,7 @@
 #include <aos/aos_rpc_lmp.h>
 
 // How often a transient error can occur before it's regarded critical.
-#define TRANSIENT_ERR_RETRIES (10)
+#define TRANSIENT_ERR_RETRIES (100)
 
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {

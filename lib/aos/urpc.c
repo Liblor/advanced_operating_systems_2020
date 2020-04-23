@@ -146,7 +146,6 @@ errval_t urpc_slave_serve_req(void)
             struct urpc_spawn_request *req = (struct urpc_spawn_request *) &urpc_shared_mem->spawn_req;
             domainid_t pid;
             err = urpc_slave_spawn_process(req->args, &pid);
-
             struct urpc_spawn_response *resp = (struct urpc_spawn_response *) &urpc_shared_mem->spawn_resp;
             resp->newpid = pid;
             resp->err = err;

@@ -101,6 +101,7 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
 {
     errval_t err;
 
+    thread_mutex_lock_nested(&get_current_paging_state()->mutex);
     grading_rpc_handler_process_spawn(name, coreid);
 
     struct spawninfo si;
@@ -122,6 +123,9 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
         domainid_t pid;
         err = urpc_send_spawn_request(name, coreid, &pid);
     }
+
+    thread_mutex_unlock(&get_current_paging_state()->mutex);
+
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
         // TODO: If spawn failed, remove the process from the processserver state list.
@@ -249,8 +253,11 @@ static int bsp_main(int argc, char *argv[])
 static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
 {
     errval_t err;
+
     struct spawninfo si;
+    thread_mutex_lock_nested(&get_current_paging_state()->mutex);
     err = spawn_load_by_name(cmdline, &si, ret_pid);
+    thread_mutex_unlock(&get_current_paging_state()->mutex);
     if (err_is_fail(err)) {
         debug_printf("error in app_urpc_slave_spawn, cannot spawn %s: %s\n",
                 cmdline, err_getstring(err));
