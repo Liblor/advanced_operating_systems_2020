@@ -129,14 +129,14 @@ clean_up:
     return err;
 }
 
-errval_t urpc_slave_serve_req(void)
+errval_t urpc_slave_non_block_req(void)
 {
     assert(urpc_slave_spawn_process != NULL);
-
     errval_t err;
-    // wait until receive message from master
-    debug_printf("waiting for UrpcMasterData\n");
-    while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
+    if (urpc_shared_mem->status != UrpcMasterData) {
+        return LIB_ERR_NO_EVENT;
+    }
+    debug_printf("got UrpcMasterData\n");
 
     switch (urpc_shared_mem->type) {
         case BootInfo:
