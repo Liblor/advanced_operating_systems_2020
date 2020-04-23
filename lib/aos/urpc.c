@@ -129,14 +129,15 @@ clean_up:
     return err;
 }
 
-errval_t urpc_slave_serve_req(void)
+/* return LIB_ERR_NO_EVENT on no msg */
+errval_t urpc_slave_serve_non_block(void)
 {
     assert(urpc_slave_spawn_process != NULL);
-
     errval_t err;
-    // wait until receive message from master
-    debug_printf("waiting for UrpcMasterData\n");
-    while (urpc_shared_mem->status != UrpcMasterData) { thread_yield(); }
+    if (urpc_shared_mem->status != UrpcMasterData) {
+        return LIB_ERR_NO_EVENT;
+    }
+    debug_printf("got UrpcMasterData\n");
 
     switch (urpc_shared_mem->type) {
         case BootInfo:
@@ -146,7 +147,6 @@ errval_t urpc_slave_serve_req(void)
             struct urpc_spawn_request *req = (struct urpc_spawn_request *) &urpc_shared_mem->spawn_req;
             domainid_t pid;
             err = urpc_slave_spawn_process(req->args, &pid);
-
             struct urpc_spawn_response *resp = (struct urpc_spawn_response *) &urpc_shared_mem->spawn_resp;
             resp->newpid = pid;
             resp->err = err;
