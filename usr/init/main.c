@@ -40,6 +40,18 @@ struct bootinfo *bi;
 
 coreid_t my_core_id;
 
+// DEBUG ONLY
+static struct thread_mutex spawn_lock;
+#define SPAWN_LOCK
+// thread_mutex_lock_nested(&spawn_lock)
+#define SPAWN_UNLOCK
+// thread_mutex_unlock(&spawn_lock)
+
+__unused
+static void init_spawn_lock(void) {
+    thread_mutex_init(&spawn_lock);
+}
+
 static void number_cb(uintptr_t num)
 {
     grading_rpc_handle_number(num);
@@ -101,13 +113,13 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
 {
     errval_t err;
 
-    thread_mutex_lock_nested(&get_current_paging_state()->mutex);
     grading_rpc_handler_process_spawn(name, coreid);
 
     struct spawninfo si;
 
     // TODO: Also store coreid
     err = add_to_proc_list(processserver_state, name, ret_pid);
+
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
@@ -117,14 +129,15 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
     // and ignore the ret_pid set by urpc_send_spawn_request or spawn_load_by_name
     // reason: legacy, spawn_load_by_name does not set pid itself, so
     // add_to_proc_list implemented the behavior
+
+    SPAWN_LOCK;
     if (coreid == disp_get_core_id()) {
         err = spawn_load_by_name(name, &si, ret_pid);
     } else {
         domainid_t pid;
         err = urpc_send_spawn_request(name, coreid, &pid);
     }
-
-    thread_mutex_unlock(&get_current_paging_state()->mutex);
+    SPAWN_UNLOCK;
 
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
@@ -173,6 +186,7 @@ static int bsp_main(int argc, char *argv[])
 
     // Grading
     grading_test_early();
+    init_spawn_lock();
 
     err = initserver_init(number_cb, string_cb);
     if (err_is_fail(err)) {
@@ -255,9 +269,9 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
     errval_t err;
 
     struct spawninfo si;
-    thread_mutex_lock_nested(&get_current_paging_state()->mutex);
+    SPAWN_LOCK;
     err = spawn_load_by_name(cmdline, &si, ret_pid);
-    thread_mutex_unlock(&get_current_paging_state()->mutex);
+    SPAWN_UNLOCK;
     if (err_is_fail(err)) {
         debug_printf("error in app_urpc_slave_spawn, cannot spawn %s: %s\n",
                 cmdline, err_getstring(err));
@@ -290,6 +304,7 @@ static int app_main(int argc, char *argv[])
     debug_printf("hello world from app_main\n");
 
     grading_test_early();
+    init_spawn_lock();
 
     // TODO: Decide which servers do we really need?
     err = initserver_init(number_cb, string_cb);
@@ -307,6 +322,7 @@ static int app_main(int argc, char *argv[])
         debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
+
     err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
