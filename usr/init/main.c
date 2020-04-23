@@ -107,7 +107,6 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
 
     // TODO: Also store coreid
     err = add_to_proc_list(processserver_state, name, ret_pid);
-
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
@@ -124,7 +123,6 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
         domainid_t pid;
         err = urpc_send_spawn_request(name, coreid, &pid);
     }
-
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
         // TODO: If spawn failed, remove the process from the processserver state list.
@@ -254,9 +252,7 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
     errval_t err;
 
     struct spawninfo si;
-
     err = spawn_load_by_name(cmdline, &si, ret_pid);
-
     if (err_is_fail(err)) {
         debug_printf("error in app_urpc_slave_spawn, cannot spawn %s: %s\n",
                 cmdline, err_getstring(err));
@@ -295,7 +291,6 @@ static int app_main(int argc, char *argv[])
         debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
-
     err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));

@@ -46,8 +46,6 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
 {
     errval_t err;
 
-
-
     struct elf_allocator_state *as = (struct elf_allocator_state *) state;
 
     /*
@@ -97,8 +95,6 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
     // Return a pointer to the mapped memory. This is where the ELF loader will
     // write the section content. Note that we may deal with unaligned bases.
     *ret = mapped_parent + (base - base_rounded);
-
-
 
     return SYS_ERR_OK;
 }
@@ -264,7 +260,6 @@ static inline errval_t parse_elf(struct mem_region *module, void *module_data, s
         module->mrmod_size,
         entry_point_addr
     );
-
     if (err_is_fail(err)) {
         debug_printf("elf_load() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_ELF_MAP);
@@ -541,6 +536,7 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
 errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_t *pid)
 {
     errval_t err;
+
     // TODO: Fill the struct domainid_t argument.
 
     // Initialize the spawninfo struct.
@@ -553,9 +549,6 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
         debug_printf("load_module() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_LOAD);
     }
-
-
-
 
     struct capref cap_cnode_l1;
     struct capref l0_table_child;
@@ -576,8 +569,6 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
         return err_push(err, SPAWN_ERR_VSPACE_INIT);
     }
 
-
-
     genvaddr_t entry_point_addr;
     void *got_section_addr;
 
@@ -586,7 +577,6 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
         debug_printf("parse_elf() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_ELF_MAP);
     }
-
 
     void *args_page_child;
 
@@ -604,9 +594,6 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
         debug_printf("setup_dispatcher() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_SETUP_DISPATCHER);
     }
-
-
-
 
     err = invoke_dispatcher(dp_child, cap_dispatcher, cap_cnode_l1, l0_table_child, dp_frame_child, true);
     if (err_is_fail(err)) {
