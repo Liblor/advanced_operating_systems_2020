@@ -342,7 +342,7 @@ static int app_main(int argc, char *argv[])
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
-        err = urpc_slave_non_block_req();
+        err = urpc_slave_serve_non_block();
         if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
             debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
             abort();
