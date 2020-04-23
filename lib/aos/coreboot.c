@@ -726,7 +726,12 @@ errval_t forge_bootinfo_capabilities(
         debug_printf("cnode_create_foreing_l2 failed: %s\n", err_getstring(err));
         return err;
     }
-    err = frame_forge(cap_mmstrings, mmstrings_base, mmstrings_size, coreid);
+    err = frame_forge(
+            cap_mmstrings,
+            mmstrings_base,
+            ROUND_UP(mmstrings_size, BASE_PAGE_SIZE),
+            coreid
+    );
     if (err_is_fail(err)) {
         debug_printf("frame_forge of mmstring failed: %s\n", err_getstring(err));
         return err;
