@@ -17,7 +17,7 @@ static void simple_spawn_core1(void) {
     for(int i = 0; i < process_number; i ++) {
         char *binary_name1 = "hello";
         domainid_t pid1;
-//        coreid_t core = 1;
+        // coreid_t core = 1;
         
         // also causing troubles
          coreid_t core = i % 2;
