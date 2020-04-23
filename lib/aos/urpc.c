@@ -130,7 +130,7 @@ clean_up:
 }
 
 /* return LIB_ERR_NO_EVENT on no msg */
-errval_t urpc_slave_non_block_req(void)
+errval_t urpc_slave_serve_non_block(void)
 {
     assert(urpc_slave_spawn_process != NULL);
     errval_t err;
