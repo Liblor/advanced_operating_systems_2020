@@ -890,7 +890,6 @@ errval_t paging_map_fixed_attr(
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
     PAGING_CHECK_RANGE(vaddr, bytes);
 
-
     is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
 
@@ -1019,8 +1018,8 @@ clean_up:
     if (is_dynamic) {
         morecore_enable_dynamic();
     }
-    thread_mutex_unlock(&st->mutex);
     thread_mutex_unlock(&get_current_paging_state()->mutex);
+    thread_mutex_unlock(&st->mutex);
     return err;
 }
 
