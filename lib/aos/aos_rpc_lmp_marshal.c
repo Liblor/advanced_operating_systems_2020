@@ -337,6 +337,7 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
 
         if (lmp_err_is_transient(err)) {
             retries++;
+            thread_yield();
             continue;
         } else if (err_is_fail(err)) {
             break;

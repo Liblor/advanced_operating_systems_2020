@@ -20,10 +20,13 @@
 #include <aos/paging.h>
 #include <aos/waitset.h>
 #include <aos/aos_rpc.h>
+#include <aos/urpc.h>
 #include <aos/capabilities.h>
 #include <mm/mm.h>
 #include <spawn/spawn.h>
 #include <grading.h>
+#include <aos/coreboot.h>
+#include <aos/kernel_cap_invocations.h>
 
 #include "mem_alloc.h"
 #include "initserver.h"
@@ -31,6 +34,7 @@
 #include "serialserver.h"
 #include "processserver.h"
 #include "test.h"
+#include "aos/urpc.h"
 
 struct bootinfo *bi;
 
@@ -101,12 +105,24 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
 
     struct spawninfo si;
 
+    // TODO: Also store coreid
     err = add_to_proc_list(processserver_state, name, ret_pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
     }
-    err = spawn_load_by_name(name, &si, ret_pid);
+
+    // XXX: we currently use add_to_proc_list to get a ret_pid
+    // and ignore the ret_pid set by urpc_send_spawn_request or spawn_load_by_name
+    // reason: legacy, spawn_load_by_name does not set pid itself, so
+    // add_to_proc_list implemented the behavior
+
+    if (coreid == disp_get_core_id()) {
+        err = spawn_load_by_name(name, &si, ret_pid);
+    } else {
+        domainid_t pid;
+        err = urpc_send_spawn_request(name, coreid, &pid);
+    }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
         // TODO: If spawn failed, remove the process from the processserver state list.
@@ -147,7 +163,7 @@ static int bsp_main(int argc, char *argv[])
     bi = (struct bootinfo*)strtol(argv[1], NULL, 10);
     assert(bi);
 
-    err = initialize_ram_alloc();
+    err = initialize_ram_alloc(2);
     if(err_is_fail(err)){
         DEBUG_ERR(err, "initialize_ram_alloc");
     }
@@ -179,20 +195,46 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    // Grading
-    grading_test_late();
-
-    char *binary_name = "multithreading";
-    struct spawninfo si;
-    domainid_t pid;
-
-    err = spawn_load_by_name(binary_name, &si, &pid);
+    // TODO: Discuss about aos_rpc_init, as it is unused
+    err = master_urpc_init();
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in event_dispatch");
+        debug_printf("master_urpc_init failed: %s\n", err_getstring(err));
         abort();
     }
 
+    struct frame_identity urpc_frame_id;
+    err = frame_identify(cap_urpc, &urpc_frame_id);
+    if (err_is_fail(err)) {
+        debug_printf("frame identity for urpc failed: %s\n", err_getstring(err));
+        abort();
+    }
+    err = coreboot(1, "boot_armv8_generic", "cpu_imx8x", "init", urpc_frame_id);
+    if (err_is_fail(err)) {
+        debug_printf("coreboot failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = urpc_send_boot_info(bi);
+    if (err_is_fail(err)) {
+        debug_printf("urpc_send_boot_info failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    // Grading
+    grading_test_late();
+
+    {
+        domainid_t pid;
+        struct spawninfo si;
+        err = spawn_load_by_name("multicore_test", &si, &pid);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "spawn_load_by_name failed");
+            abort();
+        }
+    }
+
     debug_printf("Message handler loop\n");
+
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
@@ -202,18 +244,113 @@ static int bsp_main(int argc, char *argv[])
             abort();
         }
     }
-
     return EXIT_SUCCESS;
+}
+
+static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
+{
+    errval_t err;
+
+    struct spawninfo si;
+    err = spawn_load_by_name(cmdline, &si, ret_pid);
+    if (err_is_fail(err)) {
+        debug_printf("error in app_urpc_slave_spawn, cannot spawn %s: %s\n",
+                cmdline, err_getstring(err));
+        return err;
+    }
+    return SYS_ERR_OK;
 }
 
 static int app_main(int argc, char *argv[])
 {
+    // TODO
     // Implement me in Milestone 5
     // Remember to call
     // - grading_setup_app_init(..);
     // - grading_test_early();
     // - grading_test_late();
-    return LIB_ERR_NOT_IMPLEMENTED;
+
+    errval_t err;
+    debug_printf("hello world from app_main\n");
+
+    grading_test_early();
+
+    // TODO: Decide which servers do we really need?
+    err = initserver_init(number_cb, string_cb);
+    if (err_is_fail(err)) {
+        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+    err = memoryserver_init(ram_cap_cb);
+    if (err_is_fail(err)) {
+        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+    err = serialserver_init(putchar_cb, getchar_cb);
+    if (err_is_fail(err)) {
+        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+    err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
+    if (err_is_fail(err)) {
+        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    urpc_slave_spawn_process = app_urpc_slave_spawn;
+
+    err = urpc_slave_init();
+    if (err_is_fail(err)) {
+        debug_printf("failure in urpc_init: %s", err_getstring(err));
+        return err;
+    }
+    genpaddr_t mmstrings_base;
+    gensize_t mmstrings_size;
+
+    err = urpc_receive_bootinfo(&bi, &mmstrings_base, &mmstrings_size);
+    if (err_is_fail(err)) {
+        debug_printf("failure in urpc_receive_bootinfo: %s", err_getstring(err));
+        return err;
+    }
+
+    grading_setup_app_init(bi);
+
+    err = forge_bootinfo_ram(bi);
+    if (err_is_fail(err)) {
+        debug_printf("forging ram failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = initialize_ram_alloc(2);
+    if (err_is_fail(err)) {
+        debug_printf("initialize_ram_alloc failed: %s\n", err_getstring(err));
+        return err;
+    }
+    err = forge_bootinfo_capabilities(bi, mmstrings_base, mmstrings_size);
+    if (err_is_fail(err)) {
+        debug_printf("forging capabilities failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    grading_test_late();
+
+    // Hang around
+    struct waitset *default_ws = get_default_waitset();
+    while (true) {
+        err = urpc_slave_serve_non_block();
+        if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
+            debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
+            abort();
+        }
+
+        err = event_dispatch_non_block(default_ws);
+        if (err != LIB_ERR_NO_EVENT &&  err_is_fail(err)) {
+            DEBUG_ERR(err, "err in event_dispatch");
+            abort();
+        }
+    }
+
+    return SYS_ERR_OK;
 }
 
 int main(int argc, char *argv[])

@@ -52,8 +52,13 @@
                              "thread_once.c",
                              "thread_sync.c",
                              "threads.c",
+                             "urpc.c",
                              "waitset.c" ],
-                  assemblyFiles = [ "arch/aarch64/context.S", "arch/aarch64/entry.S"],
+                  assemblyFiles = [
+                        "arch/aarch64/context.S",
+                        "arch/aarch64/entry.S",
+                        "arch/aarch64/cache.S"
+                  ],
                   addIncludes =   [ "include", "include/arch/aarch64" ],
                   addLibraries = [ "cap_predicates" ],
                   addCFlags = ["-DMORECORE_PAGESIZE=BASE_PAGE_SIZE"],
