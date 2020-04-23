@@ -3,7 +3,7 @@
 
 #include <aos/aos_rpc.h>
 
-typedef void (* service_recv_handler_t)(struct rpc_message *msg, void *callback_state, struct lmp_chan *reply_chan, void *server_state);
+typedef void (* service_recv_handler_t)(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state);
 
 // Receives the server state.
 // Must return the new callback state.

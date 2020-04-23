@@ -12,7 +12,7 @@ static putchar_callback_t putchar_cb = NULL;
 static getchar_callback_t getchar_cb = NULL;
 
 
-static errval_t reply_char(struct lmp_chan *lc, char c) {
+static errval_t reply_char(struct aos_rpc *rpc, char c) {
     errval_t err;
 
     struct rpc_message msg;
@@ -23,7 +23,7 @@ static errval_t reply_char(struct lmp_chan *lc, char c) {
     msg.msg.status = Status_Ok;
     msg.msg.payload[0] = c;
 
-    err = aos_rpc_lmp_send_message(lc, &msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, &msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_send_message failed\n");
         return err;
@@ -32,7 +32,7 @@ static errval_t reply_char(struct lmp_chan *lc, char c) {
     return SYS_ERR_OK;
 }
 
-static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct lmp_chan *reply_chan, void *server_state)
+static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
 {
     errval_t err;
 
@@ -52,7 +52,7 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
             // another callback to send the response, so that the server
             // doesn't have to wait for this callback to complete.
             getchar_cb(&c);
-            err = reply_char(reply_chan, c);
+            err = reply_char(rpc, c);
             if (err_is_fail(err)) {
                 DEBUG_ERR(err, "reply_char() failed");
             }

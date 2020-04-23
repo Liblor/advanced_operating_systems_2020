@@ -23,6 +23,7 @@
 
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
+    struct thread_mutex mutex;
     struct lmp_chan lc;
     union {
         struct aos_rpc_lmp *lmp;

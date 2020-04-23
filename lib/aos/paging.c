@@ -376,6 +376,11 @@ static inline errval_t back_vaddr(
     assert(vaddr != 0);
     assert(vaddr % BASE_PAGE_SIZE == 0);
 
+    bool exit_do_unlock = false;
+
+    thread_mutex_lock_nested(&st->mutex);
+    exit_do_unlock = true;
+
     /*
      * First, we lookup the corresponding node on the upper layer.
      */
@@ -384,7 +389,7 @@ static inline errval_t back_vaddr(
     err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
     if (err_is_fail(err)) {
         debug_printf("Page fault handler: Cannot find node at base %p.\n", vaddr);
-        return err;
+        goto cleanup;
     }
 
     /*
@@ -393,7 +398,8 @@ static inline errval_t back_vaddr(
 
     if (!range_tracker_is_used(pr_node)) {
         debug_printf("Page fault handler: Node %p is not being used.\n", pr_node);
-        return AOS_ERR_PAGING_ADDR_RESERVED;
+        err = AOS_ERR_PAGING_ADDR_RESERVED;
+        goto cleanup;
     }
 
     struct paging_region *pr = (struct paging_region *) pr_node->shared.ptr;
@@ -401,14 +407,18 @@ static inline errval_t back_vaddr(
 
     if (pr->implicit) {
         debug_printf("Page fault handler: Paging region %p at node %p was implicitly reserved.\n", pr, pr_node);
-        return AOS_ERR_PAGING_ADDR_RESERVED;
+        err = AOS_ERR_PAGING_ADDR_RESERVED;
+        goto cleanup;
     }
+
+    // TODO: Check if paging_region belongs to another thread (stack or heap).
+    //range_tracker_print_state(&pr->rt);
 
     struct rtnode *mapping_node;
     err = range_tracker_get_fixed(&pr->rt, vaddr, 1, &mapping_node);
     if (err_is_fail(err)) {
         debug_printf("Page fault handler: Cannot find node at base %p.\n", vaddr);
-        return err;
+        goto cleanup;
     }
 
     assert(mapping_node != NULL);
@@ -419,13 +429,13 @@ static inline errval_t back_vaddr(
 
     struct capref frame;
     size_t size;
-    slab_ensure_threshold(&st->slabs, 32);
+    slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
 
     err = frame_alloc(&frame, mapping_node->size, &size);
     if (err_is_fail(err)) {
         debug_printf("Page fault handler: frame_alloc failed, while lazily mapping 0x%lx.\n", vaddr);
         debug_printf("%s\n", err_getstring(err));
-        return err;
+        goto cleanup;
     }
 
     assert(size >= mapping_node->size);
@@ -436,18 +446,26 @@ static inline errval_t back_vaddr(
     err = get_and_map_into_l3(st, pr, mapping_node->base, frame, 0, page_count, mapping_node, pr->flags);
     if (err_is_fail(err)) {
         debug_printf("get_and_map_into_l3() failed: %s\n", err_getstring(err));
-        return err;
+        goto cleanup;
     }
 
 #ifndef NDEBUG
     ensure_correct_pagetable_mapping(st, vaddr, page_count);
 #endif
 
-    return SYS_ERR_OK;
+    thread_mutex_unlock(&st->mutex);
+    exit_do_unlock = false;
+
+    err = SYS_ERR_OK;
+
+cleanup:
+    if (exit_do_unlock) {
+        thread_mutex_unlock(&st->mutex);
+    }
+
+    return err;
 }
 
-// TODO: check that addr is in valid stack bounds of current thread or
-// TODO: check that addr is in valid heap bounds
 static errval_t paging_handler(
     enum exception_type type,
     int subtype,
@@ -515,6 +533,7 @@ static void exception_handler(
 {
     errval_t err = SYS_ERR_OK;
 
+    const bool is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
 
     switch (type) {
@@ -526,7 +545,9 @@ static void exception_handler(
         debug_printf("Unknown exception type\n");
     }
 
-    morecore_enable_dynamic();
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
 
     if (err_is_fail(err)) {
         // we die here ... RIP
@@ -674,9 +695,12 @@ void paging_init_onthread(
 {
     DEBUG_BEGIN;
 
+    const bool is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
     void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
-    morecore_enable_dynamic();
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
 
     if (stack == NULL) {
         debug_printf("Allocating exception stack failed\n");
@@ -718,25 +742,38 @@ errval_t paging_alloc(
     assert(alignment % BASE_PAGE_SIZE == 0);
     PAGING_CHECK_SIZE(bytes)
 
+    bool is_dynamic = false;
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
+    struct paging_region *pr = NULL;
     *buf = NULL;
 
-    err = slab_ensure_threshold(&st->slabs, 32);
-    if (err_is_fail(err)) {
-        return err;
+    pr = calloc(1, sizeof(struct paging_region));
+    if (pr == NULL) {
+        debug_printf("calloc() failed\n");
+        err = LIB_ERR_MALLOC_FAIL;
+        goto error_cleanup;
     }
 
-    struct paging_region *pr = calloc(1, sizeof(struct paging_region));
-    // TODO Check pr == NULL
-
+    /*
+     * The slab_ensure_threshold() needs to be guarded by a mutex, too, in
+     * order to ensure the threshold directly before acquiring the page.
+     */
     thread_mutex_lock_nested(&st->mutex);
-    // flags = 0, because it will not be used for implicit paging regions.
-    err = paging_region_init_aligned(st, pr, bytes, alignment, 0);
-    thread_mutex_unlock(&st->mutex);
+    is_dynamic = !get_morecore_state()->heap_static;
+    morecore_enable_static();
+
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
-        // TODO Free pr
-        return err;
+        goto error_cleanup;
+    }
+
+    /*
+     * flags = 0, because it will not be used for implicit paging regions.
+     */
+    err = paging_region_init_aligned(st, pr, bytes, alignment, 0);
+    if (err_is_fail(err)) {
+        goto error_cleanup;
     }
 
     pr->implicit = true;
@@ -745,7 +782,19 @@ errval_t paging_alloc(
 
     assert(((lvaddr_t) *buf) % alignment == 0);
 
-    return SYS_ERR_OK;
+    err = SYS_ERR_OK;
+
+exit_cleanup:
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
+    thread_mutex_unlock(&st->mutex);
+    return err;
+
+error_cleanup:
+    debug_printf("error during paging_alloc() failed: %s\n", err_getstring(err));
+    free(pr);
+    goto exit_cleanup;
 }
 
 /**
@@ -799,6 +848,7 @@ errval_t paging_map_frame_attr(
     return SYS_ERR_OK;
 }
 
+// Refill the two-level slot allocator without causing a page-fault
 errval_t slab_refill_no_pagefault(
     struct slab_allocator *slabs,
     struct capref frame,
@@ -806,7 +856,12 @@ errval_t slab_refill_no_pagefault(
 )
 {
     DEBUG_BEGIN;
-    // Refill the two-level slot allocator without causing a page-fault
+
+    /*
+     * TODO: Why is this function not implemented? Why does it have to be
+     * exposed in the first place?
+     */
+
     return SYS_ERR_OK;
 }
 
@@ -829,16 +884,15 @@ errval_t paging_map_fixed_attr(
 
     assert(st != NULL);
 
+    bool is_dynamic = false;
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
     PAGING_CHECK_RANGE(vaddr, bytes);
 
     thread_mutex_lock_nested(&st->mutex);
-
-    // run on vmem which does not pagefault
-    const bool is_dynamic = !get_morecore_state()->heap_static;
+    is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
 
-    err = slab_ensure_threshold(&st->slabs, 32);
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
         goto clean_up;
     }
@@ -981,9 +1035,14 @@ errval_t paging_unmap(
 
     assert(st != NULL);
 
+    bool is_dynamic = false;
     const lvaddr_t vaddr = (lvaddr_t) region;
 
     struct rtnode *pr_node = NULL;
+
+    thread_mutex_lock_nested(&st->mutex);
+    is_dynamic = !get_morecore_state()->heap_static;
+    morecore_enable_static();
 
     err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
     if (err_is_fail(err)) {
@@ -1018,11 +1077,16 @@ errval_t paging_unmap(
         return err;
     }
 
+    if (is_dynamic) {
+        morecore_enable_dynamic();
+    }
+    thread_mutex_unlock(&st->mutex);
+
     /*
      * Free the region itself.
      */
 
     free(pr);
 
-    return SYS_ERR_NOT_IMPLEMENTED;
+    return SYS_ERR_OK;
 }

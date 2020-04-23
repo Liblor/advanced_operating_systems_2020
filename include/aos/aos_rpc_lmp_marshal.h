@@ -26,6 +26,13 @@ struct client_response_state {
     struct rpc_message *message;               ///< response to build/buffer
 };
 
+errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
+    struct aos_rpc *rpc,
+    struct rpc_message *send,
+    struct rpc_message *recv,
+    validate_recv_msg_t validate_cb,
+    struct capref cap
+);
 
 /**
  * \brief Marshall rpc_message and wait for a response
@@ -38,6 +45,6 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
  * \brief Marshall rpc_message and send with LMP
  */
 errval_t
-aos_rpc_lmp_send_message(struct lmp_chan *c, struct rpc_message *msg, lmp_send_flags_t flags);
+aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_flags_t flags);
 
 #endif
