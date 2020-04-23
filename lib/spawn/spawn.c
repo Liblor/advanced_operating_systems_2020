@@ -75,7 +75,6 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
         return err_push(err, LIB_ERR_FRAME_ALLOC);
     }
 
-//    thread_mutex_lock_nested(&get_current_paging_state()->mutex);
     assert(segment_bytes >= size);
 
     // Map the new memory into the VSpace of the child. Without mappings, the
@@ -85,8 +84,6 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
         debug_printf("paging_map_fixed_attr() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_VSPACE_MAP);
     }
-
-//    thread_mutex_unlock(&get_current_paging_state()->mutex);
 
     // Map the new memory into the VSpace of the parent. We need this for
     // writing the sections into the segments.
