@@ -9,6 +9,13 @@ static struct aos_rpc *memory_channel = NULL;
 static struct aos_rpc *process_channel = NULL;
 static struct aos_rpc *serial_channel = NULL;
 
+/*
+ * Used for setting up the channels. While the init_channel and memory_channel
+ * are always initialized by the first thread, the same isn't necessarily true
+ * for the other channels.
+ */
+static struct thread_mutex rpc_lmp_mutex = THREAD_MUTEX_INITIALIZER;
+
 /** common header validations for receive payloads */
 static inline errval_t
 validate_recv_header(struct lmp_recv_msg *msg, enum pending_state state,
@@ -46,12 +53,14 @@ aos_rpc_lmp_init(struct aos_rpc *rpc)
 {
     lmp_chan_init(&rpc->lc);
 
-    struct aos_rpc_lmp *rpc_lmp = malloc(sizeof(struct aos_rpc_lmp));
+    struct aos_rpc_lmp *rpc_lmp = calloc(1, sizeof(struct aos_rpc_lmp));
     if (rpc_lmp == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    memset(rpc_lmp, 0, sizeof(struct aos_rpc_lmp));
+
     rpc->lmp = rpc_lmp;
+
+    thread_mutex_init(&rpc->mutex);
 
     return SYS_ERR_OK;
 }
@@ -59,6 +68,8 @@ aos_rpc_lmp_init(struct aos_rpc *rpc)
 errval_t
 aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
+    errval_t err;
+
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(num)];
 
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
@@ -68,13 +79,21 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     msg->cap = NULL_CAP;
     memcpy(msg->msg.payload, &num, sizeof(num));
 
-    return aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+        return err;
+    }
+
+    return SYS_ERR_OK;
 }
 
 
 errval_t
 aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
 {
+    errval_t err;
+
     const uint32_t str_len = MIN(strnlen(string, RPC_LMP_MAX_STR_LEN) + 1,
                                  RPC_LMP_MAX_STR_LEN);  //  strln \0 not included
 
@@ -87,7 +106,13 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     msg->msg.status = Status_Ok;
     strlcpy(msg->msg.payload, string, str_len);
 
-    return aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+        return err;
+    }
+
+    return SYS_ERR_OK;
 }
 
 static errval_t
@@ -111,6 +136,12 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 {
     errval_t err;
 
+    err = slot_alloc(ret_cap);
+    if (err_is_fail(err)) {
+        return err_push(err, LIB_ERR_SLOT_ALLOC);
+    }
+
+
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
@@ -122,8 +153,9 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
 
-    struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_get_ram_cap);
+    char message[sizeof(struct rpc_message) + sizeof(size_t)];
+    struct rpc_message *recv = (struct rpc_message *) message;
+    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_get_ram_cap, *ret_cap);
     if (err_is_fail(err)) {
         goto clean_up;
     }
@@ -152,9 +184,6 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
     goto clean_up;
 
     clean_up:
-    if (recv != NULL) {
-        free(recv);
-    }
     return err;
 }
 
@@ -190,6 +219,8 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
+    errval_t err;
+
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(char)];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
@@ -199,11 +230,12 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &c, sizeof(char));
 
-    errval_t err = aos_rpc_lmp_send_message(&rpc->lc, msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_send_message()\n");
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
         return err;
     }
+
     return SYS_ERR_OK;
 }
 
@@ -381,8 +413,10 @@ client_recv_open_cb(void *args)
     lc->remote_cap = server_cap;
 }
 
-static struct aos_rpc *
-aos_rpc_lmp_setup_channel(struct capref remote_cap, const char *service_name)
+static struct aos_rpc *aos_rpc_lmp_setup_channel(
+    struct capref remote_cap,
+    const char *service_name
+)
 {
     errval_t err;
 
@@ -465,67 +499,58 @@ error:
     return NULL;
 }
 
-/**
- * \brief Returns the RPC channel to init.
- */
-struct aos_rpc *
-aos_rpc_lmp_get_init_channel(void)
+static struct aos_rpc *aos_rpc_lmp_get_channel(
+    struct aos_rpc **rpc,
+    struct capref cap,
+    const char *service_name
+)
 {
-    if (init_channel == NULL) {
-        init_channel = aos_rpc_lmp_setup_channel(cap_chan_init, "init");
-        if (init_channel == NULL) {
-            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
-            return NULL;
-        }
+    bool was_unset = false;
+
+    thread_mutex_lock_nested(&rpc_lmp_mutex);
+
+    if (*rpc == NULL) {
+        was_unset = true;
+        *rpc = aos_rpc_lmp_setup_channel(cap, service_name);
     }
 
-    return init_channel;
+    thread_mutex_unlock(&rpc_lmp_mutex);
+
+    if (was_unset && *rpc == NULL) {
+        debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+    }
+
+    return *rpc;
+}
+
+/**
+ * \brief Returns the channel to the init dispatcher.
+ */
+struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
+{
+    return aos_rpc_lmp_get_channel(&init_channel, cap_chan_init, "init");
 }
 
 /**
  * \brief Returns the channel to the memory server.
  */
-struct aos_rpc *
-aos_rpc_lmp_get_memory_channel(void)
+struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
-    if (memory_channel == NULL) {
-        memory_channel = aos_rpc_lmp_setup_channel(cap_chan_memory, "memory");
-        if (memory_channel == NULL) {
-            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
-            return NULL;
-        }
-    }
-    return memory_channel;
+    return aos_rpc_lmp_get_channel(&memory_channel, cap_chan_memory, "memory");
 }
 
 /**
  * \brief Returns the channel to the process manager.
  */
-struct aos_rpc *
-aos_rpc_lmp_get_process_channel(void)
+struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
-    if (process_channel == NULL) {
-        process_channel = aos_rpc_lmp_setup_channel(cap_chan_process, "process");
-        if (process_channel == NULL) {
-            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
-            return NULL;
-        }
-    }
-    return process_channel;
+    return aos_rpc_lmp_get_channel(&process_channel, cap_chan_process, "process");
 }
 
 /**
  * \brief Returns the channel to the serial console.
  */
-struct aos_rpc *
-aos_rpc_lmp_get_serial_channel(void)
+struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-    if (serial_channel == NULL) {
-        serial_channel = aos_rpc_lmp_setup_channel(cap_chan_serial, "serial");
-        if (serial_channel == NULL) {
-            debug_printf("aos_rpc_lmp_setup_channel() failed\n");
-            return NULL;
-        }
-    }
-    return serial_channel;
+    return aos_rpc_lmp_get_channel(&serial_channel, cap_chan_serial, "serial");
 }

@@ -194,7 +194,6 @@ void thread_mutex_lock_nested(struct thread_mutex *mutex)
         release_spinlock(&mutex->lock);
         disp_enable(handle);
     }
-
 }
 
 /**

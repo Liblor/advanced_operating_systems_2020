@@ -74,6 +74,8 @@
         return LIB_ERR_PAGING_SIZE_INVALID; \
     } \
 
+#define PAGING_SLAB_THRESHOLD (48)
+
 struct frame_mapping_pair {
     struct capref frame; ///< The frame capability used to back the memory of the mapping.
     struct capref mapping; ///< The mapping capability.
@@ -83,6 +85,7 @@ struct frame_mapping_pair {
 typedef int paging_flags_t;
 
 struct paging_region {
+    struct thread_mutex *mutex;
     paging_flags_t flags; ///< The flags with which new frames will be mapped.
     struct range_tracker rt; ///< For managing the second layer, i.e., the actual mappings.
     struct rtnode *node; ///< The node in the upper layer range tracker representing this paging region.
