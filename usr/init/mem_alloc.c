@@ -15,25 +15,23 @@ errval_t aos_ram_alloc_aligned(struct capref *ret, size_t size, size_t alignment
     return mm_alloc_aligned(&aos_mm, size, alignment, ret);
 }
 
-errval_t aos_ram_free(struct capref cap, size_t bytes)
+errval_t aos_ram_free(struct capref cap)
 {
     errval_t err;
-    struct frame_identity fi;
-    err = frame_identify(cap, &fi);
-    if (bytes > fi.bytes) {
-        bytes = fi.bytes;
+    
+   struct capability c;
+    err = cap_direct_identify(cap, &c);
+    if (err_is_fail(err)) {
+        return err;
     }
-    return mm_free(&aos_mm, cap, fi.base, bytes);
+
+    return mm_free(&aos_mm, cap, get_address(&c), get_size(&c));
 }
 
-/**
- * \brief Setups a local memory allocator for init to use till the memory server
- * is ready to be used. Inspects bootinfo for finding memory region.
- */
-errval_t initialize_ram_alloc(void)
+static inline errval_t initialize_ram_allocator(void)
 {
     errval_t err;
-
+    
     // Init slot allocator
     static struct slot_prealloc init_slot_alloc;
     struct capref cnode_cap = {
@@ -58,9 +56,25 @@ errval_t initialize_ram_alloc(void)
     }
 
     // Give aos_mm a bit of memory for the initialization
-    static char nodebuf[sizeof(struct mmnode)*64];
+    static uint8_t nodebuf[SLAB_STATIC_SIZE(64, sizeof(struct mmnode))];
     slab_grow(&aos_mm.slabs, nodebuf, sizeof(nodebuf));
 
+    return SYS_ERR_OK;
+}
+
+/**
+ * \brief Setups a local memory allocator for init to use till the memory server
+ * is ready to be used. Inspects bootinfo for finding memory region.
+ */
+errval_t initialize_ram_alloc(void)
+{
+    errval_t err;
+
+    err = initialize_ram_allocator();
+    if (err_is_fail(err)) {
+        return err;
+    }
+    
     // Walk bootinfo and add all RAM caps to allocator handed to us by the kernel
     uint64_t mem_avail = 0;
     struct capref mem_cap = {
@@ -75,14 +89,14 @@ errval_t initialize_ram_alloc(void)
                 mem_avail += bi->regions[i].mr_bytes;
             } else {
                 DEBUG_ERR(err, "Warning: adding RAM region %d (%p/%zu) FAILED", i, bi->regions[i].mr_base, bi->regions[i].mr_bytes);
-    }
+            }
 
-    err = slot_prealloc_refill(aos_mm.slot_alloc_inst);
-    if (err_is_fail(err) && err_no(err) != MM_ERR_SLOT_MM_ALLOC) {
-        DEBUG_ERR(err, "in slot_prealloc_refill() while initialising"
-                " memory allocator");
-        abort();
-    }
+            err = slot_prealloc_refill(aos_mm.slot_alloc_inst);
+            if (err_is_fail(err) && err_no(err) != MM_ERR_SLOT_MM_ALLOC) {
+                DEBUG_ERR(err, "in slot_prealloc_refill() while initialising"
+                        " memory allocator");
+                abort();
+            }
 
             mem_cap.slot++;
         }

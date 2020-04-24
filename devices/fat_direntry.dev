@@ -10,10 +10,20 @@
  * fat16_direntry.dev
  *
  * DESCRIPTION: FAT16 file system directory entry.
- * 
+ *
  */
 
 device fat_direntry msbfirst (addr b) "FAT 16 Directory Entry" {
+
+    constants attribute "directory entry attribute" {
+        attr_read_only   = 0x01 "read only";
+        attr_hidden      = 0x02 "hidden";
+        attr_system      = 0x04 "system";
+        attr_volume_id   = 0x08 "Volume ID";
+        attr_directory   = 0x10 "Directory";
+        attr_archive     = 0x20 "Archive";
+        attr_long_name   = 0x0f "Long name";
+    };
 
     regarray fn rw addr(b,0x00) [8] "Filename" type(uint8);
 

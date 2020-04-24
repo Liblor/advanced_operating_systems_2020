@@ -12,7 +12,7 @@
  * ETH Zurich D-INFK, Universitaetstrasse 6, CH-8092 Zurich. Attn: Systems Group.
  */
 
-#include <barrelfish/dispatch.h>
+#include <aos/dispatch.h>
 #include <asmoffsets.h>
 
 	.text

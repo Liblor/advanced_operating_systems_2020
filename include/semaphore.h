@@ -10,7 +10,7 @@
 #ifndef SEMAPHORE_H
 #define SEMAPHORE_H
 
-#include <barrelfish/thread_sync.h>
+#include <aos/thread_sync.h>
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS

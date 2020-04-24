@@ -610,6 +610,17 @@ struct dcb *spawn_bsp_init(const char *name)
     lpaddr_t init_alloc_end = bsp_alloc_phys(0);
     create_phys_caps(armv8_glbl_core_data->start_kernel_ram, init_alloc_end);
 
+    /* Cap for most of the memory mapped devices */
+    struct cte *iocap = caps_locate_slot(CNODE((&spawn_state)->taskcn), TASKCN_SLOT_DEV);
+    lpaddr_t start;
+    size_t size;
+    platform_get_dev_range(&start, &size);
+    if (start != 0) {
+        errval_t err;
+        err = caps_create_new(ObjType_DevFrame, start, size, size, 0, iocap);
+        assert(err_is_ok(err));
+    }
+ 
     /* Fill bootinfo struct */
     bootinfo->mem_spawn_core = KERNEL_IMAGE_SIZE; // Size of kernel
 

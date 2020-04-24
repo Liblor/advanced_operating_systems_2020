@@ -16,9 +16,9 @@
 
 #include <sys/lock.h>
 #include <assert.h>
-#include <barrelfish/barrelfish.h>
-#include <barrelfish/curdispatcher_arch.h>
-#include <barrelfish/threads.h>
+#include <aos/aos.h>
+#include <aos/curdispatcher_arch.h>
+#include <aos/threads.h>
 
 static void make_work_disabled(void)
 {

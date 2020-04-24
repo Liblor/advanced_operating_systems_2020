@@ -12,6 +12,10 @@
 
 [ build application { target = "init",
                       cFiles = [
+                        "distops/caplock.c",
+                        "distops/capqueue.c",
+                        "distops/deletestep.c",
+                        "distops/invocations.c",
                         "main.c",
                         "mem_alloc.c"
                       ],

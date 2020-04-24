@@ -85,7 +85,7 @@ Author: Ben Leslie
 #define _STDIO_FILE_H_
 
 #include <stdio.h>
-#include <barrelfish/barrelfish.h> /* for struct thread_mutex */
+#include <aos/aos.h> /* for struct thread_mutex */
 
 #define lock_stream(s) thread_mutex_lock_nested(&(s)->mutex)
 #define unlock_stream(s) thread_mutex_unlock(&(s)->mutex)

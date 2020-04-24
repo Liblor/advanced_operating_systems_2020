@@ -11,8 +11,8 @@
 #ifndef POSIXCOMPAT_H
 #define POSIXCOMPAT_H
 
-#include <barrelfish/caddr.h>
-#include <barrelfish/types.h>
+#include <aos/caddr.h>
+#include <aos/types.h>
 #include <errors/errno.h>
 
 #include <sys/cdefs.h>

@@ -72,7 +72,6 @@ static void armv8_set_registers(void *arch_load_info,
  */
 errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si,
                 domainid_t *pid) {
-
     // TODO: Implement me
     // - Initialize the spawn_info struct
     // - Get the module from the multiboot image
@@ -103,7 +102,6 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si,
  */
 errval_t spawn_load_by_name(char *binary_name, struct spawninfo * si,
                             domainid_t *pid) {
-
     // TODO: Implement me
     // - Get the mem_region from the multiboot image
     // - Fill in argc/argv from the multiboot command line

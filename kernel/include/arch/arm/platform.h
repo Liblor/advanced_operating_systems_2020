@@ -110,5 +110,11 @@ bool platform_is_timer_interrupt(uint32_t irq);
 */
 uint32_t platform_get_timer_interrupt(void);
 
+/**
+ * @brief Get memory range in which devices are present
+ * Should be normally a single range 
+ */
+
+void platform_get_dev_range(lpaddr_t* start, size_t* size);
 
 #endif // __ARM_PLATFORM_H__
