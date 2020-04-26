@@ -55,8 +55,7 @@ errval_t monitorserver_init(void
 )
 {
     errval_t err;
-
-    // TODO change cap to new monitor cap
+    
     err = rpc_lmp_server_init(&server, cap_chan_monitor, service_recv_cb, state_init_cb, state_free_cb, NULL);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
