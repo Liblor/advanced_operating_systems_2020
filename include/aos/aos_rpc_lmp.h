@@ -32,7 +32,7 @@ struct rpc_message {
 };
 
 struct aos_rpc_lmp {
-    void *shared;
+    struct lmp_chan chan;
 };
 
 enum pending_state {
