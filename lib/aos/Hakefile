@@ -24,6 +24,7 @@
                              "slot_alloc/range_slot_alloc.c",
                              "slot_alloc/twolevel_slot_alloc.c",
                              "aos_rpc.c",
+                             "aos_rpc_ump.c",
                              "aos_rpc_lmp.c",
                              "aos_rpc_lmp_marshal.c",
                              "capabilities.c",
