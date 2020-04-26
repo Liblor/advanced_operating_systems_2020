@@ -438,6 +438,16 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         return err_push(err, LIB_ERR_CAP_COPY);
     }
 
+    struct capref chan_monitor_child = {
+            .cnode = taskcn_child,
+            .slot = TASKCN_SLOT_CHAN_MONITOR,
+    };
+    err = cap_copy(chan_monitor_child, cap_chan_monitor);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+
     // Dispatcher capability.
     struct capref slot_dp = {
         .cnode = taskcn_child,
