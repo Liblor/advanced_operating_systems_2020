@@ -74,11 +74,12 @@ static bool aos_rpc_ump_can_receive(struct aos_rpc *rpc)
 {
     thread_mutex_lock_nested(&rpc->mutex);
 
-    // TODO: Check if the next message can be read.
+    struct ump_message *message = rpc->rx_shared_mem->slots[rpc->rx_slot_next];
+    bool can_receive = message->used;
 
     thread_mutex_unlock(&rpc->mutex);
 
-    return false;
+    return can_receive;
 }
 
 errval_t aos_rpc_ump_receive(struct aos_rpc *rpc, struct rpc_message *message)
