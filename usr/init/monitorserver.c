@@ -4,44 +4,38 @@
 
 #include <rpc/server/lmp.h>
 
-#include "initserver.h"
+#include "monitorserver.h"
 
 static struct rpc_lmp_server server;
 
-static recv_number_callback_t recv_number_cb = NULL;
-static recv_string_callback_t recv_string_cb = NULL;
-
 static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
 {
-    uintptr_t num;
-    size_t last_idx;
-
 	switch (msg->msg.method) {
     case Method_Send_Number:
-        memcpy(&num, msg->msg.payload, sizeof(uint64_t));
-
-        if (recv_number_cb != NULL) {
-            recv_number_cb(num);
-        }
+        break;
+    case Method_Get_Ram_Cap:
         break;
     case Method_Send_String:
-        // Make sure that the string is null-terminated
-        last_idx = msg->msg.payload_length - 1;
-        msg->msg.payload[last_idx] = '\0';
-
-        if (recv_number_cb != NULL) {
-            recv_string_cb(msg->msg.payload);
-        }
         break;
-    default:
+    case Method_Serial_Putchar:
         break;
+    case Method_Serial_Getchar:
+        break;
+    case Method_Process_Get_Name:
+        break;
+    case Method_Process_Get_All_Pids:
+        break;
+    case Method_Spawn_Process:
+        break;
+	default:
+	        debug_printf("monitor server: unknown msg->msg.method given: type: %d\n", msg->msg.method);
 	}
 }
 
 // Initialize channel-specific data.
 static void *state_init_cb(void *server_state)
 {
-    struct initserver_cb_state *state = NULL;
+    struct monitorserver_cb_state *state = NULL;
 
     return state;
 }
@@ -49,20 +43,17 @@ static void *state_init_cb(void *server_state)
 // Free channel-specific data.
 static void state_free_cb(void *server_state, void *callback_state)
 {
-    struct initserver_cb_state *state = callback_state;
+    struct monitorserver_cb_state *state = callback_state;
     free(state);
 }
 
-errval_t initserver_init(
-    recv_number_callback_t new_recv_number_cb,
-    recv_string_callback_t new_recv_string_cb
+errval_t monitorserver_init(void
 )
 {
     errval_t err;
 
-    recv_number_cb = new_recv_number_cb;
-    recv_string_cb = new_recv_string_cb;
 
+    // TODO change cap to new monitor cap
     err = rpc_lmp_server_init(&server, cap_chan_init, service_recv_cb, state_init_cb, state_free_cb, NULL);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
