@@ -51,9 +51,15 @@ aos_rpc_lmp_handler_print(char *string, uintptr_t *val, struct capref *cap)
 errval_t
 aos_rpc_lmp_init(struct aos_rpc *rpc)
 {
-    lmp_chan_init(&rpc->lmp.chan);
+    errval_t err;
 
-    thread_mutex_init(&rpc->mutex);
+    err = aos_rpc_init(rpc);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_init()\n");
+        return err;
+    }
+
+    lmp_chan_init(&rpc->lmp.chan);
 
     return SYS_ERR_OK;
 }

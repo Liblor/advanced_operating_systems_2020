@@ -17,6 +17,12 @@ errval_t aos_rpc_ump_init(
 
     assert(rpc != NULL);
 
+    err = aos_rpc_init(rpc);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_init() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
     void *tx_addr = NULL;
 
     err = paging_map_frame(
@@ -33,9 +39,10 @@ errval_t aos_rpc_ump_init(
     }
 
     assert(tx_addr != NULL);
-    memset(tx_addr, 0x00, BASE_PAGE_SIZE);
+    memset(tx_addr, 0x00, UMP_SHARED_FRAME_SIZE);
 
     rpc->ump.tx_shared_mem = tx_addr;
+    rpc->ump.tx_slot_next = 0;
 
     return SYS_ERR_OK;
 }
@@ -65,6 +72,7 @@ errval_t aos_rpc_ump_set_rx(
     }
 
     rpc->ump.rx_shared_mem = rx_vaddr;
+    rpc->ump.rx_slot_next = 0;
 
     return SYS_ERR_OK;
 }
@@ -177,9 +185,10 @@ errval_t aos_rpc_ump_receive(
         memcpy(((char *) (*message)->msg.payload) + bytes_received, read_from, to_copy);
         bytes_received += to_copy;
 
+        rpc->ump.rx_slot_next++;
+        rpc->ump.rx_slot_next %= UMP_RING_BUFFER_SLOTS;
+        ump_message->used = 0;
     } while (bytes_received < total_length);
-
-    thread_mutex_unlock(&rpc->mutex);
 
     err = SYS_ERR_OK;
 
@@ -304,10 +313,13 @@ errval_t aos_rpc_ump_send_message(
         memset(slot->data, 0, UMP_MESSAGE_DATA_SIZE);
         memcpy(slot->data, msg_base + size_sent, to_send);
 
+        debug_dump_mem(((lvaddr_t) slot->data), ((lvaddr_t) slot->data + UMP_MESSAGE_DATA_SIZE), (lvaddr_t)NULL);
+
         size_sent += to_send;
         first = false;
 
         rpc->ump.tx_slot_next++;
+        rpc->ump.tx_slot_next %= UMP_RING_BUFFER_SLOTS;
         slot->used = 1;
     }
 

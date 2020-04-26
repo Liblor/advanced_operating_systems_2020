@@ -3,7 +3,6 @@
 
 #include <aos/aos_rpc_types.h>
 
-#define UMP_SEGMENT_SIZE (sizeof(uintptr_t) * 4) // 4 words
 #define UMP_CACHE_LINE_WORDS (8)
 #define UMP_RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * UMP_CACHE_LINE_WORDS)))
 #define UMP_MESSAGE_DATA_WORDS (LMP_MSG_LENGTH)

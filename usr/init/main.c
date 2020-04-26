@@ -196,6 +196,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
+    /*
     // TODO: Discuss about aos_rpc_init, as it is unused
     err = master_urpc_init();
     if (err_is_fail(err)) {
@@ -220,6 +221,7 @@ static int bsp_main(int argc, char *argv[])
         debug_printf("urpc_send_boot_info failed: %s\n", err_getstring(err));
         abort();
     }
+    */
 
     // Grading
     grading_test_late();
@@ -252,7 +254,7 @@ static int bsp_main(int argc, char *argv[])
         assert(err_is_ok(err));
         assert(msg_recv == NULL);
 
-        char payload[] = "abc123";
+        char payload[] = "012345678901234501234567";
         struct rpc_message *msg_send = malloc(sizeof(struct rpc_message) + sizeof(payload));
         assert(msg_send != NULL);
         msg_send->msg.payload_length = sizeof(payload);
@@ -270,7 +272,8 @@ static int bsp_main(int argc, char *argv[])
         assert(msg_recv->msg.payload_length == sizeof(payload));
         assert(msg_recv->msg.status == Status_Ok);
         assert(msg_recv->msg.method == Method_Send_Number);
-        assert(strcmp(msg_recv->msg.payload, payload));
+        debug_printf("payload='%s'\n", msg_recv->msg.payload);
+        assert(strcmp(msg_recv->msg.payload, payload) == 0);
         debug_printf("done\n");
 
         /*
