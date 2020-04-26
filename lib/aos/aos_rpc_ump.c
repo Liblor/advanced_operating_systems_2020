@@ -200,17 +200,20 @@ errval_t aos_rpc_ump_receive_non_block(
     bool can_receive = aos_rpc_ump_can_receive(rpc);
 
     if (!can_receive) {
-        return SYS_ERR_OK;
+        goto cleanup;
     }
 
     err = aos_rpc_ump_receive(rpc, message);
     if (err_is_fail(err)) {
-        return err;
+        goto cleanup;
     }
 
+    err = SYS_ERR_OK;
+
+cleanup:
     thread_mutex_unlock(&rpc->mutex);
 
-    return SYS_ERR_OK;
+    return err;
 }
 
 errval_t aos_rpc_ump_send_and_wait_recv(
