@@ -6,6 +6,8 @@
 
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 
+//#define ENABLE_LMP_MONITOR_CHAN
+
 enum rpc_message_status {
     Status_Ok = 0,
     Spawn_Failed = 1,
