@@ -10,10 +10,12 @@ typedef errval_t (*validate_recv_msg_t )(struct ump_recv_msg *msg, enum pending_
 #define CACHE_LINE_WORDS (8)
 #define RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * CACHE_LINE_WORDS))
 
-
 // Represents one slot in the ring buffer. One slot fits exactly into a cache line.
 struct ump_message {
-    uintptr_t data[CACHE_LINE_WORDS - 1];
+    uintptr_t data[LMP_MSG_LENGTH];
+    uintptr_t cap_base;
+    uintptr_t cap_size;
+    uintptr_t padding[CACHE_LINE_WORDS - 3 - LMP_MSG_LENGTH];
     uintptr_t used; ///< Last word in cache line indicates whether the slot is currently occupied by data
 }
 
