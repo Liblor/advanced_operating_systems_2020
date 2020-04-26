@@ -302,6 +302,12 @@ static int app_main(int argc, char *argv[])
         abort();
     }
 
+    err = monitorserver_init();
+    if (err_is_fail(err)) {
+        debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     urpc_slave_spawn_process = app_urpc_slave_spawn;
 
     err = urpc_slave_init();
