@@ -63,7 +63,9 @@ errval_t aos_rpc_ump_set_rx(
     return SYS_ERR_OK;
 }
 
-static bool aos_rpc_ump_can_receive(struct aos_rpc *rpc)
+static bool aos_rpc_ump_can_receive(
+    struct aos_rpc *rpc
+)
 {
     thread_mutex_lock_nested(&rpc->mutex);
 
@@ -75,7 +77,38 @@ static bool aos_rpc_ump_can_receive(struct aos_rpc *rpc)
     return can_receive;
 }
 
-errval_t aos_rpc_ump_receive(struct aos_rpc *rpc, struct rpc_message *message)
+static errval_t aos_rpc_ump_forge_capability(
+    const genpaddr_t base,
+    const gensize_t size,
+    struct capref *cap
+)
+{
+    errval_t err;
+
+    err = slot_alloc(cap);
+    if (err_is_fail(err)) {
+        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_SLOT_ALLOC);
+    }
+
+    err = frame_forge(
+        *cap,
+        base,
+        ROUND_UP(size, BASE_PAGE_SIZE),
+        disp_get_core_id()
+    );
+    if (err_is_fail(err)) {
+        debug_printf("frame_forge() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
+errval_t aos_rpc_ump_receive(
+    struct aos_rpc *rpc,
+    struct rpc_message *message
+)
 {
     errval_t err;
 
@@ -118,7 +151,12 @@ errval_t aos_rpc_ump_receive(struct aos_rpc *rpc, struct rpc_message *message)
             message->msg.status = msg_part->status;
             message->msg.payload_length = msg_part->payload_length;
 
-            // TODO: Forge capability.
+            const genpaddr_t base = ump_message->cap_base;
+            const gensize_t size = ump_message->cap_size;
+
+            if (size > 0) {
+                aos_rpc_ump_forge_capability(base, size, &message->cap);
+            }
 
             is_initialized = true;
         }
@@ -139,7 +177,10 @@ cleanup:
     return err;
 }
 
-errval_t aos_rpc_ump_receive_non_block(struct aos_rpc *rpc, struct rpc_message *message)
+errval_t aos_rpc_ump_receive_non_block(
+    struct aos_rpc *rpc,
+    struct rpc_message *message
+)
 {
     errval_t err;
 
