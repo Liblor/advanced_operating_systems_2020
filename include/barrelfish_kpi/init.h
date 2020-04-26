@@ -114,7 +114,8 @@
 #define TASKCN_SLOT_CHAN_MEMORY  22  ///< Cap to the endpoint of the memory server
 #define TASKCN_SLOT_CHAN_SERIAL  23  ///< Cap to the endpoint of the serial server
 #define TASKCN_SLOT_CHAN_PROCESS 24  ///< Cap to the endpoint of the spawn server
-#define TASKCN_SLOTS_USER        25  ///< First free slot in taskcn for user
+#define TASKCN_SLOT_CHAN_MONITOR 25  ///< Cap to the endpoint of the monitor server
+#define TASKCN_SLOTS_USER        26  ///< First free slot in taskcn for user
 
 /* Page CNode */
 #define PAGECN_SLOT_VROOT       0 ///< First slot of page cnode is root page table
