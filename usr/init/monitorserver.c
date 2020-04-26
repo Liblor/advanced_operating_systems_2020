@@ -12,21 +12,24 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
 {
 	switch (msg->msg.method) {
     case Method_Get_Ram_Cap:
+        // TODO: forward msg to mem server via urpc
         break;
 
     case Method_Send_Number:
     case Method_Send_String:
+        // TODO: forward msg to init server via urpc
         break;
 
     case Method_Serial_Putchar:
     case Method_Serial_Getchar:
+        // TODO: forward msg to serial server via urpc
         break;
 
     case Method_Process_Get_Name:
     case Method_Process_Get_All_Pids:
     case Method_Spawn_Process:
+        // TODO: forward msg to process server via urpc
         break;
-
 
 	default:
 	        debug_printf("monitor server: unknown msg->msg.method given: type: %d\n", msg->msg.method);
@@ -52,8 +55,7 @@ errval_t monitorserver_init(void
 )
 {
     errval_t err;
-
-
+    
     // TODO change cap to new monitor cap
     err = rpc_lmp_server_init(&server, cap_chan_init, service_recv_cb, state_init_cb, state_free_cb, NULL);
     if (err_is_fail(err)) {
