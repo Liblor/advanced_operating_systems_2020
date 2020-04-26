@@ -35,6 +35,7 @@
 #include "processserver.h"
 #include "test.h"
 #include "aos/urpc.h"
+#include "monitorserver.h"
 
 struct bootinfo *bi;
 
@@ -192,6 +193,12 @@ static int bsp_main(int argc, char *argv[])
     err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
     if (err_is_fail(err)) {
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = monitorserver_init();
+    if (err_is_fail(err)) {
+        debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
 

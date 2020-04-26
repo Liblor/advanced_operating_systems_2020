@@ -11,22 +11,23 @@ static struct rpc_lmp_server server;
 static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
 {
 	switch (msg->msg.method) {
-    case Method_Send_Number:
-        break;
     case Method_Get_Ram_Cap:
         break;
+
+    case Method_Send_Number:
     case Method_Send_String:
         break;
+
     case Method_Serial_Putchar:
-        break;
     case Method_Serial_Getchar:
         break;
+
     case Method_Process_Get_Name:
-        break;
     case Method_Process_Get_All_Pids:
-        break;
     case Method_Spawn_Process:
         break;
+
+
 	default:
 	        debug_printf("monitor server: unknown msg->msg.method given: type: %d\n", msg->msg.method);
 	}
