@@ -77,15 +77,66 @@ static bool aos_rpc_ump_can_receive(struct aos_rpc *rpc)
 
 errval_t aos_rpc_ump_receive(struct aos_rpc *rpc, struct rpc_message *message)
 {
+    errval_t err;
+
     assert(message != NULL);
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    // TODO: Rececive a full struct rpc_message.
+    bool is_initialized = false;
+
+    uint64_t total_length = 0;
+    uint64_t bytes_received = 0;
+
+    do {
+        struct ump_message *ump_message = rpc->rx_shared_mem->slots[rpc->rx_slot_next];
+
+        // Block until we can receive a message.
+        while (!ump_message->used) {
+            thread_yield();
+        }
+
+        struct rpc_message_part *msg_part = (struct rpc_message_part *) ump_message.data;
+
+        size_t max_copy = UMP_MESSAGE_DATA_SIZE;
+        char *read_from = msg_part;
+
+        if (!is_initialized) {
+            total_length = msg_part->payload_length;
+            bytes_received = 0;
+
+            max_copy -= sizeof(struct rpc_message_part);
+            read_from += sizeof(struct rpc_message_part);
+
+            message = malloc(sizeof(struct rpc_message) + total_length);
+            if (message == NULL) {
+                err = LIB_ERR_MALLOC_FAIL;
+                goto cleanup;
+            }
+
+            message->msg.method = msg_part->method;
+            message->msg.status = msg_part->status;
+            message->msg.payload_length = msg_part->payload_length;
+
+            // TODO: Forge capability.
+
+            is_initialized = true;
+        }
+
+        const uint64_t to_copy = MIN(max_copy, total_length - bytes_received);
+        memcpy(((char *) message->msg.payload) + bytes_received, read_from, to_copy);
+        bytes_received += to_copy;
+
+    } while (bytes_received < total_length);
 
     thread_mutex_unlock(&rpc->mutex);
 
-    return SYS_ERR_OK;
+    err = SYS_ERR_OK;
+
+cleanup:
+    thread_mutex_unlock(&rpc->mutex);
+
+    return err;
 }
 
 errval_t aos_rpc_ump_receive_non_block(struct aos_rpc *rpc, struct rpc_message *message)
