@@ -132,4 +132,65 @@ errval_t aos_rpc_ump_send_message(
     struct rpc_message *msg
 )
 {
+    errval_t err;
+
+    assert(rpc != NULL);
+    assert(msg != NULL);
+
+    uint64_t cap_base = 0;
+    uint64_t cap_size = 0;
+
+    if (!capref_is_null(msg->cap)) {
+        struct frame_identity fi;
+
+        err = frame_identify(msg->cap, &fi);
+        if (err_is_fail(err)) {
+            debug_printf("frame_identify() failed: %s\n", err_getstring(err));
+            return err;
+        }
+
+        cap_base = fi.base;
+        cap_size = fi.bytes;
+    }
+
+    struct ump_shared_mem *shared_mem = rpc->ump.tx_shared_mem;
+
+    const uint8_t *msg_base = (uint8_t *) &msg->msg;
+    const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;
+    bool first = true;
+
+    thread_mutex_lock_nested(&rpc->mutex);
+
+    // TODO Use barriers
+    while (size_sent < msg_size) {
+        uint64_t to_send = MIN(UMP_MESSAGE_DATA_SIZE, msg_size - size_sent);
+        uint64_t tx_slot = rpc->ump.tx_slot_next;
+        struct ump_message *slot = &shared_mem->slots[tx_slot];
+
+        // Wait until the next tx slot is free
+        while(slot->used == 1) {
+            thread_yield();
+        }
+
+        if (first) {
+            slot->cap_base = cap_base;
+            slot->cap_size = cap_size;
+        } else {
+            slot->cap_base = 0;
+            slot->cap_size = 0;
+        }
+
+        memset(slot->data, 0, UMP_MESSAGE_DATA_SIZE);
+        memcpy(slot->data, msg_base + size_sent, to_send);
+
+        size_sent += to_send;
+        first = false;
+
+        rpc->ump.tx_slot_next++;
+        slot->used = 1;
+    }
+
+    thread_mutex_unlock(&rpc->mutex);
+
+    return SYS_ERR_OK;
 }
