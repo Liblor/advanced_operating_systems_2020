@@ -5,19 +5,12 @@
 
 errval_t aos_rpc_ump_init(
     struct aos_rpc *rpc,
-    struct capref *tx_cap
+    struct capref tx_cap
 )
 {
     errval_t err;
 
     assert(rpc != NULL);
-    assert(tx_cap != NULL);
-
-    err = frame_alloc(tx_cap, BASE_PAGE_SIZE, NULL);
-    if (err_is_fail(err)) {
-        debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_FRAME_CREATE);
-    }
 
     void *tx_addr = NULL;
 
@@ -25,7 +18,7 @@ errval_t aos_rpc_ump_init(
         get_current_paging_state(),
         &tx_addr,
         BASE_PAGE_SIZE,
-        *tx_cap,
+        tx_cap,
         NULL,
         NULL
     );

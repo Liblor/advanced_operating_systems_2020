@@ -48,7 +48,7 @@ struct client_response_state {
 
 errval_t aos_rpc_ump_init(
     struct aos_rpc *rpc,
-    struct capref *tx_cap
+    struct capref tx_cap
 );
 
 errval_t aos_rpc_ump_set_rx(
