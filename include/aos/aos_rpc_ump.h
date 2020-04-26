@@ -7,21 +7,23 @@
 typedef errval_t (*validate_recv_msg_t )(struct ump_recv_msg *msg, enum pending_state state);
 
 #define UMP_SEGMENT_SIZE (sizeof(uintptr_t) * 4) // 4 words
-#define CACHE_LINE_WORDS (8)
-#define RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * CACHE_LINE_WORDS))
+#define UMP_CACHE_LINE_WORDS (8)
+#define UMP_RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * UMP_CACHE_LINE_WORDS))
+#define UMP_MESSAGE_DATA_WORDS (LMP_MSG_LENGTH)
+#define UMP_MESSAGE_DATA_SIZE (UMP_MESSAGE_DATA_WORDS * sizeof(uintptr_t))
 
 // Represents one slot in the ring buffer. One slot fits exactly into a cache line.
 struct ump_message {
-    uintptr_t data[LMP_MSG_LENGTH];
+    uintptr_t data[UMP_MESSAGE_DATA_WORDS];
     uintptr_t cap_base;
     uintptr_t cap_size;
-    uintptr_t padding[CACHE_LINE_WORDS - 3 - LMP_MSG_LENGTH];
+    uintptr_t padding[UMP_CACHE_LINE_WORDS - 3 - UMP_MESSAGE_DATA_WORDS];
     uintptr_t used; ///< Last word in cache line indicates whether the slot is currently occupied by data
 }
 
 struct ump_shared_mem {
     // TODO Is this volatile correct?
-    volatile struct ump_message slots[RING_BUFFER_SLOTS];
+    volatile struct ump_message slots[UMP_RING_BUFFER_SLOTS];
 };
 
 struct aos_rpc_ump {
