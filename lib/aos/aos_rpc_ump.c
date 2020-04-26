@@ -3,6 +3,10 @@
 #include <aos/aos_rpc_ump_marshal.h>
 #include <aos/debug.h>
 
+/*
+ * Note that this is only half the initialization. You need to call
+ * aos_rpc_ump_set_rx() afterwards to set the receiving side.
+ */
 errval_t aos_rpc_ump_init(
     struct aos_rpc *rpc,
     struct capref tx_cap
@@ -69,8 +73,8 @@ static bool aos_rpc_ump_can_receive(
 {
     thread_mutex_lock_nested(&rpc->mutex);
 
-    struct ump_message *message = rpc->rx_shared_mem->slots[rpc->rx_slot_next];
-    bool can_receive = message->used;
+    struct ump_message *ump_message = rpc->rx_shared_mem->slots[rpc->rx_slot_next];
+    bool can_receive = ump_message->used;
 
     thread_mutex_unlock(&rpc->mutex);
 
@@ -85,10 +89,12 @@ static errval_t aos_rpc_ump_forge_capability(
 {
     errval_t err;
 
-    err = slot_alloc(cap);
-    if (err_is_fail(err)) {
-        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_SLOT_ALLOC);
+    if (capref_is_null(*cap)) {
+        err = slot_alloc(cap);
+        if (err_is_fail(err)) {
+            debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
+            return err_push(err, LIB_ERR_SLOT_ALLOC);
+        }
     }
 
     err = frame_forge(
@@ -107,7 +113,8 @@ static errval_t aos_rpc_ump_forge_capability(
 
 errval_t aos_rpc_ump_receive(
     struct aos_rpc *rpc,
-    struct rpc_message *message
+    struct rpc_message **message,
+    struct capref *cap
 )
 {
     errval_t err;
@@ -141,28 +148,30 @@ errval_t aos_rpc_ump_receive(
             max_copy -= sizeof(struct rpc_message_part);
             read_from += sizeof(struct rpc_message_part);
 
-            message = malloc(sizeof(struct rpc_message) + total_length);
-            if (message == NULL) {
+            if (*message == NULL) {
+                *message = malloc(sizeof(struct rpc_message) + total_length);
+            }
+            if (*message == NULL) {
                 err = LIB_ERR_MALLOC_FAIL;
                 goto cleanup;
             }
 
-            message->msg.method = msg_part->method;
-            message->msg.status = msg_part->status;
-            message->msg.payload_length = msg_part->payload_length;
+            (*message)->msg.method = msg_part->method;
+            (*message)->msg.status = msg_part->status;
+            (*message)->msg.payload_length = msg_part->payload_length;
 
             const genpaddr_t base = ump_message->cap_base;
             const gensize_t size = ump_message->cap_size;
 
             if (size > 0) {
-                aos_rpc_ump_forge_capability(base, size, &message->cap);
+                aos_rpc_ump_forge_capability(base, size, &(*message)->cap);
             }
 
             is_initialized = true;
         }
 
         const uint64_t to_copy = MIN(max_copy, total_length - bytes_received);
-        memcpy(((char *) message->msg.payload) + bytes_received, read_from, to_copy);
+        memcpy(((char *) (*message)->msg.payload) + bytes_received, read_from, to_copy);
         bytes_received += to_copy;
 
     } while (bytes_received < total_length);
@@ -179,7 +188,7 @@ cleanup:
 
 errval_t aos_rpc_ump_receive_non_block(
     struct aos_rpc *rpc,
-    struct rpc_message *message
+    struct rpc_message **message
 )
 {
     errval_t err;
