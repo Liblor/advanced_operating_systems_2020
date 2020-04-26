@@ -216,10 +216,26 @@ errval_t aos_rpc_ump_receive_non_block(
 errval_t aos_rpc_ump_send_and_wait_recv(
     struct aos_rpc *rpc,
     struct rpc_message *send,
-    struct rpc_message **recv,
-    validate_recv_msg_t validate_cb
+    struct rpc_message **recv
 )
 {
+    errval_t err;
+
+    // TODO Do we need to lock the mutex here?
+
+    // Send message
+    err = aos_rpc_ump_send_message(rpc, send);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    // Wait for response and read response
+    err = aos_rpc_ump_receive(rpc, recv);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_receive() failed: %s\n", err_getstring(err));
+        return err;
+    }
 }
 
 errval_t aos_rpc_ump_send_message(
