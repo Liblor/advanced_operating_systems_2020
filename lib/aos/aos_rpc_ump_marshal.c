@@ -3,10 +3,49 @@
 #include <aos/aos_rpc_ump_marshal.h>
 #include <aos/debug.h>
 
-errval_t aos_rpc_ump_init(struct aos_rpc *rpc, struct capref frame_cap)
+errval_t aos_rpc_ump_init(struct aos_rpc *rpc, struct capref tx_frame_cap, struct capref rx_frame_cap)
 {
-    // TODO Map frame
-    // TODO Write mapped address into aos_rpc
+    assert(rpc != NULL);
+
+    struct paging_state *state = get_current_paging_state();
+    assert(state != NULL);
+
+    void *tx_vaddr;
+
+    err = paging_map_frame(
+        state,
+        &tx_vaddr,
+        BASE_PAGE_SIZE,
+        tx_frame_cap,
+        NULL,
+        NULL
+    );
+    if (err_is_fail(err)) {
+        debug_printf("paging_map_frame() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
+    }
+
+    void *rx_vaddr;
+
+    err = paging_map_frame(
+        state,
+        &rx_vaddr,
+        BASE_PAGE_SIZE,
+        rx_frame_cap,
+        NULL,
+        NULL
+    );
+    if (err_is_fail(err)) {
+        // TODO: Unmap tx_frame_cap.
+        debug_printf("paging_map_frame() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
+    }
+
+    // Write mapped addresses into struct aos_rpc.
+    rpc->ump.tx_shared_mem = tx_vaddr;
+    rpc->ump.rx_shared_mem = rx_vaddr;
+
+    return SYS_ERR_OK;
 }
 
 errval_t aos_rpc_ump_poll(struct aos_rpc *rpc)
