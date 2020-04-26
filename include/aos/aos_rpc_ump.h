@@ -3,9 +3,6 @@
 
 #include <aos/aos_rpc.h>
 
-/// Callback to validate incoming server response
-typedef errval_t (*validate_recv_msg_t )(struct ump_recv_msg *msg, enum pending_state state);
-
 #define UMP_SEGMENT_SIZE (sizeof(uintptr_t) * 4) // 4 words
 #define UMP_CACHE_LINE_WORDS (8)
 #define UMP_RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * UMP_CACHE_LINE_WORDS))
@@ -34,18 +31,6 @@ struct aos_rpc_ump {
     uint64_t rx_slot_next; ///< Next slot to read from
 }
 
-/// rpc/ump response state to track and buffer transmission
-struct client_response_state {
-    struct aos_rpc *rpc;                       ///< common rpc struct
-    struct waitset ws;                         ///< waitset used to wait for receive msgs
-    errval_t err;                              ///< error to communicate error in receive callback
-    uint32_t bytes_received;                   ///< How much was read from the client already.
-    uint32_t total_length;                     ///< total bytes to transmit
-    enum pending_state pending_state;          ///< transmission state
-    validate_recv_msg_t validate_recv_msg;     ///< callback to verify response
-    struct rpc_message *message;               ///< response to build/buffer
-};
-
 errval_t aos_rpc_ump_init(
     struct aos_rpc *rpc,
     struct capref tx_cap
@@ -56,25 +41,26 @@ errval_t aos_rpc_ump_set_rx(
     struct capref rx_frame_cap
 );
 
-errval_t aos_rpc_ump_send_and_wait_recv_one_no_alloc(
+errval_t aos_rpc_ump_receive(
     struct aos_rpc *rpc,
-    struct rpc_message *send,
-    struct rpc_message *recv,
-    validate_recv_msg_t validate_cb,
-    struct capref cap
+    struct rpc_message **message,
+    struct capref *cap
 );
 
-/**
- * \brief Marshall rpc_message and wait for a response
- */
-errval_t
-aos_rpc_ump_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
-                               struct rpc_message **recv, validate_recv_msg_t validate_cb);
+errval_t aos_rpc_ump_receive_non_block(
+    struct aos_rpc *rpc,
+    struct rpc_message **message
+);
 
-/**
- * \brief Marshall rpc_message and send with UMP
- */
-errval_t
-aos_rpc_ump_send_message(struct aos_rpc *rpc, struct rpc_message *msg, ump_send_flags_t flags);
+errval_t aos_rpc_ump_send_and_wait_recv(
+    struct aos_rpc *rpc,
+    struct rpc_message *send,
+    struct rpc_message **recv
+);
+
+errval_t aos_rpc_ump_send_message(
+    struct aos_rpc *rpc,
+    struct rpc_message *msg
+);
 
 #endif
