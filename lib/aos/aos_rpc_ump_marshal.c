@@ -70,26 +70,52 @@ errval_t aos_rpc_ump_set_rx(
     return SYS_ERR_OK;
 }
 
-errval_t aos_rpc_ump_poll(struct aos_rpc *rpc)
+static bool aos_rpc_ump_can_receive(struct aos_rpc *rpc)
 {
     thread_mutex_lock_nested(&rpc->mutex);
-    // TODO Check status
-    switch (rpc->ump.shared_mem->status == ) {
-    case UmpEmpty:
-        break;
-    case UmpNewMessage:
-        // TODO Receive new message
-        break;
-    case UmpNewSegment:
-        // TODO Error
-        break;
-    default:
-        break;
-    }
-    // TODO If new message, start receiving segments
-    // TODO Call callback once entire message has been received
+
+    // TODO: Check if the next message can be read.
 
     thread_mutex_unlock(&rpc->mutex);
+
+    return false;
+}
+
+errval_t aos_rpc_ump_receive(struct aos_rpc *rpc, struct rpc_message *message)
+{
+    assert(message != NULL);
+
+    thread_mutex_lock_nested(&rpc->mutex);
+
+    // TODO: Rececive a full struct rpc_message.
+
+    thread_mutex_unlock(&rpc->mutex);
+
+    return SYS_ERR_OK;
+}
+
+errval_t aos_rpc_ump_receive_non_block(struct aos_rpc *rpc, struct rpc_message *message)
+{
+    errval_t err;
+
+    assert(message != NULL);
+
+    thread_mutex_lock_nested(&rpc->mutex);
+
+    bool can_receive = aos_rpc_ump_can_receive(rpc);
+
+    if (!can_receive) {
+        return SYS_ERR_OK;
+    }
+
+    err = aos_rpc_ump_receive(rpc, message);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    thread_mutex_unlock(&rpc->mutex);
+
+    return SYS_ERR_OK;
 }
 
 errval_t aos_rpc_ump_send_and_wait_recv(
