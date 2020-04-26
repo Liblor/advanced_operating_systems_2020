@@ -1,11 +1,11 @@
 #ifndef _LIB_RPC_RPC_UMP_CLIENT_H_
 #define _LIB_RPC_RPC_UMP_CLIENT_H_
 
-#include <aos/aos_rpc.h>
+#include <aos/aos_rpc_types.h>
 
 #define UMP_SEGMENT_SIZE (sizeof(uintptr_t) * 4) // 4 words
 #define UMP_CACHE_LINE_WORDS (8)
-#define UMP_RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * UMP_CACHE_LINE_WORDS))
+#define UMP_RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * UMP_CACHE_LINE_WORDS)))
 #define UMP_MESSAGE_DATA_WORDS (LMP_MSG_LENGTH)
 #define UMP_MESSAGE_DATA_SIZE (UMP_MESSAGE_DATA_WORDS * sizeof(uintptr_t))
 
@@ -15,13 +15,15 @@ struct ump_message {
     uintptr_t cap_base;
     uintptr_t cap_size;
     uintptr_t padding[UMP_CACHE_LINE_WORDS - 3 - UMP_MESSAGE_DATA_WORDS];
-    uintptr_t used; ///< Last word in cache line indicates whether the slot is currently occupied by data
-}
+    volatile uintptr_t used; ///< Last word in cache line indicates whether the slot is currently occupied by data
+};
 
 struct ump_shared_mem {
     // TODO Is this volatile correct?
-    volatile struct ump_message slots[UMP_RING_BUFFER_SLOTS];
+    struct ump_message slots[UMP_RING_BUFFER_SLOTS];
 };
+
+#define UMP_SHARED_FRAME_SIZE (sizeof(struct ump_shared_mem))
 
 struct aos_rpc_ump {
     struct ump_shared_mem *tx_shared_mem; ///< Shared memory region to send
@@ -29,7 +31,7 @@ struct aos_rpc_ump {
 
     struct ump_shared_mem *rx_shared_mem; ///< Shared memory region to receive
     uint64_t rx_slot_next; ///< Next slot to read from
-}
+};
 
 errval_t aos_rpc_ump_init(
     struct aos_rpc *rpc,
@@ -43,8 +45,7 @@ errval_t aos_rpc_ump_set_rx(
 
 errval_t aos_rpc_ump_receive(
     struct aos_rpc *rpc,
-    struct rpc_message **message,
-    struct capref *cap
+    struct rpc_message **message
 );
 
 errval_t aos_rpc_ump_receive_non_block(

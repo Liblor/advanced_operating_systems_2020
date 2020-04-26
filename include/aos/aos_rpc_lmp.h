@@ -2,7 +2,7 @@
 #define _LIB_BARRELFISH_AOS_LMP_H
 
 #include <aos/aos.h>
-#include <aos/aos_rpc.h>
+#include <aos/aos_rpc_types.h>
 
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 

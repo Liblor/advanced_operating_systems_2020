@@ -1,7 +1,8 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
-#include <aos/aos_rpc_ump_marshal.h>
+#include <aos/aos_rpc_ump.h>
 #include <aos/debug.h>
+#include <aos/kernel_cap_invocations.h>
 
 /*
  * Note that this is only half the initialization. You need to call
@@ -9,7 +10,7 @@
  */
 errval_t aos_rpc_ump_init(
     struct aos_rpc *rpc,
-    struct capref tx_cap
+    struct capref tx_frame_cap
 )
 {
     errval_t err;
@@ -21,8 +22,8 @@ errval_t aos_rpc_ump_init(
     err = paging_map_frame(
         get_current_paging_state(),
         &tx_addr,
-        BASE_PAGE_SIZE,
-        tx_cap,
+        UMP_SHARED_FRAME_SIZE,
+        tx_frame_cap,
         NULL,
         NULL
     );
@@ -31,7 +32,8 @@ errval_t aos_rpc_ump_init(
         return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
     }
 
-    memset(*tx_addr, 0x00, BASE_PAGE_SIZE);
+    assert(tx_addr != NULL);
+    memset(tx_addr, 0x00, BASE_PAGE_SIZE);
 
     rpc->ump.tx_shared_mem = tx_addr;
 
@@ -52,7 +54,7 @@ errval_t aos_rpc_ump_set_rx(
     err = paging_map_frame(
         get_current_paging_state(),
         &rx_vaddr,
-        BASE_PAGE_SIZE,
+        UMP_SHARED_FRAME_SIZE,
         rx_frame_cap,
         NULL,
         NULL
@@ -71,9 +73,11 @@ static bool aos_rpc_ump_can_receive(
     struct aos_rpc *rpc
 )
 {
+    assert(rpc != NULL);
+
     thread_mutex_lock_nested(&rpc->mutex);
 
-    struct ump_message *ump_message = rpc->rx_shared_mem->slots[rpc->rx_slot_next];
+    struct ump_message *ump_message = &rpc->ump.rx_shared_mem->slots[rpc->ump.rx_slot_next];
     bool can_receive = ump_message->used;
 
     thread_mutex_unlock(&rpc->mutex);
@@ -113,8 +117,7 @@ static errval_t aos_rpc_ump_forge_capability(
 
 errval_t aos_rpc_ump_receive(
     struct aos_rpc *rpc,
-    struct rpc_message **message,
-    struct capref *cap
+    struct rpc_message **message
 )
 {
     errval_t err;
@@ -129,17 +132,17 @@ errval_t aos_rpc_ump_receive(
     uint64_t bytes_received = 0;
 
     do {
-        struct ump_message *ump_message = rpc->rx_shared_mem->slots[rpc->rx_slot_next];
+        struct ump_message *ump_message = &rpc->ump.rx_shared_mem->slots[rpc->ump.rx_slot_next];
 
         // Block until we can receive a message.
         while (!ump_message->used) {
             thread_yield();
         }
 
-        struct rpc_message_part *msg_part = (struct rpc_message_part *) ump_message.data;
+        struct rpc_message_part *msg_part = (struct rpc_message_part *) ump_message->data;
 
         size_t max_copy = UMP_MESSAGE_DATA_SIZE;
-        char *read_from = msg_part;
+        char *read_from = (char *) msg_part;
 
         if (!is_initialized) {
             total_length = msg_part->payload_length;
@@ -149,7 +152,7 @@ errval_t aos_rpc_ump_receive(
             read_from += sizeof(struct rpc_message_part);
 
             if (*message == NULL) {
-                *message = malloc(sizeof(struct rpc_message) + total_length);
+                *message = calloc(1, sizeof(struct rpc_message) + total_length);
             }
             if (*message == NULL) {
                 err = LIB_ERR_MALLOC_FAIL;
@@ -200,6 +203,7 @@ errval_t aos_rpc_ump_receive_non_block(
     bool can_receive = aos_rpc_ump_can_receive(rpc);
 
     if (!can_receive) {
+        err = SYS_ERR_OK;
         goto cleanup;
     }
 
@@ -239,6 +243,8 @@ errval_t aos_rpc_ump_send_and_wait_recv(
         debug_printf("aos_rpc_ump_receive() failed: %s\n", err_getstring(err));
         return err;
     }
+
+    return SYS_ERR_OK;
 }
 
 errval_t aos_rpc_ump_send_message(
@@ -272,6 +278,7 @@ errval_t aos_rpc_ump_send_message(
     const uint8_t *msg_base = (uint8_t *) &msg->msg;
     const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;
     bool first = true;
+    uint64_t size_sent = 0;
 
     thread_mutex_lock_nested(&rpc->mutex);
 
