@@ -6,34 +6,28 @@
 /// Callback to validate incoming server response
 typedef errval_t (*validate_recv_msg_t )(struct ump_recv_msg *msg, enum pending_state state);
 
-enum ump_status {
-    UmpEmpty,
-    UmpNewMessage,
-    UmpNewSegment,
-};
+#define UMP_SEGMENT_SIZE (sizeof(uintptr_t) * 4) // 4 words
+#define CACHE_LINE_WORDS (8)
+#define RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * CACHE_LINE_WORDS))
 
-enum ump_msg_type {
-    BootInfo,
-    SpawnRequest,
-    SpawnResponse
-};
 
-struct frame_cap_info {
-    uint64_t base;
-    uint64_t size;
+// Represents one slot in the ring buffer. One slot fits exactly into a cache line.
+struct ump_message {
+    uintptr_t data[CACHE_LINE_WORDS - 1];
+    uintptr_t used; ///< Last word in cache line indicates whether the slot is currently occupied by data
 }
 
 struct ump_shared_mem {
-    enum ump_status status;
-
-    union {
-        struct frame_cap_info forge_info;
-        uintptr_t words[4];
-    };
+    // TODO Is this volatile correct?
+    volatile struct ump_message slots[RING_BUFFER_SLOTS];
 };
 
 struct aos_rpc_ump {
-    struct ump_shared_mem *shared_mem; ///< Pointer to shared memory region
+    struct ump_shared_mem *tx_shared_mem; ///< Shared memory region to send
+    uint64_t tx_slot_next; ///< Next slot to write into
+
+    struct ump_shared_mem *rx_shared_mem; ///< Shared memory region to receive
+    uint64_t rx_slot_next; ///< Next slot to read from
 }
 
 /// rpc/ump response state to track and buffer transmission
