@@ -44,6 +44,16 @@ struct client_response_state {
     struct rpc_message *message;               ///< response to build/buffer
 };
 
+errval_t aos_rpc_ump_init(
+    struct aos_rpc *rpc,
+    struct capref *tx_cap
+);
+
+errval_t aos_rpc_ump_set_rx(
+    struct aos_rpc *rpc,
+    struct capref rx_frame_cap
+);
+
 errval_t aos_rpc_ump_send_and_wait_recv_one_no_alloc(
     struct aos_rpc *rpc,
     struct rpc_message *send,

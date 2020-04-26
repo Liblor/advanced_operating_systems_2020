@@ -3,20 +3,29 @@
 #include <aos/aos_rpc_ump_marshal.h>
 #include <aos/debug.h>
 
-errval_t aos_rpc_ump_init(struct aos_rpc *rpc, struct capref tx_frame_cap, struct capref rx_frame_cap)
+errval_t aos_rpc_ump_init(
+    struct aos_rpc *rpc,
+    struct capref *tx_cap
+)
 {
+    errval_t err;
+
     assert(rpc != NULL);
+    assert(tx_cap != NULL);
 
-    struct paging_state *state = get_current_paging_state();
-    assert(state != NULL);
+    err = frame_alloc(tx_cap, BASE_PAGE_SIZE, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_FRAME_CREATE);
+    }
 
-    void *tx_vaddr;
+    void *tx_addr = NULL;
 
     err = paging_map_frame(
-        state,
-        &tx_vaddr,
+        get_current_paging_state(),
+        &tx_addr,
         BASE_PAGE_SIZE,
-        tx_frame_cap,
+        *tx_cap,
         NULL,
         NULL
     );
@@ -25,10 +34,26 @@ errval_t aos_rpc_ump_init(struct aos_rpc *rpc, struct capref tx_frame_cap, struc
         return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
     }
 
+    memset(*tx_addr, 0x00, BASE_PAGE_SIZE);
+
+    rpc->ump.tx_shared_mem = tx_addr;
+
+    return SYS_ERR_OK;
+}
+
+errval_t aos_rpc_ump_set_rx(
+    struct aos_rpc *rpc,
+    struct capref rx_frame_cap
+)
+{
+    errval_t err;
+
+    assert(rpc != NULL);
+
     void *rx_vaddr;
 
     err = paging_map_frame(
-        state,
+        get_current_paging_state(),
         &rx_vaddr,
         BASE_PAGE_SIZE,
         rx_frame_cap,
@@ -36,13 +61,10 @@ errval_t aos_rpc_ump_init(struct aos_rpc *rpc, struct capref tx_frame_cap, struc
         NULL
     );
     if (err_is_fail(err)) {
-        // TODO: Unmap tx_frame_cap.
         debug_printf("paging_map_frame() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
     }
 
-    // Write mapped addresses into struct aos_rpc.
-    rpc->ump.tx_shared_mem = tx_vaddr;
     rpc->ump.rx_shared_mem = rx_vaddr;
 
     return SYS_ERR_OK;
