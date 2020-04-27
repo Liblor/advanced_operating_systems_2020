@@ -153,24 +153,11 @@ static errval_t process_get_all_pids(struct processserver_state *processserver_s
     return err;
 }
 
-static int bsp_main(int argc, char *argv[])
+static void setup_servers(
+    void
+)
 {
     errval_t err;
-
-    // Grading
-    grading_setup_bsp_init(argc, argv);
-
-    // First argument contains the bootinfo location, if it's not set
-    bi = (struct bootinfo*)strtol(argv[1], NULL, 10);
-    assert(bi);
-
-    err = initialize_ram_alloc(2);
-    if(err_is_fail(err)){
-        DEBUG_ERR(err, "initialize_ram_alloc");
-    }
-
-    // Grading
-    grading_test_early();
 
     err = initserver_init(number_cb, string_cb);
     if (err_is_fail(err)) {
@@ -195,97 +182,94 @@ static int bsp_main(int argc, char *argv[])
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
+}
 
-    /*
-    // TODO: Discuss about aos_rpc_init, as it is unused
-    err = master_urpc_init();
-    if (err_is_fail(err)) {
-        debug_printf("master_urpc_init failed: %s\n", err_getstring(err));
-        abort();
-    }
+static void setup_core(
+    struct bootinfo *bootinfo,
+    coreid_t mpid
+)
+{
+    errval_t err;
+    struct capref frame;
 
-    struct frame_identity urpc_frame_id;
-    err = frame_identify(cap_urpc, &urpc_frame_id);
+    err = frame_alloc(&frame, UMP_SHARED_FRAME_SIZE, NULL);
     if (err_is_fail(err)) {
-        debug_printf("frame identity for urpc failed: %s\n", err_getstring(err));
-        abort();
-    }
-    err = coreboot(1, "boot_armv8_generic", "cpu_imx8x", "init", urpc_frame_id);
-    if (err_is_fail(err)) {
-        debug_printf("coreboot failed: %s\n", err_getstring(err));
+        debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
         abort();
     }
 
-    err = urpc_send_boot_info(bi);
+    struct aos_rpc rpc;
+
+    err = aos_rpc_ump_init(&rpc, frame, true);
     if (err_is_fail(err)) {
-        debug_printf("urpc_send_boot_info failed: %s\n", err_getstring(err));
+        debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
         abort();
     }
-    */
+
+    struct frame_identity frame_id;
+    err = frame_identify(frame, &frame_id);
+    if (err_is_fail(err)) {
+        debug_printf("frame_identify() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    err = coreboot(mpid, "boot_armv8_generic", "cpu_imx8x", "init", frame_id);
+    if (err_is_fail(err)) {
+        debug_printf("coreboot() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    const size_t size = sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region);
+    char buffer[sizeof(struct rpc_message) + size];
+    memset(buffer, 0x00, sizeof(buffer));
+
+    struct rpc_message *rpc_message = (struct rpc_message *) buffer;
+    rpc_message->msg.payload_length = size;
+    rpc_message->msg.status = Status_Ok;
+    rpc_message->msg.method = Method_Send_Bootinfo;
+    rpc_message->cap = cap_mmstrings;
+    memcpy(rpc_message->msg.payload, bootinfo, size);
+
+    err = aos_rpc_ump_send_message(&rpc, rpc_message);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
+        abort();
+    }
+}
+
+static int bsp_main(int argc, char *argv[])
+{
+    errval_t err;
+
+    // Grading
+    grading_setup_bsp_init(argc, argv);
+
+    // First argument contains the bootinfo location, if it's not set
+    bi = (struct bootinfo*) strtol(argv[1], NULL, 10);
+    assert(bi);
+
+    err = initialize_ram_alloc(2);
+    if(err_is_fail(err)){
+        DEBUG_ERR(err, "initialize_ram_alloc");
+    }
+
+    // Grading
+    grading_test_early();
+
+    setup_servers();
+
+    setup_core(bi, 1);
+
+    domainid_t pid;
+    struct spawninfo si;
+    err = spawn_load_by_name("hello", &si, &pid);
+    if (err_is_fail(err)) {
+        debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
+        abort();
+    }
 
     // Grading
     grading_test_late();
-
-    {
-        struct capref frame1, frame2;
-        size_t size1, size2;
-
-        err = frame_alloc(&frame1, UMP_SHARED_FRAME_SIZE, &size1);
-        assert(err_is_ok(err));
-        err = frame_alloc(&frame2, UMP_SHARED_FRAME_SIZE, &size2);
-        assert(err_is_ok(err));
-
-        struct aos_rpc aos_rpc1, aos_rpc2;
-
-        err = aos_rpc_ump_init(&aos_rpc1, frame1);
-        assert(err_is_ok(err));
-
-        err = aos_rpc_ump_init(&aos_rpc2, frame2);
-        assert(err_is_ok(err));
-
-        err = aos_rpc_ump_set_rx(&aos_rpc1, frame2);
-        assert(err_is_ok(err));
-        err = aos_rpc_ump_set_rx(&aos_rpc2, frame1);
-        assert(err_is_ok(err));
-
-        struct rpc_message *msg_recv = NULL;
-
-        err = aos_rpc_ump_receive_non_block(&aos_rpc1, &msg_recv);
-        assert(err_is_ok(err));
-        assert(msg_recv == NULL);
-
-        char payload[] = "012345678901234501234567";
-        struct rpc_message *msg_send = malloc(sizeof(struct rpc_message) + sizeof(payload));
-        assert(msg_send != NULL);
-        msg_send->msg.payload_length = sizeof(payload);
-        msg_send->msg.status = Status_Ok;
-        msg_send->msg.method = Method_Send_Number;
-        memcpy(msg_send->msg.payload, payload, sizeof(payload));
-
-        err = aos_rpc_ump_send_message(&aos_rpc2, msg_send);
-        assert(err_is_ok(err));
-
-        err = aos_rpc_ump_receive_non_block(&aos_rpc1, &msg_recv);
-        assert(err_is_ok(err));
-
-        assert(msg_recv != NULL);
-        assert(msg_recv->msg.payload_length == sizeof(payload));
-        assert(msg_recv->msg.status == Status_Ok);
-        assert(msg_recv->msg.method == Method_Send_Number);
-        debug_printf("payload='%s'\n", msg_recv->msg.payload);
-        assert(strcmp(msg_recv->msg.payload, payload) == 0);
-        debug_printf("done\n");
-
-        /*
-        domainid_t pid;
-        struct spawninfo si;
-        err = spawn_load_by_name("multicore_test", &si, &pid);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "spawn_load_by_name failed");
-            abort();
-        }
-        */
-    }
 
     debug_printf("Message handler loop\n");
 
@@ -298,9 +282,11 @@ static int bsp_main(int argc, char *argv[])
             abort();
         }
     }
+
     return EXIT_SUCCESS;
 }
 
+/*
 static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
 {
     errval_t err;
@@ -314,94 +300,37 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
     }
     return SYS_ERR_OK;
 }
+*/
 
 static int app_main(int argc, char *argv[])
 {
-    // TODO
-    // Implement me in Milestone 5
-    // Remember to call
-    // - grading_setup_app_init(..);
-    // - grading_test_early();
-    // - grading_test_late();
-
     errval_t err;
-    debug_printf("hello world from app_main\n");
 
-    grading_test_early();
+    struct aos_rpc rpc;
 
-    // TODO: Decide which servers do we really need?
-    err = initserver_init(number_cb, string_cb);
-    if (err_is_fail(err)) {
-        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
-    err = memoryserver_init(ram_cap_cb);
-    if (err_is_fail(err)) {
-        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
-    err = serialserver_init(putchar_cb, getchar_cb);
-    if (err_is_fail(err)) {
-        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
-    err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
-    if (err_is_fail(err)) {
-        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
+    err = aos_rpc_ump_init(&rpc, cap_urpc, false);
+    assert(err_is_ok(err));
 
-    urpc_slave_spawn_process = app_urpc_slave_spawn;
+    struct rpc_message *msg_recv = NULL;
 
-    err = urpc_slave_init();
-    if (err_is_fail(err)) {
-        debug_printf("failure in urpc_init: %s", err_getstring(err));
-        return err;
-    }
-    genpaddr_t mmstrings_base;
-    gensize_t mmstrings_size;
+    err = aos_rpc_ump_receive(&rpc, &msg_recv);
+    assert(err_is_ok(err));
 
-    err = urpc_receive_bootinfo(&bi, &mmstrings_base, &mmstrings_size);
-    if (err_is_fail(err)) {
-        debug_printf("failure in urpc_receive_bootinfo: %s", err_getstring(err));
-        return err;
-    }
+    assert(msg_recv != NULL);
+    assert(msg_recv->msg.payload_length >= sizeof(struct bootinfo));
+    assert(msg_recv->msg.status == Status_Ok);
+    assert(msg_recv->msg.method == Method_Send_Bootinfo);
+    debug_printf("Receiving bootinfo successful!\n");
 
-    grading_setup_app_init(bi);
-
-    err = forge_bootinfo_ram(bi);
-    if (err_is_fail(err)) {
-        debug_printf("forging ram failed: %s\n", err_getstring(err));
-        return err;
-    }
+#if 0
+    /* TODO: Write bootinfo. */
 
     err = initialize_ram_alloc(2);
-    if (err_is_fail(err)) {
-        debug_printf("initialize_ram_alloc failed: %s\n", err_getstring(err));
-        return err;
-    }
-    err = forge_bootinfo_capabilities(bi, mmstrings_base, mmstrings_size);
-    if (err_is_fail(err)) {
-        debug_printf("forging capabilities failed: %s\n", err_getstring(err));
-        return err;
-    }
+    assert(err_is_ok(err));
+#endif
 
-    grading_test_late();
-
-    // Hang around
-    struct waitset *default_ws = get_default_waitset();
     while (true) {
-        err = urpc_slave_serve_non_block();
-        if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
-            debug_printf("urpc_slave_serve_req failed: %s\n ", err_getstring(err));
-            abort();
-        }
-
-        err = event_dispatch_non_block(default_ws);
-        if (err != LIB_ERR_NO_EVENT &&  err_is_fail(err)) {
-            DEBUG_ERR(err, "err in event_dispatch");
-            abort();
-        }
+        //thread_yield();
     }
 
     return SYS_ERR_OK;

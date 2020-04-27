@@ -4,7 +4,7 @@
 #include <aos/aos_rpc_types.h>
 
 #define UMP_CACHE_LINE_WORDS (8)
-#define UMP_RING_BUFFER_SLOTS ((uint64_t) (BASE_PAGE_SIZE / (sizeof(uintptr_t) * UMP_CACHE_LINE_WORDS)))
+#define UMP_RING_BUFFER_LINES ((uint64_t) (BASE_PAGE_SIZE / (2 * sizeof(uintptr_t) * UMP_CACHE_LINE_WORDS)))
 #define UMP_MESSAGE_DATA_WORDS (LMP_MSG_LENGTH)
 #define UMP_MESSAGE_DATA_SIZE (UMP_MESSAGE_DATA_WORDS * sizeof(uintptr_t))
 
@@ -17,29 +17,24 @@ struct ump_message {
     volatile uintptr_t used; ///< Last word in cache line indicates whether the slot is currently occupied by data
 };
 
-struct ump_shared_mem {
-    // TODO Is this volatile correct?
-    struct ump_message slots[UMP_RING_BUFFER_SLOTS];
+struct ump_shared_half {
+    struct ump_message lines[UMP_RING_BUFFER_LINES];
 };
 
-#define UMP_SHARED_FRAME_SIZE (sizeof(struct ump_shared_mem))
+#define UMP_SHARED_FRAME_SIZE (2 * sizeof(struct ump_shared_half))
 
 struct aos_rpc_ump {
-    struct ump_shared_mem *tx_shared_mem; ///< Shared memory region to send
-    uint64_t tx_slot_next; ///< Next slot to write into
+    struct ump_shared_half *tx; ///< Shared memory region used by the establisher to send
+    uint64_t tx_slot_next; ///< Next slot for the establisher to write into
 
-    struct ump_shared_mem *rx_shared_mem; ///< Shared memory region to receive
-    uint64_t rx_slot_next; ///< Next slot to read from
+    struct ump_shared_half *rx; ///< Shared memory region used by the establisher to receive
+    uint64_t rx_slot_next; ///< Next slot for the establisher to read from
 };
 
 errval_t aos_rpc_ump_init(
     struct aos_rpc *rpc,
-    struct capref tx_cap
-);
-
-errval_t aos_rpc_ump_set_rx(
-    struct aos_rpc *rpc,
-    struct capref rx_frame_cap
+    struct capref frame_cap,
+    bool is_establisher
 );
 
 errval_t aos_rpc_ump_receive(

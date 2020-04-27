@@ -3,8 +3,10 @@
 
 #include <aos/aos.h>
 
+// TODO: Assign explicit numbers.
 enum rpc_message_method {
-    Method_Send_Number, // TODO: assign numbers
+    Method_Send_Bootinfo,
+    Method_Send_Number,
     Method_Get_Ram_Cap,
     Method_Send_String,
     Method_Serial_Putchar,

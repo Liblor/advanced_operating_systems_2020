@@ -517,11 +517,13 @@ err_cleanup_cpu_frame:
 }
 
 
-errval_t coreboot(coreid_t mpid,
-        const char *boot_driver_name,
-        const char *cpu_driver_name,
-        const char *init_binary_name,
-        struct frame_identity urpc_frame_id)
+errval_t coreboot(
+    coreid_t mpid,
+    const char *boot_driver_name,
+    const char *cpu_driver_name,
+    const char *init_binary_name,
+    struct frame_identity urpc_frame_id
+)
 {
     errval_t err;
 
