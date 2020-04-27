@@ -156,9 +156,9 @@ static int
 serve_localtasks_thread(void * args) {
     errval_t err;
 
-    struct monitor_localtasks_args *localtasks_args = (struct monitor_localtasks_args *) args;
+    struct monitorserver_urpc_caps *urpc_caps = (struct monitorserver_urpc_caps *) args;
 
-    struct capref cap_localtasks_spawn = localtasks_args->urpc_localtask_spawn;
+    struct capref cap_localtasks_spawn = urpc_caps->localtask_spawn;
     struct aos_rpc rpc_localtasks_spawn_monitor;
 
     // XXX: API to change, use one cap for tx, rx
