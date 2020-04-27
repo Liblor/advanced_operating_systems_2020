@@ -203,7 +203,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
-    /*
+//    /*
     // TODO: Discuss about aos_rpc_init, as it is unused
     err = master_urpc_init();
     if (err_is_fail(err)) {
@@ -228,12 +228,12 @@ static int bsp_main(int argc, char *argv[])
         debug_printf("urpc_send_boot_info failed: %s\n", err_getstring(err));
         abort();
     }
-    */
+//    */
 
     // Grading
     grading_test_late();
 
-    /*
+//    /*
     {
         struct capref frame1, frame2;
         size_t size1, size2;
@@ -285,16 +285,16 @@ static int bsp_main(int argc, char *argv[])
         debug_printf("done\n");
 
 
-        domainid_t pid;
-        struct spawninfo si;
-        err = spawn_load_by_name("multicore_test", &si, &pid);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "spawn_load_by_name failed");
-            abort();
-        }
+//        domainid_t pid;
+//        struct spawninfo si;
+//        err = spawn_load_by_name("multicore_test", &si, &pid);
+//        if (err_is_fail(err)) {
+//            DEBUG_ERR(err, "spawn_load_by_name failed");
+//            abort();
+//        }
 
     }
-      */
+//      */
 
 
     debug_printf("Message handler loop\n");
