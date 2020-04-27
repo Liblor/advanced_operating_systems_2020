@@ -4,13 +4,16 @@
 #include <aos/debug.h>
 #include <aos/kernel_cap_invocations.h>
 
+// TODO: Use barriers!
+
 /*
- * Note that this is only half the initialization. You need to call
- * aos_rpc_ump_set_rx() afterwards to set the receiving side.
+ * This needs to be called by the establisher first, to make sure all the lines
+ * are set to zero prior to use.
  */
 errval_t aos_rpc_ump_init(
     struct aos_rpc *rpc,
-    struct capref tx_frame_cap
+    struct capref frame_cap,
+    bool is_establisher
 )
 {
     errval_t err;
@@ -23,13 +26,13 @@ errval_t aos_rpc_ump_init(
         return err;
     }
 
-    void *tx_addr = NULL;
+    char *vaddr = NULL;
 
     err = paging_map_frame(
         get_current_paging_state(),
-        &tx_addr,
+        (void **) &vaddr,
         UMP_SHARED_FRAME_SIZE,
-        tx_frame_cap,
+        frame_cap,
         NULL,
         NULL
     );
@@ -38,41 +41,19 @@ errval_t aos_rpc_ump_init(
         return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
     }
 
-    assert(tx_addr != NULL);
-    memset(tx_addr, 0x00, UMP_SHARED_FRAME_SIZE);
+    assert(vaddr != NULL);
 
-    rpc->ump.tx_shared_mem = tx_addr;
+    rpc->ump.tx = (struct ump_shared_half *) vaddr;
     rpc->ump.tx_slot_next = 0;
-
-    return SYS_ERR_OK;
-}
-
-errval_t aos_rpc_ump_set_rx(
-    struct aos_rpc *rpc,
-    struct capref rx_frame_cap
-)
-{
-    errval_t err;
-
-    assert(rpc != NULL);
-
-    void *rx_vaddr;
-
-    err = paging_map_frame(
-        get_current_paging_state(),
-        &rx_vaddr,
-        UMP_SHARED_FRAME_SIZE,
-        rx_frame_cap,
-        NULL,
-        NULL
-    );
-    if (err_is_fail(err)) {
-        debug_printf("paging_map_frame() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
-    }
-
-    rpc->ump.rx_shared_mem = rx_vaddr;
+    rpc->ump.rx = (struct ump_shared_half *) vaddr;
     rpc->ump.rx_slot_next = 0;
+
+    if (is_establisher) {
+        memset(vaddr, 0x00, UMP_SHARED_FRAME_SIZE);
+        rpc->ump.rx = (struct ump_shared_half *) (vaddr + sizeof(struct ump_shared_half));
+    } else {
+        rpc->ump.tx = (struct ump_shared_half *) (vaddr + sizeof(struct ump_shared_half));
+    }
 
     return SYS_ERR_OK;
 }
@@ -85,7 +66,7 @@ static bool aos_rpc_ump_can_receive(
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    struct ump_message *ump_message = &rpc->ump.rx_shared_mem->slots[rpc->ump.rx_slot_next];
+    struct ump_message *ump_message = &rpc->ump.rx->lines[rpc->ump.rx_slot_next];
     bool can_receive = ump_message->used;
 
     thread_mutex_unlock(&rpc->mutex);
@@ -100,6 +81,8 @@ static errval_t aos_rpc_ump_forge_capability(
 )
 {
     errval_t err;
+
+    assert(cap != NULL);
 
     if (capref_is_null(*cap)) {
         err = slot_alloc(cap);
@@ -130,7 +113,9 @@ errval_t aos_rpc_ump_receive(
 {
     errval_t err;
 
+    assert(rpc != NULL);
     assert(message != NULL);
+    assert(rpc->ump.rx != NULL);
 
     thread_mutex_lock_nested(&rpc->mutex);
 
@@ -140,7 +125,7 @@ errval_t aos_rpc_ump_receive(
     uint64_t bytes_received = 0;
 
     do {
-        struct ump_message *ump_message = &rpc->ump.rx_shared_mem->slots[rpc->ump.rx_slot_next];
+        struct ump_message *ump_message = &rpc->ump.rx->lines[rpc->ump.rx_slot_next];
 
         // Block until we can receive a message.
         while (!ump_message->used) {
@@ -186,7 +171,7 @@ errval_t aos_rpc_ump_receive(
         bytes_received += to_copy;
 
         rpc->ump.rx_slot_next++;
-        rpc->ump.rx_slot_next %= UMP_RING_BUFFER_SLOTS;
+        rpc->ump.rx_slot_next %= UMP_RING_BUFFER_LINES;
         ump_message->used = 0;
     } while (bytes_received < total_length);
 
@@ -205,7 +190,9 @@ errval_t aos_rpc_ump_receive_non_block(
 {
     errval_t err;
 
+    assert(rpc != NULL);
     assert(message != NULL);
+    assert(rpc->ump.rx != NULL);
 
     thread_mutex_lock_nested(&rpc->mutex);
 
@@ -236,6 +223,10 @@ errval_t aos_rpc_ump_send_and_wait_recv(
 )
 {
     errval_t err;
+
+    assert(rpc != NULL);
+    assert(send != NULL);
+    assert(recv != NULL);
 
     // TODO Do we need to lock the mutex here?
 
@@ -282,8 +273,6 @@ errval_t aos_rpc_ump_send_message(
         cap_size = fi.bytes;
     }
 
-    struct ump_shared_mem *shared_mem = rpc->ump.tx_shared_mem;
-
     const uint8_t *msg_base = (uint8_t *) &msg->msg;
     const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;
     bool first = true;
@@ -291,11 +280,10 @@ errval_t aos_rpc_ump_send_message(
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    // TODO Use barriers
     while (size_sent < msg_size) {
         uint64_t to_send = MIN(UMP_MESSAGE_DATA_SIZE, msg_size - size_sent);
         uint64_t tx_slot = rpc->ump.tx_slot_next;
-        struct ump_message *slot = &shared_mem->slots[tx_slot];
+        struct ump_message *slot = &rpc->ump.tx->lines[tx_slot];
 
         // Wait until the next tx slot is free
         while(slot->used == 1) {
@@ -313,13 +301,11 @@ errval_t aos_rpc_ump_send_message(
         memset(slot->data, 0, UMP_MESSAGE_DATA_SIZE);
         memcpy(slot->data, msg_base + size_sent, to_send);
 
-        debug_dump_mem(((lvaddr_t) slot->data), ((lvaddr_t) slot->data + UMP_MESSAGE_DATA_SIZE), (lvaddr_t)NULL);
-
         size_sent += to_send;
         first = false;
 
         rpc->ump.tx_slot_next++;
-        rpc->ump.tx_slot_next %= UMP_RING_BUFFER_SLOTS;
+        rpc->ump.tx_slot_next %= UMP_RING_BUFFER_LINES;
         slot->used = 1;
     }
 
