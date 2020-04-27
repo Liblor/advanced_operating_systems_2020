@@ -254,7 +254,7 @@ errval_t monitorserver_init(
         struct monitorserver_urpc_caps *urpc_caps
 ){
 
-    // TODO: remove this once we get the correct caps 
+    // TODO: remove this once we get the correct caps
     return SYS_ERR_OK;
 
     errval_t err;

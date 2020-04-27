@@ -523,8 +523,8 @@ static struct aos_rpc *aos_rpc_lmp_get_channel(
     return *rpc;
 }
 
-__unused
-static struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void)
+
+struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void)
 {
     return aos_rpc_lmp_get_channel(&monitor_channel, cap_chan_monitor, "monitor");
 }
@@ -546,11 +546,9 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
-#ifdef ENABLE_LMP_MONITOR_CHAN
-    return aos_rpc_lmp_get_monitor_channel();
-#else
+    // XXX: Memory channel is always served by memory server on same core
     return aos_rpc_lmp_get_channel(&memory_channel, cap_chan_memory, "memory");
-#endif
+
 }
 
 /**
