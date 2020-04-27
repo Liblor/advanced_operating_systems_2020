@@ -7,15 +7,16 @@ struct monitorserver_cb_state {
 };
 
 struct monitorserver_state {
-    struct aos_rpc initserver;
-    struct aos_rpc memoryserver;
-    struct aos_rpc processserver;
-    struct aos_rpc serialserver;
+    struct aos_rpc initserver_rpc;
+    struct aos_rpc memoryserver_rpc;
+    struct aos_rpc processserver_rpc;
+    struct aos_rpc serialserver_rpc;
 };
 
 
 struct monitorserver_urpc_caps {
-    struct capref spawn_server;
+    struct capref memory_server;
+    struct capref process_server;
     struct capref init_server;
     struct capref serial_server;
     struct capref localtask_spawn;
