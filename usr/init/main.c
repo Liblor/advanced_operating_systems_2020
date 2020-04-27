@@ -244,7 +244,7 @@ static void setup_core(
     }
 }
 
-static int first_main(int argc, char *argv[])
+static int bsp_main(int argc, char **argv)
 {
     errval_t err;
 
@@ -321,7 +321,7 @@ static void receive_bootinfo(
     *cap = rpc_message->cap;
 }
 
-static int other_main(int argc, char *argv[])
+static int app_main(int argc, char **argv)
 {
     errval_t err;
 
@@ -413,8 +413,8 @@ int main(int argc, char *argv[])
     fflush(stdout);
 
     if (my_core_id == 0) {
-        return first_main(argc, argv);
+        return bsp_main(argc, argv);
     } else {
-        return other_main(argc, argv);
+        return app_main(argc, argv);
     }
 }
