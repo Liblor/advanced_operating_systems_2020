@@ -6,6 +6,10 @@
 struct monitorserver_cb_state {
 };
 
+struct monitorserver_state {
+    struct aos_rpc server_rpc;
+};
+
 errval_t monitorserver_init(void
 );
 

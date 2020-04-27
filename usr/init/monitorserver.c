@@ -38,11 +38,10 @@ static inline errval_t monitor_forward_receive(
 )
 {
     errval_t err;
-    // TODO: get rpc to urpc-server
-    struct aos_rpc *server_rpc = NULL;
+    struct monitorserver_state *mss = server_state;
     struct rpc_message *recv;
     err = aos_rpc_ump_send_and_wait_recv(
-            server_rpc,
+            &mss->server_rpc,
             msg,
             &recv
     );
@@ -67,10 +66,10 @@ static inline errval_t monitor_forward(
 )
 {
     errval_t err;
-    // TODO: get rpc to urpc-server
+    struct monitorserver_state *mss = server_state;
     struct aos_rpc *server_rpc = NULL;
     err = aos_rpc_ump_send_message(
-            server_rpc,
+            &mss->server_rpc,
             msg
     );
     return err;
@@ -131,8 +130,14 @@ errval_t monitorserver_init(void
 )
 {
     errval_t err;
+    struct monitorserver_state *mss = calloc(1, sizeof(struct monitorserver_state));
+    if (mss == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
 
-    err = rpc_lmp_server_init(&server, cap_chan_monitor, service_recv_cb, state_init_cb, state_free_cb, NULL);
+    // TODO: initialize monitorserver state with aos_rpc to urpc-server
+
+    err = rpc_lmp_server_init(&server, cap_chan_monitor, service_recv_cb, state_init_cb, state_free_cb, mss);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
