@@ -32,14 +32,21 @@ errval_t rpc_ump_server_serve_next(struct rpc_ump_server *server)
         server->client_next++;
         server->client_next %= server->client_count;
     }
+
+    return SYS_ERR_OK;
 }
 
 errval_t rpc_ump_server_add_client(struct rpc_ump_server *server, struct aos_rpc *rpc)
 {
-    int32_t res = collections_list_insert(server->client_list, rpc)
-    assert(res == 0);
+    int32_t res = collections_list_insert(server->client_list, rpc);
+    if (res != 0) {
+        // TODO Return error
+        assert(false);
+    }
 
     server->client_count++;
+
+    return SYS_ERR_OK;
 }
 
 // Initialize the server.
@@ -51,14 +58,13 @@ errval_t rpc_ump_server_init(
     void *server_state
 )
 {
-    errval_t err;
-
     server->service_recv_handler = new_service_recv_handler;
+    // TODO Remove those handlers if we don't need a state per client
     server->state_init_handler = new_state_init_handler;
     server->state_free_handler = new_state_free_handler;
     server->shared = server_state;
 
-    collections_list_create(server->client_list, NULL);
+    collections_list_create(&server->client_list, NULL);
     server->client_count = 0;
     server->client_next = 0;
 

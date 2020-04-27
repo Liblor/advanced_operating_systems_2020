@@ -1,5 +1,5 @@
-#ifndef _LIB_RPC_RPC_LMP_SERVER_H_
-#define _LIB_RPC_RPC_LMP_SERVER_H_
+#ifndef _LIB_RPC_RPC_UMP_SERVER_H_
+#define _LIB_RPC_RPC_UMP_SERVER_H_
 
 #include <aos/aos_rpc.h>
 
@@ -13,8 +13,8 @@ typedef void *(* state_init_handler_t)(void *server_state);
 // Must free the callback state.
 typedef void (* state_free_handler_t)(void *server_state, void *arg);
 
-struct rpc_lmp_server {
-    collections_listnode client_list;
+struct rpc_ump_server {
+    collections_listnode *client_list;
     uint64_t client_count;
     uint64_t client_next;
 
@@ -25,25 +25,12 @@ struct rpc_lmp_server {
     void *shared; ///< The specific implementation can maintain a server state here.
 };
 
-enum msg_state {
-    Msg_State_Empty,
-    Msg_State_Received_Header,
-};
+errval_t rpc_ump_server_serve_next(struct rpc_ump_server *server);
 
-struct rpc_lmp_handler_state {
-    struct aos_rpc rpc;
-    struct rpc_lmp_server *server;
+errval_t rpc_ump_server_add_client(struct rpc_ump_server *server, struct aos_rpc *rpc);
 
-    enum msg_state recv_state;
-    size_t bytes_received; ///< How much of the payload was read from the client already.
-    struct rpc_message *msg;
-
-    void *shared; ///< The specific implementation can maintain a callback state here.
-};
-
-errval_t rpc_lmp_server_init(
-    struct rpc_lmp_server *server,
-    struct capref cap_chan,
+errval_t rpc_ump_server_init(
+    struct rpc_ump_server *server,
     service_recv_handler_t new_service_recv_handler,
     state_init_handler_t new_state_init_handler,
     state_free_handler_t new_state_free_handler,
