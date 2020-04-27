@@ -717,29 +717,23 @@ errval_t forge_bootinfo_ram(
  * @return Error
  */
 errval_t forge_bootinfo_capabilities(
-        struct bootinfo *bootinfo,
-        genpaddr_t mmstrings_base,
-        gensize_t mmstrings_size
+    struct bootinfo *bootinfo,
+    struct capref cap_mmstrings_frame
 ) {
     errval_t err;
-    coreid_t coreid = disp_get_core_id();
+
     err = cnode_create_foreign_l2(cap_root, ROOTCN_SLOT_MODULECN, &cnode_module);
     if (err_is_fail(err)) {
         debug_printf("cnode_create_foreing_l2 failed: %s\n", err_getstring(err));
         return err;
     }
-    err = frame_forge(
-            cap_mmstrings,
-            mmstrings_base,
-            ROUND_UP(mmstrings_size, BASE_PAGE_SIZE),
-            coreid
-    );
-    if (err_is_fail(err)) {
-        debug_printf("frame_forge of mmstring failed: %s\n", err_getstring(err));
-        return err;
-    }
-    for (int i = 0; i < bi->regions_length; i++) {
-        struct mem_region reg = bi->regions[i];
+
+    cap_mmstrings = cap_mmstrings_frame;
+
+    coreid_t coreid = disp_get_core_id();
+
+    for (int i = 0; i < bootinfo->regions_length; i++) {
+        struct mem_region reg = bootinfo->regions[i];
         if (reg.mr_type == RegionType_Module) {
             struct capref module_cap = {
                     .cnode = cnode_module,
