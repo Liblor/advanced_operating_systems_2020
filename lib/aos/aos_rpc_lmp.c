@@ -140,7 +140,6 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
         return err_push(err, LIB_ERR_SLOT_ALLOC);
     }
 
-
     const size_t payload_length = sizeof(bytes) + sizeof(alignment);
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;

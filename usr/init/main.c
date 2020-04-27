@@ -41,6 +41,17 @@ struct bootinfo *bi;
 
 coreid_t my_core_id;
 
+/*
+ * The following channels are needed.
+ * - remote monitor to local init process
+ * - remote monitor to local initserver
+ * - remote monitor to local memoryserver
+ * - remote monitor to local processserver
+ * - remote monitor to local processserver (for local tasks)
+ * - remote monitor to local serialserver
+ */
+const size_t ump_channel_count = 1 + 4 + 1;
+
 static void number_cb(uintptr_t num)
 {
     grading_rpc_handle_number(num);
@@ -186,25 +197,42 @@ static void setup_servers(
 
 static void setup_core(
     struct bootinfo *bootinfo,
-    coreid_t mpid
+    coreid_t mpid,
+    struct aos_rpc *rpc
 )
 {
     errval_t err;
-    struct capref frame;
 
-    err = frame_alloc(&frame, UMP_SHARED_FRAME_SIZE, NULL);
+    /*
+     * Setup the new UMP communication channels. The channels will be set up in
+     * the order they are counted in.
+     */
+
+    struct capref frame;
+    err = frame_alloc(&frame, ump_channel_count * UMP_SHARED_FRAME_SIZE, NULL);
     if (err_is_fail(err)) {
-        debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
+        debug_printf("ram_alloc() failed: %s\n", err_getstring(err));
         abort();
     }
 
-    struct aos_rpc rpc;
+    struct capref frames[ump_channel_count];
+    err = cap_retype_frames(frames, frame, UMP_SHARED_FRAME_SIZE, ump_channel_count);
+    if (err_is_fail(err)) {
+        debug_printf("cap_retype_frames() failed: %s\n", err_getstring(err));
+        abort();
+    }
 
-    err = aos_rpc_ump_init(&rpc, frame, true);
+    err = aos_rpc_ump_init(rpc, frames[0], true);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
         abort();
     }
+
+    /* TODO: Register the new channels at the servers. */
+
+    /*
+     * Boot the new core.
+     */
 
     struct frame_identity frame_id;
     err = frame_identify(frame, &frame_id);
@@ -219,6 +247,10 @@ static void setup_core(
         abort();
     }
 
+    /*
+     * Send the booinfo message.
+     */
+
     const size_t size = sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region);
     char buffer[sizeof(struct rpc_message) + size];
     memset(buffer, 0x00, sizeof(buffer));
@@ -230,11 +262,39 @@ static void setup_core(
     rpc_message->cap = cap_mmstrings;
     memcpy(rpc_message->msg.payload, bootinfo, size);
 
-    err = aos_rpc_ump_send_message(&rpc, rpc_message);
+    err = aos_rpc_ump_send_message(rpc, rpc_message);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
         abort();
     }
+
+    /*
+     * The original RAM capability is no longer needed.
+     */
+
+    err = cap_delete(frame);
+    if (err_is_fail(err)) {
+        debug_printf("cap_destroy() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    /*
+     * Await the answer to the bootinfo message.
+     */
+
+    rpc_message = NULL;
+
+    err = aos_rpc_ump_receive(rpc, &rpc_message);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_receive() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    assert(rpc_message != NULL);
+    assert(rpc_message->msg.payload_length == 0);
+    assert(rpc_message->msg.status == Status_Ok);
+    assert(rpc_message->msg.method == Method_Send_Bootinfo);
+    debug_printf("Receiving bootinfo successful!\n");
 }
 
 static int first_main(int argc, char *argv[])
@@ -259,7 +319,11 @@ static int first_main(int argc, char *argv[])
 
     setup_servers();
 
-    setup_core(bi, 1);
+    struct aos_rpc rpc_core1;
+    setup_core(bi, 1, &rpc_core1);
+
+    // Grading
+    grading_test_late();
 
 #if 0
     domainid_t pid;
@@ -270,9 +334,6 @@ static int first_main(int argc, char *argv[])
         abort();
     }
 #endif
-
-    // Grading
-    grading_test_late();
 
     debug_printf("Entering message handler loop...\n");
 
@@ -300,7 +361,10 @@ static void receive_bootinfo(
     struct rpc_message *rpc_message = NULL;
 
     err = aos_rpc_ump_receive(rpc, &rpc_message);
-    assert(err_is_ok(err));
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_receive() failed: %s\n", err_getstring(err));
+        abort();
+    }
 
     assert(rpc_message != NULL);
     assert(rpc_message->msg.payload_length >= sizeof(struct bootinfo));
@@ -312,6 +376,20 @@ static void receive_bootinfo(
     memcpy(*bootinfo, rpc_message->msg.payload, rpc_message->msg.payload_length);
 
     *cap = rpc_message->cap;
+
+    char buffer[sizeof(struct bootinfo)];
+    memset(buffer, 0x00, sizeof(buffer));
+
+    rpc_message = (struct rpc_message *) buffer;
+    rpc_message->msg.payload_length = 0;
+    rpc_message->msg.status = Status_Ok;
+    rpc_message->msg.method = Method_Send_Bootinfo;
+
+    err = aos_rpc_ump_send_message(rpc, rpc_message);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
+        abort();
+    }
 }
 
 static int other_main(int argc, char *argv[])
@@ -347,26 +425,14 @@ static int other_main(int argc, char *argv[])
         abort();
     }
 
+    /* TODO: Setup monitor. */
+
     // Grading
     grading_test_early();
-
-    domainid_t pid;
-    struct spawninfo si;
-    err = spawn_load_by_name("hello", &si, &pid);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "spawn_load_by_name");
-        debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
-        abort();
-    }
 
     // Grading
     grading_test_late();
 
-    while (true) {
-        //thread_yield();
-    }
-
-#if 0
     debug_printf("Entering message handler loop...\n");
 
     // Hang around
@@ -378,7 +444,6 @@ static int other_main(int argc, char *argv[])
             abort();
         }
     }
-#endif
 
     return EXIT_SUCCESS;
 }

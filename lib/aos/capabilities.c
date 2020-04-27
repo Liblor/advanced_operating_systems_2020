@@ -896,3 +896,29 @@ errval_t cnode_build_cnoderef(struct cnoderef *cnoder, struct capref capr)
 
     return SYS_ERR_OK;
 }
+
+errval_t cap_retype_frames(
+    struct capref *frames,
+    struct capref frame,
+    gensize_t size,
+    size_t count
+)
+{
+    errval_t err;
+
+    for (int i = 0; i < count; i++) {
+        err = slot_alloc(&frames[i]);
+        if (err_is_fail(err)) {
+            debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
+            return err_push(err, LIB_ERR_SLOT_ALLOC);
+        }
+
+        err = cap_retype(frames[i], frame, 0, ObjType_Frame, size, 1);
+        if (err_is_fail(err)) {
+            debug_printf("cap_retype() failed: %s\n", err_getstring(err));
+            return err_push(err, LIB_ERR_CAP_RETYPE);
+        }
+    }
+
+    return SYS_ERR_OK;
+}
