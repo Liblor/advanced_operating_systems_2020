@@ -153,12 +153,6 @@ static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_m
     return SYS_ERR_OK;
 }
 
-// args for thread
-struct monitor_localtasks_args {
-    struct capref urpc_localtask_spawn;
-};
-
-
 // XXX: API is changed to have one cap for rx and tx
 // XXX: Decide if one thread for all localtask services or one thread for each local task service (ie spawn, memory)
 __unused
@@ -209,8 +203,11 @@ serve_localtasks_thread(void * args) {
     }
 }
 
-errval_t monitorserver_init(void)
-{
+
+errval_t monitorserver_init(
+        struct monitorserver_urpc_caps *urpc_caps
+){
+
     errval_t err;
     struct monitorserver_state *mss = calloc(1, sizeof(struct monitorserver_state));
     if (mss == NULL) {

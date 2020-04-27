@@ -354,6 +354,8 @@ static int app_main(int argc, char **argv)
         abort();
     }
 
+
+    struct monitorserver_urpc_caps *urpc_caps
     err = monitorserver_init();
     if (err_is_fail(err)) {
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
@@ -377,7 +379,7 @@ static int app_main(int argc, char **argv)
 
     // Grading
     grading_test_late();
-    
+
 
     debug_printf("Entering message handler loop...\n");
 
