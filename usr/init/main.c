@@ -184,7 +184,15 @@ static void setup_servers(
         abort();
     }
 
-    err = monitorserver_init();
+    // TODO: pass correct urpc caps
+    struct monitorserver_urpc_caps urpc_caps = {
+            .init_server = NULL_CAP,
+            .spawn_server = NULL_CAP,
+            .serial_server = NULL_CAP,
+            .localtask_spawn = NULL_CAP
+    };
+
+    err = monitorserver_init(&urpc_caps);
     if (err_is_fail(err)) {
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
         abort();
@@ -355,8 +363,15 @@ static int app_main(int argc, char **argv)
     }
 
 
-    struct monitorserver_urpc_caps *urpc_caps
-    err = monitorserver_init();
+    // TODO: pass correct urpc caps
+    struct monitorserver_urpc_caps urpc_caps = {
+            .init_server = NULL_CAP,
+            .spawn_server = NULL_CAP,
+            .serial_server = NULL_CAP,
+            .localtask_spawn = NULL_CAP
+    };
+
+    err = monitorserver_init(&urpc_caps);
     if (err_is_fail(err)) {
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
         abort();
