@@ -149,7 +149,6 @@ static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_m
     return SYS_ERR_OK;
 }
 
-// XXX: API is changed to have one cap for rx and tx
 // XXX: Decide if one thread for all localtask services or one thread for each local task service (ie spawn, memory)
 __unused
 static int
