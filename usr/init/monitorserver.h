@@ -13,7 +13,6 @@ struct monitorserver_state {
     struct aos_rpc serialserver;
 };
 
-
 struct monitorserver_urpc_caps {
     struct capref spawn_server;
     struct capref init_server;

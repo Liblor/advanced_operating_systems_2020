@@ -4,6 +4,7 @@
 #include <aos/aos_rpc_lmp_marshal.h>
 
 #include <rpc/server/lmp.h>
+#include <spawn/spawn.h>
 
 #include "monitorserver.h"
 
@@ -121,27 +122,39 @@ static void state_free_cb(void *server_state, void *callback_state)
     free(state);
 }
 
-
+// local task action to spawn a process on core
 static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_message** answer) {
     assert(recv_msg != NULL);
 
     switch(recv_msg->msg.method) {
         case Method_Localtask_Spawn_Process: {
+            errval_t err;
+            {
+                coreid_t core = *((coreid_t *)recv_msg->msg.payload);
+                assert(core == disp_get_core_id());
+            }
+            char *name = recv_msg->msg.payload + sizeof(coreid_t);
+            enum rpc_message_status status = Status_Ok;
+            {
+                struct spawninfo si;
+                domainid_t ret_pid;
+                err = spawn_load_by_name(name, &si, &ret_pid);
+            }
+            if (err_is_fail(err)) {
+                debug_printf("spawn_cb in local task failed: %s", err_getstring(err));
+                status = Spawn_Failed;
+            }
 
-            // TODO: do spawning
-            debug_printf("TODO: do spawning as localtask\n");
-
-            *answer = calloc(1, sizeof(struct rpc_message));
+            *answer = malloc(sizeof(struct rpc_message));
             if (*answer == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
             }
             (*answer)->cap = NULL_CAP;
-            (*answer)->msg.method = Method_Localtask_Spawn_Process;
             (*answer)->msg.payload_length = 0;
-            (*answer)->msg.status = Status_Ok;
+            (*answer)->msg.method = Method_Localtask_Spawn_Process;
+            (*answer)->msg.status = status;
             break;
         }
-
         default:
             debug_printf("unknown localtask: %d\n", recv_msg->msg.method);
     }
@@ -149,8 +162,7 @@ static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_m
     return SYS_ERR_OK;
 }
 
-// XXX: API is changed to have one cap for rx and tx
-// XXX: Decide if one thread for all localtask services or one thread for each local task service (ie spawn, memory)
+
 __unused
 static int
 serve_localtasks_thread(void * args) {
@@ -158,47 +170,46 @@ serve_localtasks_thread(void * args) {
 
     struct monitorserver_urpc_caps *urpc_caps = (struct monitorserver_urpc_caps *) args;
 
-    struct capref cap_localtasks_spawn = urpc_caps->localtask_spawn;
-    struct aos_rpc rpc_localtasks_spawn_monitor;
+    struct capref cap_localtask_spawn = urpc_caps->localtask_spawn;
+    struct aos_rpc rpc_localtasks_spawn;
 
-    // XXX: API to change, use one cap for tx, rx
-    err = aos_rpc_ump_init(&rpc_localtasks_spawn_monitor, cap_localtasks_spawn, false);
-    assert(err_is_ok(err));
-
-    assert(err_is_ok(err));
+    err = aos_rpc_ump_init(&rpc_localtasks_spawn, cap_localtask_spawn, false);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
 
     struct rpc_message *msg_recv = NULL;
 
     while(true) {
-        err = aos_rpc_ump_receive_non_block(&rpc_localtasks_spawn_monitor, &msg_recv);
+        err = aos_rpc_ump_receive_non_block(&rpc_localtasks_spawn, &msg_recv);
         if (err_is_fail(err)) {
             debug_printf("aos_rpc_ump_receive_non_block: %s", err_getstring(err));
-            return err;
+            goto clean_up;
         }
         else if (msg_recv != NULL) {
-            // do local tasks for spawn
             struct rpc_message *answer = NULL;
             err = serve_localtask_spawn(msg_recv, &answer);
             if (err_is_fail(err)) {
                 debug_printf("serve_localtask_spawn: %s", err_getstring(err));
-                return err;
+                goto clean_up;
             }
             if (answer != NULL) {
-                err = aos_rpc_ump_send_message(&rpc_localtasks_spawn_monitor, answer);
+                err = aos_rpc_ump_send_message(&rpc_localtasks_spawn, answer);
                 if (err_is_fail(err)) {
                     debug_printf("aos_rpc_ump_send_message: failure in response: %s", err_getstring(err));
-                    return err;
+                    goto clean_up;
                 }
             }
             free(msg_recv);
             free(answer);
-            answer = NULL;
             msg_recv = NULL;
         }
-        // TODO local tasks for other servers
     }
-}
 
+clean_up:
+    debug_printf("error occured in local tasks: %s", err_getstring(err));
+    return err;
+}
 
 errval_t monitorserver_init(
         struct monitorserver_urpc_caps *urpc_caps
@@ -219,13 +230,12 @@ errval_t monitorserver_init(
     }
 
     // TODO: spawn thread
-//    struct monitor_localtasks_args localtasks_args;
-//    localtasks_args.urpc_localtask_spawn = NULL_CAP;
-//    struct thread *localtasks_th = thread_create(serve_localtasks_thread, &localtasks_args);
-//    if (localtasks_th == NULL){
-//        debug_printf("err in creating localtasks thread, is NULL");
-//        return LIB_ERR_THREAD_CREATE;
-//    }
+    struct thread *localtasks_th = thread_create(serve_localtasks_thread, urpc_caps);
+
+    if (localtasks_th == NULL){
+        debug_printf("err in creating localtasks thread, is NULL");
+        return LIB_ERR_THREAD_CREATE;
+    }
 
 
     return SYS_ERR_OK;
