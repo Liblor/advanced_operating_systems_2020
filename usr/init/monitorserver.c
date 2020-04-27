@@ -32,24 +32,22 @@ static errval_t reply_error(
 
 static inline errval_t monitor_forward_receive(
         struct rpc_message *msg,
-        void *callback_state,
-        struct aos_rpc *rpc,
-        void *server_state
+        struct aos_rpc *rpc_reply,
+        struct aos_rpc *forward_to
 )
 {
     errval_t err;
-    struct monitorserver_state *mss = server_state;
     struct rpc_message *recv;
     err = aos_rpc_ump_send_and_wait_recv(
-            &mss->server_rpc,
+            forward_to,
             msg,
             &recv
     );
     if (err_is_fail(err)) {
-        err = reply_error(rpc, msg->msg.method);
+        err = reply_error(rpc_reply, msg->msg.method);
         goto cleanup;
     }
-    err = aos_rpc_lmp_send_message(rpc, recv, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_lmp_send_message(rpc_reply, recv, LMP_SEND_FLAGS_DEFAULT);
 cleanup:
     if (recv != NULL) {
         free(recv);
@@ -60,15 +58,12 @@ cleanup:
 
 static inline errval_t monitor_forward(
         struct rpc_message *msg,
-        void *callback_state,
-        struct aos_rpc *rpc,
-        void *server_state
+        struct aos_rpc *forward_to
 )
 {
     errval_t err;
-    struct monitorserver_state *mss = server_state;
     err = aos_rpc_ump_send_message(
-            &mss->server_rpc,
+            forward_to,
             msg
     );
     return err;
@@ -82,24 +77,25 @@ static void service_recv_cb(
 )
 {
     errval_t err = SYS_ERR_OK;
+    struct monitorserver_state *mss = server_state;
 	switch (msg->msg.method) {
     case Method_Get_Ram_Cap:
-        err = monitor_forward_receive(msg, callback_state, rpc, server_state);
+        err = monitor_forward_receive(msg, rpc, &mss->memoryserver);
         break;
     case Method_Send_Number:
     case Method_Send_String:
-        err = monitor_forward(msg, callback_state, rpc, server_state);
+        err = monitor_forward(msg, &mss->initserver);
         break;
     case Method_Serial_Putchar:
-        err = monitor_forward(msg, callback_state, rpc, server_state);
+        err = monitor_forward(msg, &mss->serialserver);
         break;
     case Method_Serial_Getchar:
-        err = monitor_forward_receive(msg, callback_state, rpc, server_state);
+        err = monitor_forward_receive(msg, rpc, &mss->serialserver);
         break;
     case Method_Process_Get_Name:
     case Method_Process_Get_All_Pids:
     case Method_Spawn_Process:
-        err = monitor_forward_receive(msg, callback_state, rpc, server_state);
+        err = monitor_forward_receive(msg, rpc, &mss->processserver);
         break;
 
 	default:

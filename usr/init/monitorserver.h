@@ -7,7 +7,10 @@ struct monitorserver_cb_state {
 };
 
 struct monitorserver_state {
-    struct aos_rpc server_rpc;
+    struct aos_rpc initserver;
+    struct aos_rpc memoryserver;
+    struct aos_rpc processserver;
+    struct aos_rpc serialserver;
 };
 
 errval_t monitorserver_init(void
