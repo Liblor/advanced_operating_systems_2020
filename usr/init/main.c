@@ -363,6 +363,7 @@ static int app_main(int argc, char **argv)
     // Grading
     grading_test_early();
 
+#if 0
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);
@@ -371,15 +372,13 @@ static int app_main(int argc, char **argv)
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
     }
+#endif
+
 
     // Grading
     grading_test_late();
+    
 
-    while (true) {
-        //thread_yield();
-    }
-
-#if 0
     debug_printf("Entering message handler loop...\n");
 
     // Hang around
@@ -391,7 +390,7 @@ static int app_main(int argc, char **argv)
             abort();
         }
     }
-#endif
+
 
     return EXIT_SUCCESS;
 }
