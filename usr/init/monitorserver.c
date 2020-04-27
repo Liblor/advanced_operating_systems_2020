@@ -172,10 +172,9 @@ serve_localtasks_thread(void * args) {
     struct aos_rpc rpc_localtasks_spawn_monitor;
 
     // XXX: API to change, use one cap for tx, rx
-    err = aos_rpc_ump_init(&rpc_localtasks_spawn_monitor, cap_localtasks_spawn);
+    err = aos_rpc_ump_init(&rpc_localtasks_spawn_monitor, cap_localtasks_spawn, false);
     assert(err_is_ok(err));
 
-    err = aos_rpc_ump_set_rx(&rpc_localtasks_spawn_monitor, cap_localtasks_spawn);
     assert(err_is_ok(err));
 
     struct rpc_message *msg_recv = NULL;
