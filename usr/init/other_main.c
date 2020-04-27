@@ -39,13 +39,52 @@ static void receive_bootinfo(
     assert(rpc_message->msg.payload_length >= sizeof(struct bootinfo));
     assert(rpc_message->msg.status == Status_Ok);
     assert(rpc_message->msg.method == Method_Send_Bootinfo);
-    debug_printf("Receiving bootinfo successful!\n");
 
     *bootinfo = malloc(rpc_message->msg.payload_length);
     memcpy(*bootinfo, rpc_message->msg.payload, rpc_message->msg.payload_length);
 
     *cap = rpc_message->cap;
+
+    free(rpc_message);
 }
+
+static void register_service_channel(
+    struct aos_rpc *rpc,
+    const char *name
+)
+{
+    errval_t err;
+
+    struct rpc_message *rpc_message = NULL;
+
+    err = aos_rpc_ump_receive(rpc, &rpc_message);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_receive() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
+    assert(rpc_message != NULL);
+    assert(rpc_message->msg.payload_length == 0);
+    assert(rpc_message->msg.status == Status_Ok);
+    assert(rpc_message->msg.method == Method_Send_Binding);
+
+    /* TODO: Register communication channel at monitor. */
+    //monitorserver_register_service(name, rpc_message->cap);
+
+    free(rpc_message);
+}
+
+static void register_service_channels(
+    struct aos_rpc *rpc
+)
+{
+    register_service_channel(rpc, "initserver");
+    register_service_channel(rpc, "memoryserver");
+    register_service_channel(rpc, "processserver");
+    register_service_channel(rpc, "processserver");
+    register_service_channel(rpc, "serialserver");
+}
+
 
 int other_main(int argc, char *argv[])
 {
@@ -81,6 +120,8 @@ int other_main(int argc, char *argv[])
     }
 
     /* TODO: Setup monitor. */
+
+    register_service_channels(&rpc);
 
     // Grading
     grading_test_early();

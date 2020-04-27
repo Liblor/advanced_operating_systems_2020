@@ -6,6 +6,7 @@
 // TODO: Assign explicit numbers.
 enum rpc_message_method {
     Method_Send_Bootinfo,
+    Method_Send_Binding,
     Method_Send_Number,
     Method_Get_Ram_Cap,
     Method_Send_String,

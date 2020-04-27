@@ -204,7 +204,7 @@ static void register_service_channel(
     struct rpc_message *rpc_message = (struct rpc_message *) buffer;
     rpc_message->msg.payload_length = 0;
     rpc_message->msg.status = Status_Ok;
-    rpc_message->msg.method = Method_Send_Bootinfo;
+    rpc_message->msg.method = Method_Send_Binding;
     rpc_message->cap = frame;
 
     err = aos_rpc_ump_send_message(rpc, rpc_message);
