@@ -2,39 +2,18 @@
 #define _LIB_BARRELFISH_AOS_LMP_H
 
 #include <aos/aos.h>
-#include <aos/aos_rpc.h>
+#include <aos/aos_rpc_types.h>
 
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
-
-//#define ENABLE_LMP_MONITOR_CHAN
-
-enum rpc_message_status {
-    Status_Ok = 0,
-    Spawn_Failed = 1,
-    Process_Get_Name_Failed = 2,
-    Process_Get_All_Pids_Failed = 3,
-    Status_Error = 4,
-};
-
-struct rpc_message_part {
-    uint32_t payload_length; ///< The length of the message.
-    uint16_t status; ///< status / errors
-    uint8_t method;   ///< Method identifier, see enum rpc_message_method
-    char payload[0]; ///< The total payload data of the message.
-} __attribute__((packed));      // due to correct ordering not necessary but explicit is better
 
 #define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH * sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
 #define LMP_SEGMENT_SIZE (sizeof(uintptr_t) * LMP_MSG_LENGTH)
 
-struct rpc_message {
-    struct capref cap; ///< Optional cap to exchange, NULL if not set
-    struct rpc_message_part msg;
-
-};
+//#define ENABLE_LMP_MONITOR_CHAN
 
 struct aos_rpc_lmp {
-    void *shared;
+    struct lmp_chan chan;
 };
 
 enum pending_state {

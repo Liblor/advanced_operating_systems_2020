@@ -16,7 +16,9 @@
 #define _LIB_BARRELFISH_AOS_MESSAGES_H
 
 #include <aos/aos.h>
+#include <aos/aos_rpc_types.h>
 #include <aos/aos_rpc_lmp.h>
+#include <aos/aos_rpc_ump.h>
 
 // How often a transient error can occur before it's regarded critical.
 #define TRANSIENT_ERR_RETRIES (20)
@@ -24,24 +26,11 @@
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
     struct thread_mutex mutex;
-    struct lmp_chan lc;
     union {
-        struct aos_rpc_lmp *lmp;
+        struct aos_rpc_lmp lmp;
+        struct aos_rpc_ump ump;
     };
 };
-
-enum rpc_message_method {
-    Method_Send_Number, // TODO: assign numbers
-    Method_Get_Ram_Cap,
-    Method_Send_String,
-    Method_Serial_Putchar,
-    Method_Serial_Getchar,
-    Method_Process_Get_Name,
-    Method_Process_Get_All_Pids,
-    Method_Spawn_Process,
-};
-
-
 
 /**
  * \brief Call this handler on the receive side for grading

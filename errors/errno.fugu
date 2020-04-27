@@ -279,6 +279,7 @@ errors libaos LIB_ERR_ {
     failure PAGING_INITIALIZATION "The initialization of the paging state failed",
     failure PAGING_INVALID_ALIGNMENT "The initialization of the paging state failed",
     failure PAGING_VADDR_NOT_ALIGNED "The virtual address is not aligned",
+    failure PAGING_MAP_FRAME "Failure in paging_map_frame()",
 
     failure VSPACE_PINNED_INIT  "Failure in vspace_pinned_init()",
     failure VSPACE_PINNED_ALLOC "Failure in vspace_pinned_alloc()",
