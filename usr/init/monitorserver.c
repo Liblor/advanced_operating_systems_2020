@@ -67,7 +67,6 @@ static inline errval_t monitor_forward(
 {
     errval_t err;
     struct monitorserver_state *mss = server_state;
-    struct aos_rpc *server_rpc = NULL;
     err = aos_rpc_ump_send_message(
             &mss->server_rpc,
             msg
