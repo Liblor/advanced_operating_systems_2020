@@ -81,22 +81,22 @@ static void service_recv_cb(
     struct monitorserver_state *mss = server_state;
 	switch (msg->msg.method) {
     case Method_Get_Ram_Cap:
-        err = monitor_forward_receive(msg, rpc, &mss->memoryserver);
+        err = monitor_forward_receive(msg, rpc, &mss->memoryserver_rpc);
         break;
     case Method_Send_Number:
     case Method_Send_String:
-        err = monitor_forward(msg, &mss->initserver);
+        err = monitor_forward(msg, &mss->initserver_rpc);
         break;
     case Method_Serial_Putchar:
-        err = monitor_forward(msg, &mss->serialserver);
+        err = monitor_forward(msg, &mss->serialserver_rpc);
         break;
     case Method_Serial_Getchar:
-        err = monitor_forward_receive(msg, rpc, &mss->serialserver);
+        err = monitor_forward_receive(msg, rpc, &mss->serialserver_rpc);
         break;
     case Method_Process_Get_Name:
     case Method_Process_Get_All_Pids:
     case Method_Spawn_Process:
-        err = monitor_forward_receive(msg, rpc, &mss->processserver);
+        err = monitor_forward_receive(msg, rpc, &mss->processserver_rpc);
         break;
 
 	default:
@@ -164,8 +164,7 @@ static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_m
 
 
 __unused
-static int
-serve_localtasks_thread(void * args) {
+static int serve_localtasks_thread(void * args) {
     errval_t err;
 
     struct monitorserver_urpc_caps *urpc_caps = (struct monitorserver_urpc_caps *) args;
@@ -211,9 +210,52 @@ clean_up:
     return err;
 }
 
+static inline errval_t initialize_monitorserver_state(
+        struct monitorserver_state *mss,
+        struct monitorserver_urpc_caps *urpc_caps
+) {
+    errval_t err;
+    err = aos_rpc_ump_init(
+            &mss->serialserver_rpc,
+            urpc_caps->serial_server,
+            false
+    );
+    if (err_is_fail(err)) {
+        return err;
+    }
+    err = aos_rpc_ump_init(
+            &mss->initserver_rpc,
+            urpc_caps->init_server,
+            false
+    );
+    if (err_is_fail(err)) {
+        return err;
+    }
+    err = aos_rpc_ump_init(
+            &mss->processserver_rpc,
+            urpc_caps->process_server,
+            false
+    );
+    if (err_is_fail(err)) {
+        return err;
+    }
+    err = aos_rpc_ump_init(
+            &mss->memoryserver_rpc,
+            urpc_caps->memory_server,
+            false
+    );
+    if (err_is_fail(err)) {
+        return err;
+    }
+    return SYS_ERR_OK;
+}
+
 errval_t monitorserver_init(
         struct monitorserver_urpc_caps *urpc_caps
 ){
+
+    // TODO: remove this once we get the correct caps 
+    return SYS_ERR_OK;
 
     errval_t err;
     struct monitorserver_state *mss = calloc(1, sizeof(struct monitorserver_state));
@@ -221,7 +263,11 @@ errval_t monitorserver_init(
         return LIB_ERR_MALLOC_FAIL;
     }
 
-    // TODO: initialize monitorserver state with aos_rpc to urpc-server
+    err = initialize_monitorserver_state(mss, urpc_caps);
+    if (err_is_fail(err)) {
+        debug_printf("initialize_monitorserver_state() failed: %s\n", err_getstring(err));
+        return err_push(err, RPC_ERR_INITIALIZATION);
+    }
 
     err = rpc_lmp_server_init(&server, cap_chan_monitor, service_recv_cb, state_init_cb, state_free_cb, mss);
     if (err_is_fail(err)) {
@@ -229,7 +275,6 @@ errval_t monitorserver_init(
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
-    // TODO: spawn thread
     struct thread *localtasks_th = thread_create(serve_localtasks_thread, urpc_caps);
 
     if (localtasks_th == NULL){
