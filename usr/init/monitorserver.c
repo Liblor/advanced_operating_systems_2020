@@ -67,7 +67,7 @@ static inline errval_t monitor_forward(
 {
     errval_t err;
     struct monitorserver_state *mss = server_state;
-    struct aos_rpc *server_rpc = NULL;
+    __unused struct aos_rpc *server_rpc = NULL;
     err = aos_rpc_ump_send_message(
             &mss->server_rpc,
             msg
@@ -144,7 +144,6 @@ static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_m
             (*answer)->msg.method = Method_Localtask_Spawn_Process;
             (*answer)->msg.payload_length = 0;
             (*answer)->msg.status = Status_Ok;
-
             break;
         }
 
@@ -152,7 +151,14 @@ static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_m
             debug_printf("unknown localtask: %d\n", recv_msg->msg.method);
     }
 
+    return SYS_ERR_OK;
 }
+
+// args for thread
+struct monitor_localtasks_args {
+    struct capref urpc_localtask_spawn;
+};
+
 
 // XXX: API is changed to have one cap for rx and tx
 // XXX: Decide if one thread for all localtask services or one thread for each local task service (ie spawn, memory)
@@ -161,7 +167,9 @@ static int
 serve_localtasks_thread(void * args) {
     errval_t err;
 
-    struct capref cap_localtasks_spawn;
+    struct monitor_localtasks_args *localtasks_args = (struct monitor_localtasks_args *) args;
+
+    struct capref cap_localtasks_spawn = localtasks_args->urpc_localtask_spawn;
     struct aos_rpc rpc_localtasks_spawn_monitor;
 
     // XXX: API to change, use one cap for tx, rx
@@ -203,13 +211,6 @@ serve_localtasks_thread(void * args) {
     }
 }
 
-
-
-//static struct serve_localtasks_args {
-//
-//};
-
-
 errval_t monitorserver_init(void)
 {
     errval_t err;
@@ -225,6 +226,15 @@ errval_t monitorserver_init(void)
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
+
+    struct monitor_localtasks_args localtasks_args;
+    localtasks_args.urpc_localtask_spawn = NULL_CAP;
+    struct thread *localtasks_th = thread_create(serve_localtasks_thread, &localtasks_args);
+    if (localtasks_th == NULL){
+        debug_printf("err in creating localtasks thread, is NULL");
+        return LIB_ERR_THREAD_CREATE;
+    }
+
 
     return SYS_ERR_OK;
 }
