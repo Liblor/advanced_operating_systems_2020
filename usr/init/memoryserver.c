@@ -99,6 +99,7 @@ static void state_free_cb(void *server_state, void *callback_state)
     free(state);
 }
 
+
 errval_t memoryserver_init(ram_cap_callback_t new_ram_cap_cb)
 {
     errval_t err;
