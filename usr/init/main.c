@@ -284,7 +284,7 @@ static int bsp_main(int argc, char *argv[])
         assert(strcmp(msg_recv->msg.payload, payload) == 0);
         debug_printf("done\n");
 
-        /*
+
         domainid_t pid;
         struct spawninfo si;
         err = spawn_load_by_name("multicore_test", &si, &pid);
@@ -292,9 +292,10 @@ static int bsp_main(int argc, char *argv[])
             DEBUG_ERR(err, "spawn_load_by_name failed");
             abort();
         }
-        */
+
     }
-     */
+      */
+
 
     debug_printf("Message handler loop\n");
 
