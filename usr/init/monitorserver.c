@@ -226,13 +226,14 @@ errval_t monitorserver_init(void)
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
-    struct monitor_localtasks_args localtasks_args;
-    localtasks_args.urpc_localtask_spawn = NULL_CAP;
-    struct thread *localtasks_th = thread_create(serve_localtasks_thread, &localtasks_args);
-    if (localtasks_th == NULL){
-        debug_printf("err in creating localtasks thread, is NULL");
-        return LIB_ERR_THREAD_CREATE;
-    }
+    // TODO: spawn thread
+//    struct monitor_localtasks_args localtasks_args;
+//    localtasks_args.urpc_localtask_spawn = NULL_CAP;
+//    struct thread *localtasks_th = thread_create(serve_localtasks_thread, &localtasks_args);
+//    if (localtasks_th == NULL){
+//        debug_printf("err in creating localtasks thread, is NULL");
+//        return LIB_ERR_THREAD_CREATE;
+//    }
 
 
     return SYS_ERR_OK;
