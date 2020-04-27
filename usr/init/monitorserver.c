@@ -236,6 +236,7 @@ static inline errval_t initialize_monitorserver_state(
     if (err_is_fail(err)) {
         return err;
     }
+    return SYS_ERR_OK;
 }
 
 errval_t monitorserver_init(

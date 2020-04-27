@@ -187,7 +187,7 @@ static void setup_servers(
     // TODO: pass correct urpc caps
     struct monitorserver_urpc_caps urpc_caps = {
             .init_server = NULL_CAP,
-            .spawn_server = NULL_CAP,
+            .process_server = NULL_CAP,
             .serial_server = NULL_CAP,
             .localtask_spawn = NULL_CAP
     };
@@ -366,7 +366,7 @@ static int app_main(int argc, char **argv)
     // TODO: pass correct urpc caps
     struct monitorserver_urpc_caps urpc_caps = {
             .init_server = NULL_CAP,
-            .spawn_server = NULL_CAP,
+            .process_server = NULL_CAP,
             .serial_server = NULL_CAP,
             .localtask_spawn = NULL_CAP
     };
