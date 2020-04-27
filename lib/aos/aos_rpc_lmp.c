@@ -52,16 +52,15 @@ aos_rpc_lmp_handler_print(char *string, uintptr_t *val, struct capref *cap)
 errval_t
 aos_rpc_lmp_init(struct aos_rpc *rpc)
 {
-    lmp_chan_init(&rpc->lc);
+    errval_t err;
 
-    struct aos_rpc_lmp *rpc_lmp = calloc(1, sizeof(struct aos_rpc_lmp));
-    if (rpc_lmp == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
+    err = aos_rpc_init(rpc);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_init()\n");
+        return err;
     }
 
-    rpc->lmp = rpc_lmp;
-
-    thread_mutex_init(&rpc->mutex);
+    lmp_chan_init(&rpc->lmp.chan);
 
     return SYS_ERR_OK;
 }
@@ -394,7 +393,7 @@ client_recv_open_cb(void *args)
     errval_t err;
 
     struct aos_rpc *rpc = (struct aos_rpc *) args;
-    struct lmp_chan *lc = &rpc->lc;
+    struct lmp_chan *lc = &rpc->lmp.chan;
 
     struct capref server_cap;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
@@ -433,7 +432,7 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(
         goto error;
     }
 
-    struct lmp_chan *lc = &rpc->lc;
+    struct lmp_chan *lc = &rpc->lmp.chan;
 
     struct capref cap_ep;
     err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &cap_ep, &lc->endpoint);

@@ -27,6 +27,7 @@
 #include <grading.h>
 #include <aos/coreboot.h>
 #include <aos/kernel_cap_invocations.h>
+#include <aos/aos_rpc_ump.h>
 
 #include "mem_alloc.h"
 #include "initserver.h"
@@ -202,6 +203,7 @@ static int bsp_main(int argc, char *argv[])
         abort();
     }
 
+//    /*
     // TODO: Discuss about aos_rpc_init, as it is unused
     err = master_urpc_init();
     if (err_is_fail(err)) {
@@ -226,21 +228,74 @@ static int bsp_main(int argc, char *argv[])
         debug_printf("urpc_send_boot_info failed: %s\n", err_getstring(err));
         abort();
     }
+//    */
 
     // Grading
     grading_test_late();
 
-    /*
+//    /*
     {
-        domainid_t pid;
-        struct spawninfo si;
-        err = spawn_load_by_name("multicore_test", &si, &pid);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "spawn_load_by_name failed");
-            abort();
-        }
+        struct capref frame1, frame2;
+        size_t size1, size2;
+
+        err = frame_alloc(&frame1, UMP_SHARED_FRAME_SIZE, &size1);
+        assert(err_is_ok(err));
+        err = frame_alloc(&frame2, UMP_SHARED_FRAME_SIZE, &size2);
+        assert(err_is_ok(err));
+
+        struct aos_rpc aos_rpc1, aos_rpc2;
+
+        err = aos_rpc_ump_init(&aos_rpc1, frame1);
+        assert(err_is_ok(err));
+
+        err = aos_rpc_ump_init(&aos_rpc2, frame2);
+        assert(err_is_ok(err));
+
+        err = aos_rpc_ump_set_rx(&aos_rpc1, frame2);
+        assert(err_is_ok(err));
+        err = aos_rpc_ump_set_rx(&aos_rpc2, frame1);
+        assert(err_is_ok(err));
+
+        struct rpc_message *msg_recv = NULL;
+
+        err = aos_rpc_ump_receive_non_block(&aos_rpc1, &msg_recv);
+        assert(err_is_ok(err));
+        assert(msg_recv == NULL);
+
+        char payload[] = "012345678901234501234567";
+        struct rpc_message *msg_send = malloc(sizeof(struct rpc_message) + sizeof(payload));
+        assert(msg_send != NULL);
+        msg_send->msg.payload_length = sizeof(payload);
+        msg_send->msg.status = Status_Ok;
+        msg_send->msg.method = Method_Send_Number;
+        memcpy(msg_send->msg.payload, payload, sizeof(payload));
+
+        err = aos_rpc_ump_send_message(&aos_rpc2, msg_send);
+        assert(err_is_ok(err));
+
+        err = aos_rpc_ump_receive_non_block(&aos_rpc1, &msg_recv);
+        assert(err_is_ok(err));
+
+        assert(msg_recv != NULL);
+        assert(msg_recv->msg.payload_length == sizeof(payload));
+        assert(msg_recv->msg.status == Status_Ok);
+        assert(msg_recv->msg.method == Method_Send_Number);
+        debug_printf("payload='%s'\n", msg_recv->msg.payload);
+        assert(strcmp(msg_recv->msg.payload, payload) == 0);
+        debug_printf("done\n");
+
+
+//        domainid_t pid;
+//        struct spawninfo si;
+//        err = spawn_load_by_name("multicore_test", &si, &pid);
+//        if (err_is_fail(err)) {
+//            DEBUG_ERR(err, "spawn_load_by_name failed");
+//            abort();
+//        }
+
     }
-     */
+//      */
+
 
     debug_printf("Message handler loop\n");
 

@@ -25,7 +25,11 @@ void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
 
 errval_t aos_rpc_init(struct aos_rpc *rpc)
 {
-    return aos_rpc_lmp_init(rpc);
+    memset(rpc, 0, sizeof(struct aos_rpc));
+
+    thread_mutex_init(&rpc->mutex);
+
+    return SYS_ERR_OK;
 }
 
 errval_t aos_rpc_send_number(struct aos_rpc *rpc, uintptr_t num)
