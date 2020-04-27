@@ -76,13 +76,6 @@ errval_t idcap_create(struct capref dest);
 errval_t cnode_build_cnoderef(struct cnoderef *cnoder, struct capref capr);
 errval_t cnode_build_l1cnoderef(struct cnoderef *cnoder, struct capref capr);
 
-errval_t cap_retype_frames(
-    struct capref *frames,
-    struct capref frame,
-    gensize_t size,
-    size_t count
-);
-
 /**
  * \brief Mint (Copy changing type-specific parameters) a capability
  *
