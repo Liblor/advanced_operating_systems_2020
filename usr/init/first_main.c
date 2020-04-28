@@ -170,9 +170,14 @@ static void setup_servers(
     }
 
     err = monitorserver_init();
+    if (err_is_fail(err)) {
+        debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
 }
 
 static void register_service_channel(
+    enum monitorserver_binding_type type,
     struct aos_rpc *rpc,
     errval_t (*register_func)(struct aos_rpc *rpc)
 )
@@ -215,6 +220,12 @@ static void register_service_channel(
         debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
         abort();
     }
+
+    err = monitorserver_register_service(type, frame);
+    if (err_is_fail(err)) {
+        debug_printf("monitorserver_register_service() failed: %s\n", err_getstring(err));
+        abort();
+    }
 }
 
 /*
@@ -230,19 +241,18 @@ static void register_service_channels(
     struct aos_rpc *rpc
 )
 {
-    register_service_channel(rpc, initserver_add_client);
+    register_service_channel(InitserverUrpc, rpc, initserver_add_client);
     //register_service_channel(rpc, memoryserver_add_client);
-    register_service_channel(rpc, processserver_add_client);
-    register_service_channel(rpc, processserver_add_client);
-    register_service_channel(rpc, serialserver_add_client);
+    register_service_channel(ProcessserverUrpc, rpc, processserver_add_client);
+    register_service_channel(ProcessLocaltasksUrpc, rpc, processserver_add_client);
+    register_service_channel( SerialserverUrpc, rpc, serialserver_add_client);
 }
 
 static void setup_core(
     struct bootinfo *bootinfo,
     coreid_t mpid,
     struct aos_rpc *rpc
-)
-{
+){
     errval_t err;
 
     /*
@@ -266,7 +276,6 @@ static void setup_core(
     /*
      * Boot the new core.
      */
-
     struct frame_identity frame_id;
     err = frame_identify(frame, &frame_id);
     if (err_is_fail(err)) {
@@ -283,7 +292,6 @@ static void setup_core(
     /*
      * Send the booinfo message.
      */
-
     const size_t size = sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region);
     char buffer[sizeof(struct rpc_message) + size];
     memset(buffer, 0x00, sizeof(buffer));
@@ -304,7 +312,6 @@ static void setup_core(
     /*
      * The original RAM capability is no longer needed.
      */
-
     err = cap_delete(frame);
     if (err_is_fail(err)) {
         debug_printf("cap_destroy() failed: %s\n", err_getstring(err));
