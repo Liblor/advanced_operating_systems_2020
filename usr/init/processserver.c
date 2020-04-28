@@ -238,7 +238,7 @@ errval_t processserver_send_spawn_local(struct processserver_state *server_state
     uint8_t send_buf[sizeof(struct rpc_message) + payload_len];
     struct rpc_message *req = (struct rpc_message *) &send_buf;
 
-    req->msg.method = Method_Spawn_Process_Local;
+    req->msg.method = Method_Localtask_Spawn_Process;
     req->msg.status = Status_Ok;
     req->cap = NULL_CAP;
     req->msg.payload_length = payload_len;

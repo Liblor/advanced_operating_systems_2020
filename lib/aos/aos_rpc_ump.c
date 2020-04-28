@@ -271,6 +271,8 @@ errval_t aos_rpc_ump_send_message(
 
         cap_base = fi.base;
         cap_size = fi.bytes;
+    } else {
+        debug_printf("(capref_is_null(msg->cap) is true)\n");
     }
 
     const uint8_t *msg_base = (uint8_t *) &msg->msg;

@@ -25,6 +25,7 @@
 #include "processserver.h"
 
 #include "first_main.h"
+#include "monitorserver.h"
 
 static void number_cb(uintptr_t num)
 {
@@ -147,9 +148,16 @@ static void setup_servers(
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
+
+    err = monitorserver_init();
+    if (err_is_fail(err)) {
+        debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
 }
 
 static void register_service_channel(
+    enum monitorserver_binding_type type,
     struct aos_rpc *rpc,
     coreid_t mpid,
     errval_t (*register_func)(struct aos_rpc *rpc, coreid_t mpid)
@@ -193,6 +201,12 @@ static void register_service_channel(
         debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
         abort();
     }
+
+    err = monitorserver_register_service(type, frame);
+    if (err_is_fail(err)) {
+        debug_printf("monitorserver_register_service() failed: %s\n", err_getstring(err));
+        abort();
+    }
 }
 
 /*
@@ -203,24 +217,24 @@ static void register_service_channel(
  * - remote monitor to local processserver (for local tasks)
  * - remote monitor to local serialserver
  */
+__unused
 static void register_service_channels(
     struct aos_rpc *rpc,
     coreid_t mpid
 )
 {
-    register_service_channel(rpc, mpid, initserver_add_client);
-    register_service_channel(rpc, mpid, memoryserver_ump_add_client);
-    register_service_channel(rpc, mpid, processserver_add_client);
-    register_service_channel(rpc, mpid, processserver_set_local_task_chan);
-    register_service_channel(rpc, mpid, serialserver_add_client);
+    register_service_channel(InitserverUrpc, rpc, mpid, initserver_add_client);
+    register_service_channel(MemoryserverUrpc, rpc, mpid, memoryserver_ump_add_client);
+    register_service_channel(ProcessserverUrpc, rpc, mpid, processserver_add_client);
+    register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
+    register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
 }
 
 static void setup_core(
     struct bootinfo *bootinfo,
     coreid_t mpid,
     struct aos_rpc *rpc
-)
-{
+){
     errval_t err;
 
     /*
@@ -244,7 +258,6 @@ static void setup_core(
     /*
      * Boot the new core.
      */
-
     struct frame_identity frame_id;
     err = frame_identify(frame, &frame_id);
     if (err_is_fail(err)) {
@@ -261,7 +274,6 @@ static void setup_core(
     /*
      * Send the booinfo message.
      */
-
     const size_t size = sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region);
     char buffer[sizeof(struct rpc_message) + size];
     memset(buffer, 0x00, sizeof(buffer));
@@ -273,6 +285,7 @@ static void setup_core(
     rpc_message->cap = cap_mmstrings;
     memcpy(rpc_message->msg.payload, bootinfo, size);
 
+    debug_printf("sending bootinfo\n");
     err = aos_rpc_ump_send_message(rpc, rpc_message);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
@@ -310,7 +323,7 @@ int first_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 1
+#if 0
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);

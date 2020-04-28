@@ -4,10 +4,11 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
 
-static struct aos_rpc *init_channel = NULL;
-static struct aos_rpc *memory_channel = NULL;
-static struct aos_rpc *process_channel = NULL;
-static struct aos_rpc *serial_channel = NULL;
+__unused static struct aos_rpc *init_channel = NULL;
+__unused static struct aos_rpc *memory_channel = NULL;
+__unused static struct aos_rpc *process_channel = NULL;
+__unused static struct aos_rpc *serial_channel = NULL;
+__unused static struct aos_rpc *monitor_channel = NULL;
 
 /*
  * Used for setting up the channels. While the init_channel and memory_channel
@@ -521,12 +522,22 @@ static struct aos_rpc *aos_rpc_lmp_get_channel(
     return *rpc;
 }
 
+
+struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void)
+{
+    return aos_rpc_lmp_get_channel(&monitor_channel, cap_chan_monitor, "monitor");
+}
+
 /**
  * \brief Returns the channel to the init dispatcher.
  */
 struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
+#ifdef ENABLE_LMP_MONITOR_CHAN
+    return aos_rpc_lmp_get_monitor_channel();
+#else
     return aos_rpc_lmp_get_channel(&init_channel, cap_chan_init, "init");
+#endif
 }
 
 /**
@@ -534,7 +545,9 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
+    // XXX: Memory channel is always served by memory server on same core
     return aos_rpc_lmp_get_channel(&memory_channel, cap_chan_memory, "memory");
+
 }
 
 /**
@@ -542,7 +555,11 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
+#ifdef ENABLE_LMP_MONITOR_CHAN
+    return aos_rpc_lmp_get_monitor_channel();
+#else
     return aos_rpc_lmp_get_channel(&process_channel, cap_chan_process, "process");
+#endif
 }
 
 /**
@@ -550,5 +567,9 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
+#ifdef ENABLE_LMP_MONITOR_CHAN
+    return aos_rpc_lmp_get_monitor_channel();
+#else
     return aos_rpc_lmp_get_channel(&serial_channel, cap_chan_serial, "serial");
+#endif
 }

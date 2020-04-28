@@ -10,6 +10,8 @@
 
 #define LMP_SEGMENT_SIZE (sizeof(uintptr_t) * LMP_MSG_LENGTH)
 
+//#define ENABLE_LMP_MONITOR_CHAN
+
 struct aos_rpc_lmp {
     struct lmp_chan chan;
 };
@@ -103,6 +105,12 @@ errval_t aos_rpc_lmp_process_get_all_pids(struct aos_rpc *chan,
 errval_t aos_rpc_lmp_get_device_cap(struct aos_rpc *chan,
                                 lpaddr_t paddr, size_t bytes,
                                 struct capref *frame);
+
+
+/**
+ * \brief Returns the RPC channel to monitor.
+ */
+struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void);
 
 /**
  * \brief Returns the RPC channel to init.

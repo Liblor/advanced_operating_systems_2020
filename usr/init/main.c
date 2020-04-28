@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 
     debug_printf("init: on core %" PRIuCOREID ", invoked as:", my_core_id);
     for (int i = 0; i < argc; i++) {
-       printf(" %s", argv[i]);
+        printf(" %s", argv[i]);
     }
     printf("\n");
     fflush(stdout);
