@@ -1,12 +1,12 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
-#include <aos/aos_rpc_lmp.h>
+#include <aos/aos_rpc_ump.h>
 
-#include <rpc/server/lmp.h>
+#include <rpc/server/ump.h>
 
 #include "initserver.h"
 
-static struct rpc_lmp_server server;
+static struct rpc_ump_server server;
 
 static recv_number_callback_t recv_number_cb = NULL;
 static recv_string_callback_t recv_string_cb = NULL;
@@ -38,19 +38,14 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
 	}
 }
 
-// Initialize channel-specific data.
-static void *state_init_cb(void *server_state)
+errval_t initserver_add_client(struct aos_rpc *rpc)
 {
-    struct initserver_cb_state *state = NULL;
-
-    return state;
+    return rpc_ump_server_add_client(&server, rpc);
 }
 
-// Free channel-specific data.
-static void state_free_cb(void *server_state, void *callback_state)
+errval_t initserver_serve_next(void)
 {
-    struct initserver_cb_state *state = callback_state;
-    free(state);
+    return rpc_ump_server_serve_next(&server);
 }
 
 errval_t initserver_init(
@@ -63,9 +58,9 @@ errval_t initserver_init(
     recv_number_cb = new_recv_number_cb;
     recv_string_cb = new_recv_string_cb;
 
-    err = rpc_lmp_server_init(&server, cap_chan_init, service_recv_cb, state_init_cb, state_free_cb, NULL);
+    err = rpc_ump_server_init(&server, service_recv_cb, NULL, NULL, NULL);
     if (err_is_fail(err)) {
-        debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
+        debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 

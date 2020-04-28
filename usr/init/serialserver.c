@@ -1,12 +1,11 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
-#include <aos/aos_rpc_lmp.h>
-#include <aos/aos_rpc_lmp_marshal.h>
-#include <rpc/server/lmp.h>
+#include <aos/aos_rpc_ump.h>
+#include <rpc/server/ump.h>
 
 #include "serialserver.h"
 
-static struct rpc_lmp_server server;
+static struct rpc_ump_server server;
 
 static putchar_callback_t putchar_cb = NULL;
 static getchar_callback_t getchar_cb = NULL;
@@ -23,9 +22,9 @@ static errval_t reply_char(struct aos_rpc *rpc, char c) {
     msg.msg.status = Status_Ok;
     msg.msg.payload[0] = c;
 
-    err = aos_rpc_lmp_send_message(rpc, &msg, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_ump_send_message(rpc, &msg);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "lmp_send_message failed\n");
+        DEBUG_ERR(err, "ump_send_message failed\n");
         return err;
     }
 
@@ -63,19 +62,14 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
     }
 }
 
-// Initialize channel-specific data.
-static void *state_init_cb(void *server_state)
+errval_t serialserver_add_client(struct aos_rpc *rpc)
 {
-    struct serialserver_cb_state *state = NULL;
-
-    return state;
+    return rpc_ump_server_add_client(&server, rpc);
 }
 
-// Free channel-specific data.
-static void state_free_cb(void *server_state, void *callback_state)
+errval_t serialserver_serve_next(void)
 {
-    struct serialserver_cb_state *state = callback_state;
-    free(state);
+    return rpc_ump_server_serve_next(&server);
 }
 
 errval_t serialserver_init(
@@ -88,9 +82,9 @@ errval_t serialserver_init(
     putchar_cb = new_putchar_cb;
     getchar_cb = new_getchar_cb;
 
-    err = rpc_lmp_server_init(&server, cap_chan_serial, service_recv_cb, state_init_cb, state_free_cb, NULL);
+    err = rpc_ump_server_init(&server, service_recv_cb, NULL, NULL, NULL);
     if (err_is_fail(err)) {
-        debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
+        debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
