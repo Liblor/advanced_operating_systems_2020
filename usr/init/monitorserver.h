@@ -27,12 +27,16 @@ struct monitorserver_state {
     struct monitorserver_rpc processserver_rpc;
     struct monitorserver_rpc processserver_localtasks_rpc;
     struct monitorserver_rpc serialserver_rpc;
+    struct waitset ws;
 };
 
 errval_t monitorserver_init(void
 );
 
 errval_t monitorserver_register_service(enum monitorserver_binding_type type, struct capref urpc_frame);
+
+// serves lmp requests in own thread
+errval_t monitorserver_serve_lmp_in_thread(void);
 
 
 #endif

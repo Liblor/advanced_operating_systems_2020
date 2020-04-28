@@ -129,7 +129,7 @@ errval_t memoryserver_init(ram_cap_callback_t new_ram_cap_cb)
 
     ram_cap_cb = new_ram_cap_cb;
 
-    err = rpc_lmp_server_init(&lmp_server, cap_chan_memory, service_recv_cb, state_init_cb, state_free_cb, NULL);
+    err = rpc_lmp_server_init(&lmp_server, cap_chan_memory, service_recv_cb, state_init_cb, state_free_cb, NULL, NULL);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);

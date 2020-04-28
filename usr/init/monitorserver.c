@@ -339,19 +339,46 @@ errval_t monitorserver_register_service(
     return SYS_ERR_OK;
 }
 
+
+static int serve_lmp_requests_th(void *args) {
+    errval_t err;
+    struct waitset *ws = &monitorserver_state.ws;
+
+    while (true) {
+        err = event_dispatch(ws);
+        if (err_is_fail(err)) {
+            debug_printf("error in serving lmp requests, %s\n", err_getstring(err));
+        }
+    }
+
+    return SYS_ERR_OK;
+}
+
+/** serves lmp requests in own thread **/
+errval_t monitorserver_serve_lmp_in_thread(void) {
+    struct thread *th = thread_create(serve_lmp_requests_th, NULL);
+    if (th == NULL) {
+        return LIB_ERR_THREAD_CREATE;
+    }
+
+    return SYS_ERR_OK;
+}
+
 errval_t monitorserver_init(void
 ){
     errval_t err;
 
     memset(&monitorserver_state, 0, sizeof(struct monitorserver_state));
     thread_mutex_init(&monitorserver_state.mutex);
+    waitset_init(&monitorserver_state.ws);
 
     err = rpc_lmp_server_init(
             &server, cap_chan_monitor,
             service_recv_cb,
             state_init_cb,
             state_free_cb,
-            &monitorserver_state);
+            &monitorserver_state,
+            &monitorserver_state.ws);
 
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
