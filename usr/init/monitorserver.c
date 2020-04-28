@@ -296,6 +296,7 @@ errval_t monitorserver_register_service(
         case ProcessLocaltasksUrpc:
             err = initialize_service(&monitorserver_state.processserver_localtasks_rpc, urpc_frame);
             if (!err_is_ok(err)) {
+                // XXX: if monitorserver accepts more local tasks, run this in init of monitor
                 err = run_localtasks();
             }
             break;
