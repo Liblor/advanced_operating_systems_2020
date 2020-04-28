@@ -746,6 +746,7 @@ errors libmm MM_ERR_ {
 // errors from rpc server library
 errors libmm RPC_ERR_ {
     failure INITIALIZATION   "The initialization of the server failed",
+    failure MONITOR_UNKNOWN_RPC_TYPE   "Unknown RPC type for monitor",
 };
 
 // errors in init

@@ -25,6 +25,7 @@
 #include "processserver.h"
 
 #include "first_main.h"
+#include "monitorserver.h"
 
 static void number_cb(uintptr_t num)
 {
@@ -167,6 +168,8 @@ static void setup_servers(
         debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
+
+    err = monitorserver_init();
 }
 
 static void register_service_channel(

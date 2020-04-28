@@ -9,6 +9,10 @@
 #include "monitorserver.h"
 
 static struct rpc_lmp_server server;
+static struct monitorserver_state monitorserver_state;
+
+#define MONITOSERVER_LOCK thread_mutex_lock(&monitorserver_state.mutex)
+#define MONITOSERVER_UNLOCK thread_mutex_unlock(&monitorserver_state.mutex)
 
 static errval_t reply_error(
         struct aos_rpc *rpc,
@@ -70,6 +74,14 @@ static inline errval_t monitor_forward(
     return err;
 }
 
+static bool is_registered(struct monitorserver_rpc *rpc) {
+    bool res;
+    MONITOSERVER_LOCK;
+    res = rpc->is_registered;
+    MONITOSERVER_UNLOCK;
+    return res;
+}
+
 static void service_recv_cb(
         struct rpc_message *msg,
         void *callback_state,
@@ -81,22 +93,37 @@ static void service_recv_cb(
     struct monitorserver_state *mss = server_state;
 	switch (msg->msg.method) {
     case Method_Get_Ram_Cap:
-        err = monitor_forward_receive(msg, rpc, &mss->memoryserver_rpc);
+        if (! is_registered(&mss->memoryserver_rpc)) {
+            goto unregistered_service;
+        }
+        err = monitor_forward_receive(msg, rpc, &mss->memoryserver_rpc.ump_rpc);
         break;
     case Method_Send_Number:
     case Method_Send_String:
-        err = monitor_forward(msg, &mss->initserver_rpc);
+        if (! is_registered(&mss->initserver_rpc)) {
+            goto unregistered_service;
+        }
+        err = monitor_forward(msg, &mss->initserver_rpc.ump_rpc);
         break;
     case Method_Serial_Putchar:
-        err = monitor_forward(msg, &mss->serialserver_rpc);
+        if (! is_registered(&mss->serialserver_rpc)) {
+            goto unregistered_service;
+        }
+        err = monitor_forward(msg, &mss->serialserver_rpc.ump_rpc);
         break;
     case Method_Serial_Getchar:
-        err = monitor_forward_receive(msg, rpc, &mss->serialserver_rpc);
+        if (! is_registered(&mss->serialserver_rpc)) {
+            goto unregistered_service;
+        }
+        err = monitor_forward_receive(msg, rpc, &mss->serialserver_rpc.ump_rpc);
         break;
     case Method_Process_Get_Name:
     case Method_Process_Get_All_Pids:
     case Method_Spawn_Process:
-        err = monitor_forward_receive(msg, rpc, &mss->processserver_rpc);
+        if (! is_registered(&mss->processserver_rpc)) {
+            goto unregistered_service;
+        }
+        err = monitor_forward_receive(msg, rpc, &mss->processserver_rpc.ump_rpc);
         break;
 
 	default:
@@ -105,6 +132,10 @@ static void service_recv_cb(
 	if (err_is_fail(err)) {
 	    debug_printf("Unhandled error in monitorserver service_recv_cb\n");
 	}
+	return;
+
+	unregistered_service:
+        debug_printf("service method %d is not registered. cannot service\n", msg->msg.method);
 }
 
 // Initialize channel-specific data.
@@ -210,78 +241,83 @@ clean_up:
     return err;
 }
 
-static inline errval_t initialize_monitorserver_state(
-        struct monitorserver_state *mss,
-        struct monitorserver_urpc_caps *urpc_caps
-) {
+static errval_t initialize_service(struct monitorserver_rpc *rpc,
+                          struct capref frame) {
     errval_t err;
     err = aos_rpc_ump_init(
-            &mss->serialserver_rpc,
-            urpc_caps->serial_server,
+            &rpc->ump_rpc,
+            frame,
             false
     );
     if (err_is_fail(err)) {
         return err;
     }
-    err = aos_rpc_ump_init(
-            &mss->initserver_rpc,
-            urpc_caps->init_server,
-            false
-    );
-    if (err_is_fail(err)) {
-        return err;
-    }
-    err = aos_rpc_ump_init(
-            &mss->processserver_rpc,
-            urpc_caps->process_server,
-            false
-    );
-    if (err_is_fail(err)) {
-        return err;
-    }
-    err = aos_rpc_ump_init(
-            &mss->memoryserver_rpc,
-            urpc_caps->memory_server,
-            false
-    );
-    if (err_is_fail(err)) {
-        return err;
-    }
+    rpc->is_registered = true;
+
     return SYS_ERR_OK;
 }
 
-errval_t monitorserver_init(
-        struct monitorserver_urpc_caps *urpc_caps
+errval_t monitorserver_register_service(
+        enum monitorserver_binding_type type,
+        struct capref urpc_frame
 ){
+    errval_t err = SYS_ERR_OK;
+    MONITOSERVER_LOCK;
 
-    // TODO: remove this once we get the correct caps
-    return SYS_ERR_OK;
-
-    errval_t err;
-    struct monitorserver_state *mss = calloc(1, sizeof(struct monitorserver_state));
-    if (mss == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
+    switch(type) {
+        case InitserverUrpc:
+            err = initialize_service(&monitorserver_state.initserver_rpc, urpc_frame);
+            break;
+        case ProcessserverUrpc:
+            err = initialize_service(&monitorserver_state.processserver_rpc, urpc_frame);
+            break;
+        case ProcessLocaltasksUrpc:
+            err = initialize_service(&monitorserver_state.processserver_localtasks_rpc, urpc_frame);
+            break;
+        case SerialserverUrpc:
+            err = initialize_service(&monitorserver_state.serialserver_rpc, urpc_frame);
+            break;
+        case MemoryserverUrpc:
+            err = initialize_service(&monitorserver_state.memoryserver_rpc, urpc_frame);
+            break;
+        default:
+            debug_printf("unknown type: %d\n", type);
+            err = RPC_ERR_INITIALIZATION;
+            break;
     }
 
-    err = initialize_monitorserver_state(mss, urpc_caps);
+    MONITOSERVER_UNLOCK;
+
     if (err_is_fail(err)) {
         debug_printf("initialize_monitorserver_state() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
-    err = rpc_lmp_server_init(&server, cap_chan_monitor, service_recv_cb, state_init_cb, state_free_cb, mss);
+    return SYS_ERR_OK;
+}
+
+errval_t monitorserver_init(void
+){
+
+    // TODO: remove this once we get the correct caps
+    return SYS_ERR_OK;
+    errval_t err;
+
+    memset(&monitorserver_state, 0, sizeof(struct monitorserver_state));
+    thread_mutex_init(&monitorserver_state.mutex);
+
+    err = rpc_lmp_server_init(&server, cap_chan_monitor, service_recv_cb, state_init_cb, state_free_cb, &monitorserver_state);
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
-    struct thread *localtasks_th = thread_create(serve_localtasks_thread, urpc_caps);
-
-    if (localtasks_th == NULL){
-        debug_printf("err in creating localtasks thread, is NULL");
-        return LIB_ERR_THREAD_CREATE;
-    }
-
+//    struct thread *localtasks_th = thread_create(serve_localtasks_thread, urpc_caps);
+//
+//    if (localtasks_th == NULL){
+//        debug_printf("err in creating localtasks thread, is NULL");
+//        return LIB_ERR_THREAD_CREATE;
+//    }
 
     return SYS_ERR_OK;
 }

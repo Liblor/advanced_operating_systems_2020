@@ -2,15 +2,31 @@
 #define _USR_INIT_MONITORSERVER_H_
 
 #include <aos/aos_rpc.h>
+#include <aos/threads.h>
 
 struct monitorserver_cb_state {
 };
 
+enum monitorserver_binding_type {
+    InitserverUrpc = 0,
+    ProcessserverUrpc = 5,
+    ProcessLocaltasksUrpc = 10,
+    SerialserverUrpc = 15,
+    MemoryserverUrpc = 20,
+};
+
+struct monitorserver_rpc {
+    bool is_registered;
+    struct aos_rpc ump_rpc;
+};
+
 struct monitorserver_state {
-    struct aos_rpc initserver_rpc;
-    struct aos_rpc memoryserver_rpc;
-    struct aos_rpc processserver_rpc;
-    struct aos_rpc serialserver_rpc;
+    struct thread_mutex mutex;
+    struct monitorserver_rpc initserver_rpc;
+    struct monitorserver_rpc memoryserver_rpc;
+    struct monitorserver_rpc processserver_rpc;
+    struct monitorserver_rpc processserver_localtasks_rpc;
+    struct monitorserver_rpc serialserver_rpc;
 };
 
 struct monitorserver_urpc_caps {
@@ -22,7 +38,10 @@ struct monitorserver_urpc_caps {
 };
 
 
-errval_t monitorserver_init(struct monitorserver_urpc_caps *urpc_caps
+errval_t monitorserver_init(void
 );
+
+errval_t monitorserver_register_service(enum monitorserver_binding_type type, struct capref urpc_frame);
+
 
 #endif
