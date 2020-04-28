@@ -87,8 +87,7 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
     if (coreid == disp_get_core_id()) {
         err = spawn_load_by_name(name, &si, ret_pid);
     } else {
-        domainid_t pid;
-        err = urpc_send_spawn_request(name, coreid, &pid);
+        err = processserver_send_spawn_local(processserver_state, name, coreid, *ret_pid);
     }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");

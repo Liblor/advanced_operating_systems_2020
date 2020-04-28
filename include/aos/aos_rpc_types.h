@@ -15,6 +15,7 @@ enum rpc_message_method {
     Method_Process_Get_Name,
     Method_Process_Get_All_Pids,
     Method_Spawn_Process,
+    Method_Spawn_Process_Local,
 };
 
 enum rpc_message_status {

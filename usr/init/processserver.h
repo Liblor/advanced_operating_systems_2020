@@ -24,6 +24,8 @@ typedef errval_t (* spawn_callback_t)(struct processserver_state *processerver_s
 typedef errval_t (* get_name_callback_t)(struct processserver_state *processerver_state, domainid_t pid, char **ret_name);
 typedef errval_t (* get_all_pids_callback_t)(struct processserver_state *processerver_state, size_t *ret_count, domainid_t **ret_pids);
 
+errval_t processserver_send_spawn_local(struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t ret_pid);
+
 errval_t processserver_add_client(struct aos_rpc *rpc, coreid_t mpid);
 
 errval_t processserver_set_local_task_chan(struct aos_rpc *rpc, coreid_t mpid);
