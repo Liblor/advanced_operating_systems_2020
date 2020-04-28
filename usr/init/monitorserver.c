@@ -74,7 +74,7 @@ static void service_recv_cb(
         struct rpc_message *msg,
         void *callback_state,
         struct aos_rpc *rpc,
-        void *server_state
+       void *server_state
 )
 {
     errval_t err = SYS_ERR_OK;

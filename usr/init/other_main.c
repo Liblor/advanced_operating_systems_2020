@@ -74,6 +74,7 @@ static void register_service_channel(
     free(rpc_message);
 }
 
+__unused
 static void register_service_channels(
     struct aos_rpc *rpc
 )
@@ -121,7 +122,7 @@ int other_main(int argc, char *argv[])
 
     /* TODO: Setup monitor. */
 
-    register_service_channels(&rpc);
+//    register_service_channels(&rpc);
 
     // Grading
     grading_test_early();

@@ -222,6 +222,7 @@ static void register_service_channel(
  * - remote monitor to local processserver (for local tasks)
  * - remote monitor to local serialserver
  */
+__unused
 static void register_service_channels(
     struct aos_rpc *rpc
 )
@@ -307,7 +308,8 @@ static void setup_core(
         abort();
     }
 
-    register_service_channels(rpc);
+    // TODO: does not work yet, exchange bindings to other main
+//    register_service_channels(rpc);
 }
 
 int first_main(int argc, char *argv[])
