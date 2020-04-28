@@ -269,7 +269,7 @@ err_clean_up:
 }
 
 static errval_t run_localtasks(void) {
-        struct thread *localtasks_th = thread_create(run_localtasks_thread, NULL);
+    struct thread *localtasks_th = thread_create(run_localtasks_thread, NULL);
 
     if (localtasks_th == NULL){
         debug_printf("err in creating localtasks thread, is NULL");
