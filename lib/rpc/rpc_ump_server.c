@@ -30,6 +30,7 @@ errval_t rpc_ump_server_serve_next(struct rpc_ump_server *server)
         // Increase counter so that another client will be served on the next call
         server->client_next++;
         server->client_next %= server->client_count;
+        free(msg);
     }
 
     return SYS_ERR_OK;
