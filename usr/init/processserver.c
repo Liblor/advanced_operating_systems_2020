@@ -228,9 +228,55 @@ cleanup:
     }
 }
 
-errval_t processserver_add_client(struct aos_rpc *rpc)
+errval_t processserver_send_spawn_local(struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t ret_pid)
+{
+    errval_t err;
+
+    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN); // no \0 in strlen
+
+    uint8_t send_buf[sizeof(struct rpc_message) + str_len];
+    struct rpc_message *req = (struct rpc_message *) &send_buf;
+
+    req->msg.method = Method_Localtask_Spawn_Process;
+    req->msg.status = Status_Ok;
+    req->cap = NULL_CAP;
+    req->msg.payload_length = str_len;
+
+    strlcpy(req->msg.payload, name, str_len);
+
+    struct aos_rpc *rpc = server_state->local_task_chan_list[coreid];
+    struct rpc_message resp;
+    struct rpc_message *resp_ptr = &resp;
+
+    // Send local task request to monitor on the core where the process should start.
+    err = aos_rpc_ump_send_and_wait_recv(rpc, req, &resp_ptr);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_ump_send_and_wait_recv() failed");
+        return err;
+    }
+
+    if (resp.msg.status != Status_Ok) {
+        DEBUG_ERR(err, "response status of local task request indicates an error");
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    return SYS_ERR_OK;
+}
+
+errval_t processserver_add_client(struct aos_rpc *rpc, coreid_t mpid)
 {
     return rpc_ump_server_add_client(&server, rpc);
+}
+
+errval_t processserver_set_local_task_chan(struct aos_rpc *rpc, coreid_t mpid)
+{
+    struct processserver_state *server_state = server.shared;
+
+    assert(server_state->local_task_chan_list[mpid] == NULL);
+
+    server_state->local_task_chan_list[mpid] = rpc;
+
+    return SYS_ERR_OK;
 }
 
 errval_t processserver_serve_next(void)

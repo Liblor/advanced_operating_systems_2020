@@ -107,11 +107,11 @@ static void register_service_channels(
 )
 {
     register_service_channel(InitserverUrpc, rpc);
- //    register_service_channel(MemoryserverUrpc, rpc);
+    register_service_channel(MemoryserverUrpc, rpc);
     register_service_channel(ProcessserverUrpc, rpc);
 
-    // TODO: make process server implement other side for urpc localtasks
-//    register_service_channel(ProcessLocaltasksUrpc, rpc);
+    // This is the channel from which the monitor will receive local task requests.
+    register_service_channel(ProcessLocaltasksUrpc, rpc);
 
     register_service_channel(SerialserverUrpc, rpc);
 }
@@ -138,7 +138,7 @@ int other_main(int argc, char *argv[])
         abort();
     }
 
-    err = initialize_ram_alloc(2);
+    err = initialize_ram_alloc(AOS_CORE_COUNT);
     if (err_is_fail(err)) {
         debug_printf("initialize_ram_alloc() failed: %s\n", err_getstring(err));
         abort();

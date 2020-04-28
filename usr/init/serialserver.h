@@ -6,7 +6,7 @@
 typedef void (* putchar_callback_t)(char c);
 typedef void (* getchar_callback_t)(char *c);
 
-errval_t serialserver_add_client(struct aos_rpc *rpc);
+errval_t serialserver_add_client(struct aos_rpc *rpc, coreid_t mpid);
 
 errval_t serialserver_serve_next(void);
 

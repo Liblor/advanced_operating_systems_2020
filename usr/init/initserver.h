@@ -8,7 +8,7 @@
 typedef void (* recv_number_callback_t)(uint64_t numb);
 typedef void (* recv_string_callback_t)(char *string);
 
-errval_t initserver_add_client(struct aos_rpc *rpc);
+errval_t initserver_add_client(struct aos_rpc *rpc, coreid_t mpid);
 
 errval_t initserver_serve_next(void);
 

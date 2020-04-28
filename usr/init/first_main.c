@@ -88,8 +88,7 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
     if (coreid == disp_get_core_id()) {
         err = spawn_load_by_name(name, &si, ret_pid);
     } else {
-        domainid_t pid;
-        err = urpc_send_spawn_request(name, coreid, &pid);
+        err = processserver_send_spawn_local(processserver_state, name, coreid, *ret_pid);
     }
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
@@ -160,7 +159,8 @@ static void setup_servers(
 static void register_service_channel(
     enum monitorserver_binding_type type,
     struct aos_rpc *rpc,
-    errval_t (*register_func)(struct aos_rpc *rpc)
+    coreid_t mpid,
+    errval_t (*register_func)(struct aos_rpc *rpc, coreid_t mpid)
 )
 {
     errval_t err;
@@ -181,7 +181,7 @@ static void register_service_channel(
         abort();
     }
 
-    err = register_func(service_rpc);
+    err = register_func(service_rpc, mpid);
     if (err_is_fail(err)) {
         debug_printf("register_func() failed: %s\n", err_getstring(err));
         abort();
@@ -219,17 +219,15 @@ static void register_service_channel(
  */
 __unused
 static void register_service_channels(
-    struct aos_rpc *rpc
+    struct aos_rpc *rpc,
+    coreid_t mpid
 )
 {
-    register_service_channel(InitserverUrpc, rpc, initserver_add_client);
-
-//    register_service_channel(rpc, MemoryserverUrpc, memoryserver_add_client);
-    register_service_channel(ProcessserverUrpc, rpc, processserver_add_client);
-
-    // TODO: process server needs to handle local task urpc channel
-    // register_service_channel(ProcessLocaltasksUrpc, rpc, processserver_add_client);
-    register_service_channel(SerialserverUrpc, rpc, serialserver_add_client);
+    register_service_channel(InitserverUrpc, rpc, mpid, initserver_add_client);
+    register_service_channel(MemoryserverUrpc, rpc, mpid, memoryserver_ump_add_client);
+    register_service_channel(ProcessserverUrpc, rpc, mpid, processserver_add_client);
+    register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
+    register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
 }
 
 static void setup_core(
@@ -294,7 +292,7 @@ static void setup_core(
         abort();
     }
 
-    register_service_channels(rpc);
+    register_service_channels(rpc, mpid);
 }
 
 int first_main(int argc, char *argv[])
@@ -308,7 +306,7 @@ int first_main(int argc, char *argv[])
     bi = (struct bootinfo*) strtol(argv[1], NULL, 10);
     assert(bi != NULL);
 
-    err = initialize_ram_alloc(2);
+    err = initialize_ram_alloc(AOS_CORE_COUNT);
     if(err_is_fail(err)){
         debug_printf("initialize_ram_alloc() failed: %s\n", err_getstring(err));
         abort();
