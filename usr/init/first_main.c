@@ -228,7 +228,7 @@ static void register_service_channels(
     register_service_channel(ProcessserverUrpc, rpc, processserver_add_client);
 
     // TODO: process server needs to handle local task urpc channel
-    register_service_channel(ProcessLocaltasksUrpc, rpc, processserver_add_client);
+    // register_service_channel(ProcessLocaltasksUrpc, rpc, processserver_add_client);
     register_service_channel(SerialserverUrpc, rpc, serialserver_add_client);
 }
 

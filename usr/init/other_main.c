@@ -107,11 +107,11 @@ static void register_service_channels(
 )
 {
     register_service_channel(InitserverUrpc, rpc);
-    register_service_channel(MemoryserverUrpc, rpc);
+ //    register_service_channel(MemoryserverUrpc, rpc);
     register_service_channel(ProcessserverUrpc, rpc);
 
     // TODO: make process server implement other side for urpc localtasks
-    register_service_channel(ProcessLocaltasksUrpc, rpc);
+//    register_service_channel(ProcessLocaltasksUrpc, rpc);
 
     register_service_channel(SerialserverUrpc, rpc);
 }
@@ -165,7 +165,7 @@ int other_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 1
+#if 0
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);
