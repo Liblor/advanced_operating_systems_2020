@@ -91,8 +91,7 @@ errval_t aos_rpc_get_remote_ram_cap(
     memcpy(msg->msg.payload, &bytes, sizeof(bytes));
     memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
 
-    char message[sizeof(struct rpc_message) + sizeof(size_t)];
-    struct rpc_message *recv = (struct rpc_message *) message;
+    struct rpc_message *recv;
     err = aos_rpc_ump_send_and_wait_recv(rpc, msg, &recv);
     if (err_is_fail(err)) {
         return err;
