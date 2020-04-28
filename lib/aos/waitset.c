@@ -525,13 +525,13 @@ errval_t event_dispatch_non_block(struct waitset *ws)
     // are there any pending events on the waitset?
     dispatcher_handle_t handle = disp_disable();
     errval_t err = check_for_event_disabled(ws, handle);
-    if (err_is_fail(err)) {
+    if (!err_is_ok(err)) {
         disp_enable(handle);
         return err;
     }
     err = get_next_event_disabled(ws, &channel, &closure, NULL, NULL, handle,
                                             false);
-    if (err_is_fail(err))
+    if (!err_is_ok(err))
         return err;
     disp_enable(handle);
     assert(closure.handler != NULL);

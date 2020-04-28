@@ -157,6 +157,12 @@ int other_main(int argc, char *argv[])
         abort();
     }
 
+    err = monitorserver_init();
+    if (err_is_fail(err)) {
+        debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     register_service_channels(&rpc);
 
     // Grading
@@ -165,7 +171,7 @@ int other_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 0
+#if 1
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);

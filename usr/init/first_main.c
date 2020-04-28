@@ -287,6 +287,7 @@ static void setup_core(
     rpc_message->cap = cap_mmstrings;
     memcpy(rpc_message->msg.payload, bootinfo, size);
 
+    debug_printf("sending bootinfo\n");
     err = aos_rpc_ump_send_message(rpc, rpc_message);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
@@ -324,7 +325,7 @@ int first_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 1
+#if 0
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);
