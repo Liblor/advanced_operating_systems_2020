@@ -22,7 +22,6 @@ errval_t rpc_ump_server_serve_next(struct rpc_ump_server *server)
 
         // Check if a message has been received
         if (msg != NULL) {
-            // TODO Read message, process request (by calling service callback), and send response
             if (server->service_recv_handler != NULL) {
                 server->service_recv_handler(msg, NULL, rpc, server->shared);
             }

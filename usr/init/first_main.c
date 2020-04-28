@@ -297,16 +297,6 @@ static void setup_core(
         abort();
     }
 
-    /*
-     * The original RAM capability is no longer needed.
-     */
-
-    err = cap_delete(frame);
-    if (err_is_fail(err)) {
-        debug_printf("cap_destroy() failed: %s\n", err_getstring(err));
-        abort();
-    }
-
     register_service_channels(rpc);
 }
 
@@ -343,8 +333,32 @@ int first_main(int argc, char *argv[])
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
-        err = event_dispatch(default_ws);
+        err = initserver_serve_next();
         if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = serialserver_serve_next();
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = processserver_serve_next();
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = memoryserver_ump_serve_next();
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = event_dispatch_non_block(default_ws);
+        if (err != LIB_ERR_NO_EVENT &&  err_is_fail(err)) {
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }

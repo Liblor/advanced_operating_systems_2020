@@ -71,6 +71,29 @@ static void register_service_channel(
     /* TODO: Register communication channel at monitor. */
     //monitorserver_register_service(name, rpc_message->cap);
 
+    // TODO Remove this test
+    if (strcmp(name, "initserver") == 0) {
+        struct aos_rpc init_rpc;
+        err = aos_rpc_ump_init(&init_rpc, rpc_message->cap, false);
+        assert(err_is_ok(err));
+
+        uintptr_t payload = 123;
+        size_t size = sizeof(uintptr_t);
+
+        char buffer[sizeof(struct rpc_message) + size];
+        struct rpc_message *msg = (struct rpc_message *) buffer;
+        msg->msg.payload_length = size;
+        msg->msg.status = Status_Ok;
+        msg->msg.method = Method_Send_Number;
+        msg->cap = NULL_CAP;
+        memcpy(msg->msg.payload, &payload, size);
+
+        while (true) {
+            err = aos_rpc_ump_send_message(&init_rpc, msg);
+            assert(err_is_ok(err));
+        }
+    }
+
     free(rpc_message);
 }
 
@@ -144,6 +167,7 @@ int other_main(int argc, char *argv[])
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
+        // TODO Switch to event_dispatch_non_block() and add UMP server serve_next calls like in first_main.c
         err = event_dispatch(default_ws);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "in event_dispatch");
