@@ -20,7 +20,7 @@ errval_t aos_rpc_ump_init(
 
     assert(rpc != NULL);
 
-    err = aos_rpc_init(rpc);
+    err = aos_rpc_init(rpc, RpcTypeUmp);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_init() failed: %s\n", err_getstring(err));
         return err;

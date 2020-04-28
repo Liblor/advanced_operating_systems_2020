@@ -227,7 +227,7 @@ static void register_service_channels(
 )
 {
     register_service_channel(rpc, initserver_add_client);
-    //register_service_channel(rpc, memoryserver_add_client);
+    register_service_channel(rpc, memoryserver_ump_add_client);
     register_service_channel(rpc, processserver_add_client);
     register_service_channel(rpc, processserver_add_client);
     register_service_channel(rpc, serialserver_add_client);

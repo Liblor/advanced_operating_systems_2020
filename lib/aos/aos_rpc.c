@@ -23,11 +23,12 @@ void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
     aos_rpc_lmp_handler_print(string, val, cap);
 }
 
-errval_t aos_rpc_init(struct aos_rpc *rpc)
+errval_t aos_rpc_init(struct aos_rpc *rpc, enum aos_rpc_type type)
 {
     memset(rpc, 0, sizeof(struct aos_rpc));
 
     thread_mutex_init(&rpc->mutex);
+    rpc->type = type;
 
     return SYS_ERR_OK;
 }

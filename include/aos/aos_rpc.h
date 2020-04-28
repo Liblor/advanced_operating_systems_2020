@@ -23,9 +23,15 @@
 // How often a transient error can occur before it's regarded critical.
 #define TRANSIENT_ERR_RETRIES (20)
 
+enum aos_rpc_type {
+    RpcTypeLmp,
+    RpcTypeUmp,
+};
+
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
     struct thread_mutex mutex;
+    enum aos_rpc_type type;
     union {
         struct aos_rpc_lmp lmp;
         struct aos_rpc_ump ump;
@@ -40,7 +46,7 @@ void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap);
 /**
  * \brief Initialize an aos_rpc struct.
  */
-errval_t aos_rpc_init(struct aos_rpc *rpc);
+errval_t aos_rpc_init(struct aos_rpc *rpc, enum aos_rpc_type type);
 
 /**
  * \brief Send a number.

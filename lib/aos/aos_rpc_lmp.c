@@ -53,7 +53,7 @@ aos_rpc_lmp_init(struct aos_rpc *rpc)
 {
     errval_t err;
 
-    err = aos_rpc_init(rpc);
+    err = aos_rpc_init(rpc, RpcTypeLmp);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_init()\n");
         return err;
