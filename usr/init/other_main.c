@@ -19,6 +19,9 @@
 
 #include "mem_alloc.h"
 
+#include "memoryserver.h"
+
+
 static void receive_bootinfo(
     struct aos_rpc *rpc,
     struct bootinfo **bootinfo,
@@ -88,7 +91,7 @@ static void register_service_channel(
         msg->cap = NULL_CAP;
         memcpy(msg->msg.payload, &payload, size);
 
-        while (true) {
+        for (int i = 0; i < 10; i++) {
             err = aos_rpc_ump_send_message(&init_rpc, msg);
             assert(err_is_ok(err));
         }
@@ -142,6 +145,13 @@ int other_main(int argc, char *argv[])
         abort();
     }
 
+    // Setup local memory server
+    err = memoryserver_init(ram_alloc_aligned_handler);
+    if (err_is_fail(err)) {
+        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     /* TODO: Setup monitor. */
 
     register_service_channels(&rpc);
@@ -152,7 +162,7 @@ int other_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 0
+#if 1
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);

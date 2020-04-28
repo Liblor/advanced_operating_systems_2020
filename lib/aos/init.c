@@ -185,8 +185,11 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
             return err_push(err, LIB_ERR_CAP_RETYPE);
         }
     } else {
+        // TODO This is never used, so why set it?
+        /*
         struct aos_rpc *init_rpc = aos_rpc_get_init_channel();
         set_init_rpc(init_rpc);
+        */
 
         _libc_terminal_read_func = aos_terminal_read;
         _libc_terminal_write_func = aos_terminal_write;
