@@ -21,11 +21,11 @@
 
 #include "initserver.h"
 #include "memoryserver.h"
-#include "serialserver.h"
-#include "processserver.h"
-
-#include "first_main.h"
 #include "monitorserver.h"
+#include "processserver.h"
+#include "serialserver.h"
+
+extern coreid_t my_core_id;
 
 static void number_cb(uintptr_t num)
 {
@@ -192,25 +192,27 @@ static void register_service_channel(
         abort();
     }
 
-    char buffer[sizeof(struct rpc_message)];
-    memset(buffer, 0x00, sizeof(buffer));
+    if (rpc == NULL) {
+        err = monitorserver_register_service(type, frame);
+        if (err_is_fail(err)) {
+            debug_printf("monitorserver_register_service() failed: %s\n", err_getstring(err));
+            abort();
+        }
+    } else {
+        char buffer[sizeof(struct rpc_message)];
+        memset(buffer, 0x00, sizeof(buffer));
 
-    struct rpc_message *rpc_message = (struct rpc_message *) buffer;
-    rpc_message->msg.payload_length = 0;
-    rpc_message->msg.status = Status_Ok;
-    rpc_message->msg.method = Method_Send_Binding;
-    rpc_message->cap = frame;
+        struct rpc_message *rpc_message = (struct rpc_message *) buffer;
+        rpc_message->msg.payload_length = 0;
+        rpc_message->msg.status = Status_Ok;
+        rpc_message->msg.method = Method_Send_Binding;
+        rpc_message->cap = frame;
 
-    err = aos_rpc_ump_send_message(rpc, rpc_message);
-    if (err_is_fail(err)) {
-        debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
-        abort();
-    }
-
-    err = monitorserver_register_service(type, frame);
-    if (err_is_fail(err)) {
-        debug_printf("monitorserver_register_service() failed: %s\n", err_getstring(err));
-        abort();
+        err = aos_rpc_ump_send_message(rpc, rpc_message);
+        if (err_is_fail(err)) {
+            debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
+            abort();
+        }
     }
 }
 
@@ -221,6 +223,8 @@ static void register_service_channel(
  * - remote monitor to local processserver
  * - remote monitor to local processserver (for local tasks)
  * - remote monitor to local serialserver
+ *
+ * If `rpc` is `NULL`, then initializes the local monitorserver.
  */
 __unused
 static void register_service_channels(
@@ -234,7 +238,7 @@ static void register_service_channels(
     register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
     register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
 
-    debug_printf("all register_service_channel registered\n");
+    debug_printf("all service channels for core %d registered\n", mpid);
 }
 
 static void setup_core(
@@ -279,7 +283,7 @@ static void setup_core(
     }
 
     /*
-     * Send the booinfo message.
+     * Send the bootinfo message.
      */
     const size_t size = sizeof(struct bootinfo) + bootinfo->regions_length * sizeof(struct mem_region);
     char buffer[sizeof(struct rpc_message) + size];
@@ -323,6 +327,8 @@ int first_main(int argc, char *argv[])
     grading_test_early();
 
     setup_servers();
+
+    register_service_channels(NULL, my_core_id);
 
     struct aos_rpc rpc_core1;
     setup_core(bi, 1, &rpc_core1);

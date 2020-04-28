@@ -22,7 +22,6 @@
 #include "memoryserver.h"
 #include "monitorserver.h"
 
-
 static void receive_bootinfo(
     struct aos_rpc *rpc,
     struct bootinfo **bootinfo,
