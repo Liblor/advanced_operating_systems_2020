@@ -30,19 +30,18 @@ __BEGIN_DECLS
  *
  */
 errval_t coreboot(coreid_t mpid,
-        const char *boot_driver_name,
-        const char *cpu_driver_name,
-        const char *init_binary_name,
-        struct frame_identity urpc_frame_id);
-
-
-errval_t forge_bootinfo_ram(struct bootinfo *bootinfo);
-errval_t forge_bootinfo_capabilities(
-        struct bootinfo *bootinfo,
-        genpaddr_t mmstrings_base,
-        gensize_t mmstrings_size
+    const char *boot_driver_name,
+    const char *cpu_driver_name,
+    const char *init_binary_name,
+    struct frame_identity urpc_frame_id
 );
 
+errval_t forge_bootinfo_ram(struct bootinfo *bootinfo);
+
+errval_t forge_bootinfo_capabilities(
+    struct bootinfo *bootinfo,
+    struct capref cap_mmstrings_frame
+);
 
 __END_DECLS
 

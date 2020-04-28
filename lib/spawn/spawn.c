@@ -398,6 +398,8 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         return err_push(err, LIB_ERR_CAP_RETYPE);
     }
 
+    // TODO This shouldn't be needed anymore with a working monitor
+    /*
     struct capref chan_init_child = {
         .cnode = taskcn_child,
         .slot = TASKCN_SLOT_CHAN_INIT,
@@ -407,6 +409,7 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         debug_printf("cap_copy() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_CAP_COPY);
     }
+    */
 
     struct capref chan_memory_child = {
         .cnode = taskcn_child,
@@ -418,6 +421,8 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         return err_push(err, LIB_ERR_CAP_COPY);
     }
 
+    // TODO This shouldn't be needed anymore with a working monitor
+    /*
     struct capref chan_serial_child = {
         .cnode = taskcn_child,
         .slot = TASKCN_SLOT_CHAN_SERIAL,
@@ -433,6 +438,17 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
         .slot = TASKCN_SLOT_CHAN_PROCESS,
     };
     err = cap_copy(chan_process_child, cap_chan_process);
+    if (err_is_fail(err)) {
+        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_CAP_COPY);
+    }
+    */
+
+    struct capref chan_monitor_child = {
+            .cnode = taskcn_child,
+            .slot = TASKCN_SLOT_CHAN_MONITOR,
+    };
+    err = cap_copy(chan_monitor_child, cap_chan_monitor);
     if (err_is_fail(err)) {
         debug_printf("cap_copy() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_CAP_COPY);

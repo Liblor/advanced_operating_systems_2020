@@ -16,32 +16,27 @@
 #define _LIB_BARRELFISH_AOS_MESSAGES_H
 
 #include <aos/aos.h>
+#include <aos/aos_rpc_types.h>
 #include <aos/aos_rpc_lmp.h>
+#include <aos/aos_rpc_ump.h>
 
 // How often a transient error can occur before it's regarded critical.
 #define TRANSIENT_ERR_RETRIES (20)
 
+enum aos_rpc_type {
+    RpcTypeLmp,
+    RpcTypeUmp,
+};
+
 /* An RPC binding, which may be transported over LMP or UMP. */
 struct aos_rpc {
     struct thread_mutex mutex;
-    struct lmp_chan lc;
+    enum aos_rpc_type type;
     union {
-        struct aos_rpc_lmp *lmp;
+        struct aos_rpc_lmp lmp;
+        struct aos_rpc_ump ump;
     };
 };
-
-enum rpc_message_method {
-    Method_Send_Number, // TODO: assign numbers
-    Method_Get_Ram_Cap,
-    Method_Send_String,
-    Method_Serial_Putchar,
-    Method_Serial_Getchar,
-    Method_Process_Get_Name,
-    Method_Process_Get_All_Pids,
-    Method_Spawn_Process,
-};
-
-
 
 /**
  * \brief Call this handler on the receive side for grading
@@ -51,7 +46,7 @@ void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap);
 /**
  * \brief Initialize an aos_rpc struct.
  */
-errval_t aos_rpc_init(struct aos_rpc *rpc);
+errval_t aos_rpc_init(struct aos_rpc *rpc, enum aos_rpc_type type);
 
 /**
  * \brief Send a number.
@@ -70,6 +65,19 @@ errval_t aos_rpc_send_string(struct aos_rpc *chan, const char *string);
 errval_t aos_rpc_get_ram_cap(struct aos_rpc *chan, size_t bytes,
                              size_t alignment, struct capref *retcap,
                              size_t *ret_bytes);
+
+/**
+ * \brief Request a RAM capability with >= request_bits of size over the given
+ * channel.
+ */
+errval_t aos_rpc_get_remote_ram_cap(
+        struct aos_rpc *rpc,
+        size_t bytes,
+        size_t alignment,
+        coreid_t coreid,
+        struct capref *ret_cap,
+        size_t *ret_bytes
+);
 
 /**
  * \brief Get one character from the serial port

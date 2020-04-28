@@ -5,7 +5,7 @@
 #include <aos/sys_debug.h>
 #include <grading.h>
 
-static bool multithreading_test = true;
+static bool multithreading_test = false;
 
 const char long_string[] = TEST_LONG_STRING;
 

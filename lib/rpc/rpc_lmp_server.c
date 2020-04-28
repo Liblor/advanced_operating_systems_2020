@@ -36,7 +36,7 @@ static void service_recv_cb(void *arg)
 
     struct rpc_lmp_handler_state *state = arg;
     struct rpc_lmp_server *server = state->server;
-    struct lmp_chan *lc = &state->rpc.lc;
+    struct lmp_chan *lc = &state->rpc.lmp.chan;
 
     // Accumulate message until full message is received
     struct capref cap;
@@ -157,7 +157,7 @@ static void open_recv_cb(void *arg)
         goto reregister;
     }
 
-    struct lmp_chan *service_chan = &state->rpc.lc;
+    struct lmp_chan *service_chan = &state->rpc.lmp.chan;
 
     err = endpoint_create(DEFAULT_LMP_BUF_WORDS, &service_chan->local_cap, &service_chan->endpoint);
     if (err_is_fail(err)) {
