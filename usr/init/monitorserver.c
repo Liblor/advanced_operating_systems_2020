@@ -227,6 +227,8 @@ __unused
 static int run_localtasks_thread(void *args) {
     errval_t err;
 
+    debug_printf("running run_localtasks_thread\n");
+
     // XXX: This can easily be refactored to allow more localtasks in a generic manner.
     // for now we dont need more generic behaviour
 
@@ -303,7 +305,7 @@ errval_t monitorserver_register_service(
             break;
         case ProcessLocaltasksUrpc:
             err = initialize_service(&monitorserver_state.processserver_localtasks_rpc, urpc_frame);
-            if (!err_is_ok(err)) {
+            if (err_is_ok(err)) {
                 // XXX: if monitorserver accepts more local tasks,
                 // run this in init of monitor
                 err = run_localtasks();

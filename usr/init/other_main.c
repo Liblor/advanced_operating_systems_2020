@@ -114,6 +114,8 @@ static void register_service_channels(
     register_service_channel(ProcessLocaltasksUrpc, rpc);
 
     register_service_channel(SerialserverUrpc, rpc);
+
+    debug_printf("all register_service_channel registered\n");
 }
 
 

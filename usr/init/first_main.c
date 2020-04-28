@@ -228,6 +228,8 @@ static void register_service_channels(
     register_service_channel(ProcessserverUrpc, rpc, mpid, processserver_add_client);
     register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
     register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
+
+    debug_printf("all register_service_channel registered\n");
 }
 
 static void setup_core(
