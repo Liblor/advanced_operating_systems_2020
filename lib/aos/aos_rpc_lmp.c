@@ -533,11 +533,7 @@ struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
-#ifdef ENABLE_LMP_MONITOR_CHAN
     return aos_rpc_lmp_get_monitor_channel();
-#else
-    return aos_rpc_lmp_get_channel(&init_channel, cap_chan_init, "init");
-#endif
 }
 
 /**
@@ -547,7 +543,6 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
 {
     // XXX: Memory channel is always served by memory server on same core
     return aos_rpc_lmp_get_channel(&memory_channel, cap_chan_memory, "memory");
-
 }
 
 /**
@@ -555,11 +550,7 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
-#ifdef ENABLE_LMP_MONITOR_CHAN
     return aos_rpc_lmp_get_monitor_channel();
-#else
-    return aos_rpc_lmp_get_channel(&process_channel, cap_chan_process, "process");
-#endif
 }
 
 /**
@@ -567,9 +558,5 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-#ifdef ENABLE_LMP_MONITOR_CHAN
     return aos_rpc_lmp_get_monitor_channel();
-#else
-    return aos_rpc_lmp_get_channel(&serial_channel, cap_chan_serial, "serial");
-#endif
 }
