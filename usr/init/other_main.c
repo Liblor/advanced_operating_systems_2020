@@ -20,6 +20,7 @@
 #include "mem_alloc.h"
 
 #include "memoryserver.h"
+#include "monitorserver.h"
 
 
 static void receive_bootinfo(
@@ -52,10 +53,9 @@ static void receive_bootinfo(
 }
 
 static void register_service_channel(
-    struct aos_rpc *rpc,
-    const char *name
-)
-{
+        enum monitorserver_binding_type type,
+        struct aos_rpc *rpc
+){
     errval_t err;
 
     struct rpc_message *rpc_message = NULL;
@@ -71,9 +71,9 @@ static void register_service_channel(
     assert(rpc_message->msg.status == Status_Ok);
     assert(rpc_message->msg.method == Method_Send_Binding);
 
-    /* TODO: Register communication channel at monitor. */
-    //monitorserver_register_service(name, rpc_message->cap);
+    monitorserver_register_service(type, rpc_message->cap);
 
+#if 0
     // TODO Remove this test
     if (strcmp(name, "initserver") == 0) {
         struct aos_rpc init_rpc;
@@ -97,19 +97,23 @@ static void register_service_channel(
         }
     }
 
+#endif
+
     free(rpc_message);
 }
 
-__unused
 static void register_service_channels(
     struct aos_rpc *rpc
 )
 {
-    register_service_channel(rpc, "initserver");
-    register_service_channel(rpc, "memoryserver");
-    register_service_channel(rpc, "processserver");
-    register_service_channel(rpc, "processserver");
-    register_service_channel(rpc, "serialserver");
+    register_service_channel(InitserverUrpc, rpc);
+    register_service_channel(MemoryserverUrpc, rpc);
+    register_service_channel(ProcessserverUrpc, rpc);
+
+    // TODO: make process server implement other side for urpc localtasks
+    register_service_channel(ProcessLocaltasksUrpc, rpc);
+
+    register_service_channel(SerialserverUrpc, rpc);
 }
 
 
@@ -153,9 +157,7 @@ int other_main(int argc, char *argv[])
         abort();
     }
 
-    /* TODO: Setup monitor. */
-
-//    register_service_channels(&rpc);
+    register_service_channels(&rpc);
 
     // Grading
     grading_test_early();

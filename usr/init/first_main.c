@@ -223,7 +223,7 @@ static void register_service_channels(
 )
 {
     register_service_channel(InitserverUrpc, rpc, initserver_add_client);
-    // TODO
+
 //    register_service_channel(rpc, MemoryserverUrpc, memoryserver_add_client);
     register_service_channel(ProcessserverUrpc, rpc, processserver_add_client);
 
