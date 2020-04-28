@@ -111,7 +111,7 @@ static void service_recv_cb(void *arg)
 
     // always reregister callback to continue to receive requests
 reregister:
-    err = lmp_chan_register_recv(lc, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
+    err = lmp_chan_register_recv(lc, state->server->ws, MKCLOSURE(service_recv_cb, state));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
     }
@@ -177,7 +177,7 @@ static void open_recv_cb(void *arg)
         state->shared = server->state_init_handler(server->shared);
     }
 
-    err = lmp_chan_register_recv(service_chan, get_default_waitset(), MKCLOSURE(service_recv_cb, state));
+    err = lmp_chan_register_recv(service_chan, state->server->ws, MKCLOSURE(service_recv_cb, state));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         goto reregister;
@@ -200,7 +200,7 @@ static void open_recv_cb(void *arg)
     }
 
 reregister:
-    err = lmp_chan_register_recv(&server->open_lc, get_default_waitset(), MKCLOSURE(open_recv_cb, server));
+    err = lmp_chan_register_recv(&server->open_lc, server->ws, MKCLOSURE(open_recv_cb, server));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
     }
@@ -231,7 +231,7 @@ static errval_t rpc_lmp_server_setup_open_channel(struct rpc_lmp_server *server,
         return err_push(err, LIB_ERR_CAP_COPY);
     }
 
-    err = lmp_chan_register_recv(&server->open_lc, get_default_waitset(), MKCLOSURE(open_recv_cb, server));
+    err = lmp_chan_register_recv(&server->open_lc, server->ws, MKCLOSURE(open_recv_cb, server));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_LMP_CHAN_RECV);
@@ -247,7 +247,8 @@ errval_t rpc_lmp_server_init(
     service_recv_handler_t new_service_recv_handler,
     state_init_handler_t new_state_init_handler,
     state_free_handler_t new_state_free_handler,
-    void *server_state
+    void *server_state,
+    struct waitset *ws
 )
 {
     errval_t err;
@@ -256,6 +257,12 @@ errval_t rpc_lmp_server_init(
     server->state_init_handler = new_state_init_handler;
     server->state_free_handler = new_state_free_handler;
     server->shared = server_state;
+
+    if (ws == NULL) {
+        server->ws = get_default_waitset();
+    } else {
+        server->ws = ws;
+    }
 
     err = rpc_lmp_server_setup_open_channel(server, cap_chan);
     if (err_is_fail(err)) {
