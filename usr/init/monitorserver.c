@@ -11,8 +11,8 @@
 static struct rpc_lmp_server server;
 static struct monitorserver_state monitorserver_state;
 
-#define MONITOSERVER_LOCK thread_mutex_lock(&monitorserver_state.mutex)
-#define MONITOSERVER_UNLOCK thread_mutex_unlock(&monitorserver_state.mutex)
+#define MONITORSERVER_LOCK thread_mutex_lock(&monitorserver_state.mutex)
+#define MONITORSERVER_UNLOCK thread_mutex_unlock(&monitorserver_state.mutex)
 
 #define trace(msg...) debug_printf(msg)
 
@@ -79,9 +79,9 @@ static inline errval_t monitor_forward(
 __inline
 static bool is_registered(struct monitorserver_rpc *rpc) {
     bool res;
-    MONITOSERVER_LOCK;
+    MONITORSERVER_LOCK;
     res = rpc->is_registered;
-    MONITOSERVER_UNLOCK;
+    MONITORSERVER_UNLOCK;
     return res;
 }
 
@@ -300,7 +300,7 @@ errval_t monitorserver_register_service(
         struct capref urpc_frame
 ){
     errval_t err;
-    MONITOSERVER_LOCK;
+    MONITORSERVER_LOCK;
 
     switch(type) {
         case InitserverUrpc:
@@ -329,7 +329,7 @@ errval_t monitorserver_register_service(
             break;
     }
 
-    MONITOSERVER_UNLOCK;
+    MONITORSERVER_UNLOCK;
 
     if (err_is_fail(err)) {
         debug_printf("initialize_monitorserver_state() failed: %s\n", err_getstring(err));
