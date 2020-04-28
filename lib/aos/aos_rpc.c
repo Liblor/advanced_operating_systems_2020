@@ -56,7 +56,6 @@ errval_t aos_rpc_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment
 }
 
 errval_t aos_rpc_get_remote_ram_cap(
-        struct aos_rpc *rpc,
         size_t bytes,
         size_t alignment,
         coreid_t coreid,
