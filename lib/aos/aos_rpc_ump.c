@@ -4,7 +4,7 @@
 #include <aos/debug.h>
 #include <aos/kernel_cap_invocations.h>
 
-// TODO: Use barriers!
+#define BARRIER_DATA __asm volatile("dmb sy\n");
 
 /*
  * This needs to be called by the establisher first, to make sure all the lines
@@ -131,6 +131,7 @@ errval_t aos_rpc_ump_receive(
         while (!ump_message->used) {
             thread_yield();
         }
+        BARRIER_DATA;
 
         struct rpc_message_part *msg_part = (struct rpc_message_part *) ump_message->data;
 
@@ -172,6 +173,8 @@ errval_t aos_rpc_ump_receive(
 
         rpc->ump.rx_slot_next++;
         rpc->ump.rx_slot_next %= UMP_RING_BUFFER_LINES;
+
+        BARRIER_DATA;
         ump_message->used = 0;
     } while (bytes_received < total_length);
 
@@ -289,6 +292,7 @@ errval_t aos_rpc_ump_send_message(
         while(slot->used == 1) {
             thread_yield();
         }
+        BARRIER_DATA;
 
         if (first) {
             slot->cap_base = cap_base;
@@ -306,6 +310,8 @@ errval_t aos_rpc_ump_send_message(
 
         rpc->ump.tx_slot_next++;
         rpc->ump.tx_slot_next %= UMP_RING_BUFFER_LINES;
+
+        BARRIER_DATA;
         slot->used = 1;
     }
 
