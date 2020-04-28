@@ -17,6 +17,8 @@ struct rpc_lmp_server {
     struct capref open_ep;
     struct lmp_chan open_lc;
 
+    struct waitset *ws;
+
     service_recv_handler_t service_recv_handler;
     state_init_handler_t state_init_handler;
     state_free_handler_t state_free_handler;
@@ -46,7 +48,8 @@ errval_t rpc_lmp_server_init(
     service_recv_handler_t new_service_recv_handler,
     state_init_handler_t new_state_init_handler,
     state_free_handler_t new_state_free_handler,
-    void *server_state
+    void *server_state,
+    struct waitset *ws   ///< waitset to use, if NULL default waitset is used
 );
 
 #endif
