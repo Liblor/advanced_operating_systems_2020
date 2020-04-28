@@ -61,6 +61,19 @@ errval_t aos_rpc_get_ram_cap(struct aos_rpc *chan, size_t bytes,
                              size_t *ret_bytes);
 
 /**
+ * \brief Request a RAM capability with >= request_bits of size over the given
+ * channel.
+ */
+errval_t aos_rpc_get_remote_ram_cap(
+        struct aos_rpc *rpc,
+        size_t bytes,
+        size_t alignment,
+        coreid_t coreid,
+        struct capref *ret_cap,
+        size_t *ret_bytes
+);
+
+/**
  * \brief Get one character from the serial port
  */
 errval_t aos_rpc_serial_getchar(struct aos_rpc *chan, char *retc);
