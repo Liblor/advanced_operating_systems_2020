@@ -74,8 +74,15 @@ errval_t aos_rpc_get_remote_ram_cap(
                 alignment,
                 ret_cap,
                 ret_bytes);
+    } else {
+        return aos_rpc_lmp_get_ram_cap(
+                aos_rpc_get_init_channel(),
+                bytes,
+                alignment,
+                ret_cap,
+                ret_bytes);
+
     }
-    // TODO
 }
 
 errval_t aos_rpc_serial_getchar(struct aos_rpc *rpc, char *retc)

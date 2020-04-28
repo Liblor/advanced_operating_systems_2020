@@ -14,6 +14,8 @@ static struct monitorserver_state monitorserver_state;
 #define MONITOSERVER_LOCK thread_mutex_lock(&monitorserver_state.mutex)
 #define MONITOSERVER_UNLOCK thread_mutex_unlock(&monitorserver_state.mutex)
 
+#define trace(msg...) debug_printf(msg)
+
 static errval_t reply_error(
         struct aos_rpc *rpc,
         enum rpc_message_method method
@@ -90,6 +92,8 @@ static void service_recv_cb(
         void *server_state
 )
 {
+    trace("monitorserver#service_recv_cb method: %d\n", msg->msg.method);
+
     errval_t err = SYS_ERR_OK;
     struct monitorserver_state *mss = server_state;
 	switch (msg->msg.method) {
@@ -133,6 +137,8 @@ static void service_recv_cb(
 	if (err_is_fail(err)) {
 	    debug_printf("Unhandled error in monitorserver service_recv_cb\n");
 	}
+
+    trace("exit monitorserver#service_recv_cb: method %d\n", msg->msg.method);
 	return;
 
 	unregistered_service:
