@@ -30,36 +30,17 @@
 static void number_cb(uintptr_t num)
 {
     grading_rpc_handle_number(num);
+#if 1
+    debug_printf("number_cb(%llu)\n", num);
+#endif
 }
 
 static void string_cb(char *c)
 {
     grading_rpc_handler_string(c);
-}
-
-// We do not allocate RAM here. This should be done in the server itself.
-static errval_t ram_cap_cb(const size_t bytes, const size_t alignment, struct capref *retcap, size_t *retbytes)
-{
-    errval_t err;
-
-    grading_rpc_handler_ram_cap(bytes, alignment);
-
-    err = ram_alloc_aligned(retcap, bytes, alignment);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "ram_alloc_aligned() failed");
-        return err_push(err, LIB_ERR_RAM_ALLOC);
-    }
-
-    struct capability cap;
-    err = cap_direct_identify(*retcap, &cap);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "cap_direct_identify() failed");
-        return err_push(err, LIB_ERR_CAP_IDENTIFY);
-    }
-
-    *retbytes = get_size(&cap);
-
-    return SYS_ERR_OK;
+#if 1
+    debug_printf("string_cb(%s)\n", c);
+#endif
 }
 
 static void putchar_cb(char c) {
@@ -151,7 +132,7 @@ static void setup_servers(
         abort();
     }
 
-    err = memoryserver_init(ram_cap_cb);
+    err = memoryserver_init(ram_alloc_aligned_handler);
     if (err_is_fail(err)) {
         debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
         abort();
@@ -242,12 +223,13 @@ static void register_service_channels(
 )
 {
     register_service_channel(InitserverUrpc, rpc, initserver_add_client);
+    // TODO
 //    register_service_channel(rpc, MemoryserverUrpc, memoryserver_add_client);
     register_service_channel(ProcessserverUrpc, rpc, processserver_add_client);
 
     // TODO: process server needs to handle local task urpc channel
     register_service_channel(ProcessLocaltasksUrpc, rpc, processserver_add_client);
-    register_service_channel( SerialserverUrpc, rpc, serialserver_add_client);
+    register_service_channel(SerialserverUrpc, rpc, serialserver_add_client);
 }
 
 static void setup_core(
@@ -311,17 +293,7 @@ static void setup_core(
         abort();
     }
 
-    /*
-     * The original RAM capability is no longer needed.
-     */
-    err = cap_delete(frame);
-    if (err_is_fail(err)) {
-        debug_printf("cap_destroy() failed: %s\n", err_getstring(err));
-        abort();
-    }
-
-    // TODO: does not work yet, exchange bindings to other main
-//    register_service_channels(rpc);
+    register_service_channels(rpc);
 }
 
 int first_main(int argc, char *argv[])
@@ -352,13 +324,47 @@ int first_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
+#if 1
+    domainid_t pid;
+    struct spawninfo si;
+    err = spawn_load_by_name("hello", &si, &pid);
+    if (err_is_fail(err)) {
+        debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
+        abort();
+    }
+#endif
+
     debug_printf("Entering message handler loop...\n");
 
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
-        err = event_dispatch(default_ws);
+        err = initserver_serve_next();
         if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = serialserver_serve_next();
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = processserver_serve_next();
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = memoryserver_ump_serve_next();
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = event_dispatch_non_block(default_ws);
+        if (err != LIB_ERR_NO_EVENT &&  err_is_fail(err)) {
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }

@@ -746,6 +746,7 @@ errors libmm MM_ERR_ {
 // errors from rpc server library
 errors libmm RPC_ERR_ {
     failure INITIALIZATION   "The initialization of the server failed",
+    failure INVALID_TYPE     "The RPC type is not a valid type.",
 };
 
 // errors in init

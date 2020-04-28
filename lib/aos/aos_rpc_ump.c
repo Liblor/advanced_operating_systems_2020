@@ -20,7 +20,7 @@ errval_t aos_rpc_ump_init(
 
     assert(rpc != NULL);
 
-    err = aos_rpc_init(rpc);
+    err = aos_rpc_init(rpc, RpcTypeUmp);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_init() failed: %s\n", err_getstring(err));
         return err;
@@ -43,15 +43,15 @@ errval_t aos_rpc_ump_init(
 
     assert(vaddr != NULL);
 
-    rpc->ump.tx = (struct ump_shared_half *) vaddr;
     rpc->ump.tx_slot_next = 0;
-    rpc->ump.rx = (struct ump_shared_half *) vaddr;
     rpc->ump.rx_slot_next = 0;
 
     if (is_establisher) {
         memset(vaddr, 0x00, UMP_SHARED_FRAME_SIZE);
+        rpc->ump.tx = (struct ump_shared_half *) vaddr;
         rpc->ump.rx = (struct ump_shared_half *) (vaddr + sizeof(struct ump_shared_half));
     } else {
+        rpc->ump.rx = (struct ump_shared_half *) vaddr;
         rpc->ump.tx = (struct ump_shared_half *) (vaddr + sizeof(struct ump_shared_half));
     }
 

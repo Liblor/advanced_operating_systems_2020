@@ -19,6 +19,9 @@
 
 #include "mem_alloc.h"
 
+#include "memoryserver.h"
+
+
 static void receive_bootinfo(
     struct aos_rpc *rpc,
     struct bootinfo **bootinfo,
@@ -71,6 +74,29 @@ static void register_service_channel(
     /* TODO: Register communication channel at monitor. */
     //monitorserver_register_service(name, rpc_message->cap);
 
+    // TODO Remove this test
+    if (strcmp(name, "initserver") == 0) {
+        struct aos_rpc init_rpc;
+        err = aos_rpc_ump_init(&init_rpc, rpc_message->cap, false);
+        assert(err_is_ok(err));
+
+        uintptr_t payload = 123;
+        size_t size = sizeof(uintptr_t);
+
+        char buffer[sizeof(struct rpc_message) + size];
+        struct rpc_message *msg = (struct rpc_message *) buffer;
+        msg->msg.payload_length = size;
+        msg->msg.status = Status_Ok;
+        msg->msg.method = Method_Send_Number;
+        msg->cap = NULL_CAP;
+        memcpy(msg->msg.payload, &payload, size);
+
+        for (int i = 0; i < 10; i++) {
+            err = aos_rpc_ump_send_message(&init_rpc, msg);
+            assert(err_is_ok(err));
+        }
+    }
+
     free(rpc_message);
 }
 
@@ -120,6 +146,13 @@ int other_main(int argc, char *argv[])
         abort();
     }
 
+    // Setup local memory server
+    err = memoryserver_init(ram_alloc_aligned_handler);
+    if (err_is_fail(err)) {
+        debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     /* TODO: Setup monitor. */
 
 //    register_service_channels(&rpc);
@@ -130,7 +163,7 @@ int other_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 0
+#if 1
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);
@@ -145,6 +178,7 @@ int other_main(int argc, char *argv[])
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
+        // TODO Switch to event_dispatch_non_block() and add UMP server serve_next calls like in first_main.c
         err = event_dispatch(default_ws);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "in event_dispatch");
