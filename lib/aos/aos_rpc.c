@@ -75,36 +75,7 @@ errval_t aos_rpc_get_remote_ram_cap(
                 ret_cap,
                 ret_bytes);
     }
-    errval_t err;
-    err = slot_alloc(ret_cap);
-    if (err_is_fail(err)) {
-        return err_push(err, LIB_ERR_SLOT_ALLOC);
-    }
-
-    const size_t payload_length = sizeof(bytes) + sizeof(alignment);
-    uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
-    struct rpc_message *msg = (struct rpc_message *) &send_buf;
-
-    msg->msg.method = Method_Get_Ram_Cap;
-    msg->msg.payload_length = payload_length;
-    msg->msg.status = Status_Ok;
-    msg->cap = NULL_CAP;
-    memcpy(msg->msg.payload, &bytes, sizeof(bytes));
-    memcpy(msg->msg.payload + sizeof(bytes), &alignment, sizeof(alignment));
-
-    struct rpc_message *recv;
-    err = aos_rpc_ump_send_and_wait_recv(rpc, msg, &recv);
-    if (err_is_fail(err)) {
-        return err;
-    }
-    if (ret_bytes != NULL) {
-        memcpy(ret_bytes, recv->msg.payload, sizeof(size_t));
-    }
-    if (ret_cap != NULL) {
-        *ret_cap = recv->cap;
-    }
-    free(recv);
-    return SYS_ERR_OK;
+    // TODO
 }
 
 errval_t aos_rpc_serial_getchar(struct aos_rpc *rpc, char *retc)
