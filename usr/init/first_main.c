@@ -152,7 +152,8 @@ static void setup_servers(
 
 static void register_service_channel(
     struct aos_rpc *rpc,
-    errval_t (*register_func)(struct aos_rpc *rpc)
+    coreid_t mpid,
+    errval_t (*register_func)(struct aos_rpc *rpc, coreid_t mpid)
 )
 {
     errval_t err;
@@ -173,7 +174,7 @@ static void register_service_channel(
         abort();
     }
 
-    err = register_func(service_rpc);
+    err = register_func(service_rpc, mpid);
     if (err_is_fail(err)) {
         debug_printf("register_func() failed: %s\n", err_getstring(err));
         abort();
@@ -204,14 +205,15 @@ static void register_service_channel(
  * - remote monitor to local serialserver
  */
 static void register_service_channels(
-    struct aos_rpc *rpc
+    struct aos_rpc *rpc,
+    coreid_t mpid
 )
 {
-    register_service_channel(rpc, initserver_add_client);
-    register_service_channel(rpc, memoryserver_ump_add_client);
-    register_service_channel(rpc, processserver_add_client);
-    register_service_channel(rpc, processserver_add_client);
-    register_service_channel(rpc, serialserver_add_client);
+    register_service_channel(rpc, mpid, initserver_add_client);
+    register_service_channel(rpc, mpid, memoryserver_ump_add_client);
+    register_service_channel(rpc, mpid, processserver_add_client);
+    register_service_channel(rpc, mpid, processserver_set_local_task_chan);
+    register_service_channel(rpc, mpid, serialserver_add_client);
 }
 
 static void setup_core(
@@ -278,7 +280,7 @@ static void setup_core(
         abort();
     }
 
-    register_service_channels(rpc);
+    register_service_channels(rpc, mpid);
 }
 
 int first_main(int argc, char *argv[])
@@ -292,7 +294,7 @@ int first_main(int argc, char *argv[])
     bi = (struct bootinfo*) strtol(argv[1], NULL, 10);
     assert(bi != NULL);
 
-    err = initialize_ram_alloc(2);
+    err = initialize_ram_alloc(AOS_CORE_COUNT);
     if(err_is_fail(err)){
         debug_printf("initialize_ram_alloc() failed: %s\n", err_getstring(err));
         abort();

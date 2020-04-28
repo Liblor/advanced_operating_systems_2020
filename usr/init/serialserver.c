@@ -62,7 +62,7 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
     }
 }
 
-errval_t serialserver_add_client(struct aos_rpc *rpc)
+errval_t serialserver_add_client(struct aos_rpc *rpc, coreid_t mpid)
 {
     return rpc_ump_server_add_client(&server, rpc);
 }

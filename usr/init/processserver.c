@@ -228,9 +228,20 @@ cleanup:
     }
 }
 
-errval_t processserver_add_client(struct aos_rpc *rpc)
+errval_t processserver_add_client(struct aos_rpc *rpc, coreid_t mpid)
 {
     return rpc_ump_server_add_client(&server, rpc);
+}
+
+errval_t processserver_set_local_task_chan(struct aos_rpc *rpc, coreid_t mpid)
+{
+    struct processserver_state *server_state = server.shared;
+
+    assert(server_state->local_task_chan_list[mpid] == NULL);
+
+    server_state->local_task_chan_list[mpid] = rpc;
+
+    return SYS_ERR_OK;
 }
 
 errval_t processserver_serve_next(void)

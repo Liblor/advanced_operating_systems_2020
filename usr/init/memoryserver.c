@@ -113,7 +113,7 @@ static void state_free_cb(void *server_state, void *callback_state)
     free(state);
 }
 
-errval_t memoryserver_ump_add_client(struct aos_rpc *rpc)
+errval_t memoryserver_ump_add_client(struct aos_rpc *rpc, coreid_t mpid)
 {
     return rpc_ump_server_add_client(&ump_server, rpc);
 }

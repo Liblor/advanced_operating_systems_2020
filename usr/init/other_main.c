@@ -107,7 +107,10 @@ static void register_service_channels(
     register_service_channel(rpc, "initserver");
     register_service_channel(rpc, "memoryserver");
     register_service_channel(rpc, "processserver");
-    register_service_channel(rpc, "processserver");
+
+    // This is the channel from which the monitor will receive local task requests.
+    register_service_channel(rpc, "processserver_local_task");
+
     register_service_channel(rpc, "serialserver");
 }
 
@@ -133,7 +136,7 @@ int other_main(int argc, char *argv[])
         abort();
     }
 
-    err = initialize_ram_alloc(2);
+    err = initialize_ram_alloc(AOS_CORE_COUNT);
     if (err_is_fail(err)) {
         debug_printf("initialize_ram_alloc() failed: %s\n", err_getstring(err));
         abort();
