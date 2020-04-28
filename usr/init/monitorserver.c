@@ -226,27 +226,30 @@ static int run_localtasks_thread(void * args) {
 
     assert(is_registered(&monitorserver_state.processserver_localtasks_rpc));
 
-    struct rpc_message *msg_recv = NULL;
+    struct rpc_message *msg_recv;
+    struct rpc_message *answer;
     struct aos_rpc *localtask = &monitorserver_state.processserver_localtasks_rpc.ump_rpc;
 
     while(true) {
+        msg_recv = NULL;
+        answer = NULL;
         err = aos_rpc_ump_receive_non_block(localtask, &msg_recv);
         if (err_is_fail(err)) {
             debug_printf("aos_rpc_ump_receive_non_block: %s", err_getstring(err));
-            goto clean_up;
+            goto err_clean_up;
         }
         else if (msg_recv != NULL) {
-            struct rpc_message *answer = NULL;
+
             err = serve_localtask_spawn(msg_recv, &answer);
             if (err_is_fail(err)) {
                 debug_printf("serve_localtask_spawn: %s", err_getstring(err));
-                goto clean_up;
+                goto err_clean_up;
             }
             if (answer != NULL) {
                 err = aos_rpc_ump_send_message(localtask, answer);
                 if (err_is_fail(err)) {
                     debug_printf("aos_rpc_ump_send_message: failure in response: %s", err_getstring(err));
-                    goto clean_up;
+                    goto err_clean_up_answer;
                 }
             }
             free(msg_recv);
@@ -255,8 +258,12 @@ static int run_localtasks_thread(void * args) {
     }
 
     err = SYS_ERR_OK;
+    return err;
 
-clean_up:
+err_clean_up_answer:
+    free(answer);
+err_clean_up:
+    free(msg_recv);
     debug_printf("error occured in local tasks: %s", err_getstring(err));
     return err;
 }
