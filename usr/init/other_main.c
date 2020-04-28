@@ -176,7 +176,7 @@ int other_main(int argc, char *argv[])
 #if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("hello", &si, &pid);
+    err = spawn_load_by_name("rpc-test", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
