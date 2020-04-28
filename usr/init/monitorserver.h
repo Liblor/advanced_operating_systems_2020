@@ -29,15 +29,6 @@ struct monitorserver_state {
     struct monitorserver_rpc serialserver_rpc;
 };
 
-struct monitorserver_urpc_caps {
-    struct capref memory_server;
-    struct capref process_server;
-    struct capref init_server;
-    struct capref serial_server;
-    struct capref localtask_spawn;
-};
-
-
 errval_t monitorserver_init(void
 );
 

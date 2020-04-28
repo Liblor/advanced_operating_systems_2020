@@ -74,6 +74,7 @@ static inline errval_t monitor_forward(
     return err;
 }
 
+__inline
 static bool is_registered(struct monitorserver_rpc *rpc) {
     bool res;
     MONITOSERVER_LOCK;
@@ -127,7 +128,7 @@ static void service_recv_cb(
         break;
 
 	default:
-        debug_printf("monitor server: unknown msg->msg.method given: type: %d\n", msg->msg.method);
+        debug_printf("monitorserver unknown method given: type: %d\n", msg->msg.method);
 	}
 	if (err_is_fail(err)) {
 	    debug_printf("Unhandled error in monitorserver service_recv_cb\n");
@@ -193,57 +194,15 @@ static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_m
     return SYS_ERR_OK;
 }
 
-
-__unused
-static int serve_localtasks_thread(void * args) {
-    errval_t err;
-
-    struct monitorserver_urpc_caps *urpc_caps = (struct monitorserver_urpc_caps *) args;
-
-    struct capref cap_localtask_spawn = urpc_caps->localtask_spawn;
-    struct aos_rpc rpc_localtasks_spawn;
-
-    err = aos_rpc_ump_init(&rpc_localtasks_spawn, cap_localtask_spawn, false);
-    if (err_is_fail(err)) {
-        goto clean_up;
-    }
-
-    struct rpc_message *msg_recv = NULL;
-
-    while(true) {
-        err = aos_rpc_ump_receive_non_block(&rpc_localtasks_spawn, &msg_recv);
-        if (err_is_fail(err)) {
-            debug_printf("aos_rpc_ump_receive_non_block: %s", err_getstring(err));
-            goto clean_up;
-        }
-        else if (msg_recv != NULL) {
-            struct rpc_message *answer = NULL;
-            err = serve_localtask_spawn(msg_recv, &answer);
-            if (err_is_fail(err)) {
-                debug_printf("serve_localtask_spawn: %s", err_getstring(err));
-                goto clean_up;
-            }
-            if (answer != NULL) {
-                err = aos_rpc_ump_send_message(&rpc_localtasks_spawn, answer);
-                if (err_is_fail(err)) {
-                    debug_printf("aos_rpc_ump_send_message: failure in response: %s", err_getstring(err));
-                    goto clean_up;
-                }
-            }
-            free(msg_recv);
-            free(answer);
-            msg_recv = NULL;
-        }
-    }
-
-clean_up:
-    debug_printf("error occured in local tasks: %s", err_getstring(err));
-    return err;
-}
-
+/** initialize a urpc channel **/
 static errval_t initialize_service(struct monitorserver_rpc *rpc,
-                          struct capref frame) {
+                                   struct capref frame) {
     errval_t err;
+
+    if (rpc->is_registered == true) {
+        return AOS_ERR_MONITOR_ALREADY_REGISTERED_RPC;
+    }
+
     err = aos_rpc_ump_init(
             &rpc->ump_rpc,
             frame,
@@ -257,11 +216,67 @@ static errval_t initialize_service(struct monitorserver_rpc *rpc,
     return SYS_ERR_OK;
 }
 
+/** loops through localtasks urpc channels and checks for messages. Meant to be run in a seperate thread **/
+__unused
+static int run_localtasks_thread(void * args) {
+    errval_t err;
+
+    // XXX: This can easily be refactored to allow more localtasks in a generic manner.
+    // for now we dont need more generic behaviour
+
+    assert(is_registered(&monitorserver_state.processserver_localtasks_rpc));
+
+    struct rpc_message *msg_recv = NULL;
+    struct aos_rpc *localtask = &monitorserver_state.processserver_localtasks_rpc.ump_rpc;
+
+    while(true) {
+        err = aos_rpc_ump_receive_non_block(localtask, &msg_recv);
+        if (err_is_fail(err)) {
+            debug_printf("aos_rpc_ump_receive_non_block: %s", err_getstring(err));
+            goto clean_up;
+        }
+        else if (msg_recv != NULL) {
+            struct rpc_message *answer = NULL;
+            err = serve_localtask_spawn(msg_recv, &answer);
+            if (err_is_fail(err)) {
+                debug_printf("serve_localtask_spawn: %s", err_getstring(err));
+                goto clean_up;
+            }
+            if (answer != NULL) {
+                err = aos_rpc_ump_send_message(localtask, answer);
+                if (err_is_fail(err)) {
+                    debug_printf("aos_rpc_ump_send_message: failure in response: %s", err_getstring(err));
+                    goto clean_up;
+                }
+            }
+            free(msg_recv);
+            free(answer);
+        }
+    }
+
+    err = SYS_ERR_OK;
+
+clean_up:
+    debug_printf("error occured in local tasks: %s", err_getstring(err));
+    return err;
+}
+
+static errval_t run_localtasks(void) {
+        struct thread *localtasks_th = thread_create(run_localtasks_thread, NULL);
+
+    if (localtasks_th == NULL){
+        debug_printf("err in creating localtasks thread, is NULL");
+        return LIB_ERR_THREAD_CREATE;
+    }
+
+    return SYS_ERR_OK;
+}
+
 errval_t monitorserver_register_service(
         enum monitorserver_binding_type type,
         struct capref urpc_frame
 ){
-    errval_t err = SYS_ERR_OK;
+    errval_t err;
     MONITOSERVER_LOCK;
 
     switch(type) {
@@ -273,6 +288,9 @@ errval_t monitorserver_register_service(
             break;
         case ProcessLocaltasksUrpc:
             err = initialize_service(&monitorserver_state.processserver_localtasks_rpc, urpc_frame);
+            if (!err_is_ok(err)) {
+                err = run_localtasks();
+            }
             break;
         case SerialserverUrpc:
             err = initialize_service(&monitorserver_state.serialserver_rpc, urpc_frame);
@@ -298,9 +316,6 @@ errval_t monitorserver_register_service(
 
 errval_t monitorserver_init(void
 ){
-
-    // TODO: remove this once we get the correct caps
-    return SYS_ERR_OK;
     errval_t err;
 
     memset(&monitorserver_state, 0, sizeof(struct monitorserver_state));
@@ -311,13 +326,6 @@ errval_t monitorserver_init(void
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
-
-//    struct thread *localtasks_th = thread_create(serve_localtasks_thread, urpc_caps);
-//
-//    if (localtasks_th == NULL){
-//        debug_printf("err in creating localtasks thread, is NULL");
-//        return LIB_ERR_THREAD_CREATE;
-//    }
 
     return SYS_ERR_OK;
 }
