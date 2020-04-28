@@ -87,7 +87,7 @@ static void service_recv_cb(
         struct rpc_message *msg,
         void *callback_state,
         struct aos_rpc *rpc,
-       void *server_state
+        void *server_state
 )
 {
     errval_t err = SYS_ERR_OK;
@@ -140,22 +140,29 @@ static void service_recv_cb(
 }
 
 // Initialize channel-specific data.
-static void *state_init_cb(void *server_state)
-{
+static void *state_init_cb(
+        void *server_state
+){
     struct monitorserver_cb_state *state = NULL;
 
     return state;
 }
 
 // Free channel-specific data.
-static void state_free_cb(void *server_state, void *callback_state)
-{
+static void state_free_cb(
+        void *server_state,
+        void *callback_state
+){
     struct monitorserver_cb_state *state = callback_state;
     free(state);
 }
 
 // local task action to spawn a process on core
-static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_message** answer) {
+static errval_t serve_localtask_spawn(
+        struct rpc_message* recv_msg,
+        struct rpc_message** answer
+){
+
     assert(recv_msg != NULL);
 
     switch(recv_msg->msg.method) {
@@ -176,7 +183,6 @@ static errval_t serve_localtask_spawn(struct rpc_message* recv_msg, struct rpc_m
                 debug_printf("spawn_cb in local task failed: %s", err_getstring(err));
                 status = Spawn_Failed;
             }
-
             *answer = malloc(sizeof(struct rpc_message));
             if (*answer == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
@@ -218,7 +224,7 @@ static errval_t initialize_service(struct monitorserver_rpc *rpc,
 
 /** loops through localtasks urpc channels and checks for messages. Meant to be run in a seperate thread **/
 __unused
-static int run_localtasks_thread(void * args) {
+static int run_localtasks_thread(void *args) {
     errval_t err;
 
     // XXX: This can easily be refactored to allow more localtasks in a generic manner.
@@ -248,7 +254,9 @@ static int run_localtasks_thread(void * args) {
             if (answer != NULL) {
                 err = aos_rpc_ump_send_message(localtask, answer);
                 if (err_is_fail(err)) {
-                    debug_printf("aos_rpc_ump_send_message: failure in response: %s", err_getstring(err));
+                    debug_printf("aos_rpc_ump_send_message: failure in response: %s",
+                            err_getstring(err));
+
                     goto err_clean_up_answer;
                 }
             }
@@ -296,7 +304,8 @@ errval_t monitorserver_register_service(
         case ProcessLocaltasksUrpc:
             err = initialize_service(&monitorserver_state.processserver_localtasks_rpc, urpc_frame);
             if (!err_is_ok(err)) {
-                // XXX: if monitorserver accepts more local tasks, run this in init of monitor
+                // XXX: if monitorserver accepts more local tasks,
+                // run this in init of monitor
                 err = run_localtasks();
             }
             break;
@@ -329,7 +338,13 @@ errval_t monitorserver_init(void
     memset(&monitorserver_state, 0, sizeof(struct monitorserver_state));
     thread_mutex_init(&monitorserver_state.mutex);
 
-    err = rpc_lmp_server_init(&server, cap_chan_monitor, service_recv_cb, state_init_cb, state_free_cb, &monitorserver_state);
+    err = rpc_lmp_server_init(
+            &server, cap_chan_monitor,
+            service_recv_cb,
+            state_init_cb,
+            state_free_cb,
+            &monitorserver_state);
+
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
