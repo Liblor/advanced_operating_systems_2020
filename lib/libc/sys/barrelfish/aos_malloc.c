@@ -117,7 +117,6 @@ void aos_free(void *ap)
 
     MALLOC_LOCK;
 
-    // TODO: investigate problem
     /* XXX: we can be in a state where heap_static = true
        and a call to free() is performed with an addr
        that lies on the heap, i.e heap_static = false
