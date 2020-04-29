@@ -19,6 +19,8 @@
 #define TEST_PAGING_REGION_MAP_SIZE (10 * BASE_PAGE_SIZE)
 #define TEST_PAGING_COMBINED_STAGE_COUNT (4)
 #define TEST_PAGING_COMBINED_COUNT (10)
+#define TEST_MALLOC_COUNT (5)
+#define TEST_MALLOC_SIZE (10 * BASE_PAGE_SIZE)
 
 const char long_string[] = TEST_LONG_STRING;
 
@@ -295,6 +297,34 @@ static int thread_aos_rpc_get_ram_cap(void *data)
     return 0;
 }
 
+static int thread_malloc(void *data)
+{
+    HERE;
+
+    void *buffers[TEST_MALLOC_COUNT];
+    memset(buffers, 0, sizeof(buffers));
+
+    for (int i = 0; i < TEST_MALLOC_COUNT; i++) {
+        debug_printf("malloc() %d/%d\n", i+1, TEST_MALLOC_COUNT);
+        buffers[i] = malloc(TEST_MALLOC_SIZE);
+        debug_printf("buffer[%llu]=%p\n", i, buffers[i]);
+        assert(buffers != NULL);
+    }
+
+    debug_printf("Checking access...\n");
+    for (int i = 0; i < TEST_MALLOC_COUNT; i++) {
+        debug_printf("checking %p\n", buffers[i]);
+        check_access((lvaddr_t) buffers[i], TEST_MALLOC_SIZE);
+    }
+
+    debug_printf("Freeing...\n");
+    for (int i = 0; i < TEST_MALLOC_COUNT; i++) {
+        free(buffers[i]);
+    }
+
+    return 0;
+}
+
 __unused
 static void test_multithreading_paging_alloc(void)
 {
@@ -457,6 +487,16 @@ static void test_multithreading_aos_rpc_process_get_all_pids(void)
 //errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan, domainid_t **pids, size_t *pid_count);
 }
 
+__unused
+static void test_multithreading_malloc(void)
+{
+    debug_printf("Running test_multithreading_malloc()...\n");
+
+    run_threads(thread_malloc, NULL);
+
+    debug_printf("Test done\n");
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -464,6 +504,8 @@ int main(int argc, char *argv[])
 
     pgst = get_current_paging_state();
 
+    // TODO Uncomment tests
+    /*
     init_rpc = aos_rpc_get_init_channel();
     assert(init_rpc != NULL);
     mem_rpc = aos_rpc_get_memory_channel();
@@ -491,6 +533,10 @@ int main(int argc, char *argv[])
     test_multithreading_paging_region_init_aligned();
     test_multithreading_paging_region_map();
     test_multithreading_paging_combined();
+    */
+
+    debug_printf("Testing multithreading capabilities of malloc\n");
+    test_multithreading_malloc();
 
     return EXIT_SUCCESS;
 }
