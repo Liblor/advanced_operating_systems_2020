@@ -117,16 +117,30 @@ void aos_free(void *ap)
 
     MALLOC_LOCK;
 
+
+    aos_free_locked_explicit(ap, &state->header_freep);
+
+    // TODO: investigate problem
+#if 0
     /* XXX: we can be in a state where heap_static = true
        and a call to free() is performed with an addr
        that lies on the heap, i.e heap_static = false
        We need to use the correct morecore_state
        for this address. We pass header_freep by reference; */
     if (magic == MAGIC_STATIC) {
+        assert(state->heap_static);
         aos_free_locked_explicit(ap, &state->header_freep_static);
     } else {
         aos_free_locked_explicit(ap, &state->header_freep_dynamic);
     }
+     */
+    if (magic == MAGIC_STATIC) {
+        aos_free_locked_explicit(ap, &state->header_freep_static);
+    } else {
+        aos_free_locked_explicit(ap, &state->header_freep_dynamic);
+    }
+#endif
+
     lesscore();
     MALLOC_UNLOCK;
 }
