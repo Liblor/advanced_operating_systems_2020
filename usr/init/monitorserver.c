@@ -174,11 +174,7 @@ static errval_t serve_localtask_spawn(
     switch(recv_msg->msg.method) {
         case Method_Localtask_Spawn_Process: {
             errval_t err;
-            {
-                coreid_t core = *((coreid_t *)recv_msg->msg.payload);
-                assert(core == disp_get_core_id());
-            }
-            char *name = recv_msg->msg.payload + sizeof(coreid_t);
+            char *name = recv_msg->msg.payload;
             enum rpc_message_status status = Status_Ok;
             {
                 struct spawninfo si;
