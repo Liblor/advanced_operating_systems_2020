@@ -742,6 +742,7 @@ errval_t paging_alloc(
     assert(alignment % BASE_PAGE_SIZE == 0);
     PAGING_CHECK_SIZE(bytes)
 
+    bool locked = false;
     bool is_dynamic = false;
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
@@ -760,6 +761,7 @@ errval_t paging_alloc(
      * order to ensure the threshold directly before acquiring the page.
      */
     thread_mutex_lock_nested(&st->mutex);
+    locked = true;
     is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
 
@@ -792,6 +794,10 @@ exit_cleanup:
     return err;
 
 error_cleanup:
+    if (locked) {
+        thread_mutex_unlock(&st->mutex);
+        locked = false;
+    }
     debug_printf("error during paging_alloc() failed: %s\n", err_getstring(err));
     free(pr);
     goto exit_cleanup;
