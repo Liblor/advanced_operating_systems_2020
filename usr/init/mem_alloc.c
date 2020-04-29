@@ -14,6 +14,7 @@ struct mm aos_mm;
 
 errval_t ram_alloc_aligned_handler(const size_t bytes, const size_t alignment, struct capref *retcap, size_t *retbytes)
 {
+    debug_printf("ram_alloc_aligned_handler(%d, %d)\n", bytes, alignment);
     errval_t err;
 
     grading_rpc_handler_ram_cap(bytes, alignment);

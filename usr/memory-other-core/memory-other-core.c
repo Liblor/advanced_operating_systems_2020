@@ -22,23 +22,33 @@ int main(int argc, char *argv[])
 {
     debug_printf("Hello, world! from userspace\n");
 
-    struct capref retcap;
+    // XXX: spawn this on core 1 as memory server runs on core 0
+
+    struct capref ram;
     size_t ret_bytes;
+
     errval_t err = aos_rpc_get_remote_ram_cap(
             BASE_PAGE_SIZE,
             BASE_PAGE_SIZE,
             (disp_get_core_id() + 1) % 2,
-            &retcap,
+            &ram,
             &ret_bytes
-            );
+    );
 
     assert(err_is_ok(err));
 
-    char* addr;
-    err = paging_map_frame(get_current_paging_state(), (void **) &addr, ret_bytes, retcap, 0, 0);
+    struct capref frame;
+    err = slot_alloc(&frame);
     assert(err_is_ok(err));
 
-    for(int i = 0; i < ret_bytes; i ++){
+    err = cap_retype(frame, ram, 0, ObjType_Frame, ret_bytes, 1);
+    assert(err_is_ok(err));
+
+    char *addr;
+    err = paging_map_frame(get_current_paging_state(), (void **) &addr, ret_bytes, frame, 0, 0);
+    assert(err_is_ok(err));
+
+    for (int i = 0; i < ret_bytes; i++) {
         *(addr + i) = 0;
     }
 

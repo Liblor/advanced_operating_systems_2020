@@ -267,13 +267,21 @@ errval_t aos_rpc_ump_send_message(
         struct frame_identity fi;
 
         err = frame_identify(msg->cap, &fi);
-        if (err_is_fail(err)) {
-            debug_printf("frame_identify() failed: %s\n", err_getstring(err));
-            return err;
-        }
+        if (!err_is_ok(err)) { // XXX: use !err_is_ok to work well with debug macro
+            struct capability any_cap_id;
+            err = cap_direct_identify(msg->cap, &any_cap_id);
+            if (err_is_fail(err)) {
+                debug_printf("frame_identify() or cap_direct_identify() failed: %s\n", err_getstring(err));
+                return err;
 
-        cap_base = fi.base;
-        cap_size = fi.bytes;
+            } else {
+                cap_base = get_address(&any_cap_id);
+                cap_size = get_size(&any_cap_id);
+            }
+        } else {
+            cap_base = fi.base;
+            cap_size = fi.bytes;
+        }
     }
 
     const uint8_t *msg_base = (uint8_t *) &msg->msg;

@@ -46,6 +46,7 @@ static inline errval_t monitor_forward_receive(
 {
     errval_t err;
     struct rpc_message *recv = NULL;
+
     err = aos_rpc_ump_send_and_wait_recv(
             forward_to,
             msg,
