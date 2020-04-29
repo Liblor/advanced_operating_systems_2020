@@ -339,7 +339,7 @@ int first_main(int argc, char *argv[])
 #if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("multithreading", &si, &pid);
+    err = spawn_load_by_name("process-server-demo", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
