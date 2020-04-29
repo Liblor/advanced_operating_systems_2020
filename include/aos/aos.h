@@ -81,4 +81,6 @@ typedef void *CONST_CAST;
 #define AOS_SOLUTION_M5
 #define AOS_SOLUTION_M6
 
+#define AOS_CORE_COUNT (2)
+
 #endif

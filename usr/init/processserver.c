@@ -1,13 +1,13 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
+#include <aos/aos_rpc_ump.h>
 #include <aos/aos_rpc_lmp.h>
 
-#include <rpc/server/lmp.h>
-#include <aos/aos_rpc_lmp_marshal.h>
+#include <rpc/server/ump.h>
 
 #include "processserver.h"
 
-static struct rpc_lmp_server server;
+static struct rpc_ump_server server;
 
 static spawn_callback_t spawn_cb = NULL;
 static get_name_callback_t get_name_cb = NULL;
@@ -206,20 +206,6 @@ static errval_t handle_complete_msg(struct processserver_state *server_state, st
     return SYS_ERR_OK;
 }
 
-static inline
-errval_t validate_lmp_header(struct lmp_recv_msg *msg) {
-    if (msg->buf.buflen * sizeof(uintptr_t) < sizeof(struct rpc_message_part)) {
-        DEBUG_PRINTF("invalid buflen\n");
-        return LIB_ERR_LMP_INVALID_RESPONSE;
-    }
-    struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
-    if (msg_part->status != Status_Ok) {
-        DEBUG_PRINTF("status not ok\n");
-        return LIB_ERR_LMP_INVALID_RESPONSE;
-    }
-    return SYS_ERR_OK;
-}
-
 static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct aos_rpc *rpc, void *server_state)
 {
     errval_t err;
@@ -231,9 +217,9 @@ static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct 
         goto cleanup;
     }
 
-    err = aos_rpc_lmp_send_message(rpc, ret, LMP_SEND_FLAGS_DEFAULT);
+    err = aos_rpc_ump_send_message(rpc, ret);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message() failed");
+        DEBUG_ERR(err, "aos_rpc_ump_send_message() failed");
     }
 
 cleanup:
@@ -242,19 +228,60 @@ cleanup:
     }
 }
 
-// Initialize channel-specific data.
-static void *state_init_cb(void *server_state)
+errval_t processserver_send_spawn_local(struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t ret_pid)
 {
-    struct processserver_cb_state *state = NULL;
+    errval_t err;
 
-    return state;
+    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN); // no \0 in strlen
+
+    uint8_t send_buf[sizeof(struct rpc_message) + str_len];
+    struct rpc_message *req = (struct rpc_message *) &send_buf;
+
+    req->msg.method = Method_Localtask_Spawn_Process;
+    req->msg.status = Status_Ok;
+    req->cap = NULL_CAP;
+    req->msg.payload_length = str_len;
+
+    strlcpy(req->msg.payload, name, str_len);
+
+    struct aos_rpc *rpc = server_state->local_task_chan_list[coreid];
+    struct rpc_message resp;
+    struct rpc_message *resp_ptr = &resp;
+
+    // Send local task request to monitor on the core where the process should start.
+    err = aos_rpc_ump_send_and_wait_recv(rpc, req, &resp_ptr);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_ump_send_and_wait_recv() failed");
+        return err;
+    }
+
+    if (resp.msg.status != Status_Ok) {
+        DEBUG_ERR(err, "response status of local task request indicates an error");
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    return SYS_ERR_OK;
 }
 
-// Free channel-specific data.
-static void state_free_cb(void *server_state, void *callback_state)
+errval_t processserver_add_client(struct aos_rpc *rpc, coreid_t mpid)
 {
-    struct processserver_cb_state *state = callback_state;
-    free(state);
+    return rpc_ump_server_add_client(&server, rpc);
+}
+
+errval_t processserver_set_local_task_chan(struct aos_rpc *rpc, coreid_t mpid)
+{
+    struct processserver_state *server_state = server.shared;
+
+    assert(server_state->local_task_chan_list[mpid] == NULL);
+
+    server_state->local_task_chan_list[mpid] = rpc;
+
+    return SYS_ERR_OK;
+}
+
+errval_t processserver_serve_next(void)
+{
+    return rpc_ump_server_serve_next(&server);
 }
 
 errval_t processserver_init(
@@ -272,9 +299,9 @@ errval_t processserver_init(
     struct processserver_state *ps = calloc(1, sizeof(struct processserver_state));
     init_server_state(ps);
 
-    err = rpc_lmp_server_init(&server, cap_chan_process, service_recv_cb, state_init_cb, state_free_cb, ps);
+    err = rpc_ump_server_init(&server, service_recv_cb, NULL, NULL, ps);
     if (err_is_fail(err)) {
-        debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
+        debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 

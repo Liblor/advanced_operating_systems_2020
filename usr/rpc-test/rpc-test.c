@@ -41,18 +41,21 @@ __unused static void test_init(void) {
         return;
     }
 
+    debug_printf("aos_rpc_lmp_send_number\n");
     err = aos_rpc_lmp_send_number(rpc, 13);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
         return;
     }
 
+    debug_printf("aos_rpc_send_string\n");
     err = aos_rpc_send_string(rpc, "1234567890abcdefghejklmnopqrstuvwxyz");
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
         return;
     }
 
+    debug_printf("aos_rpc_send_string\n");
     err = aos_rpc_send_string(rpc, long_string);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_send_number()");
@@ -76,7 +79,7 @@ __unused static void test_process(void) {
     for(int i = 0; i < process_number; i ++) {
         char *binary_name1 = "dummy";
         domainid_t pid1;
-        coreid_t core = 0;
+        coreid_t core = i % 2;
 
         err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
         if (err_is_fail(err)) {
@@ -161,6 +164,8 @@ int main(int argc, char *argv[])
     test_memory();
     test_process();
     test_serial();
+
+    debug_printf("done\n");
 
     return EXIT_SUCCESS;
 }

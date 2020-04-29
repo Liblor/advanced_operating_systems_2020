@@ -279,6 +279,7 @@ errors libaos LIB_ERR_ {
     failure PAGING_INITIALIZATION "The initialization of the paging state failed",
     failure PAGING_INVALID_ALIGNMENT "The initialization of the paging state failed",
     failure PAGING_VADDR_NOT_ALIGNED "The virtual address is not aligned",
+    failure PAGING_MAP_FRAME "Failure in paging_map_frame()",
 
     failure VSPACE_PINNED_INIT  "Failure in vspace_pinned_init()",
     failure VSPACE_PINNED_ALLOC "Failure in vspace_pinned_alloc()",
@@ -745,6 +746,7 @@ errors libmm MM_ERR_ {
 // errors from rpc server library
 errors libmm RPC_ERR_ {
     failure INITIALIZATION   "The initialization of the server failed",
+    failure INVALID_TYPE     "The RPC type is not a valid type.",
 };
 
 // errors in init
@@ -1383,6 +1385,8 @@ errors aos AOS_ERR_ {
     failure PAGING_ADDR_NOT_RESERVED "Address was never reserved to be mapped.",
     failure PAGING_INVALID_UNHANDLED_EXCEPTION "The exception type is invalid or unhandled.",
     failure PAGING_ADDR_RESERVED "This address is reserved for an explicit region.",
+    failure MONITOR_UNKNOWN_RPC_TYPE   "Unknown RPC type for monitor",
+    failure MONITOR_ALREADY_REGISTERED_RPC "Monitor already registered binding for RPC type",
 };
 
 // errors for collections

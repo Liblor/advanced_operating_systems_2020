@@ -7,9 +7,35 @@
 #include <mm/mm.h>
 #include <aos/paging.h>
 #include <collections/range_tracker.h>
+#include <grading.h>
 
 /// MM allocator instance data
 struct mm aos_mm;
+
+errval_t ram_alloc_aligned_handler(const size_t bytes, const size_t alignment, struct capref *retcap, size_t *retbytes)
+{
+    debug_printf("ram_alloc_aligned_handler(%d, %d)\n", bytes, alignment);
+    errval_t err;
+
+    grading_rpc_handler_ram_cap(bytes, alignment);
+
+    err = ram_alloc_aligned(retcap, bytes, alignment);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "ram_alloc_aligned() failed");
+        return err_push(err, LIB_ERR_RAM_ALLOC);
+    }
+
+    struct capability cap;
+    err = cap_direct_identify(*retcap, &cap);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "cap_direct_identify() failed");
+        return err_push(err, LIB_ERR_CAP_IDENTIFY);
+    }
+
+    *retbytes = get_size(&cap);
+
+    return SYS_ERR_OK;
+}
 
 errval_t aos_ram_alloc_aligned(struct capref *ret, size_t size, size_t alignment)
 {

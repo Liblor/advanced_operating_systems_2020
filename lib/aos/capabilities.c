@@ -193,6 +193,12 @@ struct capref cap_chan_process = {
     .slot = TASKCN_SLOT_CHAN_PROCESS
 };
 
+/// Monitor server endpoint cap.
+struct capref cap_chan_monitor = {
+        .cnode = TASK_CNODE_INIT,
+        .slot = TASKCN_SLOT_CHAN_MONITOR
+};
+
 /// Root PML4 VNode
 struct capref cap_vroot = {
     .cnode = PAGE_CNODE_INIT,

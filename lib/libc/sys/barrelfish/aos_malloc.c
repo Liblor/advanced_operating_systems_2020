@@ -98,6 +98,8 @@ __aos_free_locked(void *ap) {
 
 void aos_free(void *ap)
 {
+    // FIX: for handin, do not free memory
+    return;
     if (ap == NULL) {
         return;
     }
@@ -123,10 +125,16 @@ void aos_free(void *ap)
        We need to use the correct morecore_state
        for this address. We pass header_freep by reference; */
     if (magic == MAGIC_STATIC) {
-        aos_free_locked_explicit(ap, &state->header_freep_static);
+        state->header_freep = state->header_freep_static;
+        aos_free_locked_explicit(ap, &state->header_freep);
+        state->header_freep_static = state->header_freep ;
     } else {
-        aos_free_locked_explicit(ap, &state->header_freep_dynamic);
+        state->header_freep = state->header_freep_dynamic;
+        aos_free_locked_explicit(ap, &state->header_freep);
+        state->header_freep_dynamic = state->header_freep ;
     }
+    state->header_freep = state->heap_static ? state->header_freep_static : state->header_freep_dynamic;
+
     lesscore();
     MALLOC_UNLOCK;
 }

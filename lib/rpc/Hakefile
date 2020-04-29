@@ -1,1 +1,1 @@
-[ build library { target = "rpc", cFiles = [ "rpc_lmp_server.c" ] } ]
+[ build library { target = "rpc", cFiles = [ "rpc_lmp_server.c", "rpc_ump_server.c" ] } ]

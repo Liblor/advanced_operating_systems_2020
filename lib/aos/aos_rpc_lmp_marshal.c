@@ -9,7 +9,7 @@ client_response_cb(void *arg)
 {
     struct client_response_state *state = (struct client_response_state *) arg;
     struct aos_rpc *rpc = (struct aos_rpc *) state->rpc;
-    struct lmp_chan *lc = &rpc->lc;
+    struct lmp_chan *lc = &rpc->lmp.chan;
 
     struct capref cap = NULL_CAP;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
@@ -96,7 +96,7 @@ client_response_cb_one_no_alloc(void *arg)
 {
     struct client_response_state *state = (struct client_response_state *) arg;
     struct aos_rpc *rpc = (struct aos_rpc *) state->rpc;
-    struct lmp_chan *lc = &rpc->lc;
+    struct lmp_chan *lc = &rpc->lmp.chan;
 
     struct capref cap = NULL_CAP;
     struct lmp_recv_msg msg = LMP_RECV_MSG_INIT;
@@ -180,10 +180,10 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    lmp_chan_set_recv_slot(&rpc->lc, ret_cap);
+    lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
 
     // TODO: Use custom callback.
-    err = lmp_chan_register_recv(&rpc->lc, &state.ws, MKCLOSURE(client_response_cb_one_no_alloc, &state));
+    err = lmp_chan_register_recv(&rpc->lmp.chan, &state.ws, MKCLOSURE(client_response_cb_one_no_alloc, &state));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_register_recv failed");
         goto clean_up;
@@ -245,13 +245,13 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
 
     // allocate recv slot in case we get a cap in result
     // need to free again if not used
-    err = lmp_chan_alloc_recv_slot(&rpc->lc);
+    err = lmp_chan_alloc_recv_slot(&rpc->lmp.chan);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "can not allocate new slot for recv cap\n");
         goto clean_up;
     }
 
-    err = lmp_chan_register_recv(&rpc->lc, &state.ws, MKCLOSURE(client_response_cb, &state));
+    err = lmp_chan_register_recv(&rpc->lmp.chan, &state.ws, MKCLOSURE(client_response_cb, &state));
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "lmp_chan_register_recv failed");
         goto clean_up;
@@ -297,7 +297,7 @@ clean_up:
     // free slot in case no cap was received
     if (*recv != NULL) {
         if (capref_is_null((*recv)->cap)) {
-            slot_free(rpc->lc.endpoint->recv_slot);
+            slot_free(rpc->lmp.chan.endpoint->recv_slot);
         }
     }
     thread_mutex_unlock(&rpc->mutex);
@@ -333,7 +333,7 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);
 
-        err = lmp_chan_send4(&rpc->lc, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
+        err = lmp_chan_send4(&rpc->lmp.chan, flags, (first ? msg->cap : NULL_CAP), words[0], words[1], words[2], words[3]);
 
         if (lmp_err_is_transient(err)) {
             retries++;

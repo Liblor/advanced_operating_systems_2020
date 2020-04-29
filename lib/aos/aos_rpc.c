@@ -23,9 +23,14 @@ void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
     aos_rpc_lmp_handler_print(string, val, cap);
 }
 
-errval_t aos_rpc_init(struct aos_rpc *rpc)
+errval_t aos_rpc_init(struct aos_rpc *rpc, enum aos_rpc_type type)
 {
-    return aos_rpc_lmp_init(rpc);
+    memset(rpc, 0, sizeof(struct aos_rpc));
+
+    thread_mutex_init(&rpc->mutex);
+    rpc->type = type;
+
+    return SYS_ERR_OK;
 }
 
 errval_t aos_rpc_send_number(struct aos_rpc *rpc, uintptr_t num)
@@ -48,6 +53,35 @@ errval_t aos_rpc_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment
     slot_ensure_threshold(32);
 
     return aos_rpc_lmp_get_ram_cap(rpc, bytes, alignment, ret_cap, ret_bytes);
+}
+
+errval_t aos_rpc_get_remote_ram_cap(
+        size_t bytes,
+        size_t alignment,
+        coreid_t coreid,
+        struct capref *ret_cap,
+        size_t *ret_bytes
+)
+{
+    slot_ensure_threshold(32);
+
+    // use lmp if own core
+    if (coreid == disp_get_core_id()) {
+        return aos_rpc_lmp_get_ram_cap(
+                aos_rpc_get_memory_channel(),
+                bytes,
+                alignment,
+                ret_cap,
+                ret_bytes);
+    } else {
+        return aos_rpc_lmp_get_ram_cap(
+                aos_rpc_get_init_channel(),
+                bytes,
+                alignment,
+                ret_cap,
+                ret_bytes);
+
+    }
 }
 
 errval_t aos_rpc_serial_getchar(struct aos_rpc *rpc, char *retc)
