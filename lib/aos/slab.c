@@ -35,6 +35,9 @@ STATIC_ASSERT_SIZEOF(struct block_head, SLAB_BLOCK_HDRSIZE);
 void slab_init(struct slab_allocator *slabs, size_t blocksize,
                slab_refill_func_t refill_func)
 {
+    // See slab_default_refill for more information.
+    assert(refill_func != slab_default_refill || blocksize <= BASE_PAGE_SIZE);
+
     slabs->slabs = NULL;
     slabs->blocksize = SLAB_REAL_BLOCKSIZE(blocksize);
     slabs->refill_func = refill_func;
@@ -212,6 +215,8 @@ static errval_t slab_refill_pages(struct slab_allocator *slabs, size_t bytes)
  */
 errval_t slab_default_refill(struct slab_allocator *slabs)
 {
+    // Must be of size BASE_PAGE_SIZE, because initially, we are fed with
+    // frames of this size.
     return slab_refill_pages(slabs, BASE_PAGE_SIZE);
 }
 

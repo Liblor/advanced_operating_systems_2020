@@ -43,7 +43,7 @@ struct morecore_static_zone {
 };
 
 struct morecore_state {
-    struct thread_mutex *mutex;
+    struct thread_mutex mutex;
 
     Header header_base;
     Header *header_freep;

@@ -6,6 +6,9 @@
 #include <barrelfish_kpi/types.h>
 #include <collections/range_tracker.h>
 
+#define PAGING_REGION_LOCK thread_mutex_lock_nested(pr->mutex)
+#define PAGING_REGION_UNLOCK thread_mutex_unlock(pr->mutex)
+
 errval_t paging_region_init(
     struct paging_state *st,
     struct paging_region *pr,

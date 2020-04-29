@@ -59,6 +59,7 @@ errval_t ram_alloc_fixed(struct capref *ret, size_t size, size_t alignment)
         ret->slot  = state->base_capnum++;
         return SYS_ERR_OK;
     } else {
+        debug_printf("size is %zu\n", size);
         return LIB_ERR_RAM_ALLOC_WRONG_SIZE;
     }
 }

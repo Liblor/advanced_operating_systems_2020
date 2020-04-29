@@ -10,8 +10,8 @@
 #include <aos/aos.h>
 #include <aos/core_state.h>
 
-#define MALLOC_LOCK thread_mutex_lock_nested(state->mutex)
-#define MALLOC_UNLOCK thread_mutex_unlock(state->mutex)
+#define MALLOC_LOCK thread_mutex_lock(&state->mutex)
+#define MALLOC_UNLOCK thread_mutex_unlock(&state->mutex)
 
 /*
  * malloc: general-purpose storage allocator
@@ -123,10 +123,16 @@ void aos_free(void *ap)
        We need to use the correct morecore_state
        for this address. We pass header_freep by reference; */
     if (magic == MAGIC_STATIC) {
-        aos_free_locked_explicit(ap, &state->header_freep_static);
+        state->header_freep = state->header_freep_static;
+        aos_free_locked_explicit(ap, &state->header_freep);
+        state->header_freep_static = state->header_freep ;
     } else {
-        aos_free_locked_explicit(ap, &state->header_freep_dynamic);
+        state->header_freep = state->header_freep_dynamic;
+        aos_free_locked_explicit(ap, &state->header_freep);
+        state->header_freep_dynamic = state->header_freep ;
     }
+    state->header_freep = state->heap_static ? state->header_freep_static : state->header_freep_dynamic;
+
     lesscore();
     MALLOC_UNLOCK;
 }

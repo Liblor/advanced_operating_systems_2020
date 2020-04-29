@@ -16,6 +16,7 @@
 #include <aos/paging.h>
 #include <aos/except.h>
 #include <aos/slab.h>
+#include <aos/paging_shared.h>
 #include <aos/morecore.h>
 
 #include <stdio.h>
@@ -24,11 +25,37 @@
 
 static struct paging_state current;
 
-static inline void create_hashtable(
-    collections_hash_table **hashmap
+static inline struct page_table *get_entry(
+    struct page_table *parent,
+    const uint16_t index
 )
 {
-    collections_hash_create_with_buckets(hashmap, PAGING_HASHMAP_BUCKETS, NULL);
+    if (index < PTABLE_ENTRIES / 2) {
+        // First half.
+
+        return parent->entries[0]->e[index];
+    } else {
+        // Second half.
+
+        return parent->entries[1]->e[index];
+    }
+}
+
+static inline void set_entry(
+    struct page_table *parent,
+    const uint16_t index,
+    struct page_table *value
+)
+{
+    if (index < PTABLE_ENTRIES / 2) {
+        // First half.
+
+        parent->entries[0]->e[index] = value;
+    } else {
+        // Second half.
+
+        parent->entries[1]->e[index] = value;
+    }
 }
 
 /**
@@ -86,7 +113,7 @@ static inline errval_t get_or_create_pt_entry(
 
     *ret_entry = NULL;
 
-    struct page_table *entry = collections_hash_find(parent->entries, index);
+    struct page_table *entry = get_entry(parent, index);
 
     if (entry == NULL) {
         struct capref cap;
@@ -110,23 +137,37 @@ static inline errval_t get_or_create_pt_entry(
            st->slot_alloc->free(st->slot_alloc, *cap_mapping);
          */
 
-        entry = collections_hash_find(parent->entries, index);
+        entry = get_entry(parent, index);
         if (entry == NULL) {
-            entry = malloc(sizeof(struct page_table));
+            entry = slab_alloc(&st->slabs_pt);
             if (entry == NULL) {
                 // TODO: Do we recover from alloc errors with free of resources?
-                return LIB_ERR_MALLOC_FAIL;
+                debug_printf("slab_alloc() failed\n");
+                return LIB_ERR_SLAB_ALLOC_FAIL;
             }
+            memset(entry, 0x00, sizeof(struct page_table));
 
             entry->cap = cap;
             entry->cap_mapping = cap_mapping;
             entry->type = type;
 
-            if (type == ObjType_VNode_AARCH64_l3) {
-                // An L3 table doesn't have other page tables as entries.
-                entry->entries = NULL;
-            } else {
-                create_hashtable(&entry->entries);
+            if (type != ObjType_VNode_AARCH64_l3) {
+                struct page_table_entries *pte0 = slab_alloc(&st->slabs_pte);
+                if (pte0 == NULL) {
+                    // TODO: Do we recover from alloc errors with free of resources?
+                    debug_printf("slab_alloc() failed\n");
+                    return LIB_ERR_SLAB_ALLOC_FAIL;
+                }
+                memset(pte0, 0x00, sizeof(struct page_table_entries));
+                entry->entries[0] = pte0;
+                struct page_table_entries *pte1 = slab_alloc(&st->slabs_pte);
+                if (pte1 == NULL) {
+                    // TODO: Do we recover from alloc errors with free of resources?
+                    debug_printf("slab_alloc() failed\n");
+                    return LIB_ERR_SLAB_ALLOC_FAIL;
+                }
+                memset(pte1, 0x00, sizeof(struct page_table_entries));
+                entry->entries[1] = pte1;
             }
 
             err = vnode_map(parent->cap, cap, index, flags, 0, 1, cap_mapping);
@@ -135,7 +176,7 @@ static inline errval_t get_or_create_pt_entry(
                 return err_push(err, LIB_ERR_VNODE_MAP);
             }
 
-            collections_hash_insert(parent->entries, index, entry);
+            set_entry(parent, index, entry);
         }
     }
 
@@ -163,11 +204,6 @@ static inline errval_t get_l3_pt(
     assert(l3pt != NULL);
 
     *l3pt = NULL;
-
-    struct page_table *l0pt = &st->l0pt;
-    if (l0pt->entries == NULL) {
-        create_hashtable(&l0pt->entries);
-    }
 
     // Get L1 page table from L0 page table
     const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
@@ -316,29 +352,33 @@ static inline void ensure_correct_pagetable_mapping(
     assert(!capref_is_null(st->l0pt.cap));
     assert(capref_is_null(st->l0pt.cap_mapping));
     assert(st->l0pt.type == ObjType_VNode_AARCH64_l0);
-    assert(st->l0pt.entries != NULL);
+    assert(st->l0pt.entries[0] != NULL);
+    assert(st->l0pt.entries[1] != NULL);
 
-    struct page_table *l1pt = collections_hash_find(st->l0pt.entries, l0_idx);
+    struct page_table *l1pt = get_entry(&st->l0pt, l0_idx);
     assert(l1pt != NULL);
     assert(!capref_is_null(l1pt->cap));
     assert(!capref_is_null(l1pt->cap_mapping));
     assert(l1pt->type == ObjType_VNode_AARCH64_l1);
-    assert(l1pt->entries != NULL);
+    assert(l1pt->entries[0] != NULL);
+    assert(l1pt->entries[1] != NULL);
 
-    struct page_table *l2pt = collections_hash_find(l1pt->entries, l1_idx);
+    struct page_table *l2pt = get_entry(l1pt, l1_idx);
     assert(l2pt != NULL);
     assert(!capref_is_null(l2pt->cap));
     assert(!capref_is_null(l2pt->cap_mapping));
     assert(l2pt->type == ObjType_VNode_AARCH64_l2);
-    assert(l2pt->entries != NULL);
+    assert(l2pt->entries[0] != NULL);
+    assert(l2pt->entries[1] != NULL);
 
-    struct page_table *l3pt = collections_hash_find(l2pt->entries, l2_idx);
+    struct page_table *l3pt = get_entry(l2pt, l2_idx);
     assert(l3pt != NULL);
     assert(!capref_is_null(l3pt->cap));
     assert(!capref_is_null(l3pt->cap_mapping));
     assert(l3pt->type == ObjType_VNode_AARCH64_l3);
     // L3 pagetable does not have other page tables as entries
-    assert(l3pt->entries == NULL);
+    assert(l3pt->entries[0] == NULL);
+    assert(l3pt->entries[1] == NULL);
 
     struct rtnode *pr_node;
     err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
@@ -378,8 +418,21 @@ static inline errval_t back_vaddr(
 
     bool exit_do_unlock = false;
 
-    thread_mutex_lock_nested(&st->mutex);
+    PAGING_LOCK;
     exit_do_unlock = true;
+
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    err = slab_ensure_threshold(&st->slabs_pt, PAGING_SLAB_THRESHOLD);
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    err = slab_ensure_threshold(&st->slabs_pte, PAGING_SLAB_THRESHOLD);
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
 
     /*
      * First, we lookup the corresponding node on the upper layer.
@@ -429,7 +482,6 @@ static inline errval_t back_vaddr(
 
     struct capref frame;
     size_t size;
-    slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
 
     err = frame_alloc(&frame, mapping_node->size, &size);
     if (err_is_fail(err)) {
@@ -460,7 +512,7 @@ static inline errval_t back_vaddr(
 
 cleanup:
     if (exit_do_unlock) {
-        thread_mutex_unlock(&st->mutex);
+        PAGING_UNLOCK;
     }
 
     return err;
@@ -475,7 +527,7 @@ static errval_t paging_handler(
 {
     errval_t err;
 
-    //debug_printf("paging_handler(), addr=%p\n", addr);
+    debug_printf("paging_handler(), addr=%p\n", addr);
 
     if (addr == 0) {
         debug_printf("NULL pointer dereferenced!\n");
@@ -533,9 +585,6 @@ static void exception_handler(
 {
     errval_t err = SYS_ERR_OK;
 
-    const bool is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
-
     switch (type) {
     case EXCEPT_PAGEFAULT:
         err = paging_handler(type, subtype, addr, regs);
@@ -543,10 +592,6 @@ static void exception_handler(
     default:
         err = AOS_ERR_PAGING_INVALID_UNHANDLED_EXCEPTION;
         debug_printf("Unknown exception type\n");
-    }
-
-    if (is_dynamic) {
-        morecore_enable_dynamic();
     }
 
     if (err_is_fail(err)) {
@@ -587,13 +632,24 @@ errval_t paging_init_state(
     st->l0pt.type = ObjType_VNode_AARCH64_l0;
     st->l0pt.cap = cap_l0;
     st->l0pt.cap_mapping = NULL_CAP;
-    st->l0pt.entries = NULL;
+    st->l0pt.entries[0] = &st->l0pte0;
+    st->l0pt.entries[1] = &st->l0pte1;
+    memset(st->l0pte0.e, 0x00, sizeof(st->l0pte0.e));
+    memset(st->l0pte1.e, 0x00, sizeof(st->l0pte1.e));
 
     st->start_addr = start_vaddr;
 
     slab_init(&st->slabs, RANGE_TRACKER_NODE_SIZE, slab_default_refill);
+    slab_init(&st->slabs_pr, sizeof(struct paging_region), slab_default_refill);
+    slab_init(&st->slabs_fmp, sizeof(struct frame_mapping_pair), slab_default_refill);
+    slab_init(&st->slabs_pt, sizeof(struct page_table), slab_default_refill);
+    slab_init(&st->slabs_pte, sizeof(struct page_table_entries), slab_default_refill);
 
     slab_grow(&st->slabs, st->initial_slabs_buffer, sizeof(st->initial_slabs_buffer));
+    slab_grow(&st->slabs_pr, st->initial_slabs_pr_buffer, sizeof(st->initial_slabs_pr_buffer));
+    slab_grow(&st->slabs_fmp, st->initial_slabs_fmp_buffer, sizeof(st->initial_slabs_fmp_buffer));
+    slab_grow(&st->slabs_pt, st->initial_slabs_pt_buffer, sizeof(st->initial_slabs_pt_buffer));
+    slab_grow(&st->slabs_pte, st->initial_slabs_pte_buffer, sizeof(st->initial_slabs_pte_buffer));
 
     thread_mutex_init(&st->mutex);
 
@@ -697,20 +753,13 @@ void paging_init_onthread(
 
     const bool is_dynamic = !get_morecore_state()->heap_static;
     morecore_enable_static();
-    void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
+    void *exception_stack_buffer = malloc(PAGING_EXCEPTION_STACK_SIZE);
     if (is_dynamic) {
         morecore_enable_dynamic();
     }
 
-    if (stack == NULL) {
-        debug_printf("Allocating exception stack failed\n");
-        return;
-    }
-
-    void *stack_top = stack + PAGING_EXCEPTION_STACK_SIZE;
-
-    t->exception_stack = stack;
-    t->exception_stack_top = stack_top;
+    t->exception_stack = exception_stack_buffer;
+    t->exception_stack_top = ((char *) t->exception_stack) + PAGING_EXCEPTION_STACK_SIZE;
     t->exception_handler = exception_handler;
 }
 
@@ -742,31 +791,33 @@ errval_t paging_alloc(
     assert(alignment % BASE_PAGE_SIZE == 0);
     PAGING_CHECK_SIZE(bytes)
 
-    bool is_dynamic = false;
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
     struct paging_region *pr = NULL;
     *buf = NULL;
 
-    pr = calloc(1, sizeof(struct paging_region));
-    if (pr == NULL) {
-        debug_printf("calloc() failed\n");
-        err = LIB_ERR_MALLOC_FAIL;
-        goto error_cleanup;
-    }
-
     /*
      * The slab_ensure_threshold() needs to be guarded by a mutex, too, in
      * order to ensure the threshold directly before acquiring the page.
      */
-    thread_mutex_lock_nested(&st->mutex);
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
+    PAGING_LOCK;
 
     err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
         goto error_cleanup;
     }
+    err = slab_ensure_threshold(&st->slabs_pr, PAGING_SLAB_THRESHOLD);
+    if (err_is_fail(err)) {
+        goto error_cleanup;
+    }
+
+    pr = slab_alloc(&st->slabs_pr);
+    if (pr == NULL) {
+        debug_printf("slab_alloc() failed\n");
+        err = LIB_ERR_SLAB_ALLOC_FAIL;
+        goto error_cleanup;
+    }
+    memset(pr, 0x00, sizeof(struct paging_region));
 
     /*
      * flags = 0, because it will not be used for implicit paging regions.
@@ -785,10 +836,7 @@ errval_t paging_alloc(
     err = SYS_ERR_OK;
 
 exit_cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
-    thread_mutex_unlock(&st->mutex);
+    PAGING_UNLOCK;
     return err;
 
 error_cleanup:
@@ -883,21 +931,33 @@ errval_t paging_map_fixed_attr(
     DEBUG_BEGIN;
 
     assert(st != NULL);
-    bool is_dynamic = false;
-    bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
     PAGING_CHECK_RANGE(vaddr, bytes);
 
-    thread_mutex_lock_nested(&st->mutex);
-    if (st != get_current_paging_state()) {
-        thread_mutex_lock_nested(&get_current_paging_state()->mutex);
-    }
+    bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
+    uint64_t page_count = bytes / BASE_PAGE_SIZE;
 
-    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
+    PAGING_LOCK;
+
+    err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD + (page_count / PTABLE_ENTRIES + 2));
     if (err_is_fail(err)) {
-        goto clean_up;
+        goto cleanup;
+    }
+    err = slab_ensure_threshold(&st->slabs_fmp, PAGING_SLAB_THRESHOLD + (page_count / PTABLE_ENTRIES + 2));
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    err = slab_ensure_threshold(&st->slabs_pr, PAGING_SLAB_THRESHOLD);
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    err = slab_ensure_threshold(&st->slabs_pt, PAGING_SLAB_THRESHOLD);
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    err = slab_ensure_threshold(&st->slabs_pte, PAGING_SLAB_THRESHOLD);
+    if (err_is_fail(err)) {
+        goto cleanup;
     }
 
     struct rtnode *node = NULL;
@@ -905,7 +965,7 @@ errval_t paging_map_fixed_attr(
     err = range_tracker_get_fixed(&st->rt, vaddr, bytes, &node);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
-        goto clean_up;
+        goto cleanup;
     }
 
     assert(node != NULL);
@@ -922,7 +982,7 @@ errval_t paging_map_fixed_attr(
             // mess with it.
 
             err = AOS_ERR_PAGING_ADDR_RESERVED;
-            goto clean_up;
+            goto cleanup;
         }
 
         // Check if there aren't already other mappings that would collide with the new mappings.
@@ -932,7 +992,7 @@ errval_t paging_map_fixed_attr(
         if (err_is_fail(err)) {
             debug_printf("range_tracker_get_fixed() failed: %s\n", err_getstring(err));
             err = AOS_ERR_PAGING_ADDR_RESERVED;
-            goto clean_up;
+            goto cleanup;
         }
 
         assert(mapping_node != NULL);
@@ -940,27 +1000,29 @@ errval_t paging_map_fixed_attr(
         if (range_tracker_is_used(mapping_node)) {
             // TODO: Change error to "region already used".
             err = AOS_ERR_PAGING_ADDR_RESERVED;
-            goto clean_up;
+            goto cleanup;
         }
 
         if (mapping_node->base + mapping_node->size < vaddr + bytes) {
             // TODO: Change error to "not enough space for given size at given address".
             err = AOS_ERR_PAGING_ADDR_RESERVED;
-            goto clean_up;
+            goto cleanup;
         }
     } else {
         assert(node->shared.ptr == NULL);
 
         // TODO: Free this pr if subsequent error occurs.
-        pr = calloc(1, sizeof(struct paging_region));
+        pr = slab_alloc(&st->slabs_pr);
         if (pr == NULL) {
-            err = LIB_ERR_MALLOC_FAIL;
-            goto clean_up;
+            debug_printf("slab_alloc() failed\n");
+            err = LIB_ERR_SLAB_ALLOC_FAIL;
+            goto cleanup;
         }
+        memset(pr, 0x00, sizeof(struct paging_region));
 
         err = paging_region_init_fixed(st, pr, vaddr, bytes, 0);
         if (err_is_fail(err)) {
-            goto clean_up;
+            goto cleanup;
         }
 
         pr->implicit = true;
@@ -970,7 +1032,6 @@ errval_t paging_map_fixed_attr(
     err = create_mapping_nodes(st, pr, vaddr, size, node_cb);
     */
 
-    uint64_t page_count = bytes / BASE_PAGE_SIZE;
     uint64_t frame_offset = 0;
     lvaddr_t curr_vaddr = vaddr;
 
@@ -985,15 +1046,18 @@ errval_t paging_map_fixed_attr(
         struct rtnode *mapping_node = NULL;
         err = range_tracker_alloc_fixed(&pr->rt, curr_vaddr, curr_page_count * BASE_PAGE_SIZE, &mapping_node);
         if (err_is_fail(err)) {
-            goto clean_up;
+            goto cleanup;
         }
         assert(mapping_node != NULL);
 
-        struct frame_mapping_pair *mapping_pair = calloc(1, sizeof(struct frame_mapping_pair));
+        struct frame_mapping_pair *mapping_pair = slab_alloc(&st->slabs_fmp);
         if (mapping_pair == NULL) {
-            err = LIB_ERR_MALLOC_FAIL;
-            goto clean_up;
+            debug_printf("slab_alloc() failed\n");
+            err = LIB_ERR_SLAB_ALLOC_FAIL;
+            goto cleanup;
         }
+        memset(mapping_pair, 0x00, sizeof(struct frame_mapping_pair));
+
         mapping_node->shared.ptr = mapping_pair;
 
         // TODO: Undo mappings and everything else on error?
@@ -1002,7 +1066,7 @@ errval_t paging_map_fixed_attr(
         err = get_and_map_into_l3(st, pr, curr_vaddr, frame, frame_offset, curr_page_count, mapping_node, flags);
         if (err_is_fail(err)) {
             debug_printf("get_and_map_into_l3() failed: %s\n", err_getstring(err));
-            goto clean_up;
+            goto cleanup;
         }
 
 #ifndef NDEBUG
@@ -1016,14 +1080,8 @@ errval_t paging_map_fixed_attr(
 
     err = SYS_ERR_OK;
 
-clean_up:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
-    if (st != get_current_paging_state()) {
-        thread_mutex_unlock(&get_current_paging_state()->mutex);
-    }
-    thread_mutex_unlock(&st->mutex);
+cleanup:
+    PAGING_UNLOCK;
     return err;
 }
 
@@ -1041,14 +1099,11 @@ errval_t paging_unmap(
 
     assert(st != NULL);
 
-    bool is_dynamic = false;
     const lvaddr_t vaddr = (lvaddr_t) region;
 
     struct rtnode *pr_node = NULL;
 
-    thread_mutex_lock_nested(&st->mutex);
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
+    PAGING_LOCK;
 
     err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
     if (err_is_fail(err)) {
@@ -1083,10 +1138,7 @@ errval_t paging_unmap(
         return err;
     }
 
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
-    thread_mutex_unlock(&st->mutex);
+    PAGING_UNLOCK;
 
     /*
      * Free the region itself.

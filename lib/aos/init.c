@@ -158,6 +158,7 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_RAM_ALLOC_SET);
     }
+
     err = paging_init();
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_VSPACE_INIT);
@@ -191,8 +192,10 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         set_init_rpc(init_rpc);
         */
 
-        _libc_terminal_read_func = aos_terminal_read;
-        _libc_terminal_write_func = aos_terminal_write;
+        morecore_enable_static();
+
+        //_libc_terminal_read_func = aos_terminal_read;
+        //_libc_terminal_write_func = aos_terminal_write;
 
         // This call is to setup the channel to the memory server before
         // ram_alloc() is set to use the RPC call for memory allocation. This
@@ -201,7 +204,9 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         // ram_alloc_fixed().
         aos_rpc_get_memory_channel();
 
-        slot_ensure_threshold(32);
+        //slot_ensure_threshold(32);
+
+        morecore_enable_dynamic();
 
         // Reset ram allocator to use remote ram allocator
         err = ram_alloc_set(NULL);

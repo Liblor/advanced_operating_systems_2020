@@ -3,7 +3,7 @@
 #include <aos/capabilities.h>
 #include <aos/domain.h>
 #include <aos/core_state.h>
-#include <aos/morecore.h>
+#include <aos/paging_shared.h>
 
 static inline errval_t paging_region_init_region(
     struct paging_state *st,
@@ -22,7 +22,6 @@ static inline errval_t paging_region_init_region(
     PAGING_CHECK_RANGE(base, size);
 
     bool exit_do_unlock = false;
-    bool is_dynamic = false;
 
     pr->mutex = &st->mutex;
 
@@ -35,11 +34,8 @@ static inline errval_t paging_region_init_region(
         goto cleanup;
     }
 
-    thread_mutex_lock_nested(&st->mutex);
+    PAGING_LOCK;
     exit_do_unlock = true;
-
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
 
     err = range_tracker_add(&pr->rt, base, size, (union range_tracker_shared) NULL);
     if (err_is_fail(err)) {
@@ -50,11 +46,8 @@ static inline errval_t paging_region_init_region(
     err = SYS_ERR_OK;
 
 cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     if (exit_do_unlock) {
-        thread_mutex_unlock(&st->mutex);
+        PAGING_UNLOCK;
     }
 
     return err;
@@ -83,7 +76,6 @@ static errval_t _paging_region_init(
         return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
 
-    bool is_dynamic = false;
     bool exit_do_unlock = false;
 
     memset(pr, 0x00, sizeof(struct paging_region));
@@ -92,11 +84,8 @@ static errval_t _paging_region_init(
      * The slab_ensure_threshold() needs to be guarded by a mutex, too, in
      * order to ensure the threshold directly before acquiring the page.
      */
-    thread_mutex_lock_nested(&st->mutex);
+    PAGING_LOCK;
     exit_do_unlock = true;
-
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
 
     err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
@@ -129,7 +118,7 @@ static errval_t _paging_region_init(
     assert(node == check_node);
 #endif
 
-    thread_mutex_unlock(&st->mutex);
+    PAGING_UNLOCK;
     exit_do_unlock = false;
 
     err = paging_region_init_region(st, pr, node->base, node->size, flags, node, implicit);
@@ -143,11 +132,8 @@ static errval_t _paging_region_init(
     err = SYS_ERR_OK;
 
 cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     if (exit_do_unlock) {
-        thread_mutex_unlock(&st->mutex);
+        PAGING_UNLOCK;
     }
 
     return err;
@@ -230,17 +216,18 @@ errval_t paging_region_map(
 
     uint64_t page_count = size / BASE_PAGE_SIZE;
 
-    // run on vmem which does not pagefault
-    const bool is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
-
     struct paging_state *st = get_current_paging_state();
 
-    thread_mutex_lock_nested(pr->mutex);
+    PAGING_LOCK;
+    PAGING_REGION_LOCK;
 
     // The amount of slabs that will be needed depends on the number of mapping
     // nodes that will be created.
     err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD + (page_count / PTABLE_ENTRIES + 2));
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    err = slab_ensure_threshold(&st->slabs_fmp, PAGING_SLAB_THRESHOLD + (page_count / PTABLE_ENTRIES + 2));
     if (err_is_fail(err)) {
         goto cleanup;
     }
@@ -291,11 +278,13 @@ errval_t paging_region_map(
         }
         assert(mapping_node != NULL);
 
-        struct frame_mapping_pair *mapping_pair = calloc(1, sizeof(struct frame_mapping_pair));
+        struct frame_mapping_pair *mapping_pair = slab_alloc(&st->slabs_fmp);
         if (mapping_pair == NULL) {
-            err = LIB_ERR_MALLOC_FAIL;
+            debug_printf("slab_alloc() failed\n");
+            err = LIB_ERR_SLAB_ALLOC_FAIL;
             goto cleanup;
         }
+        memset(mapping_pair, 0x00, sizeof(struct frame_mapping_pair));
 
         mapping_node->shared.ptr = mapping_pair;
 
@@ -311,10 +300,8 @@ errval_t paging_region_map(
     err = SYS_ERR_OK;
 
 cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
-    thread_mutex_unlock(pr->mutex);
+    PAGING_REGION_UNLOCK;
+    PAGING_UNLOCK;
     return err;
 }
 
@@ -374,7 +361,7 @@ errval_t paging_region_unmap(
 
     PAGING_CHECK_RANGE(base, bytes);
 
-    thread_mutex_lock_nested(pr->mutex);
+    PAGING_REGION_LOCK;
 
     err = range_tracker_free(&pr->rt, base, bytes, MKRTCLOSURE(range_tracker_free_cb, NULL));
     if (err_is_fail(err)) {
@@ -385,7 +372,7 @@ errval_t paging_region_unmap(
     err = SYS_ERR_OK;
 
 cleanup:
-    thread_mutex_unlock(pr->mutex);
+    PAGING_REGION_UNLOCK;
     return err;
 }
 
@@ -403,7 +390,7 @@ errval_t paging_region_unmap_all(
 
     assert(pr != NULL);
 
-    thread_mutex_lock_nested(pr->mutex);
+    PAGING_REGION_LOCK;
 
     err = range_tracker_free_all(&pr->rt, MKRTCLOSURE(range_tracker_free_cb, NULL));
     if (err_is_fail(err)) {
@@ -414,6 +401,6 @@ errval_t paging_region_unmap_all(
     err = SYS_ERR_OK;
 
 cleanup:
-    thread_mutex_unlock(pr->mutex);
+    PAGING_REGION_UNLOCK;
     return err;
 }

@@ -79,8 +79,7 @@ errval_t morecore_init(size_t alignment)
 
     debug_printf("initializing static heap\n");
 
-    //thread_mutex_init(state->mutex);
-    state->mutex = &get_current_paging_state()->mutex;
+    thread_mutex_init(&state->mutex);
 
     state->freep = mymem;
 
@@ -306,8 +305,7 @@ errval_t morecore_init(size_t alignment)
     struct morecore_state *state = get_morecore_state();
     memset(state, 0, sizeof(struct morecore_state));
 
-    //thread_mutex_init(state->mutex);
-    state->mutex = &get_current_paging_state()->mutex;
+    thread_mutex_init(&state->mutex);
 
     // we start off dynamic and switch to static in pagefault handler
 

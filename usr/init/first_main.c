@@ -119,6 +119,7 @@ static errval_t process_get_all_pids(struct processserver_state *processserver_s
     return err;
 }
 
+
 static void setup_servers(
     void
 )
@@ -241,7 +242,7 @@ static void register_service_channels(
     debug_printf("all service channels for core %d registered\n", mpid);
 }
 
-static void setup_core(
+static inline void setup_core(
     struct bootinfo *bootinfo,
     coreid_t mpid,
     struct aos_rpc *rpc
@@ -330,21 +331,21 @@ int first_main(int argc, char *argv[])
 
     register_service_channels(NULL, my_core_id);
 
+#if 0
     struct aos_rpc rpc_core1;
     setup_core(bi, 1, &rpc_core1);
+#endif
 
     // Grading
     grading_test_late();
 
-#if 0
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("hello", &si, &pid);
+    err = spawn_load_by_name("multithreading", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
     }
-#endif
 
     debug_printf("Entering message handler loop...\n");
 

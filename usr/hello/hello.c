@@ -26,9 +26,5 @@ int main(int argc, char *argv[])
         debug_printf("argv[%d]='%s'\n", i, argv[i]);
     }
 
-    struct aos_rpc *rpc =  aos_rpc_lmp_get_monitor_channel();
-    errval_t err = aos_rpc_send_number(rpc, 1);
-    assert(err_is_ok(err));
-
     return EXIT_SUCCESS;
 }

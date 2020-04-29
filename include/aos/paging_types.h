@@ -75,6 +75,7 @@
     } \
 
 #define PAGING_SLAB_THRESHOLD (48)
+#define PAGING_LOCK thread_mutex_lock_nested(&st->mutex)
 
 struct frame_mapping_pair {
     struct capref frame; ///< The frame capability used to back the memory of the mapping.
@@ -92,11 +93,16 @@ struct paging_region {
     bool implicit; // Whether this paging region was created automatically or via the paging_region API.
 };
 
+struct page_table;
+struct page_table_entries {
+    struct page_table *e[PTABLE_ENTRIES/2];
+};
+
 struct page_table {
     enum objtype type;
     struct capref cap;
     struct capref cap_mapping; ///< The mapping capability that was created when this page_table was mapped. Is NULL_CAP if the page_table represents the L0 pagetable.
-    struct _collections_hash_table *entries; ///< The hashtable containing lower level entries. Is NULL if the page_table represents an entry in a L3 table.
+    struct page_table_entries *entries[2];
 };
 
 // Struct to store the paging status of a process
@@ -104,9 +110,19 @@ struct paging_state {
     struct thread_mutex mutex;
     struct slot_allocator *slot_alloc;
     struct slab_allocator slabs;
+    struct slab_allocator slabs_pr;
+    struct slab_allocator slabs_fmp;
+    struct slab_allocator slabs_pt;
+    struct slab_allocator slabs_pte;
     struct range_tracker rt; ///< The range tracker is used to track allocated paging regions.
     struct page_table l0pt;
+    struct page_table_entries l0pte0;
+    struct page_table_entries l0pte1;
     char initial_slabs_buffer[64 * RANGE_TRACKER_NODE_SIZE]; ///< Used to initially grow the slab allocator.
+    char initial_slabs_pr_buffer[2 * PAGING_SLAB_THRESHOLD * sizeof(struct paging_region)]; ///< Used to initially grow the slab_pr allocator.
+    char initial_slabs_fmp_buffer[2 * PAGING_SLAB_THRESHOLD * sizeof(struct frame_mapping_pair)]; ///< Used to initially grow the slab_fmp allocator.
+    char initial_slabs_pt_buffer[2 * PAGING_SLAB_THRESHOLD * sizeof(struct page_table)]; ///< Used to initially grow the slab_pt allocator.
+    char initial_slabs_pte_buffer[2 * PAGING_SLAB_THRESHOLD * sizeof(struct page_table_entries)]; ///< Used to initially grow the slab_pte allocator.
     char *exception_stack_base[PAGING_EXCEPTION_STACK_SIZE];
     lvaddr_t start_addr; ///< From where on this paging state is responsible.
 };
