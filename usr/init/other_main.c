@@ -177,7 +177,7 @@ int other_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 1
+#if 0
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("multithreading", &si, &pid);
