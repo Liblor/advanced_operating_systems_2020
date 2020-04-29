@@ -14,7 +14,8 @@ static struct monitorserver_state monitorserver_state;
 #define MONITORSERVER_LOCK thread_mutex_lock(&monitorserver_state.mutex)
 #define MONITORSERVER_UNLOCK thread_mutex_unlock(&monitorserver_state.mutex)
 
-#define trace(msg...) debug_printf(msg)
+//#define trace(msg...) debug_printf(msg)
+#define trace(msg...)  ((void)0)
 
 static errval_t reply_error(
         struct aos_rpc *rpc,
