@@ -121,10 +121,6 @@ static void register_service_channels(
 int other_main(int argc, char *argv[])
 {
     errval_t err;
-
-    // Grading
-    grading_setup_bsp_init(argc, argv);
-
     struct aos_rpc rpc;
 
     err = aos_rpc_ump_init(&rpc, cap_urpc, false);
@@ -132,6 +128,8 @@ int other_main(int argc, char *argv[])
 
     struct capref cap_mmstrings_frame;
     receive_bootinfo(&rpc, &bi, &cap_mmstrings_frame);
+
+    grading_setup_app_init(bi);
 
     err = forge_bootinfo_ram(bi);
     if (err_is_fail(err)) {
