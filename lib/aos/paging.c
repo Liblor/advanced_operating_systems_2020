@@ -794,9 +794,6 @@ exit_cleanup:
     return err;
 
 error_cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     if (locked) {
         thread_mutex_unlock(&st->mutex);
         locked = false;
