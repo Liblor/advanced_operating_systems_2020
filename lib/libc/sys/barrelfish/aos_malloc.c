@@ -128,7 +128,6 @@ void aos_free(void *ap)
        We need to use the correct morecore_state
        for this address. We pass header_freep by reference; */
     if (magic == MAGIC_STATIC) {
-        assert(state->heap_static);
         aos_free_locked_explicit(ap, &state->header_freep_static);
     } else {
         aos_free_locked_explicit(ap, &state->header_freep_dynamic);
