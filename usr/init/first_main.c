@@ -336,10 +336,10 @@ int first_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 0
+#if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("hello", &si, &pid);
+    err = spawn_load_by_name("multithreading", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
