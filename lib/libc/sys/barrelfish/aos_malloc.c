@@ -118,6 +118,7 @@ void aos_free(void *ap)
     MALLOC_LOCK;
 
 
+    assert((magic == MAGIC_STATIC) == state->heap_static);
     aos_free_locked_explicit(ap, &state->header_freep);
 
     // TODO: investigate problem
