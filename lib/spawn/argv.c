@@ -20,9 +20,7 @@
  * (an array of the arguments) will be returned, NULL otherwise.
  */
 char ** make_argv(const char *cmdline, int *_argc, char **buf) {
-    HERE;
     char **argv= calloc(MAX_CMDLINE_ARGS+1, sizeof(char *));
-    HERE;
     if(!argv) return NULL;
 
     /* Carefully calculate the length of the command line. */
@@ -30,9 +28,7 @@ char ** make_argv(const char *cmdline, int *_argc, char **buf) {
     if(len > PATH_MAX) return NULL;
 
     /* Copy the command line, as we'll chop it up. */
-    HERE;
     *buf= malloc(len + 1);
-    HERE;
     if(!*buf) {
         free(argv);
         return NULL;

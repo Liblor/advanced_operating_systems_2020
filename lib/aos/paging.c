@@ -104,10 +104,16 @@ static inline errval_t get_or_create_pt_entry(
     assert(st != NULL);
     assert(ret_entry != NULL);
     assert(type != ObjType_VNode_AARCH64_l0);
-    assert(type != ObjType_VNode_AARCH64_l1 || parent->type == ObjType_VNode_AARCH64_l0);
-    assert(type != ObjType_VNode_AARCH64_l2 || parent->type == ObjType_VNode_AARCH64_l1);
-    assert(type != ObjType_VNode_AARCH64_l3 || parent->type == ObjType_VNode_AARCH64_l2);
     assert(index < PTABLE_ENTRIES);
+
+    assert(type != ObjType_VNode_AARCH64_l1 || parent->type == ObjType_VNode_AARCH64_l0);
+    assert(type == ObjType_VNode_AARCH64_l1 || parent->type != ObjType_VNode_AARCH64_l0);
+
+    assert(type != ObjType_VNode_AARCH64_l2 || parent->type == ObjType_VNode_AARCH64_l1);
+    assert(type == ObjType_VNode_AARCH64_l2 || parent->type != ObjType_VNode_AARCH64_l1);
+
+    assert(type != ObjType_VNode_AARCH64_l3 || parent->type == ObjType_VNode_AARCH64_l2);
+    assert(type == ObjType_VNode_AARCH64_l3 || parent->type != ObjType_VNode_AARCH64_l2);
 
     const int flags = VREGION_FLAGS_READ_WRITE;
 
@@ -160,6 +166,7 @@ static inline errval_t get_or_create_pt_entry(
                 }
                 memset(pte0, 0x00, sizeof(struct page_table_entries));
                 entry->entries[0] = pte0;
+
                 struct page_table_entries *pte1 = slab_alloc(&st->slabs_pte);
                 if (pte1 == NULL) {
                     // TODO: Do we recover from alloc errors with free of resources?
@@ -179,6 +186,15 @@ static inline errval_t get_or_create_pt_entry(
             set_entry(parent, index, entry);
         }
     }
+
+    assert(entry->type != ObjType_VNode_AARCH64_l1 || parent->type == ObjType_VNode_AARCH64_l0);
+    assert(entry->type == ObjType_VNode_AARCH64_l1 || parent->type != ObjType_VNode_AARCH64_l0);
+
+    assert(entry->type != ObjType_VNode_AARCH64_l2 || parent->type == ObjType_VNode_AARCH64_l1);
+    assert(entry->type == ObjType_VNode_AARCH64_l2 || parent->type != ObjType_VNode_AARCH64_l1);
+
+    assert(entry->type != ObjType_VNode_AARCH64_l3 || parent->type == ObjType_VNode_AARCH64_l2);
+    assert(entry->type == ObjType_VNode_AARCH64_l3 || parent->type != ObjType_VNode_AARCH64_l2);
 
     *ret_entry = entry;
 
@@ -208,7 +224,13 @@ static inline errval_t get_l3_pt(
     // Get L1 page table from L0 page table
     const uint16_t l0_idx = VMSAv8_64_L0_INDEX(vaddr);
     struct page_table *l0entry;
-    err = get_or_create_pt_entry(st, &st->l0pt, l0_idx, ObjType_VNode_AARCH64_l1, &l0entry);
+    err = get_or_create_pt_entry(
+        st,
+        &st->l0pt,
+        l0_idx,
+        ObjType_VNode_AARCH64_l1,
+        &l0entry
+    );
     if (err_is_fail(err)) {
         debug_printf("get_or_create_pt_entry() failed: %s\n", err_getstring(err));
         return err;
@@ -841,7 +863,6 @@ exit_cleanup:
 
 error_cleanup:
     debug_printf("error during paging_alloc() failed: %s\n", err_getstring(err));
-    free(pr);
     goto exit_cleanup;
 }
 
@@ -1143,8 +1164,6 @@ errval_t paging_unmap(
     /*
      * Free the region itself.
      */
-
-    free(pr);
 
     return SYS_ERR_OK;
 }
