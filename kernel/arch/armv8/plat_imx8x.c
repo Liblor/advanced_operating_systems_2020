@@ -26,6 +26,7 @@
 #include <barrelfish_kpi/arm_core_data.h>
 #include <psci.h>
 #include <arch/armv8/global.h>
+#include <maps/imx8x_map.h>
 
 /* RAM starts at 0, provided by the MMAP */
 lpaddr_t phys_memory_start= 0;
@@ -154,4 +155,9 @@ uint32_t platform_get_timer_interrupt(void){
 void armv8_get_info(struct arch_info_armv8 *ai)
 {
 
+}
+
+void platform_get_dev_range(lpaddr_t* start, size_t* size){
+    *start = IMX8X_START_DEV_RANGE;
+    *size = IMX8X_SIZE_DEV_RANGE;
 }

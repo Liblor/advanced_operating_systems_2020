@@ -1324,6 +1324,7 @@ void sys_syscall(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,
         case SYSCALL_GETCHAR:
             r.value = serial_console_getchar();
             r.error = SYS_ERR_OK;
+            break;
 
         case SYSCALL_DEBUG:
             if (a1 == DEBUG_CREATE_IRQ_SRC_CAP) {

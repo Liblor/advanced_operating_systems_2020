@@ -14,7 +14,7 @@
 #ifndef DICTIONARY_H_
 #define DICTIONARY_H_
 
-#include <barrelfish/barrelfish.h>
+#include <aos/aos.h>
 
 typedef enum uint8_t {
     TYPE_STRING = 1,

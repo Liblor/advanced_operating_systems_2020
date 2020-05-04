@@ -10,7 +10,7 @@
 #define QUEUE_INTERFACE_H_ 1
 
 
-#include <barrelfish/barrelfish.h>
+#include <aos/aos.h>
 
 
 #define DEVQ_FLAG_LAST (1UL << 30)
