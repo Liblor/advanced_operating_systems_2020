@@ -10,15 +10,13 @@
 #ifndef ENET_H_
 #define ENET_H_
 
-
-//#define ENET_DEBUG_OPTION 1
+#define ENET_DEBUG_OPTION 1
 
 #if defined(ENET_DEBUG_OPTION)
 #define ENET_DEBUG(x...) debug_printf("[enet] " x);
 #else
 #define ENET_DEBUG(fmt, ...) ((void)0)
 #endif
-
 
 #define ENET_PROMISC
 
@@ -30,7 +28,6 @@
 #define ENET_MAX_BUF_SIZE 2048
 
 #define RX_RING_SIZE (BASE_PAGE_SIZE / ENET_RX_FRSIZE) * ENET_RX_PAGES
-
 
 #define ENET_RX_EMPTY 0x8000
 #define ENET_SC_WRAP ((ushort)0x2000)
@@ -54,35 +51,31 @@
 struct region_entry {
     uint32_t rid;
     struct dmem mem;
-    struct region_entry* next;
+    struct region_entry *next;
 };
 
 struct enet_queue {
     struct devq q;
     size_t size;
 
-    // stop and wake threashold
-    uint16_t stop_th; 
+    uint16_t stop_th;
     uint16_t wake_th;
-    char* tso_hdr;
-
+    char *tso_hdr;
 
     struct capref regs;
     struct dmem desc_mem;
-    enet_t* d;
+    enet_t *d;
 
-    // hd + tail
     size_t head;
     size_t tail;
 
-    // alignment
     size_t align;
 
     // Descriptor + Cleanq
     enet_bufdesc_array_t *ring;
     struct devq_buf *ring_bufs;
 
-    struct region_entry* regions;
+    struct region_entry *regions;
 };
 
 struct enet_driver_state {
@@ -90,9 +83,9 @@ struct enet_driver_state {
     struct capref regs;
     lvaddr_t d_vaddr;
 
-    struct enet_queue* rxq;
-    struct enet_queue* txq;
-    enet_t* d;
+    struct enet_queue *rxq;
+    struct enet_queue *txq;
+    enet_t *d;
     uint64_t mac;
 
     uint32_t phy_id;
@@ -104,4 +97,4 @@ struct enet_driver_state {
 #define ENET_HASH_BITS 6
 #define ENET_CRC32_POLY 0xEDB88320
 
-#endif // ndef ENET_H_
+#endif

@@ -10,7 +10,6 @@
 --
 --------------------------------------------------------------------------
 
-
 [
   build library {
     target = "devif_backend_enet",
@@ -20,10 +19,9 @@
     architectures = ["armv8"]
   },
 
-
   build application {
     target = "enet",
-    cFiles = [ 
+    cFiles = [
                 "enet_module.c"
             ],
     mackerelDevices = ["imx8x/enet"],
