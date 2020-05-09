@@ -23,8 +23,8 @@
 
 #ifndef IN_KERNEL
 /* XXX: private includes from libbarrelfish */
-#include <barrelfish/dispatcher_arch.h>
-#include <barrelfish/curdispatcher_arch.h>
+#include <aos/dispatcher_arch.h>
+#include <aos/curdispatcher_arch.h>
 #else // IN_KERNEL
 #if defined(__x86_64__) || defined(__i386__)
 #include <arch/x86/apic.h> // XXX!

@@ -394,8 +394,8 @@ static void configure_sctlr(void)
     /* enable data cachable */
     val = armv8_SCTLR_EL1_C_insert(val, 0x1);
 
-    /* enable alignment checks */
-    val = armv8_SCTLR_EL1_A_insert(val, 0x1);
+    /* disable alignment checks */
+    val = armv8_SCTLR_EL1_A_insert(val, 0x0);
 
     /* enable mmu */
     val = armv8_SCTLR_EL1_M_insert(val, 0x1);

@@ -1,0 +1,33 @@
+/*
+ * Copyright (c) 2011, ETH Zurich. All rights reserved.
+ *
+ * This file is distributed under the terms in the attached LICENSE file.
+ * If you do not find this file, copies can be found by writing to:
+ * ETH Zurich D-INFK, Haldeneggsteig 4, CH-8092 Zurich. Attn: Systems Group.
+ */
+
+/*
+ * fat_long_direntry.dev
+ *
+ * DESCRIPTION: FAT16 file system directory entry.
+ *
+ */
+
+ device fat_long_direntry msbfirst (addr b) "FAT 32 Long Directory Entry" {
+
+     register ord rw addr(b, 0x00) "The order of this entry" type(uint8);
+
+     regarray name1 rw addr(b,0x01) [5] "Characters 1-5 of the long name" type(uint16);
+
+     register attr rw addr(b, 0x0b) "Attributes" type(uint8);
+
+     register etype rw addr(b, 0x0c) "If zero, indicates a directory entry" type(uint8);
+
+     register checksum rw addr(b, 0x0d) "Checksum" type(uint8);
+
+     regarray name2 rw addr(b, 0x0e) [6] "Character 6-11 of the longname" type(uint16);
+
+     register fstclu rw addr(b, 0x1a) "Must be zero" type(uint16);
+
+     regarray name3 rw addr(b, 0x1c) [2] "Character 6-11 of the longname" type(uint16);
+ };

@@ -155,3 +155,9 @@ uint32_t platform_get_timer_interrupt(void){
     // TODO (LH): Untested
     return 30;
 }
+
+void platform_get_dev_range(lpaddr_t* start, size_t* size){
+    *start = 0;
+    *size = 0;
+}
+

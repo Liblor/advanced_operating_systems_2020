@@ -43,6 +43,7 @@
                              "lmp_endpoints.c",
                              "morecore.c",
                              "notificator.c",
+                             "nameservice.c",
                              "paging.c",
                              "paging_region.c",
                              "ram_alloc.c",
@@ -61,7 +62,7 @@
                         "arch/aarch64/cache.S"
                   ],
                   addIncludes =   [ "include", "include/arch/aarch64" ],
-                  addLibraries = [ "cap_predicates" ],
+                  addLibraries = [ "cap_predicates", "hashtable" ],
                   addCFlags = ["-DMORECORE_PAGESIZE=BASE_PAGE_SIZE"],
                   addGeneratedDependencies = [ "/include/asmoffsets.h" ]
                 }

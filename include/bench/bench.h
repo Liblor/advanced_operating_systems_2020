@@ -15,7 +15,7 @@
 #ifndef BENCH_H
 #define BENCH_H
 
-#include <barrelfish/types.h> // for cycles_t
+#include <aos/types.h> // for cycles_t
 #include <bench/bench_arch.h>
 #include <sys/cdefs.h>
 
