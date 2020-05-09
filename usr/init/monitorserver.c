@@ -231,8 +231,6 @@ __unused
 static int run_localtasks_thread(void *args) {
     errval_t err;
 
-    debug_printf("running run_localtasks_thread\n");
-
     // XXX: This can easily be refactored to allow more localtasks in a generic manner.
     // for now we dont need more generic behaviour
 

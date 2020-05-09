@@ -161,7 +161,7 @@ int other_main(int argc, char *argv[])
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
-    
+
     err = monitorserver_serve_lmp_in_thread();
     if (err_is_fail(err)) {
         debug_printf("monitorserver_serve_lmp_in_thread() failed: %s\n", err_getstring(err));
@@ -175,10 +175,10 @@ int other_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 0
+#if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("multithreading", &si, &pid);
+    err = spawn_load_by_name("hello", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
