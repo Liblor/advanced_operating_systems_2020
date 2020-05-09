@@ -70,7 +70,7 @@ void user_panic_fn(const char *file, const char *func, int line,
 
 // Please do not commit with this enabled define. The amount of time debugging
 // the consequences of this macro summed up to a worrying few hours already.
-#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
+//#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
 //#define err_is_fail(err) ((err_is_fail(err) ? (HERE, true) : (HERE, false)))
 
 // enable only in hello
