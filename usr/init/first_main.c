@@ -24,6 +24,7 @@
 #include "monitorserver.h"
 #include "processserver.h"
 #include "serialserver.h"
+#include "shell.h"
 
 extern coreid_t my_core_id;
 
@@ -335,6 +336,12 @@ int first_main(int argc, char *argv[])
 
     // Grading
     grading_test_late();
+
+    err = shell_init();
+    if(err_is_fail(err)){
+        debug_printf("error in shell_init(): %s\n", err_getstring(err));
+        abort();
+    }
 
 #if 0
     domainid_t pid;
