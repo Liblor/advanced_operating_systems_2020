@@ -1143,7 +1143,7 @@ errval_t map_driver(
     }
     err = paging_map_frame_attr(
             get_current_paging_state(),
-            (void **)&ret_vaddr,
+            (void **)ret_vaddr,
             size,
             *ret_cap,
             cache ? VREGION_FLAGS_READ_WRITE : VREGION_FLAGS_READ_WRITE_NOCACHE,
