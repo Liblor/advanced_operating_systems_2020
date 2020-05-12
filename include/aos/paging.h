@@ -159,4 +159,13 @@ static inline lvaddr_t paging_genvaddr_to_lvaddr(
     return (lvaddr_t) genvaddr;
 }
 
+// map a driver
+errval_t map_driver(
+    genpaddr_t base,
+    gensize_t size,
+    bool cache,
+    struct capref *ret_cap,
+    lvaddr_t *ret_vaddr
+);
+
 #endif // LIBBARRELFISH_PAGING_H
