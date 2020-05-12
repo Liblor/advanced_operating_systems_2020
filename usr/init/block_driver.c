@@ -3,6 +3,7 @@
 #include <aos/aos_rpc_ump.h>
 #include <rpc/server/ump.h>
 #include <drivers/sdhc.h>
+#include <maps/imx8x_map.h>
 
 #include "block_driver.h"
 
@@ -63,6 +64,15 @@ errval_t block_driver_serve_next(void)
 static inline errval_t init_block_driver_state(struct block_driver_state *st)
 {
     errval_t err;
+    err = map_driver(IMX8X_SDHC2_BASE, IMX8X_SDHC_SIZE, false, &st->sdhc, &st->sdhc_vaddr);
+    if(err_is_fail(err)) {
+        debug_printf("block_driver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+    err = sdhc_init(&sdhc_s, (void *)st->sdhc_vaddr);
+    if (err_is_fail(err)) {
+        return err;
+    }
     size_t size;
     err = frame_alloc(&st->frame, BASE_PAGE_SIZE, &size);
     if (err_is_fail(err)) {
@@ -92,21 +102,17 @@ static inline errval_t init_block_driver_state(struct block_driver_state *st)
     return SYS_ERR_OK;
 }
 
-errval_t block_driver_init(
-    genvaddr_t vaddr_base
-)
+errval_t block_driver_init(void)
 {
     errval_t err;
     struct block_driver_state *st = malloc(sizeof(struct block_driver_state));
     if (st == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    err = sdhc_init(&sdhc_s, (void *)vaddr_base);
+    err = init_block_driver_state(st);
     if (err_is_fail(err)) {
         return err;
     }
-    init_block_driver_state(st);
-
     err = rpc_ump_server_init(
         &server,
         service_recv_cb,

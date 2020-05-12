@@ -334,15 +334,6 @@ int first_main(int argc, char *argv[])
     struct aos_rpc rpc_core1;
     setup_core(bi, 1, &rpc_core1);
 
-    // setup drivers
-    struct capref sdhc_cap;
-    lvaddr_t sdhc_vaddr;
-    err = map_driver(IMX8X_SDHC2_BASE, IMX8X_SDHC_SIZE, false, &sdhc_cap, &sdhc_vaddr);
-    if(err_is_fail(err)) {
-        debug_printf("block_driver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
-
     // Grading
     grading_test_late();
 
