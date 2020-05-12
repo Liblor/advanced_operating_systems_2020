@@ -590,27 +590,6 @@ static errval_t enet_probe(
     return SYS_ERR_OK;
 }
 
-static errval_t enet_device_get_frame(
-    const genpaddr_t base,
-    const gensize_t size,
-    struct capref *cap
-)
-{
-    errval_t err;
-
-    assert(cap != NULL);
-
-    err = slot_alloc(cap);
-    if (err_is_fail(err)) {
-        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_SLOT_ALLOC);
-    }
-
-    /* TODO: Retrieve capability. */
-
-    return SYS_ERR_OK;
-}
-
 static errval_t enet_device_initialize(
     struct enet_driver_state *st
 )
@@ -623,25 +602,17 @@ static errval_t enet_device_initialize(
     const genpaddr_t base = IMX8X_ENET_BASE;
     const gensize_t size = IMX8X_ENET_SIZE;
 
-    err = enet_device_get_frame(base, size, &cap);
-    if (err_is_fail(err)) {
-        return err;
-    }
-
-    err = paging_map_frame(
-        get_current_paging_state(),
-        (void **) &st->d_vaddr,
+    err = map_driver(
+        base,
         size,
-        cap,
-        NULL,
-        NULL
+        false,
+        &cap,
+        (lvaddr_t *) &st->d_vaddr
     );
     if (err_is_fail(err)) {
-        debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_VSPACE_MAP);
+        debug_printf("Failed mapping device memory.\n");
+        return err;
     }
-
-    assert(st->d_vaddr != (lvaddr_t) NULL);
 
     if (st->d_vaddr == (lvaddr_t) NULL) {
         USER_PANIC("ENET: No register region mapped\n");
