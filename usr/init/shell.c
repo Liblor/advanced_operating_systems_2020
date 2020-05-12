@@ -1,4 +1,4 @@
-//
+
 // Created by b on 5/9/20.
 //
 
@@ -9,49 +9,70 @@
 #include <drivers/lpuart.h>
 #include <maps/imx8x_map.h>
 
-errval_t shell_init(void)
+static errval_t map_device_into_vspace(gensize_t offset, size_t objsize, void **ret_vaddr)
 {
     errval_t err;
+    objsize = ROUND_UP(objsize, BASE_PAGE_SIZE);
 
-    struct capability io_dev_info;
-    err = cap_direct_identify(cap_io_dev, &io_dev_info);
-    if (err_is_fail(err)) {
-        debug_printf("cap_direct_identify() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_IDENTIFY);
-    }
-
-    struct capref dev_frame;
-    err = slot_alloc(&dev_frame);
+    struct capref dev_cap;
+    err = slot_alloc(&dev_cap);
     if (err_is_fail(err)) {
         debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_SLOT_ALLOC);
     }
-    gensize_t io_dev_size = get_size(&io_dev_info);
 
-    err = cap_retype(dev_frame,
-                     cap_io_dev,
-                     0,
-                     ObjType_DevFrame,
-                     io_dev_size,
-                     1);
+    err = cap_retype(
+            dev_cap,
+            cap_io_dev,
+            offset,
+            ObjType_DevFrame,
+            objsize,
+            1);
+
     if (err_is_fail(err)) {
         debug_printf("cap_retype() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_SLOT_ALLOC);
     }
 
-    char *io_dev_addr;
-    err = paging_map_frame(get_current_paging_state(),
-                           (void **) &io_dev_addr,
-                           io_dev_size,
-                           dev_frame,
-                           0,
-                           0);
+    err = paging_map_frame_attr(get_current_paging_state(),
+                                ret_vaddr,
+                                objsize,
+                                dev_cap,
+                                VREGION_FLAGS_READ_WRITE_NOCACHE,
+                                0,
+                                0);
+
+    if (err_is_fail(err)) {
+        debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
+    }
+
+    return SYS_ERR_OK;
+}
+
+errval_t shell_init(void)
+{
+    errval_t err;
+
+    void * lpuart3_base;
+    err = map_device_into_vspace((IMX8X_UART3_BASE - IMX8X_START_DEV_RANGE), IMX8X_UART_SIZE,
+                                 &lpuart3_base);
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
     }
 
-    debug_printf("ok so far\n");
+    SHELL_DEBUG("ok so far, lpuart3 data at %p\n", lpuart3_base);
+
+    struct lpuart_s *lpuart;
+    err = lpuart_init(&lpuart, lpuart3_base);
+
+    if (err_is_fail(err)) {
+        debug_printf("lpuart_init() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
+    }
+
+    SHELL_DEBUG("lpuart_init ok %p\n");
 
     return SYS_ERR_OK;
 }
