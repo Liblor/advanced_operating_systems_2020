@@ -1,4 +1,5 @@
 #include <aos/aos.h>
+#include <aos/cache.h>
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_ump.h>
 #include <rpc/server/ump.h>
@@ -22,7 +23,19 @@ static inline errval_t reply_error(
     return aos_rpc_ump_send_message(rpc, &fail_msg);
 }
 
-__unused static errval_t reply_block(
+static inline errval_t reply_success(
+        struct aos_rpc *rpc,
+        enum rpc_message_method method
+) {
+    struct rpc_message msg;
+    msg.cap = NULL_CAP;
+    msg.msg.method = method;
+    msg.msg.payload_length = 0;
+    msg.msg.status = Status_Ok;
+    return aos_rpc_ump_send_message(rpc, &msg);
+}
+
+static errval_t reply_block(
     struct aos_rpc *rpc,
     char *buf
 ) {
@@ -37,10 +50,9 @@ __unused static errval_t reply_block(
 
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Block_Driver_Read_Block;
-    // TODO
     msg->msg.payload_length = SDHC_BLOCK_SIZE;
     msg->msg.status = Status_Ok;
-    //msg.msg.payload[0] = c;
+    memcpy(msg->msg.payload, buf, SDHC_BLOCK_SIZE);
 
     err = aos_rpc_ump_send_message(rpc, msg);
     if (err_is_fail(err)) {
@@ -53,17 +65,90 @@ __unused static errval_t reply_block(
     return SYS_ERR_OK;
 }
 
-static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
-{
+static inline errval_t read_block(
+    uint32_t index,
+    struct block_driver_state *server_state
+) {
+    errval_t err;
+    err = sdhc_read_block(sdhc_s, index, server_state->read_paddr);
+    if (err_is_fail(err)) { return err; }
+    arm64_dcache_inv_range(server_state->read_vaddr, SDHC_BLOCK_SIZE);
+    return SYS_ERR_OK;
+}
+
+static inline errval_t write_block(
+        uint32_t index,
+        struct block_driver_state *server_state
+) {
+    errval_t err;
+    arm64_dcache_wb_range(server_state->write_vaddr, SDHC_BLOCK_SIZE);
+    err = sdhc_write_block(sdhc_s, index, server_state->write_paddr);
+    if (err_is_fail(err)) { return err; }
+    return SYS_ERR_OK;
+}
+
+static errval_t handle_read_block(
+    struct aos_rpc *rpc,
+    struct rpc_message *msg,
+    struct block_driver_state *server_state
+) {
+    assert(msg->msg.method == Method_Block_Driver_Read_Block);
+    errval_t err;
+    uint32_t index;
+    memcpy(&index, msg->msg.payload, sizeof(uint32_t));
+    err = read_block(index, server_state);
+    if (err_is_fail(err)) {
+        reply_error(rpc, Method_Block_Driver_Read_Block);
+        return err;
+    }
+    err = reply_block(rpc, (char *)server_state->read_vaddr);
+    if (err_is_fail(err)) {
+        reply_error(rpc, Method_Block_Driver_Read_Block);
+        return err;
+    }
+    memset((void *)server_state->read_vaddr, 0, SDHC_BLOCK_SIZE);
+    return SYS_ERR_OK;
+}
+
+static errval_t handle_write_block(
+    struct aos_rpc *rpc,
+    struct rpc_message *msg,
+    struct block_driver_state *server_state
+) {
+    assert(msg->msg.method == Method_Block_Driver_Write_Block);
+    assert(msg->msg.payload_length == sizeof(uint32_t) + SDHC_BLOCK_SIZE);
+    errval_t err;
+    uint32_t index;
+    memcpy(&index, msg->msg.payload, sizeof(index));
+    memcpy((void *)server_state->write_vaddr, msg->msg.payload + sizeof(index), SDHC_BLOCK_SIZE);
+    err = write_block(index, server_state);
+    if (err_is_fail(err)) {
+        reply_error(rpc, Method_Block_Driver_Write_Block);
+        return err;
+    }
+    return reply_success(rpc, Method_Block_Driver_Write_Block);
+}
+
+static void service_recv_cb(
+    struct rpc_message *msg,
+    void *callback_state,
+    struct aos_rpc *rpc,
+    void *server_state
+) {
+    errval_t err = SYS_ERR_OK;
     switch (msg->msg.method) {
         case Method_Block_Driver_Read_Block:
-            // TODO
+            err = handle_read_block(rpc, msg, server_state);
             break;
         case Method_Block_Driver_Write_Block:
-            // TODO
+            err = handle_write_block(rpc, msg, server_state);
             break;
         default:
+            debug_printf("Unhandled message send to block driver\n");
             break;
+    }
+    if (err_is_fail(err)) {
+        debug_printf("service_recv_cb(..) in block_driver.c failed: %s\n", err_getstring(err));
     }
 }
 
