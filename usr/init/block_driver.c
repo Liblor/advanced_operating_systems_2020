@@ -10,6 +10,17 @@
 static struct rpc_ump_server server;
 struct sdhc_s *sdhc_s;
 
+static inline errval_t reply_error(
+        struct aos_rpc *rpc,
+        enum rpc_message_method method
+) {
+    struct rpc_message fail_msg;
+    fail_msg.cap = NULL_CAP;
+    fail_msg.msg.method = method;
+    fail_msg.msg.payload_length = 0;
+    fail_msg.msg.status = Status_Error;
+    return aos_rpc_ump_send_message(rpc, &fail_msg);
+}
 
 __unused static errval_t reply_block(
     struct aos_rpc *rpc,
@@ -18,6 +29,11 @@ __unused static errval_t reply_block(
     errval_t err;
 
     struct rpc_message *msg = malloc(sizeof(struct rpc_message) + SDHC_BLOCK_SIZE);
+    if (msg == NULL) {
+        // optimistic send, don't handle error
+        reply_error(rpc, Method_Block_Driver_Read_Block);
+        return LIB_ERR_MALLOC_FAIL;
+    }
 
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Block_Driver_Read_Block;
