@@ -14,11 +14,11 @@
 #include <aos/coreboot.h>
 #include <aos/kernel_cap_invocations.h>
 #include <aos/aos_rpc_ump.h>
+#include <maps/imx8x_map.h>
 
 #include "first_main.h"
 
 #include "mem_alloc.h"
-#include "block_driver.h"
 
 #include "initserver.h"
 #include "memoryserver.h"
@@ -335,8 +335,9 @@ int first_main(int argc, char *argv[])
     setup_core(bi, 1, &rpc_core1);
 
     // setup drivers
+    struct capref sdhc_cap;
     lvaddr_t sdhc_vaddr;
-    err = block_driver_init(&sdhc_vaddr);
+    err = map_driver(IMX8X_SDHC2_BASE, IMX8X_SDHC_SIZE, false, &sdhc_cap, &sdhc_vaddr);
     if(err_is_fail(err)) {
         debug_printf("block_driver_init() failed: %s\n", err_getstring(err));
         abort();

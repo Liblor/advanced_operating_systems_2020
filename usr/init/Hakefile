@@ -25,8 +25,7 @@
                         "serialserver.c",
                         "processserver.c",
                         "monitorserver.c",
-                        "test.c",
-                        "block_driver.c"
+                        "test.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init
                       addLibraries = [ "mm", "getopt", "elf", "spawn", "rpc",
