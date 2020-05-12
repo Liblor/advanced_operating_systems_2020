@@ -69,10 +69,23 @@ errval_t shell_init(void)
 
     if (err_is_fail(err)) {
         debug_printf("lpuart_init() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
+        return err_push(err, LPUART_ERR_INVALID_DEV);
     }
 
-    SHELL_DEBUG("lpuart_init ok %p\n");
+    SHELL_DEBUG("lpuart_init ok\n");
+
+    char ret;
+    do {
+        err = lpuart_getchar(lpuart, &ret);
+    } while(err == LPUART_ERR_NO_DATA);
+
+    if (err_is_fail(err)) {
+        debug_printf("lpuart_getchar() failed: %s\n", err_getstring(err));
+        return err_push(err, LPUART_ERR_INVALID_DEV);
+    }
+
+    SHELL_DEBUG("ret: %c\n", ret);
+
 
     return SYS_ERR_OK;
 }
