@@ -19,7 +19,6 @@ static inline errval_t get_cap_io_dev_base(genpaddr_t *ret_base)
 
 errval_t block_driver_init(lvaddr_t *ret_sdhc_vaddr)
 {
-    // TODO
     errval_t err;
     err = slot_alloc(&sdhc_cap);
     if (err_is_fail(err)) {
