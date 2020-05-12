@@ -335,7 +335,8 @@ int first_main(int argc, char *argv[])
     setup_core(bi, 1, &rpc_core1);
 
     // setup drivers
-    err = block_driver_init();
+    lvaddr_t sdhc_vaddr;
+    err = block_driver_init(&sdhc_vaddr);
     if(err_is_fail(err)) {
         debug_printf("block_driver_init() failed: %s\n", err_getstring(err));
         abort();
