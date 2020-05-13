@@ -318,7 +318,6 @@ errval_t monitorserver_register_service(
     return SYS_ERR_OK;
 }
 
-
 static int serve_lmp_requests_th(void *args) {
     errval_t err;
     struct waitset *ws = &monitorserver_state.ws;
