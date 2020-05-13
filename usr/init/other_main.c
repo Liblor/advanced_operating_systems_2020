@@ -161,7 +161,7 @@ int other_main(int argc, char *argv[])
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
-    
+
     err = monitorserver_serve_lmp_in_thread();
     if (err_is_fail(err)) {
         debug_printf("monitorserver_serve_lmp_in_thread() failed: %s\n", err_getstring(err));

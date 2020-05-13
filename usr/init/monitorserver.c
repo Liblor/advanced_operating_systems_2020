@@ -226,71 +226,57 @@ static errval_t initialize_service(struct monitorserver_rpc *rpc,
     return SYS_ERR_OK;
 }
 
-/** loops through localtasks urpc channels and checks for messages. Meant to be run in a seperate thread **/
+/** callback which loops through localtasks urpc channels and checks for messages. **/
 __unused
-static int run_localtasks_thread(void *args) {
+static void run_localtasks(void *args) {
     errval_t err;
-
-    debug_printf("running run_localtasks_thread\n");
 
     // XXX: This can easily be refactored to allow more localtasks in a generic manner.
     // for now we dont need more generic behaviour
 
-    assert(is_registered(&monitorserver_state.processserver_localtasks_rpc));
+    if (!is_registered(&monitorserver_state.processserver_localtasks_rpc)) {
+        // nothing to do yet
+        return;
+    }
 
     struct rpc_message *msg_recv;
     struct rpc_message *answer;
     struct aos_rpc *localtask = &monitorserver_state.processserver_localtasks_rpc.ump_rpc;
 
-    while(true) {
-        msg_recv = NULL;
-        answer = NULL;
-        err = aos_rpc_ump_receive_non_block(localtask, &msg_recv);
+    msg_recv = NULL;
+    answer = NULL;
+    err = aos_rpc_ump_receive_non_block(localtask, &msg_recv);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_receive_non_block: %s", err_getstring(err));
+        goto err_clean_up;
+    }
+    else if (msg_recv != NULL) {
+
+        err = serve_localtask_spawn(msg_recv, &answer);
         if (err_is_fail(err)) {
-            debug_printf("aos_rpc_ump_receive_non_block: %s", err_getstring(err));
+            debug_printf("serve_localtask_spawn: %s", err_getstring(err));
             goto err_clean_up;
         }
-        else if (msg_recv != NULL) {
-
-            err = serve_localtask_spawn(msg_recv, &answer);
+        if (answer != NULL) {
+            err = aos_rpc_ump_send_message(localtask, answer);
             if (err_is_fail(err)) {
-                debug_printf("serve_localtask_spawn: %s", err_getstring(err));
-                goto err_clean_up;
-            }
-            if (answer != NULL) {
-                err = aos_rpc_ump_send_message(localtask, answer);
-                if (err_is_fail(err)) {
-                    debug_printf("aos_rpc_ump_send_message: failure in response: %s",
-                            err_getstring(err));
+                debug_printf("aos_rpc_ump_send_message: failure in response: %s",
+                        err_getstring(err));
 
-                    goto err_clean_up_answer;
-                }
+                goto err_clean_up_answer;
             }
-            free(msg_recv);
-            free(answer);
         }
+        free(msg_recv);
+        free(answer);
     }
 
-    err = SYS_ERR_OK;
-    return err;
+    return;
 
 err_clean_up_answer:
     free(answer);
 err_clean_up:
     free(msg_recv);
     debug_printf("error occured in local tasks: %s", err_getstring(err));
-    return err;
-}
-
-static errval_t run_localtasks(void) {
-    struct thread *localtasks_th = thread_create(run_localtasks_thread, NULL);
-
-    if (localtasks_th == NULL){
-        debug_printf("err in creating localtasks thread, is NULL");
-        return LIB_ERR_THREAD_CREATE;
-    }
-
-    return SYS_ERR_OK;
 }
 
 errval_t monitorserver_register_service(
@@ -309,11 +295,6 @@ errval_t monitorserver_register_service(
             break;
         case ProcessLocaltasksUrpc:
             err = initialize_service(&monitorserver_state.processserver_localtasks_rpc, urpc_frame);
-            if (err_is_ok(err)) {
-                // XXX: if monitorserver accepts more local tasks,
-                // run this in init of monitor
-                err = run_localtasks();
-            }
             break;
         case SerialserverUrpc:
             err = initialize_service(&monitorserver_state.serialserver_rpc, urpc_frame);
@@ -382,6 +363,18 @@ errval_t monitorserver_init(void
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
+
+
+    err = periodic_event_create(&monitorserver_state.periodic_localtask,
+                                get_default_waitset(),
+                                PERIODIC_LOCALTASKS_US,
+                                MKCLOSURE(run_localtasks, NULL));
+
+    if (err_is_fail(err)) {
+        debug_printf("periodic_event_create() failed: %s\n", err_getstring(err));
+        return err_push(err, RPC_ERR_INITIALIZATION);
+    }
+
 
     return SYS_ERR_OK;
 }
