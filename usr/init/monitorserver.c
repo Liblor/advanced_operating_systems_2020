@@ -363,7 +363,6 @@ errval_t monitorserver_init(void
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
-
     err = periodic_event_create(&monitorserver_state.periodic_localtask,
                                 get_default_waitset(),
                                 PERIODIC_LOCALTASKS_US,
