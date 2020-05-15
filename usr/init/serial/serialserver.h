@@ -16,6 +16,12 @@ struct serial_read_data {
     struct serial_read_slot data[READ_DATA_SLOTS];
 };
 
+struct serialserver_state {
+    // struct serial_read_data ring_buffer;
+    serial_session_t curr_read_session;
+
+};
+
 errval_t serialserver_add_client(struct aos_rpc *rpc, coreid_t mpid);
 
 errval_t serialserver_serve_next(void);

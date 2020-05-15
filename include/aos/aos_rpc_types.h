@@ -24,6 +24,8 @@ enum rpc_message_status {
     Process_Get_Name_Failed = 2,
     Process_Get_All_Pids_Failed = 3,
     Status_Error = 4,
+    Serial_Getchar_Occupied = 5,     // serial read occupied. try again
+    Serial_Getchar_Nodata = 6
 };
 
 struct rpc_message_part {
@@ -40,13 +42,15 @@ struct rpc_message {
 
 #define SERIAL_GETCHAR_SESSION_UNDEF 0
 
+typedef uint64_t serial_session_t;
+
 struct serial_getchar_reply {
-    uint64_t session;    ///< read session
-    char data;           ///< char to get
+    serial_session_t session;    ///< read session
+    char data;                  ///< char to get
 };
 
 struct serial_getchar_req {
-    uint64_t session;    ///< read session
+    serial_session_t session;    ///< read session
 };
 
 #endif

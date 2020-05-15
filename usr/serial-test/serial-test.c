@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
     debug_printf("Running RPC tests...\n");
 
 //     test_serial();
-    write_simple();
+//    write_simple();
     debug_printf("write_simple: ok\n");
     read_loop();
 
