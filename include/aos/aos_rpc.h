@@ -36,7 +36,11 @@ struct aos_rpc {
         struct aos_rpc_lmp lmp;
         struct aos_rpc_ump ump;
     };
+
+    void *priv_data;
 };
+
+
 
 /**
  * \brief Call this handler on the receive side for grading

@@ -24,8 +24,8 @@
 #include "memoryserver.h"
 #include "monitorserver.h"
 #include "processserver.h"
-#include "serialserver.h"
-#include "shell.h"
+#include "serial/serialserver.h"
+#include "serial/serial_driver.h"
 
 extern coreid_t my_core_id;
 
@@ -43,28 +43,6 @@ static void string_cb(char *c)
 #if 1
     debug_printf("string_cb(%s)\n", c);
 #endif
-}
-
-static void putchar_cb(char c) {
-    errval_t err;
-
-    grading_rpc_handler_serial_putchar(c);
-
-    err = sys_print((const char *)&c, 1);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_print() failed");
-    }
-}
-
-static void getchar_cb(char *c) {
-    errval_t err;
-
-    grading_rpc_handler_serial_getchar();
-
-    err = sys_getchar(c);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_getchar() failed");
-    }
 }
 
 static errval_t spawn_cb(struct processserver_state *processserver_state, char *name, coreid_t coreid, domainid_t *ret_pid)
@@ -139,7 +117,7 @@ static void setup_servers(
         abort();
     }
 
-    err = serialserver_init(putchar_cb, getchar_cb);
+    err = serialserver_init();
     if (err_is_fail(err)) {
         debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
         abort();
@@ -376,19 +354,13 @@ int first_main(int argc, char *argv[])
     struct periodic_event periodic_urpc_ev;
     setup_periodic_urpc_events(&periodic_urpc_ev);
 
-    err = shell_init();
-    if(err_is_fail(err)){
-        debug_printf("error in shell_init(): %s\n", err_getstring(err));
-        abort();
-    }
-
     // Grading
     grading_test_late();
 
 #if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("rpc-test", &si, &pid);
+    err = spawn_load_by_name("serial-test", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
