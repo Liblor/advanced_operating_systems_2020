@@ -7,6 +7,7 @@
 #include "serial_driver.h"
 #include <grading.h>
 #include <aos/syscalls.h>
+#include <aos/string.h>
 
 static struct rpc_ump_server server;
 
@@ -43,7 +44,6 @@ static void do_putchar_usr(char c)
         DEBUG_ERR(err, "sys_print() failed");
     }
 }
-
 
 __unused
 static bool read_data_empty(void)
@@ -129,18 +129,6 @@ static uint64_t new_session(void)
     return s;
 }
 
-
-#define CHAR_CODE_EOT (4)
-#define CHAR_CODE_ASCII_NL (10)
-#define CHAR_CODE_CR (13)
-
-static bool is_line_break(char c)
-{
-    return c == CHAR_CODE_CR
-    || c == CHAR_CODE_ASCII_NL
-    || c == CHAR_CODE_EOT;
-}
-
 __unused
 static void
 do_getchar_sys(struct aos_rpc *rpc, struct rpc_message *req, struct serial_getchar_req *req_getchar)
@@ -165,7 +153,8 @@ do_getchar_sys(struct aos_rpc *rpc, struct rpc_message *req, struct serial_getch
     }
 }
 
-static void send_getchar_reply(struct aos_rpc *rpc) {
+static void send_getchar_reply(struct aos_rpc *rpc)
+{
     errval_t err;
 
     struct serial_read_slot *slot = NULL;
@@ -174,8 +163,8 @@ static void send_getchar_reply(struct aos_rpc *rpc) {
 
     char res_char = slot->val;
     serial_session_t session = serial_state.curr_read_session;
-    if (is_line_break(res_char)) {
-        debug_printf("is linebreak\n");
+    if (IS_CHAR_LINEBREAK(res_char)) {
+        // debug_printf("is linebreak\n");
         serial_state.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
     }
 
@@ -253,6 +242,7 @@ static void service_recv_cb(
             memcpy(&c, msg->msg.payload, sizeof(char));
             // TODO: Macro
 //             putchar_sys(c);
+            debug_printf("do_putchar_usr: %d\n", c);
             do_putchar_usr(c);
             break;
         case Method_Serial_Getchar:
@@ -267,7 +257,7 @@ static void service_recv_cb(
             grading_rpc_handler_serial_getchar();
 
 //            do_getchar_sys(rpc, msg, req_getchar);
-             do_getchar_usr(rpc, msg, req_getchar);
+            do_getchar_usr(rpc, msg, req_getchar);
 
             break;
         default:

@@ -20,6 +20,7 @@
 #include <aos/debug.h>
 #include <aos/aos_rpc.h>
 #include <spawn/spawn.h>
+#include <aos/string.h>
 
 const char long_string[] = "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
@@ -122,14 +123,22 @@ static void read_loop(void) {
     debug_printf("test 1\n");
     printf("test 2\n");
 
-//    char buf[100];
-//    int i = 0;
+    char buf[1024];
+    memset(&buf, 0, sizeof(buf));
+
+    int i = 0;
     do {
         char c;
         err = aos_rpc_lmp_serial_getchar(rpc, &c);
-        printf("%c\n", c);
-//        buf[i] = c;
-//        if (i == 100) break;
+        buf[i] = c;
+        i ++;
+        if (i == 1024) break;
+        if (IS_CHAR_LINEBREAK(c)) {
+            debug_printf("newline\n");
+            printf("%s", buf);
+            i = 0;
+            memset(&buf, 0, sizeof(buf));
+        }
     } while(err_is_ok(err));
 
     if (err_is_fail(err)) {
