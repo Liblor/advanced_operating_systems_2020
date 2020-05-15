@@ -132,7 +132,7 @@ static void read_data_advance(void)
     if (read_data.full)
     {
         read_data.tail = (read_data.tail + 1) % READ_DATA_SLOTS;
-        debug_printf("read buffer is full. overwriting data...\n");
+//        debug_printf("read buffer is full\n");
     }
     read_data.head = (read_data.head + 1) % READ_DATA_SLOTS;
     read_data.full = read_data.head == read_data.tail;

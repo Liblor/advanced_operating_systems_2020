@@ -38,4 +38,9 @@ struct rpc_message {
     struct rpc_message_part msg;
 };
 
+struct serial_getchar_reply {
+    uint64_t session;    ///< read session
+    char data;           ///< char to get
+};
+
 #endif

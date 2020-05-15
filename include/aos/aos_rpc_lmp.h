@@ -29,7 +29,7 @@ struct process_pid_array {
 
 
 /** internal state for serial channel **/
-struct lmp_serial_channel_priv_data {
+struct serial_channel_priv_data {
     uint64_t read_session;  ///< represents a session to ensure correct de-multiplexing of chars
 };
 

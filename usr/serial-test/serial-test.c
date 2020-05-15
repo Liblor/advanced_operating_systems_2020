@@ -116,6 +116,22 @@ static void write_simple_threads(void) {
     run_threads(2, write_simple_th_func, NULL);
 }
 
+static void read_loop(void) {
+    errval_t err;
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+    do {
+        char c;
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        debug_printf("Received %c\n", c);
+    } while(err_is_ok(err));
+
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
+        return;
+    }
+    debug_printf("\n");
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -124,6 +140,7 @@ int main(int argc, char *argv[])
 //     test_serial();
     write_simple();
     debug_printf("write_simple: ok\n");
+    read_loop();
 
     // write_simple_threads();
 
