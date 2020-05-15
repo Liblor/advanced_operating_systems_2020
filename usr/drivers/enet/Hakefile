@@ -22,7 +22,10 @@
   build application {
     target = "enet",
     cFiles = [
-                "enet_module.c"
+                "enet_module.c",
+                "ethernet.c",
+                "queues.c",
+                "arp.c"
             ],
     mackerelDevices = ["imx8x/enet"],
     addLibraries = libDeps ["driverkit", "devif_backend_enet", "netutil"],

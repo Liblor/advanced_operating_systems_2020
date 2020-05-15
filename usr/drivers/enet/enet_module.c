@@ -23,12 +23,12 @@
 #include <aos/deferred.h>
 #include <driverkit/driverkit.h>
 #include <dev/imx8x/enet_dev.h>
-#include <netutil/etharp.h>
 
 #include <maps/imx8x_map.h> // IMX8X_ENET_BASE, IMX8X_ENET_SIZE
-#include <aos/kernel_cap_invocations.h> // frame_forge()
 
 #include "enet.h"
+#include "queues.h"
+#include "ethernet.h"
 
 #define PHY_ID 0x2
 
@@ -590,7 +590,7 @@ static errval_t enet_probe(
     return SYS_ERR_OK;
 }
 
-static errval_t enet_device_initialize(
+static errval_t enet_initialize_device(
     struct enet_driver_state *st
 )
 {
@@ -640,62 +640,8 @@ static errval_t enet_device_initialize(
     return SYS_ERR_OK;
 }
 
-static errval_t enet_queues_initialize(
-    struct enet_driver_state *st
-)
-{
-    errval_t err;
-
-    /* Create receive queue. */
-    err = enet_rx_queue_create(&st->rxq, st->d);
-    if (err_is_fail(err)) {
-        debug_printf("Failed creating RX devq.\n");
-        return err;
-    }
-
-    /* Get some memory for receive buffers. */
-    err = frame_alloc(&st->rx_mem, 512 * 2048, NULL);
-    if (err_is_fail(err)) {
-        return err;
-    }
-
-    /* Register receive queue. */
-    regionid_t rid;
-    err = devq_register((struct devq *)st->rxq, st->rx_mem, &rid);
-    if (err_is_fail(err)) {
-        return err;
-    }
-
-    /* Enqueue receive buffers. */
-    for (int i = 0; i < st->rxq->size - 1; i++) {
-        err = devq_enqueue((struct devq *)st->rxq, rid, i * (2048), 2048, 0, 2048, 0);
-        if (err_is_fail(err)) {
-            return err;
-        }
-    }
-
-    /* Get some memory for send buffers. */
-    err = frame_alloc(&st->tx_mem, 512 * 2048, NULL);
-    if (err_is_fail(err)) {
-        return err;
-    }
-
-    /* Create send queue. */
-    err = enet_tx_queue_create(&st->txq, st->d);
-    if (err_is_fail(err)) {
-        debug_printf("Failed creating TX devq.\n");
-        return err;
-    }
-
-    /* Register send queue. */
-    err = devq_register((struct devq *)st->txq, st->tx_mem, &rid);
-    if (err_is_fail(err)) {
-        return err;
-    }
-
-    return SYS_ERR_OK;
-}
-
+static regionid_t rx_rid;
+static regionid_t tx_rid;
 static errval_t enet_module_initialize(
     struct enet_driver_state *st
 )
@@ -705,23 +651,37 @@ static errval_t enet_module_initialize(
     assert(st != NULL);
 
     debug_printf("Initializing device...\n");
-    err = enet_device_initialize(st);
+    err = enet_initialize_device(st);
     if (err_is_fail(err)) {
         debug_printf("Device initialization failed.\n");
         return err;
     }
 
     debug_printf("Initializing queues...\n");
-    err = enet_queues_initialize(st);
+    err = queues_initialize(st, &rx_rid, &tx_rid);
     if (err_is_fail(err)) {
         debug_printf("Queues initialization failed.\n");
+        return err;
+    }
+
+    debug_printf("Initializing Ethernet state...\n");
+    err = ethernet_initialize(&st->eth_state, st->mac, TX_RING_SIZE, st->tx_base, tx_rid, st->txq);
+    if (err_is_fail(err)) {
+        debug_printf("Ethernet initialization failed.\n");
+        return err;
+    }
+
+    debug_printf("Initializing ARP state...\n");
+    err = arp_initialize(&st->arp_state, st->mac, OWN_IP_ADDRESS, &st->eth_state);
+    if (err_is_fail(err)) {
+        debug_printf("Ethernet initialization failed.\n");
         return err;
     }
 
     return SYS_ERR_OK;
 }
 
-static errval_t enet_module_serve(
+static errval_t enet_serve(
     struct enet_driver_state *st
 )
 {
@@ -741,22 +701,54 @@ static errval_t enet_module_serve(
         &buf.flags
     );
 
-    if (err_is_ok(err)) {
-        debug_printf("Received packet of size %lu.\n", buf.valid_length);
+    if (err_is_fail(err) && err_no(err) == DEVQ_ERR_QUEUE_EMPTY) {
+        return SYS_ERR_OK;
+    } else if (err_is_fail(err)) {
+        debug_printf("devq_dequeue() failed: %s\n", err_getstring(err));
+        return err;
+    }
 
-        /* Hand the buffer back so the device can use it again. */
-        err = devq_enqueue(
-            (struct devq *)st->rxq,
-            buf.rid,
-            buf.offset,
-            buf.length,
-            buf.valid_data,
-            buf.valid_length,
-            buf.flags
-        );
-        if (err_is_fail(err)) {
-            return SYS_ERR_NOT_IMPLEMENTED;
+    const lvaddr_t base = st->rx_base + buf.offset + buf.valid_data;
+
+    debug_printf("Received packet of size %lu.\n", buf.valid_length);
+    debug_dump_mem(base, base + buf.valid_length, st->rx_base);
+
+    bool accept;
+    enum ethernet_type type;
+    lvaddr_t newbase;
+    ethernet_process(&st->eth_state, base, &accept, &type, &newbase);
+
+    if (accept) {
+        switch (type) {
+        case ETHERNET_TYPE_ARP:
+            debug_printf("Packet is of type ARP.\n");
+            err = arp_process(&st->arp_state, newbase);
+            if (err_is_fail(err)) {
+                debug_printf("arp_process() failed: %s\n", err_getstring(err));
+                return err;
+            }
+            break;
+        case ETHERNET_TYPE_IPV4:
+            debug_printf("Packet is of type IPv4.\n");
+            break;
+        default:
+            debug_printf("Packet is of unknown type.\n");
+            return ETHERNET_TYPE_UNKNOWN;
         }
+    }
+
+    /* Hand the buffer back so the device can use it again. */
+    err = devq_enqueue(
+        (struct devq *)st->rxq,
+        buf.rid,
+        buf.offset,
+        buf.length,
+        buf.valid_data,
+        buf.valid_length,
+        buf.flags
+    );
+    if (err_is_fail(err)) {
+        return SYS_ERR_NOT_IMPLEMENTED;
     }
 
     return SYS_ERR_OK;
@@ -771,7 +763,10 @@ int main(
 
     debug_printf("Driver started.\n");
     struct enet_driver_state *st = calloc(1, sizeof(struct enet_driver_state));
-    assert(st != NULL);
+    if (st == NULL) {
+        debug_printf("Cannot claim memory for driver state.\n");
+        return EXIT_FAILURE;
+    }
 
     err = enet_module_initialize(st);
     if (err_is_fail(err)) {
@@ -779,8 +774,27 @@ int main(
         return EXIT_FAILURE;
     }
 
+    debug_printf("Initialization complete.\n");
+
+    debug_printf("MAC address is 0x%x.\n", st->mac);
+
+    debug_printf("Sending a test packet.\n");
+    uint64_t mac;
+    arp_query(&st->arp_state, MK_IP(1, 0, 0, 10), &mac);
+    enet_serve(st);
+    enet_serve(st);
+    enet_serve(st);
+    enet_serve(st);
+    enet_serve(st);
+    enet_serve(st);
+    enet_serve(st);
+    enet_serve(st);
+    enet_serve(st);
+    arp_query(&st->arp_state, MK_IP(1, 0, 0, 10), &mac);
+    debug_printf("Sending test packet complete.\n");
+
     while (true) {
-        err = enet_module_serve(st);
+        err = enet_serve(st);
         if (err_is_fail(err)) {
             debug_printf("Error while serving. Continuing...\n");
         }

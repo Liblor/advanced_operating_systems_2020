@@ -10,6 +10,13 @@
 #ifndef ENET_H_
 #define ENET_H_
 
+#include <stdint.h>
+
+#include <netutil/ip.h>
+
+#include "ethernet.h"
+#include "arp.h"
+
 #define ENET_DEBUG_OPTION 1
 
 #if defined(ENET_DEBUG_OPTION)
@@ -30,8 +37,8 @@
 #define RX_RING_SIZE (BASE_PAGE_SIZE / ENET_RX_FRSIZE) * ENET_RX_PAGES
 
 #define ENET_RX_EMPTY 0x8000
-#define ENET_SC_WRAP ((ushort)0x2000)
-#define ENET_RX_intr ((ushort)0x1000)
+#define ENET_SC_WRAP ((ushort) 0x2000)
+#define ENET_RX_intr ((ushort) 0x1000)
 #define ENET_RX_LAST ((ushort) 0x0800)
 #define ENET_RX_FIRST ((ushort) 0x0400)
 #define ENET_RX_MISS ((ushort) 0x0100)
@@ -47,6 +54,8 @@
 #define ENET_TX_WRAP 0x2000
 #define ENET_TX_LAST 0x0800
 #define ENET_TX_CRC 0x0400
+
+#define OWN_IP_ADDRESS (MK_IP(2, 0, 0, 10))
 
 struct region_entry {
     uint32_t rid;
@@ -91,7 +100,12 @@ struct enet_driver_state {
     uint32_t phy_id;
 
     struct capref rx_mem;
+    lvaddr_t tx_base;
     struct capref tx_mem;
+    lvaddr_t rx_base;
+
+    struct ethernet_state eth_state;
+    struct arp_state arp_state;
 };
 
 #define ENET_HASH_BITS 6
