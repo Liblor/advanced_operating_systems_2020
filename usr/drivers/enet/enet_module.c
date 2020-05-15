@@ -674,7 +674,14 @@ static errval_t enet_module_initialize(
     debug_printf("Initializing ARP state...\n");
     err = arp_initialize(&st->arp_state, st->mac, OWN_IP_ADDRESS, &st->eth_state);
     if (err_is_fail(err)) {
-        debug_printf("Ethernet initialization failed.\n");
+        debug_printf("ARP initialization failed.\n");
+        return err;
+    }
+
+    debug_printf("Initializing IP state...\n");
+    err = ip_initialize(&st->ip_state, OWN_IP_ADDRESS, &st->eth_state);
+    if (err_is_fail(err)) {
+        debug_printf("IP initialization failed.\n");
         return err;
     }
 
@@ -722,14 +729,23 @@ static errval_t enet_serve(
         switch (type) {
         case ETHERNET_TYPE_ARP:
             debug_printf("Packet is of type ARP.\n");
+
             err = arp_process(&st->arp_state, newbase);
             if (err_is_fail(err)) {
                 debug_printf("arp_process() failed: %s\n", err_getstring(err));
                 return err;
             }
+
             break;
         case ETHERNET_TYPE_IPV4:
             debug_printf("Packet is of type IPv4.\n");
+
+            err = ip_process(&st->ip_state, newbase);
+            if (err_is_fail(err)) {
+                debug_printf("ip_process() failed: %s\n", err_getstring(err));
+                return err;
+            }
+
             break;
         default:
             debug_printf("Packet is of unknown type.\n");

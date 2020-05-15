@@ -16,6 +16,7 @@
 
 #include "ethernet.h"
 #include "arp.h"
+#include "ip.h"
 
 #define ENET_DEBUG_OPTION 1
 
@@ -106,6 +107,7 @@ struct enet_driver_state {
 
     struct ethernet_state eth_state;
     struct arp_state arp_state;
+    struct ip_state ip_state;
 };
 
 #define ENET_HASH_BITS 6

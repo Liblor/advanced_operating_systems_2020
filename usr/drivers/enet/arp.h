@@ -21,13 +21,13 @@ struct arp_entry {
 errval_t arp_initialize(
     struct arp_state *state,
     const uint64_t mac,
-    const uint32_t ip_address,
+    const uint32_t ip,
     struct ethernet_state *eth_state
 );
 
 errval_t arp_query(
     struct arp_state *state,
-    const uint32_t ip_address,
+    const uint32_t ip,
     uint64_t *mac
 );
 
