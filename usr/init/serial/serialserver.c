@@ -9,6 +9,9 @@
 
 static struct rpc_ump_server server;
 
+// ring buffer to store read data
+static struct serial_read_data read_data;
+
 static void putchar_sys(char c);
 static void getchar_sys(char *c);
 static void putchar_usr(char c);
@@ -117,12 +120,69 @@ static void putchar_usr(char c) {
     }
 }
 
+__unused
+static bool read_data_empty(void)
+{
+    return read_data.head == read_data.tail;
+}
+
+__unused
+static void read_data_advance(void)
+{
+    if (read_data.full)
+    {
+        read_data.tail = (read_data.tail + 1) % READ_DATA_SLOTS;
+        debug_printf("read buffer is full. overwriting data...\n");
+    }
+    read_data.head = (read_data.head + 1) % READ_DATA_SLOTS;
+    read_data.full = read_data.head == read_data.tail;
+}
+
+__unused
+static void read_data_retreat(void)
+{
+    read_data.tail = (read_data.tail + 1) % READ_DATA_SLOTS;
+    read_data.full = false;
+}
+
+__unused
+static void read_data_put(struct serial_read_slot data)
+{
+    read_data.data[read_data.head] = data;
+    read_data_advance();
+}
+
+__unused
+static errval_t read_data_get(struct serial_read_slot **ret_data)
+{
+    if (read_data_empty()) {
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+    *ret_data = &read_data.data[read_data.tail];
+    read_data_retreat();
+    return SYS_ERR_OK;
+}
+
+__unused
+static void read_irq_cb(char c)
+{
+    struct serial_read_slot data = { .val = c };
+    read_data_put(data);
+}
+
 errval_t serialserver_init(void)
 {
     errval_t err;
     err = serial_driver_init();
     if(err_is_fail(err)){
         debug_printf("error in shell_init(): %s\n", err_getstring(err));
+        return err;
+    }
+
+    memset(&read_data, 0, sizeof(read_data));
+
+    err = serial_driver_set_read_cb(read_irq_cb);
+    if(err_is_fail(err)){
         return err;
     }
 
