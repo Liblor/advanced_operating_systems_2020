@@ -26,9 +26,7 @@ const char long_string[] = "this is a very long string this is a very long strin
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string\n";
+                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string";
 
 __unused static void test_serial(void) {
     errval_t err;
@@ -73,17 +71,61 @@ static void write_simple(void) {
         return;
     }
 
+    printf("%s\n", long_string);
     printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
     printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
-    printf("%s\n", long_string);
+
 }
+
+
+static int write_simple_th_func(void *args) {
+    debug_printf("starting thread\n");
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+    if (rpc == NULL) {
+        debug_printf("Could not create serial channel\n");
+        return 1;
+    }
+
+    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
+
+    return 0;
+}
+
+static void run_threads(size_t num_th, thread_func_t start_func, void *data)
+{
+    errval_t err;
+
+    struct thread *threads[num_th];
+
+    for (int i = 0; i < num_th; i++) {
+        threads[i] = thread_create(start_func, data);
+        assert(threads[i] != NULL);
+    }
+
+    for (int i = 0; i < num_th; i++) {
+        int retval;
+        err = thread_join(threads[i], &retval);
+        assert(err_is_ok(err));
+    }
+}
+
+// Threads dont work :(
+__unused
+static void write_simple_threads(void) {
+    debug_printf("running threads\n");
+    run_threads(2, write_simple_th_func, NULL);
+}
+
 
 int main(int argc, char *argv[])
 {
     debug_printf("Running RPC tests...\n");
 
-    // test_serial();
+//     test_serial();
     write_simple();
+    debug_printf("write_simple: ok\n");
+
+    // write_simple_threads();
 
     debug_printf("done\n");
 
