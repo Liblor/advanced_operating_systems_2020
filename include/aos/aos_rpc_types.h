@@ -38,9 +38,15 @@ struct rpc_message {
     struct rpc_message_part msg;
 };
 
+#define SERIAL_GETCHAR_SESSION_UNDEF 0
+
 struct serial_getchar_reply {
     uint64_t session;    ///< read session
     char data;           ///< char to get
+};
+
+struct serial_getchar_req {
+    uint64_t session;    ///< read session
 };
 
 #endif

@@ -202,10 +202,17 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     uint8_t send_buf[sizeof(struct rpc_message)];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
+    assert(rpc->priv_data != NULL);
+    struct serial_channel_priv_data *channel_data = rpc->priv_data;
+
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
-    msg->msg.payload_length = 0;
+    msg->msg.payload_length = sizeof(struct serial_getchar_req);
     msg->msg.status = Status_Ok;
+
+    struct serial_getchar_req payload;
+    payload.session = channel_data->read_session;
+    memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
 
     struct rpc_message *recv = NULL;
     err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
@@ -216,6 +223,12 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     // always use memcpy when dealing with payload[0] (alignment issues)
     struct serial_getchar_reply reply;
     memcpy(&reply, recv->msg.payload, sizeof(struct serial_getchar_reply));
+
+    if (reply.session != SERIAL_GETCHAR_SESSION_UNDEF) {
+        thread_mutex_lock_nested(&rpc->mutex);
+        channel_data->read_session = reply.session;
+        thread_mutex_unlock(&rpc->mutex);
+    }
 
     *retc = reply.data;
 
@@ -574,6 +587,7 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
     if (chan->priv_data == NULL) {
         chan->priv_data = &serial_channel_data;
         memset(chan->priv_data, 0, sizeof(struct serial_channel_priv_data));
+        serial_channel_data.read_session = SERIAL_GETCHAR_SESSION_UNDEF;
     }
     thread_mutex_unlock(&chan->mutex);
     return chan;

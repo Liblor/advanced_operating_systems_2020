@@ -6,6 +6,7 @@
 #include "serialserver.h"
 #include "serial_driver.h"
 #include <grading.h>
+#include <aos/syscalls.h>
 
 static struct rpc_ump_server server;
 
@@ -19,19 +20,24 @@ static void putchar_usr(char c);
 
 static errval_t reply_char(
         struct aos_rpc *rpc,
+        uint64_t session,
         char c
 ){
 
     errval_t err;
 
-    char buf[sizeof(struct rpc_message) + sizeof(char)];
+    char buf[sizeof(struct rpc_message) + sizeof(struct serial_getchar_reply)];
     struct rpc_message *msg = (struct rpc_message*) &buf;
 
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
     msg->msg.payload_length = sizeof(c);
     msg->msg.status = Status_Ok;
-    msg->msg.payload[0] = c;
+    struct serial_getchar_reply payload = {
+            .session = session,
+            .data = c
+    };
+    memcpy(&msg->msg.payload, &payload, sizeof(struct serial_getchar_reply));
 
     err = aos_rpc_ump_send_message(rpc, msg);
     if (err_is_fail(err)) {
@@ -41,7 +47,6 @@ static errval_t reply_char(
 
     return SYS_ERR_OK;
 }
-
 static void service_recv_cb(
         struct rpc_message *msg,
         void *callback_state,
@@ -63,8 +68,18 @@ static void service_recv_cb(
         // other requests. This could be solved by giving this callback
         // another callback to send the response, so that the server
         // doesn't have to wait for this callback to complete.
+
+
+        if (msg->msg.payload_length != sizeof(struct serial_getchar_req)){
+            debug_printf("invalid req. for Method_Serial_Getchar");
+            return;
+        }
+        struct serial_getchar_req *req = (struct serial_getchar_req *) &msg->msg.payload;
+
         getchar_sys(&c);
-        err = reply_char(rpc, c);
+        debug_printf("session: %d\n", req->session);
+
+        err = reply_char(rpc, req->session, c);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "reply_char() failed");
         }
