@@ -671,20 +671,6 @@ static errval_t enet_module_initialize(
         return err;
     }
 
-    debug_printf("Initializing ARP state...\n");
-    err = arp_initialize(&st->arp_state, st->mac, OWN_IP_ADDRESS, &st->eth_state);
-    if (err_is_fail(err)) {
-        debug_printf("ARP initialization failed.\n");
-        return err;
-    }
-
-    debug_printf("Initializing IP state...\n");
-    err = ip_initialize(&st->ip_state, OWN_IP_ADDRESS, &st->eth_state);
-    if (err_is_fail(err)) {
-        debug_printf("IP initialization failed.\n");
-        return err;
-    }
-
     return SYS_ERR_OK;
 }
 
@@ -720,37 +706,10 @@ static errval_t enet_serve(
     debug_printf("Received packet of size %lu.\n", buf.valid_length);
     debug_dump_mem(base, base + buf.valid_length, st->rx_base);
 
-    bool accept;
-    enum ethernet_type type;
-    lvaddr_t newbase;
-    ethernet_process(&st->eth_state, base, &accept, &type, &newbase);
-
-    if (accept) {
-        switch (type) {
-        case ETHERNET_TYPE_ARP:
-            debug_printf("Packet is of type ARP.\n");
-
-            err = arp_process(&st->arp_state, newbase);
-            if (err_is_fail(err)) {
-                debug_printf("arp_process() failed: %s\n", err_getstring(err));
-                return err;
-            }
-
-            break;
-        case ETHERNET_TYPE_IPV4:
-            debug_printf("Packet is of type IPv4.\n");
-
-            err = ip_process(&st->ip_state, newbase);
-            if (err_is_fail(err)) {
-                debug_printf("ip_process() failed: %s\n", err_getstring(err));
-                return err;
-            }
-
-            break;
-        default:
-            debug_printf("Packet is of unknown type.\n");
-            return ETHERNET_TYPE_UNKNOWN;
-        }
+    err = ethernet_process(&st->eth_state, base);
+    if (err_is_fail(err)) {
+        debug_printf("ethernet_process() failed: %s\n", err_getstring(err));
+        /* We do not need to return, this error is not critical. */
     }
 
     /* Hand the buffer back so the device can use it again. */
@@ -796,7 +755,7 @@ int main(
 
     debug_printf("Sending a test packet.\n");
     uint64_t mac;
-    arp_query(&st->arp_state, MK_IP(1, 0, 0, 10), &mac);
+    ARP_QUERY(&st->eth_state, MK_IP(1, 0, 0, 10), &mac);
     enet_serve(st);
     enet_serve(st);
     enet_serve(st);
@@ -806,7 +765,7 @@ int main(
     enet_serve(st);
     enet_serve(st);
     enet_serve(st);
-    arp_query(&st->arp_state, MK_IP(1, 0, 0, 10), &mac);
+    ARP_QUERY(&st->eth_state, MK_IP(1, 0, 0, 10), &mac);
     debug_printf("Sending test packet complete.\n");
 
     while (true) {

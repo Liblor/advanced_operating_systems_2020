@@ -3,14 +3,14 @@
 
 #include <aos/aos.h>
 
-#include "ethernet.h"
-
 #define ARP_HASHTABLE_BUCKETS (256)
 
+struct ethernet_state;
+
 struct arp_state {
+    struct ethernet_state *eth_state;
     uint64_t mac;
     uint32_t ip;
-    struct ethernet_state *eth_state;
     collections_hash_table *entries;
 };
 
@@ -20,9 +20,9 @@ struct arp_entry {
 
 errval_t arp_initialize(
     struct arp_state *state,
+    struct ethernet_state *eth_state,
     const uint64_t mac,
-    const uint32_t ip,
-    struct ethernet_state *eth_state
+    const uint32_t ip
 );
 
 errval_t arp_query(

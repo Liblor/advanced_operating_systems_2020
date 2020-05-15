@@ -8,17 +8,17 @@
 
 errval_t arp_initialize(
     struct arp_state *state,
+    struct ethernet_state *eth_state,
     const uint64_t mac,
-    const uint32_t ip,
-    struct ethernet_state *eth_state
+    const uint32_t ip
 )
 {
     assert(state != NULL);
     assert(eth_state != NULL);
 
+    state->eth_state = eth_state;
     state->mac = mac;
     state->ip = ip;
-    state->eth_state = eth_state;
 
     /* TODO: This could fail if no more memory can be allocated. */
     collections_hash_create_with_buckets(&state->entries, ARP_HASHTABLE_BUCKETS, NULL);

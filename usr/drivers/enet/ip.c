@@ -9,15 +9,15 @@
 
 errval_t ip_initialize(
     struct ip_state *state,
-    const uint32_t ip,
-    struct ethernet_state *eth_state
+    struct ethernet_state *eth_state,
+    const uint32_t ip
 )
 {
     assert(state != NULL);
     assert(eth_state != NULL);
 
-    state->ip = ip;
     state->eth_state = eth_state;
+    state->ip = ip;
 
     return SYS_ERR_OK;
 }

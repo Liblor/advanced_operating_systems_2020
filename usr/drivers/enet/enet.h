@@ -15,8 +15,6 @@
 #include <netutil/ip.h>
 
 #include "ethernet.h"
-#include "arp.h"
-#include "ip.h"
 
 #define ENET_DEBUG_OPTION 1
 
@@ -55,8 +53,6 @@
 #define ENET_TX_WRAP 0x2000
 #define ENET_TX_LAST 0x0800
 #define ENET_TX_CRC 0x0400
-
-#define OWN_IP_ADDRESS (MK_IP(2, 0, 0, 10))
 
 struct region_entry {
     uint32_t rid;
@@ -106,8 +102,6 @@ struct enet_driver_state {
     lvaddr_t rx_base;
 
     struct ethernet_state eth_state;
-    struct arp_state arp_state;
-    struct ip_state ip_state;
 };
 
 #define ENET_HASH_BITS 6

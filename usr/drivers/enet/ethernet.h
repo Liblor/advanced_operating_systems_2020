@@ -8,14 +8,25 @@
 #include <devif/queue_interface_backend.h>
 #include <driverkit/driverkit.h>
 
+#include "arp.h"
+#include "ip.h"
+
+#define OWN_IP_ADDRESS (MK_IP(2, 0, 0, 10))
+
+#define ARP_QUERY(eth_state, ip, mac) arp_query(&((eth_state)->arp_state), ip, mac)
+
 struct ethernet_state {
     uint64_t mac;
+
     uint16_t tx_count;
     uint16_t tx_next;
     lvaddr_t tx_base;
     bool *tx_free;
     regionid_t tx_rid;
     struct enet_queue *tx_queue;
+
+    struct arp_state arp_state;
+    struct ip_state ip_state;
 };
 
 enum ethernet_type {
@@ -46,12 +57,9 @@ errval_t ethernet_send(
     const gensize_t size
 );
 
-void ethernet_process(
+errval_t ethernet_process(
     struct ethernet_state *state,
-    const lvaddr_t base,
-    bool *accept,
-    enum ethernet_type *type,
-    lvaddr_t *newbase
+    const lvaddr_t base
 );
 
 #endif

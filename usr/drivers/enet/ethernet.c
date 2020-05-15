@@ -13,6 +13,8 @@ errval_t ethernet_initialize(
     struct enet_queue *tx_queue
 )
 {
+    errval_t err;
+
     assert(state != NULL);
 
     state->mac = mac;
@@ -29,6 +31,20 @@ errval_t ethernet_initialize(
 
     for (int i = 0; i < tx_count; i++) {
         state->tx_free[i] = true;
+    }
+
+    debug_printf("Initializing ARP state...\n");
+    err = arp_initialize(&state->arp_state, state, mac, OWN_IP_ADDRESS);
+    if (err_is_fail(err)) {
+        debug_printf("ARP initialization failed.\n");
+        return err;
+    }
+
+    debug_printf("Initializing IP state...\n");
+    err = ip_initialize(&state->ip_state, state, OWN_IP_ADDRESS);
+    if (err_is_fail(err)) {
+        debug_printf("IP initialization failed.\n");
+        return err;
     }
 
     return SYS_ERR_OK;
@@ -185,20 +201,45 @@ static enum ethernet_type ethernet_get_type(
     return ETHERNET_TYPE_UNKNOWN;
 }
 
-void ethernet_process(
+errval_t ethernet_process(
     struct ethernet_state *state,
-    const lvaddr_t base,
-    bool *accept,
-    enum ethernet_type *type,
-    lvaddr_t *newbase
+    const lvaddr_t base
 )
 {
-    assert(state != NULL);
-    assert(accept != NULL);
-    assert(type != NULL);
-    assert(newbase != NULL);
+    errval_t err;
 
-    *accept = ethernet_do_accept(state, base);
-    *type = ethernet_get_type(state, base);
-    *newbase = base + sizeof(struct eth_hdr);
+    assert(state != NULL);
+
+    if (ethernet_do_accept(state, base)) {
+        const enum ethernet_type type = ethernet_get_type(state, base);
+        const lvaddr_t newbase = base + sizeof(struct eth_hdr);
+
+        switch (type) {
+        case ETHERNET_TYPE_ARP:
+            debug_printf("Packet is of type ARP.\n");
+
+            err = arp_process(&state->arp_state, newbase);
+            if (err_is_fail(err)) {
+                debug_printf("arp_process() failed: %s\n", err_getstring(err));
+                return err;
+            }
+
+            break;
+        case ETHERNET_TYPE_IPV4:
+            debug_printf("Packet is of type IPv4.\n");
+
+            err = ip_process(&state->ip_state, newbase);
+            if (err_is_fail(err)) {
+                debug_printf("ip_process() failed: %s\n", err_getstring(err));
+                return err;
+            }
+
+            break;
+        default:
+            debug_printf("Packet is of unknown type.\n");
+            return SYS_ERR_OK;
+        }
+    }
+
+    return SYS_ERR_OK;
 }

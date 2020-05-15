@@ -3,17 +3,17 @@
 
 #include <aos/aos.h>
 
-#include "ethernet.h"
+struct ethernet_state;
 
 struct ip_state {
-    uint32_t ip;
     struct ethernet_state *eth_state;
+    uint32_t ip;
 };
 
 errval_t ip_initialize(
     struct ip_state *state,
-    const uint32_t ip,
-    struct ethernet_state *eth_state
+    struct ethernet_state *eth_state,
+    const uint32_t ip
 );
 
 errval_t ip_process(
