@@ -54,7 +54,7 @@ static errval_t map_device_into_vspace(gensize_t offset, size_t objsize, void **
 __unused
 static void lpuart_iqr_handler(void *arg)
 {
- SERIAL_DEBUG("iqr\n");
+ // SERIAL_DEBUG("iqr\n");
 
     errval_t err;
     char ret;
@@ -67,7 +67,7 @@ static void lpuart_iqr_handler(void *arg)
         }
     }
 
-#if 1
+#if 0
     // Debugging
     err = lpuart_putchar(serial_state.lpuart3_state, ret);
     if (err_is_fail(err)) {

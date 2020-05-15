@@ -19,6 +19,7 @@ struct serial_read_data {
 struct serialserver_state {
     // struct serial_read_data ring_buffer;
     serial_session_t curr_read_session;
+    struct aos_rpc * deferred_rpc;
 
 };
 

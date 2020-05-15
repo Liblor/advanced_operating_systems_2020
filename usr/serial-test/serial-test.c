@@ -119,10 +119,17 @@ static void write_simple_threads(void) {
 static void read_loop(void) {
     errval_t err;
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+    debug_printf("test 1\n");
+    printf("test 2\n");
+
+//    char buf[100];
+//    int i = 0;
     do {
         char c;
         err = aos_rpc_lmp_serial_getchar(rpc, &c);
-        debug_printf("Received %c\n", c);
+        printf("%c\n", c);
+//        buf[i] = c;
+//        if (i == 100) break;
     } while(err_is_ok(err));
 
     if (err_is_fail(err)) {

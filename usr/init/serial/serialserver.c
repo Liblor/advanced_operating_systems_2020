@@ -87,14 +87,6 @@ static errval_t read_data_get(struct serial_read_slot **ret_data)
     return SYS_ERR_OK;
 }
 
-__unused
-static void read_irq_cb(char c)
-{
-    struct serial_read_slot data = {.val = c};
-    read_data_put(data);
-}
-
-
 static errval_t reply_char(
         struct aos_rpc *rpc,
         uint64_t session,
@@ -110,7 +102,7 @@ static errval_t reply_char(
 
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
-    msg->msg.payload_length = sizeof(c);
+    msg->msg.payload_length = sizeof(struct serial_getchar_reply);
     msg->msg.status = status;
     struct serial_getchar_reply payload = {
             .session = session,
@@ -118,6 +110,7 @@ static errval_t reply_char(
     };
     memcpy(&msg->msg.payload, &payload, sizeof(struct serial_getchar_reply));
 
+    // debug_printf("send: %c, session: %d, status: %d, method: %d\n", c, session, status, msg->msg.method);
     err = aos_rpc_ump_send_message(rpc, msg);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "ump_send_message failed\n");
@@ -172,6 +165,27 @@ do_getchar_sys(struct aos_rpc *rpc, struct rpc_message *req, struct serial_getch
     }
 }
 
+static void send_getchar_reply(struct aos_rpc *rpc) {
+    errval_t err;
+
+    struct serial_read_slot *slot = NULL;
+    err = read_data_get(&slot);
+    assert(err_is_ok(err));
+
+    char res_char = slot->val;
+    serial_session_t session = serial_state.curr_read_session;
+    if (is_line_break(res_char)) {
+        debug_printf("is linebreak\n");
+        serial_state.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
+    }
+
+    err = reply_char(rpc, session, res_char, Status_Ok);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "reply_char() failed");
+    }
+}
+
+
 __unused
 static void
 do_getchar_usr(struct aos_rpc *rpc, struct rpc_message *req, struct serial_getchar_req *req_getchar)
@@ -179,9 +193,8 @@ do_getchar_usr(struct aos_rpc *rpc, struct rpc_message *req, struct serial_getch
     errval_t err;
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
+        debug_printf("new serial session: %d\n", req_getchar->session);
     }
-
-    debug_printf("session: %d\n", req_getchar->session);
 
     // read is occupied, try again
     if (serial_state.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
@@ -190,6 +203,7 @@ do_getchar_usr(struct aos_rpc *rpc, struct rpc_message *req, struct serial_getch
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "reply_char() failed");
         }
+        debug_printf("session is occuped\n");
         return;
     }
 
@@ -203,33 +217,25 @@ do_getchar_usr(struct aos_rpc *rpc, struct rpc_message *req, struct serial_getch
         disp_enable(d);
     }
 
-    struct serial_read_slot *slot = NULL;
-
-    debug_printf("block until char is read\n"); // TODO
-
-//    for (;;) {
-//        err = read_data_get(&slot);
-//        if (err_is_ok(err)) break;
-//    }
-
-    err = read_data_get(&slot);
-    if (err_is_fail(err)) {
-        err = reply_char(rpc, req_getchar->session, 0, Serial_Getchar_Nodata);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "reply_char() failed");
-        }
+    if (read_data_empty()) {
+        // debug_printf("deferred request\n"); // TODO
+        serial_state.deferred_rpc = rpc;
         return;
+
+    } else {
+        send_getchar_reply(rpc);
     }
+}
 
+__unused
+static void read_irq_cb(char c)
+{
+    struct serial_read_slot data = {.val = c};
+    read_data_put(data);
 
-    char res_char = slot->val;
-    if (is_line_break(res_char)) {
-        serial_state.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
-    }
-
-    err = reply_char(rpc, req_getchar->session, res_char, Status_Ok);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "reply_char() failed");
+    if (serial_state.deferred_rpc != NULL) {
+        send_getchar_reply(serial_state.deferred_rpc);
+        serial_state.deferred_rpc = NULL;
     }
 }
 
@@ -246,7 +252,7 @@ static void service_recv_cb(
         case Method_Serial_Putchar:
             memcpy(&c, msg->msg.payload, sizeof(char));
             // TODO: Macro
-            // putchar_sys(c);
+//             putchar_sys(c);
             do_putchar_usr(c);
             break;
         case Method_Serial_Getchar:
