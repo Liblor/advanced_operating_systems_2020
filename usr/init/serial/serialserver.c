@@ -14,7 +14,11 @@ static void getchar_sys(char *c);
 static void putchar_usr(char c);
 //static void getchar_usr(char *c);
 
-static errval_t reply_char(struct aos_rpc *rpc, char c) {
+static errval_t reply_char(
+        struct aos_rpc *rpc,
+        char c
+){
+
     errval_t err;
 
     char buf[sizeof(struct rpc_message) + sizeof(char)];
@@ -35,10 +39,13 @@ static errval_t reply_char(struct aos_rpc *rpc, char c) {
     return SYS_ERR_OK;
 }
 
-static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
+static void service_recv_cb(
+        struct rpc_message *msg,
+        void *callback_state,
+        struct aos_rpc *rpc,
+        void *server_state)
 {
     errval_t err;
-
     char c;
     switch (msg->msg.method) {
     case Method_Serial_Putchar:
@@ -85,6 +92,7 @@ static void putchar_sys(char c) {
         DEBUG_ERR(err, "sys_print() failed");
     }
 }
+
 __unused
 static void getchar_sys(char *c) {
     errval_t err;
@@ -109,8 +117,7 @@ static void putchar_usr(char c) {
     }
 }
 
-errval_t serialserver_init(void
-)
+errval_t serialserver_init(void)
 {
     errval_t err;
     err = serial_driver_init();
@@ -119,7 +126,12 @@ errval_t serialserver_init(void
         return err;
     }
 
-    err = rpc_ump_server_init(&server, service_recv_cb, NULL, NULL, NULL);
+    err = rpc_ump_server_init(&server,
+            service_recv_cb,
+            NULL,
+            NULL,
+            NULL);
+
     if (err_is_fail(err)) {
         debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
