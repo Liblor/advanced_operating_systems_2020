@@ -39,7 +39,7 @@ __unused static void test_serial(void) {
         return;
     }
     /*
-    // Explicit test not necessary since printf is redirected to rpc during the
+    // Explicit test not necessary since printf is redirected to rpc during thex
     // execution of this entire program.
     err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
     if (err_is_fail(err)) {

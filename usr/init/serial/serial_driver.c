@@ -53,13 +53,17 @@ static errval_t map_device_into_vspace(gensize_t offset, size_t objsize, void **
 
 static void lpuart_iqr_handler(void *arg)
 {
-//    SERIAL_DEBUG("receiving iqr\n");
+// SERIAL_DEBUG("receiving iqr\n");
 
     errval_t err;
     char ret;
     err = lpuart_getchar(serial_state.lpuart3_state, &ret);
     if (err_is_fail(err)) {
         debug_printf("lpuart_getchar() failed: %s\n", err_getstring(err));
+    } else {
+        if (serial_state.read_cb != NULL) {
+            serial_state.read_cb(ret);
+        }
     }
 
 #if 1
@@ -161,10 +165,10 @@ static errval_t setup_lpuart_irq(void)
     return SYS_ERR_OK;
 }
 
-errval_t serial_driver_read(char *ret_c)
+errval_t serial_driver_set_read_cb(serial_driver_read_cb cb)
 {
-    assert(serial_state.lpuart3_state != NULL);
-    return SYS_ERR_NOT_IMPLEMENTED;
+    serial_state.read_cb = cb;
+    return SYS_ERR_OK;
 }
 
 errval_t serial_driver_write(char c)

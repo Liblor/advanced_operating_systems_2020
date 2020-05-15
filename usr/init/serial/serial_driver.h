@@ -15,16 +15,20 @@
 #define SERIAL_DEBUG(x...) ((void)0)
 #endif
 
+typedef void (* serial_driver_read_cb)(char c);
+
 struct serial_driver_state {
     struct lpuart_s *lpuart3_state;
     struct gic_dist_s *gic_dist_state;
     struct capref irq_dest_cap;
+    serial_driver_read_cb read_cb;
 };
 
 errval_t serial_driver_init(void);
 
 errval_t serial_driver_write(char c);
-errval_t serial_driver_read(char *ret_c);
+
+errval_t serial_driver_set_read_cb(serial_driver_read_cb cb);
 
 
 // errval_t serial_driver_write(char *str, size_t len);

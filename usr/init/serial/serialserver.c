@@ -50,7 +50,7 @@ static void service_recv_cb(
     switch (msg->msg.method) {
     case Method_Serial_Putchar:
         memcpy(&c, msg->msg.payload, sizeof(char));
-            // TODO: Makro
+            // TODO: Macro
             // putchar_sys(c);
             putchar_usr(c);
         break;
