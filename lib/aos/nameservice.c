@@ -1,6 +1,6 @@
 /**
  * \file nameservice.h
- * \brief 
+ * \brief
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +20,7 @@ struct srv_entry {
 	void *st;
 };
 
-struct nameservice_chan 
+struct nameservice_chan
 {
 	struct aos_rpc rpc;
 	char *name;
@@ -35,10 +35,10 @@ struct nameservice_chan
  * @param bytes size of the message in bytes
  * @param response the response message
  * @param response_byts the size of the response
- * 
+ *
  * @return error value
  */
-errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes, 
+errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
                          void **response, size_t *response_bytes,
                          struct capref tx_cap, struct capref rx_cap)
 {
@@ -57,7 +57,7 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
  *
  * @return SYS_ERR_OK
  */
-errval_t nameservice_register(const char *name, 
+errval_t nameservice_register(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st)
 {
@@ -69,7 +69,7 @@ errval_t nameservice_register(const char *name,
  * @brief deregisters the service 'name'
  *
  * @param the name to deregister
- * 
+ *
  * @return error value
  */
 errval_t nameservice_deregister(const char *name)
@@ -94,7 +94,7 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
 
 /**
  * @brief enumerates all entries that match an query (prefix match)
- * 
+ *
  * @param query     the query
  * @param num 		number of entries in the result array
  * @param result	an array of entries
