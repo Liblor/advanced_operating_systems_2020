@@ -51,6 +51,7 @@ static errval_t map_device_into_vspace(gensize_t offset, size_t objsize, void **
 }
 
 
+__unused
 static void lpuart_iqr_handler(void *arg)
 {
 // SERIAL_DEBUG("receiving iqr\n");
@@ -75,6 +76,7 @@ static void lpuart_iqr_handler(void *arg)
     }
 #endif
 }
+
 
 __inline
 static errval_t setup_lpuart_irq(void)
@@ -134,6 +136,8 @@ static errval_t setup_lpuart_irq(void)
     }
 #endif
 
+#ifndef SERIAL_DEBUG_DISABLE_IQR
+
     err = inthandler_alloc_dest_irq_cap(IMX8X_UART3_INT,
                                         &serial_state.irq_dest_cap);
     if (err_is_fail(err)) {
@@ -162,6 +166,9 @@ static errval_t setup_lpuart_irq(void)
     }
 
     SERIAL_DEBUG("lpuart3 fully initialized and iqr handler registered\n");
+
+#endif
+
     return SYS_ERR_OK;
 }
 
