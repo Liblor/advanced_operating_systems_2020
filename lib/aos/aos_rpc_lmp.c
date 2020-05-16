@@ -379,6 +379,44 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     return err;
 }
 
+static errval_t
+validate_block_driver_read_block(struct lmp_recv_msg *msg, enum pending_state state)
+{
+    return validate_recv_header(msg, state, Method_Block_Driver_Read_Block);
+}
+
+errval_t aos_rpc_lmp_block_driver_read_block(
+    struct aos_rpc *rpc,
+    uint32_t index,
+    void *buf,
+    size_t buf_size
+) {
+    errval_t err;
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(index)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->cap = NULL_CAP;
+    msg->msg.method = Method_Block_Driver_Read_Block;
+    msg->msg.payload_length = sizeof(index);
+    msg->msg.status = Status_Ok;
+
+    struct rpc_message *recv = NULL;
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_block_driver_read_block);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
+    assert(recv->msg.payload_length == 512);
+    memcpy(buf, recv->msg.payload, MIN(buf_size, recv->msg.payload_length));
+
+    err = SYS_ERR_OK;
+    goto clean_up;
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
 errval_t
 aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
                            struct capref *ret_cap)

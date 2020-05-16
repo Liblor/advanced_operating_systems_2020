@@ -109,6 +109,11 @@ errval_t aos_rpc_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids, si
     return aos_rpc_lmp_process_get_all_pids(rpc, pids, pid_count);
 }
 
+errval_t aos_rpc_block_driver_read_block(struct aos_rpc *rpc, uint32_t index, void *buf, size_t buf_size)
+{
+    return aos_rpc_lmp_block_driver_read_block(rpc, index, buf, buf_size);
+}
+
 errval_t aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes, struct capref *ret_cap)
 {
     return aos_rpc_lmp_get_device_cap(rpc, paddr, bytes, ret_cap);

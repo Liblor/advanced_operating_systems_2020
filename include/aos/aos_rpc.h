@@ -117,6 +117,18 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
 errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
                                       domainid_t **pids, size_t *pid_count);
 
+
+/**
+ * \brief Read block of SDHC at index
+ * \arg index Read block at this index
+ * \arg buf Where to store data received
+ * \arg buf_size Size of buf
+ */
+errval_t aos_rpc_block_driver_read_block(struct aos_rpc *rpc,
+                                         uint32_t index,
+                                         void *buf,
+                                         size_t buf_size);
+
 /**
  * \brief Request a device cap for the given region.
  * @param chan  the rpc channel

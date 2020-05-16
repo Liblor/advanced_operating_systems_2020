@@ -321,6 +321,9 @@ errval_t monitorserver_register_service(
         case MemoryserverUrpc:
             err = initialize_service(&monitorserver_state.memoryserver_rpc, urpc_frame);
             break;
+        case BlockDriverServerUrpc:
+            err = initialize_service(&monitorserver_state.blockdriverserver_rpc, urpc_frame);
+            break;
         default:
             debug_printf("unknown type: %d\n", type);
             err = RPC_ERR_INITIALIZATION;

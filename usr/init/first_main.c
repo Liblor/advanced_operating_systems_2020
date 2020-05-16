@@ -25,6 +25,7 @@
 #include "monitorserver.h"
 #include "processserver.h"
 #include "serialserver.h"
+#include "block_driver.h"
 
 extern coreid_t my_core_id;
 
@@ -150,6 +151,12 @@ static void setup_servers(
         abort();
     }
 
+    err = block_driver_init();
+    if (err_is_fail(err)) {
+        debug_printf("block_driver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     err = monitorserver_init();
     if (err_is_fail(err)) {
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
@@ -238,6 +245,7 @@ static void register_service_channels(
     register_service_channel(ProcessserverUrpc, rpc, mpid, processserver_add_client);
     register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
     register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
+    register_service_channel(BlockDriverServerUrpc, rpc, mpid, block_driver_add_client);
 
     debug_printf("all service channels for core %d registered\n", mpid);
 }
@@ -337,10 +345,10 @@ int first_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 0
+#if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("process-server-demo", &si, &pid);
+    err = spawn_load_by_name("dummy", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
@@ -373,6 +381,12 @@ int first_main(int argc, char *argv[])
         err = memoryserver_ump_serve_next();
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "in initserver_serve_next");
+            abort();
+        }
+
+        err = block_driver_serve_next();
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in block_dirver_serve_next");
             abort();
         }
 
