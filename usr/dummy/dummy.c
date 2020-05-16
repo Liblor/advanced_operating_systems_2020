@@ -4,7 +4,9 @@
 
 int main(int argc, char *argv[])
 {
-    debug_printf("Dummy spawned\n");
+    char buf[] = "hello there";
+
+    printf("%s", buf);
 
     return EXIT_SUCCESS;
 }

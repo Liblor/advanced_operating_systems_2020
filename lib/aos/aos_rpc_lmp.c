@@ -238,7 +238,6 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
-    HERE;
     errval_t err;
 
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(char)];

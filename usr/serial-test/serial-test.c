@@ -29,7 +29,8 @@ const char long_string[] = "this is a very long string this is a very long strin
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string";
 
-__unused static void test_serial(void) {
+__unused static void test_serial(void)
+{
     errval_t err;
 
     debug_printf("Testing serial RPC...\n");
@@ -64,7 +65,8 @@ __unused static void test_serial(void) {
 }
 
 __unused
-static void write_simple(void) {
+static void write_simple(void)
+{
     debug_printf("Testing write_simple ...\n");
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
     if (rpc == NULL) {
@@ -78,8 +80,9 @@ static void write_simple(void) {
 
 }
 
-
-static int write_simple_th_func(void *args) {
+__unused
+static int write_simple_th_func(void *args)
+{
     debug_printf("starting thread\n");
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
     if (rpc == NULL) {
@@ -92,6 +95,7 @@ static int write_simple_th_func(void *args) {
     return 0;
 }
 
+__unused
 static void run_threads(size_t num_th, thread_func_t start_func, void *data)
 {
     errval_t err;
@@ -112,34 +116,44 @@ static void run_threads(size_t num_th, thread_func_t start_func, void *data)
 
 // Threads dont work :(
 __unused
-static void write_simple_threads(void) {
+static void write_simple_threads(void)
+{
     debug_printf("running threads\n");
     run_threads(2, write_simple_th_func, NULL);
 }
 
-static void read_loop(void) {
+__unused
+static void read_loop(void)
+{
     errval_t err;
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-    debug_printf("test 1\n");
-    printf("test 2\n");
 
-    char buf[1024];
-    memset(&buf, 0, sizeof(buf));
+    const size_t buf_size = 2048;
+    char buf[2048];
+    memset(&buf, 0, buf_size);
+    printf("Write something and hit return\r\n");
 
     int i = 0;
     do {
         char c;
         err = aos_rpc_lmp_serial_getchar(rpc, &c);
-        buf[i] = c;
-        i ++;
-        if (i == 1024) break;
         if (IS_CHAR_LINEBREAK(c)) {
-            debug_printf("newline\n");
-            printf("%s", buf);
+            buf[i] = 0;
+            printf("\r\n");
+            printf("You typed: '%s' \r\n", &buf);
+            fflush(stdout);
             i = 0;
-            memset(&buf, 0, sizeof(buf));
+        } else {
+            buf[i] = c;
+            fflush(stdout);
+            printf("%c", c);
+            fflush(stdout);
+            i++;
+            if (i == buf_size) {
+                i = 0;
+            }
         }
-    } while(err_is_ok(err));
+    } while (err_is_ok(err));
 
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
@@ -148,15 +162,45 @@ static void read_loop(void) {
     debug_printf("\n");
 }
 
+__unused
+static void printf_test(void)
+{
+    errval_t err;
+    char c;
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    printf("test 2\n");
 
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+
+
+    char buf2[1024];
+    memset(&buf2, 0, sizeof(buf2));
+
+
+    char buf[] = "hello there";
+    printf("%s", buf);
+
+
+    for (int i = 0; i < 10; i++) {
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        printf("%c", c);
+        fflush(stdout); // must be flushed explicitly, took a while to debug
+    }
+}
+
+
+__unused
 int main(int argc, char *argv[])
 {
     debug_printf("Running RPC tests...\n");
 
 //     test_serial();
 //    write_simple();
-    debug_printf("write_simple: ok\n");
+//    debug_printf("write_simple: ok\n");
     read_loop();
+
+//    printf_test();
 
     // write_simple_threads();
 

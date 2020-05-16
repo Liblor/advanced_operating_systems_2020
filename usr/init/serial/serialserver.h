@@ -3,6 +3,19 @@
 
 #include <aos/aos_rpc.h>
 
+
+
+#define SERIAL_SERVER_DEBUG_ON
+
+#if defined(SERIAL_SERVER_DEBUG_ON)
+#define SERIAL_SERVER_DEBUG(x...) debug_printf("serial-server:" x)
+#else
+#define SERIAL_SERVER_DEBUG(x...) ((void)0)
+#endif
+
+// enable to use kernel functions instead of userspace
+// #define SERIAL_SERVER_USE_KERNEL
+
 #define READ_DATA_SLOTS 256
 
 struct serial_read_slot {

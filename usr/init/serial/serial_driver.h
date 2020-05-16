@@ -15,9 +15,8 @@
 #define SERIAL_DEBUG(x...) ((void)0)
 #endif
 
-
 // disable userspace iqr handler for read events
-//#define SERIAL_DEBUG_DISABLE_IQR
+// #define SERIAL_DEBUG_DISABLE_IQR
 
 typedef void (* serial_driver_read_cb)(char c);
 
