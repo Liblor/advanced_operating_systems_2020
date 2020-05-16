@@ -6,6 +6,7 @@
 #include "udp.h"
 
 struct ip_state;
+struct ip_context;
 
 struct udp_state {
     struct ip_state *ip_state;
@@ -18,7 +19,8 @@ errval_t udp_initialize(
 
 errval_t udp_process(
     struct udp_state *state,
-    lvaddr_t base
+    const lvaddr_t base,
+    const struct ip_context *context
 );
 
 #endif

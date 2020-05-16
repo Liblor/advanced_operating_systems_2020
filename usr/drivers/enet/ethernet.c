@@ -210,35 +210,37 @@ errval_t ethernet_process(
 
     struct eth_hdr *packet = (struct eth_hdr *) base;
 
-    if (ethernet_do_accept(state, packet)) {
-        const enum ethernet_type type = ethernet_get_type(state, packet);
-        const lvaddr_t newbase = base + sizeof(struct eth_hdr);
+    if (!ethernet_do_accept(state, packet)) {
+        return SYS_ERR_OK;
+    }
 
-        switch (type) {
-        case ETHERNET_TYPE_ARP:
-            debug_printf("Packet is of type ARP.\n");
+    const enum ethernet_type type = ethernet_get_type(state, packet);
+    const lvaddr_t newbase = base + sizeof(struct eth_hdr);
 
-            err = arp_process(&state->arp_state, newbase);
-            if (err_is_fail(err)) {
-                debug_printf("arp_process() failed: %s\n", err_getstring(err));
-                return err;
-            }
+    switch (type) {
+    case ETHERNET_TYPE_ARP:
+        debug_printf("Packet is of type ARP.\n");
 
-            break;
-        case ETHERNET_TYPE_IPV4:
-            debug_printf("Packet is of type IPv4.\n");
-
-            err = ip_process(&state->ip_state, newbase);
-            if (err_is_fail(err)) {
-                debug_printf("ip_process() failed: %s\n", err_getstring(err));
-                return err;
-            }
-
-            break;
-        default:
-            debug_printf("Packet is of unknown type.\n");
-            return SYS_ERR_OK;
+        err = arp_process(&state->arp_state, newbase);
+        if (err_is_fail(err)) {
+            debug_printf("arp_process() failed: %s\n", err_getstring(err));
+            return err;
         }
+
+        break;
+    case ETHERNET_TYPE_IPV4:
+        debug_printf("Packet is of type IPv4.\n");
+
+        err = ip_process(&state->ip_state, newbase);
+        if (err_is_fail(err)) {
+            debug_printf("ip_process() failed: %s\n", err_getstring(err));
+            return err;
+        }
+
+        break;
+    default:
+        debug_printf("Packet is of unknown type.\n");
+        return SYS_ERR_OK;
     }
 
     return SYS_ERR_OK;

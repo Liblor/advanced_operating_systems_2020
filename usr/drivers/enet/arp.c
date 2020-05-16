@@ -10,7 +10,7 @@ errval_t arp_initialize(
     struct arp_state *state,
     struct ethernet_state *eth_state,
     const uint64_t mac,
-    const uint32_t ip
+    const ip_addr_t ip
 )
 {
     assert(state != NULL);
@@ -29,7 +29,7 @@ errval_t arp_initialize(
 static errval_t arp_send_packet(
     struct arp_state *state,
     const uint64_t mac,
-    const uint32_t ip,
+    const ip_addr_t ip,
     uint16_t opcode
 )
 {
@@ -77,7 +77,7 @@ static errval_t arp_send_packet(
 
 static errval_t arp_request(
     struct arp_state *state,
-    const uint32_t ip
+    const ip_addr_t ip
 )
 {
     errval_t err;
@@ -101,7 +101,7 @@ static errval_t arp_request(
 static errval_t arp_reply(
     struct arp_state *state,
     const uint64_t mac,
-    const uint32_t ip
+    const ip_addr_t ip
 )
 {
     errval_t err;
@@ -124,7 +124,7 @@ static errval_t arp_reply(
 
 errval_t arp_query(
     struct arp_state *state,
-    const uint32_t ip,
+    const ip_addr_t ip,
     uint64_t *mac
 )
 {
@@ -152,7 +152,7 @@ errval_t arp_query(
 
 static errval_t arp_register(
     struct arp_state *state,
-    const uint32_t ip,
+    const ip_addr_t ip,
     const uint64_t mac
 )
 {
@@ -176,6 +176,56 @@ static errval_t arp_register(
     return SYS_ERR_OK;
 }
 
+static bool arp_do_accept(
+    struct arp_state *state,
+    struct arp_hdr *packet
+)
+{
+    assert(state != NULL);
+    assert(packet != NULL);
+
+    if (packet->hwtype != htons(ARP_HW_TYPE_ETH)) {
+        debug_printf("HTYPE mismatch!\n");
+        return false;
+    }
+    if (packet->proto != htons(ARP_PROT_IP)) {
+        debug_printf("PTYPE mismatch!\n");
+        return false;
+    }
+    if (packet->hwlen != ETH_ADDR_LEN) {
+        debug_printf("HLEN mismatch!\n");
+        return false;
+    }
+    if (packet->protolen != ARP_PLEN_IPV4) {
+        debug_printf("PLEN mismatch!\n");
+        return false;
+    }
+
+    return true;
+}
+
+static enum arp_type arp_get_type(
+    struct arp_state *state,
+    struct arp_hdr *packet
+)
+{
+    assert(state != NULL);
+    assert(packet != NULL);
+
+    const uint8_t type = ntohs(packet->opcode);
+
+    switch (type) {
+        case ARP_OP_REQ:
+            return ARP_TYPE_REQUEST;
+            break;
+        case ARP_OP_REP:
+            return ARP_TYPE_REPLY;
+            break;
+    }
+
+    return ARP_TYPE_UNKNOWN;
+}
+
 errval_t arp_process(
     struct arp_state *state,
     lvaddr_t base
@@ -187,21 +237,8 @@ errval_t arp_process(
 
     struct arp_hdr *packet = (struct arp_hdr *) base;
 
-    if (packet->hwtype != htons(ARP_HW_TYPE_ETH)) {
-        debug_printf("HTYPE mismatch!\n");
-        return SYS_ERR_NOT_IMPLEMENTED;
-    }
-    if (packet->proto != htons(ARP_PROT_IP)) {
-        debug_printf("PTYPE mismatch!\n");
-        return SYS_ERR_NOT_IMPLEMENTED;
-    }
-    if (packet->hwlen != ETH_ADDR_LEN) {
-        debug_printf("HLEN mismatch!\n");
-        return SYS_ERR_NOT_IMPLEMENTED;
-    }
-    if (packet->protolen != ARP_PLEN_IPV4) {
-        debug_printf("PLEN mismatch!\n");
-        return SYS_ERR_NOT_IMPLEMENTED;
+    if (!arp_do_accept(state, packet)) {
+        return SYS_ERR_OK;
     }
 
     uint64_t eth_src;
@@ -214,8 +251,10 @@ errval_t arp_process(
         return err;
     }
 
-    switch (ntohs(packet->opcode)) {
-    case ARP_OP_REQ:
+    const enum arp_type type = arp_get_type(state, packet);
+
+    switch (type) {
+    case ARP_TYPE_REQUEST:
         debug_printf("Received an ARP request.\n");
 
         if (packet->ip_dst == state->ip) {
@@ -233,7 +272,7 @@ errval_t arp_process(
         }
 
         break;
-    case ARP_OP_REP:
+    case ARP_TYPE_REPLY:
         debug_printf("Received an ARP reply.\n");
         break;
     default:

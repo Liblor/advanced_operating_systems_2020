@@ -11,7 +11,7 @@
 errval_t ip_initialize(
     struct ip_state *state,
     struct ethernet_state *eth_state,
-    const uint32_t ip
+    const ip_addr_t ip
 )
 {
     errval_t err;
@@ -134,35 +134,41 @@ errval_t ip_process(
 
     struct ip_hdr *packet = (struct ip_hdr *) base;
 
-    if (ip_do_accept(state, packet)) {
-        const enum ip_type type = ip_get_type(state, packet);
-        const lvaddr_t newbase = base + sizeof(struct ip_hdr);
+    const struct ip_context context = {
+        .source = packet->src,
+    };
 
-        switch (type) {
-        case IP_TYPE_ICMP:
-            debug_printf("Packet is of type ICMP.\n");
+    if (!ip_do_accept(state, packet)) {
+        return SYS_ERR_OK;
+    }
 
-            err = icmp_process(&state->icmp_state, newbase);
-            if (err_is_fail(err)) {
-                debug_printf("icmp_process() failed: %s\n", err_getstring(err));
-                return err;
-            }
+    const enum ip_type type = ip_get_type(state, packet);
+    const lvaddr_t newbase = base + sizeof(struct ip_hdr);
 
-            break;
-        case IP_TYPE_UDP:
-            debug_printf("Packet is of type UDP.\n");
+    switch (type) {
+    case IP_TYPE_ICMP:
+        debug_printf("Packet is of type ICMP.\n");
 
-            err = udp_process(&state->udp_state, newbase);
-            if (err_is_fail(err)) {
-                debug_printf("udp_process() failed: %s\n", err_getstring(err));
-                return err;
-            }
-
-            break;
-        default:
-            debug_printf("Packet is of unknown type.\n");
-            return SYS_ERR_OK;
+        err = icmp_process(&state->icmp_state, newbase, &context);
+        if (err_is_fail(err)) {
+            debug_printf("icmp_process() failed: %s\n", err_getstring(err));
+            return err;
         }
+
+        break;
+    case IP_TYPE_UDP:
+        debug_printf("Packet is of type UDP.\n");
+
+        err = udp_process(&state->udp_state, newbase, &context);
+        if (err_is_fail(err)) {
+            debug_printf("udp_process() failed: %s\n", err_getstring(err));
+            return err;
+        }
+
+        break;
+    default:
+        debug_printf("Packet is of unknown type.\n");
+        return SYS_ERR_OK;
     }
 
     return SYS_ERR_OK;
