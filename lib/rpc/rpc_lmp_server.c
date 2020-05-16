@@ -49,11 +49,19 @@ static void service_recv_cb(void *arg)
         goto reregister;
     }
 
-    // TODO Allocate new capability slot when needed
     // TODO Reply with errval_t when an error occurs
 
     // TODO More message sanity checks
     assert(sizeof(struct rpc_message_part) <= segment.buf.buflen * sizeof(uintptr_t));
+
+    // Allocate new receive capability slot if the last one has been used
+    if (!capref_is_null(cap)) {
+        err = lmp_chan_alloc_recv_slot(lc);
+        if (err_is_fail(err)) {
+            debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+            goto reregister;
+        }
+    }
 
     size_t bytes_total;
     struct rpc_message_part *header;
@@ -175,6 +183,12 @@ static void open_recv_cb(void *arg)
 
     if (server->state_init_handler != NULL) {
         state->shared = server->state_init_handler(server->shared);
+    }
+
+    err = lmp_chan_alloc_recv_slot(service_chan);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        goto reregister;
     }
 
     err = lmp_chan_register_recv(service_chan, state->server->ws, MKCLOSURE(service_recv_cb, state));
