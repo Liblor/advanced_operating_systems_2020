@@ -69,7 +69,7 @@ static void run_client(void)
 
 static char *myresponse = "reply!!";
 
-static void server_recv_handler(void *st, void *message, 
+static void server_recv_handler(void *st, void *message,
                                 size_t bytes,
                                 void **response, size_t *response_bytes,
                                 struct capref rx_cap, struct capref *tx_cap)
