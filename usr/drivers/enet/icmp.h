@@ -5,6 +5,8 @@
 
 #include "icmp.h"
 
+struct ip_state;
+
 struct icmp_state {
     uint16_t sequence_number;
     struct ip_state *ip_state;

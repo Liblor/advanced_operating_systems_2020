@@ -2,6 +2,7 @@
 #include "ethernet.h"
 #include "enet.h"
 
+#include <aos/debug.h>
 #include <netutil/etharp.h>
 #include <netutil/htons.h>
 #include <netutil/ip.h>
@@ -13,11 +14,27 @@ errval_t ip_initialize(
     const uint32_t ip
 )
 {
+    errval_t err;
+
     assert(state != NULL);
     assert(eth_state != NULL);
 
     state->eth_state = eth_state;
     state->ip = ip;
+
+    debug_printf("Initializing ICMP state...\n");
+    err = icmp_initialize(&state->icmp_state, state);
+    if (err_is_fail(err)) {
+        debug_printf("ICMP initialization failed.\n");
+        return err;
+    }
+
+    debug_printf("Initializing UDP state...\n");
+    err = udp_initialize(&state->udp_state, state);
+    if (err_is_fail(err)) {
+        debug_printf("UDP initialization failed.\n");
+        return err;
+    }
 
     return SYS_ERR_OK;
 }
@@ -111,7 +128,7 @@ errval_t ip_process(
     lvaddr_t base
 )
 {
-    //errval_t err;
+    errval_t err;
 
     assert(state != NULL);
 
@@ -119,14 +136,28 @@ errval_t ip_process(
 
     if (ip_do_accept(state, packet)) {
         const enum ip_type type = ip_get_type(state, packet);
-        //const lvaddr_t newbase = base + sizeof(struct ip_hdr);
+        const lvaddr_t newbase = base + sizeof(struct ip_hdr);
 
         switch (type) {
         case IP_TYPE_ICMP:
             debug_printf("Packet is of type ICMP.\n");
+
+            err = icmp_process(&state->icmp_state, newbase);
+            if (err_is_fail(err)) {
+                debug_printf("icmp_process() failed: %s\n", err_getstring(err));
+                return err;
+            }
+
             break;
         case IP_TYPE_UDP:
             debug_printf("Packet is of type UDP.\n");
+
+            err = udp_process(&state->udp_state, newbase);
+            if (err_is_fail(err)) {
+                debug_printf("udp_process() failed: %s\n", err_getstring(err));
+                return err;
+            }
+
             break;
         default:
             debug_printf("Packet is of unknown type.\n");

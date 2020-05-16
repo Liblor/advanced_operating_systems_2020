@@ -3,11 +3,17 @@
 
 #include <aos/aos.h>
 
+#include "icmp.h"
+#include "udp.h"
+
 struct ethernet_state;
 
 struct ip_state {
     struct ethernet_state *eth_state;
     uint32_t ip;
+
+    struct icmp_state icmp_state;
+    struct udp_state udp_state;
 };
 
 enum ip_type {
