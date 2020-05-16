@@ -10,6 +10,9 @@ __unused static struct aos_rpc *process_channel = NULL;
 __unused static struct aos_rpc *serial_channel = NULL;
 __unused static struct aos_rpc *monitor_channel = NULL;
 
+// serial session to read from serial port
+static struct serial_channel_priv_data serial_channel_data;
+
 /*
  * Used for setting up the channels. While the init_channel and memory_channel
  * are always initialized by the first thread, the same isn't necessarily true
@@ -199,10 +202,17 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     uint8_t send_buf[sizeof(struct rpc_message)];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
+    assert(rpc->priv_data != NULL);
+    struct serial_channel_priv_data *channel_data = rpc->priv_data;
+
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
-    msg->msg.payload_length = 0;
+    msg->msg.payload_length = sizeof(struct serial_getchar_req);
     msg->msg.status = Status_Ok;
+
+    struct serial_getchar_req payload;
+    payload.session = channel_data->read_session;
+    memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
 
     struct rpc_message *recv = NULL;
     err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
@@ -211,7 +221,17 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     }
 
     // always use memcpy when dealing with payload[0] (alignment issues)
-    memcpy(retc, recv->msg.payload, sizeof(char));
+    struct serial_getchar_reply reply;
+    memcpy(&reply, recv->msg.payload, sizeof(struct serial_getchar_reply));
+
+    if (reply.session != SERIAL_GETCHAR_SESSION_UNDEF) {
+        thread_mutex_lock_nested(&rpc->mutex);
+        channel_data->read_session = reply.session;
+        thread_mutex_unlock(&rpc->mutex);
+    }
+
+    *retc = reply.data;
+
     return SYS_ERR_OK;
 }
 
@@ -558,5 +578,17 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-    return aos_rpc_lmp_get_monitor_channel();
+    // XXX: we store serial specific state in channel which is why
+    // we use a serial channel instead of reuse monitor
+    struct aos_rpc *chan = aos_rpc_lmp_get_channel(&serial_channel, cap_chan_monitor, "serial");
+    if (chan == NULL) {return NULL;}
+
+    thread_mutex_lock_nested(&chan->mutex);
+    if (chan->priv_data == NULL) {
+        chan->priv_data = &serial_channel_data;
+        memset(chan->priv_data, 0, sizeof(struct serial_channel_priv_data));
+        serial_channel_data.read_session = SERIAL_GETCHAR_SESSION_UNDEF;
+    }
+    thread_mutex_unlock(&chan->mutex);
+    return chan;
 }

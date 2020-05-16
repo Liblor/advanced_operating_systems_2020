@@ -21,7 +21,7 @@
 #include <aos/aos_rpc_ump.h>
 
 // How often a transient error can occur before it's regarded critical.
-#define TRANSIENT_ERR_RETRIES (20)
+#define TRANSIENT_ERR_RETRIES (1000)
 
 enum aos_rpc_type {
     RpcTypeLmp,
@@ -36,7 +36,11 @@ struct aos_rpc {
         struct aos_rpc_lmp lmp;
         struct aos_rpc_ump ump;
     };
+
+    void *priv_data;
 };
+
+
 
 /**
  * \brief Call this handler on the receive side for grading

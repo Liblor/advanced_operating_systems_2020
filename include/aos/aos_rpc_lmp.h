@@ -27,6 +27,12 @@ struct process_pid_array {
     domainid_t pids[0];
 } __packed ;
 
+
+/** internal state for serial channel **/
+struct serial_channel_priv_data {
+    uint64_t read_session;  ///< represents a session to ensure correct de-multiplexing of chars
+};
+
 /**
  * \brief Call this handler on the receive side for grading
  */
