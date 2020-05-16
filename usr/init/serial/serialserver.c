@@ -236,7 +236,6 @@ static void service_recv_cb(
 #endif
             break;
         case Method_Serial_Getchar:
-
             if (msg->msg.payload_length != sizeof(struct serial_getchar_req)) {
                 debug_printf("invalid req. for Method_Serial_Getchar");
                 return;
@@ -252,6 +251,7 @@ static void service_recv_cb(
 #endif
             break;
         default:
+            debug_printf("unknown method given: %d\n",msg->msg.method);
             break;
     }
 }
