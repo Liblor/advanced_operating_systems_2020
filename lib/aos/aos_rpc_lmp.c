@@ -386,6 +386,45 @@ aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
+errval_t
+aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client)
+{
+    errval_t err;
+
+    assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
+    assert(name != NULL);
+    assert(chan_add_client != NULL);
+    assert(chan_add_client->type == RpcTypeUmp);
+
+    const size_t name_len = strnlen(name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+    if (name_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->msg.method = Method_Nameserver_Register;
+    msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
+    msg->cap = chan_add_client->ump.frame_cap;
+    memset(msg->msg.payload, 0, payload_length);
+    memcpy(msg->msg.payload, name, name_len);
+
+    char message[sizeof(struct rpc_message)];
+    struct rpc_message *recv = (struct rpc_message *) message;
+    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, NULL, NULL_CAP);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    assert(capref_is_null(recv->cap));
+
+    return SYS_ERR_OK;
+}
+
 static void
 client_recv_open_cb(void *args)
 {

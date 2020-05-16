@@ -106,6 +106,7 @@ errval_t aos_rpc_lmp_get_device_cap(struct aos_rpc *chan,
                                 lpaddr_t paddr, size_t bytes,
                                 struct capref *frame);
 
+errval_t aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client);
 
 /**
  * \brief Returns the RPC channel to monitor.

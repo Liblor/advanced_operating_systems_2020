@@ -114,6 +114,11 @@ errval_t aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t byte
     return aos_rpc_lmp_get_device_cap(rpc, paddr, bytes, ret_cap);
 }
 
+errval_t aos_rpc_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client)
+{
+    return aos_rpc_lmp_ns_register(rpc, name, chan_add_client);
+}
+
 /**
  * \brief Returns the RPC channel to init.
  */
