@@ -24,6 +24,8 @@ struct ump_shared_half {
 #define UMP_SHARED_FRAME_SIZE (2 * sizeof(struct ump_shared_half))
 
 struct aos_rpc_ump {
+    struct capref frame_cap; ///< frame capability used for shared memory region
+
     struct ump_shared_half *tx; ///< Shared memory region used by the establisher to send
     uint64_t tx_slot_next; ///< Next slot for the establisher to write into
 
