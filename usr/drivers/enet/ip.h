@@ -10,6 +10,12 @@ struct ip_state {
     uint32_t ip;
 };
 
+enum ip_type {
+    IP_TYPE_ICMP,
+    IP_TYPE_UDP,
+    IP_TYPE_UNKNOWN,
+};
+
 errval_t ip_initialize(
     struct ip_state *state,
     struct ethernet_state *eth_state,

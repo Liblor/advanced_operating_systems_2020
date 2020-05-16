@@ -160,15 +160,14 @@ errval_t ethernet_send(
 
 static bool ethernet_do_accept(
     struct ethernet_state *state,
-    const lvaddr_t base
+    struct eth_hdr *packet
 )
 {
     assert(state != NULL);
-
-    struct eth_hdr *eth_packet = (struct eth_hdr *) base;
+    assert(packet != NULL);
 
     uint64_t receiver;
-    from_eth_addr(&receiver, &eth_packet->dst);
+    from_eth_addr(&receiver, &packet->dst);
 
     if (receiver == state->mac ||
         receiver == ARP_BROADCAST_MAC) {
@@ -180,14 +179,13 @@ static bool ethernet_do_accept(
 
 static enum ethernet_type ethernet_get_type(
     struct ethernet_state *state,
-    const lvaddr_t base
+    struct eth_hdr *packet
 )
 {
     assert(state != NULL);
+    assert(packet != NULL);
 
-    struct eth_hdr *eth_packet = (struct eth_hdr *) base;
-
-    const uint16_t type = ntohs(ETH_TYPE(eth_packet));
+    const uint16_t type = ntohs(ETH_TYPE(packet));
 
     switch (type) {
         case ETH_TYPE_ARP:
@@ -210,8 +208,10 @@ errval_t ethernet_process(
 
     assert(state != NULL);
 
-    if (ethernet_do_accept(state, base)) {
-        const enum ethernet_type type = ethernet_get_type(state, base);
+    struct eth_hdr *packet = (struct eth_hdr *) base;
+
+    if (ethernet_do_accept(state, packet)) {
+        const enum ethernet_type type = ethernet_get_type(state, packet);
         const lvaddr_t newbase = base + sizeof(struct eth_hdr);
 
         switch (type) {
