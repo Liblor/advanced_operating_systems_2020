@@ -61,7 +61,37 @@ errval_t nameservice_register(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st)
 {
-	return LIB_ERR_NOT_IMPLEMENTED;
+    // TODO Initialize UMP server for the given name
+    // TODO Create srv_entry and add to list
+    // TODO Create serve function that goes through all srv_entries
+    errval_t err;
+
+    struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
+
+    struct capref frame;
+
+    err = frame_alloc(&frame, UMP_SHARED_FRAME_SIZE, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    struct aos_rpc *chan_add_client = malloc(sizeof(struct aos_rpc));
+
+    err = aos_rpc_ump_init(chan_add_client, frame, true);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    // Send message to nameserver to register new service
+    err = aos_rpc_ns_register(monitor_chan, name, chan_add_client);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_lmp_ns_register() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+	return SYS_ERR_OK;
 }
 
 
