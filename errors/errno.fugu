@@ -1398,6 +1398,8 @@ errors aos AOS_ERR_ {
     failure PAGING_ADDR_RESERVED "This address is reserved for an explicit region.",
     failure MONITOR_UNKNOWN_RPC_TYPE   "Unknown RPC type for monitor",
     failure MONITOR_ALREADY_REGISTERED_RPC "Monitor already registered binding for RPC type",
+
+    failure SERIAL_SERVER_READ_OCCUPIED "Read session is currently occupied. Try again. ",
 };
 
 // errors for collections
