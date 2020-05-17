@@ -214,7 +214,6 @@ static void service_recv_cb(
                     grading_rpc_handler_serial_putchar(*(cptr + i));
                 }
             }
-            // debug_printf("Method_Serial_Putstr: %d: '%s'\n", msg->msg.payload_length, msg->msg.payload);
             do_putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
             break;
         }
@@ -222,13 +221,8 @@ static void service_recv_cb(
             memcpy(&c, msg->msg.payload, sizeof(char));
             grading_rpc_handler_serial_putchar(c);
 
-#ifdef SERIAL_SERVER_USE_KERNEL
-            //            do_putchar_sys(c);
-#else
-//            do_putchar_usr(c);
-#endif
-            do_putchar_sys(c);
-
+            // do_putchar_sys(c);
+            do_putchar_usr(c);
 
             break;
         case Method_Serial_Getchar:
@@ -239,11 +233,8 @@ static void service_recv_cb(
             struct serial_getchar_req *req_getchar = (struct serial_getchar_req *) &msg->msg.payload;
             grading_rpc_handler_serial_getchar();
 
-#ifdef SERIAL_SERVER_USE_KERNEL
-            do_getchar_sys(rpc, msg, req_getchar);
-#else
+            // do_getchar_sys(rpc, msg, req_getchar);
             do_getchar_usr(rpc, msg, req_getchar);
-#endif
             break;
         default:
             debug_printf("unknown method given: %d\n", msg->msg.method);

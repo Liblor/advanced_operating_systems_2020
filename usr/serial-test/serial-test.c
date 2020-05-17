@@ -189,6 +189,7 @@ static void printf_test(void)
     }
 }
 
+__unused
 static void spawn_serial_tests(void) {
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
     domainid_t pid;
@@ -206,12 +207,12 @@ int main(int argc, char *argv[])
 //     test_serial();
 //    write_simple();
 //    debug_printf("write_simple: ok\n");
-//    read_loop();
+    read_loop();
 
 //    printf_test();
 
     // write_simple_threads();
-    spawn_serial_tests();
+//    spawn_serial_tests();
     debug_printf("done\n");
 
     return EXIT_SUCCESS;
