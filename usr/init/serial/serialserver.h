@@ -2,8 +2,7 @@
 #define _USR_INIT_SERIALSERVER_H_
 
 #include <aos/aos_rpc.h>
-
-
+#include "circular_buf.h"
 
 #define SERIAL_SERVER_DEBUG_ON
 
@@ -16,23 +15,17 @@
 // enable to use kernel functions instead of userspace
 // #define SERIAL_SERVER_USE_KERNEL
 
-#define READ_DATA_SLOTS 256
+#define SERIAL_BUF_SLOTS 256
 
-struct serial_read_slot {
+struct serial_buf_entry {
     char val;
-};
-
-struct serial_read_data {
-    bool full;
-    size_t head;
-    size_t tail;
-    struct serial_read_slot data[READ_DATA_SLOTS];
-};
+} __packed;
 
 struct serialserver_state {
-    // struct serial_read_data ring_buffer;
     serial_session_t curr_read_session;
-    struct aos_rpc * deferred_rpc;
+    struct aos_rpc *deferred_rpc;
+    struct cbuf serial_buf;
+    struct serial_buf_entry serial_buf_data[SERIAL_BUF_SLOTS];
 
 };
 

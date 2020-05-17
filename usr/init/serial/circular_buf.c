@@ -41,6 +41,10 @@ errval_t cbuf_put2(struct cbuf *buf, void *data_entry)
     return SYS_ERR_OK;
 }
 
+bool cbuf_empty(struct cbuf *buf)
+{
+    return buf->head == buf->tail && !buf->full;
+}
 
 errval_t cbuf_get(struct cbuf *buf, void **ret_data)
 {
@@ -51,6 +55,13 @@ errval_t cbuf_get(struct cbuf *buf, void **ret_data)
     cbuf_retreat(buf);
 
     return SYS_ERR_OK;
+}
+
+void cbuf_reset(struct cbuf *buf)
+{
+    buf->tail = 0;
+    buf->head = 0;
+    buf->full = false;
 }
 
 errval_t

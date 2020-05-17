@@ -30,8 +30,12 @@ errval_t cbuf_init(struct cbuf *buf, void *data, size_t entry_size, size_t max_e
 
 bool cbuf_empty(struct cbuf *buf);
 
-void cbut_put(struct cbuf *buf, void *data);
+// put and overwrite if full
+void cbuf_put(struct cbuf *buf, void *data_entry);
 
+void cbuf_reset(struct cbuf *buf);
+
+// put only if space available, error otherwise
 errval_t cbuf_put2(struct cbuf *buf, void *data);
 
 errval_t cbuf_get(struct cbuf *buf, void **ret_data);
