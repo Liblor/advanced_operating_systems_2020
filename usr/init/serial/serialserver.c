@@ -13,10 +13,6 @@ static struct rpc_ump_server server;
 
 static struct serialserver_state serial_state;
 
-// TODO: replace this with uuid
-static uint64_t session_ctr;
-
-
 // --------- urpc marshalling --------------
 
 static errval_t reply_char(
@@ -75,14 +71,13 @@ static void send_getchar_reply(
 
 // --------- serial handling --------------
 
-// TODO: replace this by uuid or similar
+// TODO: replace this with random id to prevent hijacking
 static uint64_t new_session(void)
 {
-    uint64_t s = session_ctr;
-    session_ctr++;
+    uint64_t s = serial_state.read_session_ctr;
+    serial_state.read_session_ctr++;
     return s;
 }
-
 
 __unused
 static void
@@ -95,9 +90,8 @@ do_getchar_usr(
     errval_t err;
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
-        SERIAL_SERVER_DEBUG("creating new serial session: %d\n", req_getchar->session);
+        SERIAL_SERVER_DEBUG("new serial session: %d\n", req_getchar->session);
     }
-
     // read is occupied, try again
     if (serial_state.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
         serial_state.curr_read_session != req_getchar->session) {
@@ -106,23 +100,23 @@ do_getchar_usr(
             DEBUG_ERR(err, "reply_char() failed");
         }
 
-        SERIAL_SERVER_DEBUG("session is occupied: \n");
+        // SERIAL_SERVER_DEBUG("session is occupied: \n");
         return;
     }
-
     // read is free
     if (serial_state.curr_read_session == SERIAL_GETCHAR_SESSION_UNDEF) {
         serial_state.curr_read_session = req_getchar->session;
+        SERIAL_SERVER_DEBUG("request with session %d got serial port\n", req_getchar->session);
 
         // disable read iqr to prevent race conditions
         dispatcher_handle_t d = disp_disable();
         cbuf_reset(&serial_state.serial_buf);
         disp_enable(d);
     }
-
     if (cbuf_empty(&serial_state.serial_buf)) {
         // SERIAL_SERVER_DEBUG("deferring request \n");
         serial_state.deferred_rpc = rpc;
+
         return;
     } else {
         send_getchar_reply(rpc);
@@ -206,10 +200,13 @@ static void service_recv_cb(
             grading_rpc_handler_serial_putchar(c);
 
 #ifdef SERIAL_SERVER_USE_KERNEL
-            putchar_sys(c);
+//            do_putchar_sys(c);
 #else
-            do_putchar_usr(c);
+//            do_putchar_usr(c);
 #endif
+            do_putchar_sys(c);
+
+
             break;
         case Method_Serial_Getchar:
             if (msg->msg.payload_length != sizeof(struct serial_getchar_req)) {
@@ -250,9 +247,7 @@ errval_t serialserver_init(void)
 
     memset(&serial_state, 0, sizeof(struct serialserver_state));
     serial_state.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
-
-    // TODO replace with uuid
-    session_ctr = 0;
+    serial_state.read_session_ctr = 0;
 
     err = cbuf_init(&serial_state.serial_buf,
                     &serial_state.serial_buf_data,
@@ -261,6 +256,7 @@ errval_t serialserver_init(void)
     if (err_is_fail(err)) {
         return err;
     }
+
     err = serial_driver_init();
     if (err_is_fail(err)) {
         debug_printf("error in shell_init(): %s\n", err_getstring(err));
@@ -279,5 +275,6 @@ errval_t serialserver_init(void)
         debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
+
     return SYS_ERR_OK;
 }

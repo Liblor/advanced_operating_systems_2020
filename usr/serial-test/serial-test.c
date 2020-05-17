@@ -189,6 +189,14 @@ static void printf_test(void)
     }
 }
 
+static void spawn_serial_tests(void) {
+    struct aos_rpc *rpc = aos_rpc_get_process_channel();
+    domainid_t pid;
+
+    aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+    aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+}
+
 
 __unused
 int main(int argc, char *argv[])
@@ -198,12 +206,12 @@ int main(int argc, char *argv[])
 //     test_serial();
 //    write_simple();
 //    debug_printf("write_simple: ok\n");
-    read_loop();
+//    read_loop();
 
 //    printf_test();
 
     // write_simple_threads();
-
+    spawn_serial_tests();
     debug_printf("done\n");
 
     return EXIT_SUCCESS;

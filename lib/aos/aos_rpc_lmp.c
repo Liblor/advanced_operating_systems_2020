@@ -192,7 +192,16 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 static errval_t
 validate_serial_getchar(struct lmp_recv_msg *msg, enum pending_state state)
 {
-    return validate_recv_header(msg, state, Method_Serial_Getchar);
+    if (state == EmptyState) {
+        return_err(msg == NULL, "msg is null");
+        return_err(sizeof(uint64_t) * msg->buf.buflen < sizeof(struct rpc_message_part),
+                   "invalid buflen");
+        const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+        return_err(((msg_part->status != Status_Ok)
+                    && msg_part->status != Serial_Getchar_Occupied), "status not ok");
+        return_err(msg_part->method != Method_Serial_Getchar, "wrong method in response");
+    }
+    return SYS_ERR_OK;
 }
 
 errval_t
@@ -210,24 +219,38 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     msg->msg.payload_length = sizeof(struct serial_getchar_req);
     msg->msg.status = Status_Ok;
 
-    struct serial_getchar_req payload;
-    payload.session = channel_data->read_session;
-    memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
-
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
+    struct serial_getchar_req payload;
+
+    struct serial_getchar_reply reply;
+
+    while(1) {
+        payload.session = channel_data->read_session;
+        memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
+        err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
+
+        if (err_is_fail(err)) {
+            return err;
+        }
+
+        // always use memcpy when dealing with payload[0] (alignment issues)
+        memcpy(&reply, recv->msg.payload, sizeof(struct serial_getchar_reply));
+
+        // update session if we got one from server
+        if (reply.session != SERIAL_GETCHAR_SESSION_UNDEF) {
+            thread_mutex_lock_nested(&rpc->mutex);
+            channel_data->read_session = reply.session;
+            thread_mutex_unlock(&rpc->mutex);
+        }
+        if (recv->msg.status == Status_Ok) {
+            break;
+        } else {
+            // server was busy, try again
+            thread_yield();
+        }
+    }
     if (err_is_fail(err)) {
         return err;
-    }
-
-    // always use memcpy when dealing with payload[0] (alignment issues)
-    struct serial_getchar_reply reply;
-    memcpy(&reply, recv->msg.payload, sizeof(struct serial_getchar_reply));
-
-    if (reply.session != SERIAL_GETCHAR_SESSION_UNDEF) {
-        thread_mutex_lock_nested(&rpc->mutex);
-        channel_data->read_session = reply.session;
-        thread_mutex_unlock(&rpc->mutex);
     }
 
     *retc = reply.data;

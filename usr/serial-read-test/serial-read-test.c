@@ -6,6 +6,15 @@
 #include <spawn/spawn.h>
 #include <aos/string.h>
 
+#include <unistd.h>
+
+__unused
+static void clearScreen(void)
+{
+    printf("\e[1;1H\e[2J");
+    fflush(stdout);
+}
+
 __unused
 static void read_loop(void)
 {
@@ -22,16 +31,20 @@ static void read_loop(void)
     do {
         char c;
         err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        if (err_is_fail(err)) {
+            thread_yield();
+            continue;
+        }
 
         if (IS_CHAR_LINEBREAK(c)) {
-            buf[i] = 0;
-            printf("\r\n");
-            printf("You typed: '%s' \r\n", &buf);
-            fflush(stdout);
+            // clearScreen();
+             printf("\n\rYou typed: '%s' \n\r", &buf);
+//            debug_printf("you typed: %s\n", &buf);
+//            fflush(stdout);
+            memset(&buf,0, 2048);
             i = 0;
         } else {
             buf[i] = c;
-            fflush(stdout);
             printf("%c", c);
             fflush(stdout);
             i++;
@@ -52,8 +65,10 @@ __unused
 int main(int argc, char *argv[])
 {
     printf("Running serial-read test...\n");
+    read_loop();
 
-    printf("done serial-read-test\n");
+    fflush(stdout);
+
 
     return EXIT_SUCCESS;
 }
