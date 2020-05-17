@@ -77,13 +77,34 @@ static void print_loop(void)
     }
 }
 
+
+__unused
+static void scanf_test(void)
+{
+    __unused systime_t t = systime_now();
+    char c = 0;
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+
+    printf("type a key: \r\n");
+    errval_t err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    printf("you typed: %c\r\n", c);
+
+    if(err_is_fail(err)) {
+        DEBUG_ERR(err, "");
+    }
+
+}
+
+
+
 __unused
 int main(int argc, char *argv[])
 {
     printf("Running serial-read test...\r\n");
 
-    read_newline();
-    read_newline();
+//    read_newline();
+//    read_newline();
+    scanf_test();
 
 
     fflush(stdout);

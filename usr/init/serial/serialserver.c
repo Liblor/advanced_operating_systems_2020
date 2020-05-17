@@ -13,6 +13,21 @@ static struct rpc_ump_server server;
 
 static struct serialserver_state serial_state;
 
+static void release_session(void) {
+    SERIAL_SERVER_DEBUG("releasing session %d\n", serial_state.curr_read_session);
+    serial_state.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
+}
+
+// TODO: replace this with random id to prevent hijacking
+static uint64_t new_session(void)
+{
+    uint64_t s = serial_state.read_session_ctr;
+    SERIAL_SERVER_DEBUG("new serial session: %d\n", s);
+    serial_state.read_session_ctr++;
+    return s;
+}
+
+
 // --------- urpc marshalling --------------
 
 static errval_t reply_char(
@@ -58,9 +73,9 @@ static void send_getchar_reply(
 
     char res_char = entry->val;
     serial_session_t session = serial_state.curr_read_session;
-    if (IS_CHAR_LINEBREAK(res_char)) {
 
-        serial_state.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
+    if (IS_CHAR_LINEBREAK(res_char)) {
+        release_session();
     }
 
     err = reply_char(rpc, session, res_char, Status_Ok);
@@ -70,14 +85,6 @@ static void send_getchar_reply(
 }
 
 // --------- serial handling --------------
-
-// TODO: replace this with random id to prevent hijacking
-static uint64_t new_session(void)
-{
-    uint64_t s = serial_state.read_session_ctr;
-    serial_state.read_session_ctr++;
-    return s;
-}
 
 __unused
 static void
@@ -90,7 +97,6 @@ do_getchar_usr(
     errval_t err;
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
-        SERIAL_SERVER_DEBUG("new serial session: %d\n", req_getchar->session);
     }
     // read is occupied, try again
     if (serial_state.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
@@ -106,7 +112,7 @@ do_getchar_usr(
     // read is free
     if (serial_state.curr_read_session == SERIAL_GETCHAR_SESSION_UNDEF) {
         serial_state.curr_read_session = req_getchar->session;
-        SERIAL_SERVER_DEBUG("request with session %d got serial port\n", req_getchar->session);
+        SERIAL_SERVER_DEBUG("session %d acquired serial port\n", req_getchar->session);
 
         // disable read iqr to prevent race conditions
         dispatcher_handle_t d = disp_disable();
@@ -190,8 +196,15 @@ static void read_irq_cb(
     cbuf_put(&serial_state.serial_buf, &data);
 
     if (serial_state.deferred_rpc != NULL) {
+        // reply and release session if newline arrives
         send_getchar_reply(serial_state.deferred_rpc);
         serial_state.deferred_rpc = NULL;
+    } else {
+        // we serve chars on a line basis so a newline
+        // frees a locked session
+        if (IS_CHAR_LINEBREAK(c)) {
+            release_session();
+        }
     }
 }
 

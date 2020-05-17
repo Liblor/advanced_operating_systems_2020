@@ -8,7 +8,7 @@
 
 #define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH * sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
-#define GETCHAR_DEVICE_BUSY_RETRY_COUNT (100) ///< retry count before handing control back to user
+#define GETCHAR_DEVICE_BUSY_RETRY_COUNT (1000) ///< retry count before handing control back to user
 
 #define LMP_SEGMENT_SIZE (sizeof(uintptr_t) * LMP_MSG_LENGTH)
 

@@ -195,24 +195,41 @@ static void spawn_serial_tests(void) {
     domainid_t pid;
 
     aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
-    aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+    // aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
 }
 
 
 __unused
 int main(int argc, char *argv[])
 {
+    errval_t err;
     debug_printf("Running RPC tests...\n");
+    char c;
+    printf("type any key to spawn serial-read-test\r\n");
+
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    if(err_is_fail(err)) {
+        DEBUG_ERR(err, "");
+    }
+    spawn_serial_tests();
+    printf("type any key to spawn serial-read-test\r\n");
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    if(err_is_fail(err)) {
+        DEBUG_ERR(err, "");
+    }
+
 
 //     test_serial();
 //    write_simple();
 //    debug_printf("write_simple: ok\n");
-    read_loop();
+//    read_loop();
 
 //    printf_test();
 
     // write_simple_threads();
-//    spawn_serial_tests();
+
     debug_printf("done\n");
 
     return EXIT_SUCCESS;

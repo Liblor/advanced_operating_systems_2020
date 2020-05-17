@@ -83,7 +83,7 @@ __attribute__((__used__))
 static size_t aos_terminal_read(char *buf, size_t len)
 {
     errval_t err;
-
+    debug_printf("aos_terminal_read: size: %d\n", len);
     struct aos_rpc *serial_rpc = aos_rpc_get_serial_channel();
     size_t i = 0;
 
