@@ -385,6 +385,12 @@ validate_block_driver_read_block(struct lmp_recv_msg *msg, enum pending_state st
     return validate_recv_header(msg, state, Method_Block_Driver_Read_Block);
 }
 
+static errval_t
+validate_block_driver_write_block(struct lmp_recv_msg *msg, enum pending_state state)
+{
+    return validate_recv_header(msg, state, Method_Block_Driver_Write_Block);
+}
+
 errval_t aos_rpc_lmp_block_driver_read_block(
     struct aos_rpc *rpc,
     uint32_t index,
@@ -407,6 +413,39 @@ errval_t aos_rpc_lmp_block_driver_read_block(
     }
     assert(recv->msg.payload_length == 512);
     memcpy(buf, recv->msg.payload, MIN(buf_size, recv->msg.payload_length));
+
+    err = SYS_ERR_OK;
+    goto clean_up;
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_block_driver_write_block(
+    struct aos_rpc *rpc,
+    uint32_t index,
+    void *buf,
+    size_t block_size
+) {
+    errval_t err;
+    if (block_size != 512) {
+        return BLOCK_DRIVER_ERR_UNSUPPORTED_BLOCK_SIZE;
+    }
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(index) + block_size];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->cap = NULL_CAP;
+    msg->msg.method = Method_Block_Driver_Write_Block;
+    msg->msg.payload_length = sizeof(index) + block_size;
+    msg->msg.status = Status_Ok;
+
+    struct rpc_message *recv = NULL;
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_block_driver_write_block);
+    if (err_is_fail(err)) {
+        goto clean_up;
+    }
 
     err = SYS_ERR_OK;
     goto clean_up;
@@ -595,6 +634,14 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
  * \brief Returns the channel to the serial console.
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
+{
+    return aos_rpc_lmp_get_monitor_channel();
+}
+
+/**
+ * \brief Returns the channel to the block driver
+ */
+struct aos_rpc *aos_rpc_lmp_get_block_driver_channel(void)
 {
     return aos_rpc_lmp_get_monitor_channel();
 }

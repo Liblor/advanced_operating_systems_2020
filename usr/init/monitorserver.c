@@ -132,7 +132,13 @@ static void service_recv_cb(
         }
         err = monitor_forward_receive(msg, rpc, &mss->processserver_rpc.ump_rpc);
         break;
-
+    case Method_Block_Driver_Read_Block:
+    case Method_Block_Driver_Write_Block:
+            if (! is_registered(&mss->blockdriverserver_rpc)) {
+                goto unregistered_service;
+            }
+            err = monitor_forward_receive(msg, rpc, &mss->blockdriverserver_rpc.ump_rpc);
+            break;
 	default:
         debug_printf("monitorserver unknown method given: type: %d\n", msg->msg.method);
 	}

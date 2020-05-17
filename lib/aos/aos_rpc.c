@@ -114,6 +114,14 @@ errval_t aos_rpc_block_driver_read_block(struct aos_rpc *rpc, uint32_t index, vo
     return aos_rpc_lmp_block_driver_read_block(rpc, index, buf, buf_size);
 }
 
+errval_t aos_rpc_block_driver_write_block(struct aos_rpc *rpc, uint32_t index, void *buf, size_t block_size)
+{
+    if (block_size != 512) {
+        return BLOCK_DRIVER_ERR_UNSUPPORTED_BLOCK_SIZE;
+    }
+    return aos_rpc_lmp_block_driver_write_block(rpc, index, buf, block_size);
+}
+
 errval_t aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes, struct capref *ret_cap)
 {
     return aos_rpc_lmp_get_device_cap(rpc, paddr, bytes, ret_cap);
@@ -149,4 +157,12 @@ struct aos_rpc *aos_rpc_get_process_channel(void)
 struct aos_rpc *aos_rpc_get_serial_channel(void)
 {
     return aos_rpc_lmp_get_serial_channel();
+}
+
+/**
+ * \brief Returns the channel to the block driver
+ */
+struct aos_rpc *aos_rpc_get_block_driver_channel(void)
+{
+    return aos_rpc_lmp_get_block_driver_channel();
 }

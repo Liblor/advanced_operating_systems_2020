@@ -70,9 +70,11 @@ static inline errval_t read_block(
     struct block_driver_state *server_state
 ) {
     errval_t err;
+    // why does this not work?
+    arm64_dcache_wbinv_range(server_state->read_vaddr, SDHC_BLOCK_SIZE);
     err = sdhc_read_block(sdhc_s, index, server_state->read_paddr);
     if (err_is_fail(err)) { return err; }
-    arm64_dcache_inv_range(server_state->read_vaddr, SDHC_BLOCK_SIZE);
+    debug_printf("0x%x\n", *((int *)server_state->read_vaddr));
     return SYS_ERR_OK;
 }
 
@@ -106,7 +108,6 @@ static errval_t handle_read_block(
         reply_error(rpc, Method_Block_Driver_Read_Block);
         return err;
     }
-    memset((void *)server_state->read_vaddr, 0, SDHC_BLOCK_SIZE);
     return SYS_ERR_OK;
 }
 
@@ -182,10 +183,11 @@ static inline errval_t init_block_driver_state(struct block_driver_state *st)
     if (size < BASE_PAGE_SIZE) {
         return LIB_ERR_FRAME_ALLOC_SIZE;
     }
-    err = paging_map_frame(
+    err = paging_map_frame_attr(
         get_current_paging_state(),
         (void **)&st->read_vaddr,
         size, st->frame,
+        VREGION_FLAGS_READ_WRITE_NOCACHE,
         0,
         0
     );
