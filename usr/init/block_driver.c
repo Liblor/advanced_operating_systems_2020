@@ -9,7 +9,7 @@
 #include "block_driver.h"
 
 static struct rpc_ump_server server;
-struct sdhc_s *sdhc_s;
+static struct sdhc_s *sdhc_s;
 
 static inline errval_t reply_error(
         struct aos_rpc *rpc,
