@@ -120,7 +120,7 @@ struct sdhc_s {
 
 struct cmd {
     uint16_t     cmdidx;
-    int cmdarg;
+    unsigned int cmdarg;
     unsigned int resp_type;
     unsigned int response[4]; // The response of the command
     genpaddr_t   dma_base;    // If a data transfer is necessary, use this
