@@ -632,13 +632,24 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
  * \return Either SYS_ERR_OK if no error occured or an error
  * indicating what went wrong otherwise.
  */
-errval_t spawn_load_by_name(char *binary_name, struct spawninfo * si, domainid_t *pid)
+errval_t spawn_load_by_name(char *cmd, struct spawninfo * si, domainid_t *pid)
 {
     // TODO: Return an error instead.
     assert(si != NULL);
     assert(pid != NULL);
 
     errval_t err;
+
+    // Check if there were arguments passed. If not, use static arguments from
+    // the module list.
+    char *ptr = strchrnul(cmd, ' ');
+    bool get_static_opts = ptr[0] == '\0';
+
+    // Extract binary name to look up module
+    uint64_t binary_name_len = ptr - cmd;
+    char binary_name[binary_name_len + 1];
+    memcpy(binary_name, cmd, binary_name_len);
+    binary_name[binary_name_len] = '\0';
 
     // Get the mem_region from the multiboot image.
     si->module = multiboot_find_module(bi, binary_name);
@@ -647,10 +658,15 @@ errval_t spawn_load_by_name(char *binary_name, struct spawninfo * si, domainid_t
         return SPAWN_ERR_FIND_MODULE;
     }
 
-    const char *opts = multiboot_module_opts(si->module);
-    if (opts == NULL) {
-        debug_printf("multiboot_module_opts() failed\n");
-        return SPAWN_ERR_GET_CMDLINE_ARGS;
+    char *opts;
+    if (get_static_opts) {
+        opts = (char *) multiboot_module_opts(si->module);
+        if (opts == NULL) {
+            debug_printf("multiboot_module_opts() failed\n");
+            return SPAWN_ERR_GET_CMDLINE_ARGS;
+        }
+    } else {
+        opts = cmd;
     }
 
     int argc;
