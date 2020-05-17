@@ -104,10 +104,13 @@ errval_t ethernet_send(
     assert((void *) base != NULL);
 
     debug_printf("Sending buffer of size 0x%zx.\n", size + sizeof(struct eth_hdr));
+    debug_dump_mem(base, base + size, 0);
 
+    /* TODO: Check if offset is in bounds. */
     const genoffset_t offset = base - state->tx_base - sizeof(struct eth_hdr);
-    struct devq_buf buf;
 
+    /* TODO: Check if valid length exceeds length. */
+    struct devq_buf buf;
     buf.rid = state->tx_rid;
     buf.offset = offset;
     buf.length = ENET_MAX_BUF_SIZE;
@@ -201,7 +204,8 @@ static enum ethernet_type ethernet_get_type(
 
 errval_t ethernet_process(
     struct ethernet_state *state,
-    const lvaddr_t base
+    const lvaddr_t base,
+    const gensize_t size
 )
 {
     errval_t err;
@@ -216,6 +220,9 @@ errval_t ethernet_process(
 
     const enum ethernet_type type = ethernet_get_type(state, packet);
     const lvaddr_t newbase = base + sizeof(struct eth_hdr);
+    const gensize_t newsize = size - sizeof(struct eth_hdr) - ETH_CRC_LEN;
+
+    debug_printf("Ethernet packet payload has size %d.\n", newsize);
 
     switch (type) {
     case ETHERNET_TYPE_ARP:
@@ -231,7 +238,7 @@ errval_t ethernet_process(
     case ETHERNET_TYPE_IPV4:
         debug_printf("Packet is of type IPv4.\n");
 
-        err = ip_process(&state->ip_state, newbase);
+        err = ip_process(&state->ip_state, newbase, newsize);
         if (err_is_fail(err)) {
             debug_printf("ip_process() failed: %s\n", err_getstring(err));
             return err;

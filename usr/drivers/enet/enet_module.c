@@ -704,9 +704,9 @@ static errval_t enet_serve(
     const lvaddr_t base = st->rx_base + buf.offset + buf.valid_data;
 
     debug_printf("Received packet of size %lu.\n", buf.valid_length);
-    debug_dump_mem(base, base + buf.valid_length, st->rx_base);
+    //debug_dump_mem(base, base + buf.valid_length, st->rx_base);
 
-    err = ethernet_process(&st->eth_state, base);
+    err = ethernet_process(&st->eth_state, base, buf.valid_length);
     if (err_is_fail(err)) {
         debug_printf("ethernet_process() failed: %s\n", err_getstring(err));
         /* We do not need to return, this error is not critical. */

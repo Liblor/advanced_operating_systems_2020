@@ -12,6 +12,7 @@
 #include "ip.h"
 
 #define OWN_IP_ADDRESS (MK_IP(2, 0, 0, 10))
+#define ETHERNET_MAX_PAYLOAD (1500)
 
 #define ARP_QUERY(eth_state, ip, mac) arp_query(&((eth_state)->arp_state), ip, mac)
 
@@ -59,7 +60,8 @@ errval_t ethernet_send(
 
 errval_t ethernet_process(
     struct ethernet_state *state,
-    const lvaddr_t base
+    const lvaddr_t base,
+    const gensize_t size
 );
 
 #endif

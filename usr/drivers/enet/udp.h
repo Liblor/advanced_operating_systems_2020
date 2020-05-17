@@ -20,6 +20,7 @@ errval_t udp_initialize(
 errval_t udp_process(
     struct udp_state *state,
     const lvaddr_t base,
+    const gensize_t size,
     const struct ip_context *context
 );
 

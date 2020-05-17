@@ -26,6 +26,7 @@ errval_t icmp_initialize(
 errval_t icmp_process(
     struct icmp_state *state,
     const lvaddr_t base,
+    const gensize_t size,
     const struct ip_context *context
 );
 

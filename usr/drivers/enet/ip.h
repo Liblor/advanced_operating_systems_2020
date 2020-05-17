@@ -33,9 +33,18 @@ errval_t ip_initialize(
     const ip_addr_t ip
 );
 
+errval_t ip_send_packet(
+    struct ip_state *state,
+    const enum ip_type type,
+    const ip_addr_t ip,
+    const lvaddr_t base,
+    const gensize_t size
+);
+
 errval_t ip_process(
     struct ip_state *state,
-    lvaddr_t base
+    const lvaddr_t base,
+    const gensize_t size
 );
 
 #endif
