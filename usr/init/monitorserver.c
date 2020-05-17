@@ -64,7 +64,6 @@ cleanup:
     return err;
 }
 
-
 static inline errval_t monitor_forward(
         struct rpc_message *msg,
         struct aos_rpc *forward_to
@@ -113,6 +112,7 @@ static void service_recv_cb(
         err = monitor_forward(msg, &mss->initserver_rpc.ump_rpc);
         break;
     case Method_Serial_Putchar:
+    case Method_Serial_Putstr:
         if (! is_registered(&mss->serialserver_rpc)) {
             goto unregistered_service;
         }

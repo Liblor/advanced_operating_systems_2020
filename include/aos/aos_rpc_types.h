@@ -12,6 +12,7 @@ enum rpc_message_method {
     Method_Send_String,
     Method_Serial_Putchar,
     Method_Serial_Getchar,
+    Method_Serial_Putstr,
     Method_Process_Get_Name,
     Method_Process_Get_All_Pids,
     Method_Spawn_Process,

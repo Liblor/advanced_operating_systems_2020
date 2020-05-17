@@ -170,6 +170,18 @@ static void do_putchar_usr(
 }
 
 __unused
+static void do_putstr_usr(
+        char *str, size_t len
+)
+{
+    errval_t err;
+    err = serial_driver_write_str(str, len);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "sys_print() failed");
+    }
+}
+
+__unused
 static void read_irq_cb(
         char c
 )
@@ -194,13 +206,24 @@ static void service_recv_cb(
 {
     char c;
     switch (msg->msg.method) {
+        case Method_Serial_Putstr: {
+            // TODO: should we forward putstr to grading too?
+            {
+                char *cptr = (char *) msg->msg.payload;
+                for (size_t i = 0; i < msg->msg.payload_length; i++) {
+                    grading_rpc_handler_serial_putchar(*(cptr + i));
+                }
+            }
+            // debug_printf("Method_Serial_Putstr: %d: '%s'\n", msg->msg.payload_length, msg->msg.payload);
+            do_putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
+            break;
+        }
         case Method_Serial_Putchar:
             memcpy(&c, msg->msg.payload, sizeof(char));
-
             grading_rpc_handler_serial_putchar(c);
 
 #ifdef SERIAL_SERVER_USE_KERNEL
-//            do_putchar_sys(c);
+            //            do_putchar_sys(c);
 #else
 //            do_putchar_usr(c);
 #endif

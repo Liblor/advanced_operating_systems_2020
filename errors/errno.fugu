@@ -1400,6 +1400,7 @@ errors aos AOS_ERR_ {
     failure MONITOR_ALREADY_REGISTERED_RPC "Monitor already registered binding for RPC type",
 
     failure SERIAL_SERVER_READ_OCCUPIED "Read session is currently occupied. Try again. ",
+    failure SERIAL_BUSY "Serial device currently not available. try again",
 };
 
 // errors for collections

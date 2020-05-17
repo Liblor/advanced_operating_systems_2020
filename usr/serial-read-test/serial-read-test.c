@@ -7,6 +7,7 @@
 #include <aos/string.h>
 
 #include <unistd.h>
+#include <aos/systime.h>
 
 __unused
 static void clearScreen(void)
@@ -16,7 +17,7 @@ static void clearScreen(void)
 }
 
 __unused
-static void read_loop(void)
+static void read_newline(void)
 {
     errval_t err;
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
@@ -24,35 +25,39 @@ static void read_loop(void)
     const size_t buf_size = 2048;
     char buf[2048];
     memset(&buf, 0, buf_size);
+    systime_t id = systime_now();
+    printf("[%d] Write something and hit return: ", id);
 
-    printf("Write something and hit return\r\n");
 
     int i = 0;
-    do {
-        char c;
-        err = aos_rpc_lmp_serial_getchar(rpc, &c);
-        if (err_is_fail(err)) {
-            thread_yield();
-            continue;
-        }
 
-        if (IS_CHAR_LINEBREAK(c)) {
-            // clearScreen();
-             printf("\n\rYou typed: '%s' \n\r", &buf);
-//            debug_printf("you typed: %s\n", &buf);
-//            fflush(stdout);
-            memset(&buf,0, 2048);
+    char c;
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    if (err != AOS_ERR_SERIAL_BUSY) {
+        debug_printf("we timeout because device is busy\n");
+        return;
+    }
+    if (err_is_fail(err)) {
+        return;
+    }
+
+    if (IS_CHAR_LINEBREAK(c)) {
+        // clearScreen();
+        printf("\r\n");
+        printf("[%d] You typed: '%s'\r\n", id, &buf);
+        fflush(stdout);
+        memset(&buf, 0, 2048);
+        i = 0;
+    } else {
+        buf[i] = c;
+        printf("%c", c);
+        fflush(stdout);
+        i++;
+        if (i == buf_size) {
             i = 0;
-        } else {
-            buf[i] = c;
-            printf("%c", c);
-            fflush(stdout);
-            i++;
-            if (i == buf_size) {
-                i = 0;
-            }
         }
-    } while (err_is_ok(err));
+    }
+
 
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
@@ -61,11 +66,25 @@ static void read_loop(void)
     debug_printf("\n");
 }
 
+
+__unused
+static void print_loop(void)
+{
+    systime_t t = systime_now();
+    while (1) {
+        // test correct delivery of whole message
+        printf("%zu, Im running in a loop\r\n", t);
+    }
+}
+
 __unused
 int main(int argc, char *argv[])
 {
-    printf("Running serial-read test...\n");
-    read_loop();
+    printf("Running serial-read test...\r\n");
+
+    read_newline();
+    read_newline();
+
 
     fflush(stdout);
 

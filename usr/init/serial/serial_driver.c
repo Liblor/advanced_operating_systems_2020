@@ -188,8 +188,7 @@ errval_t serial_driver_write_str(char *str, size_t len)
 {
     errval_t err = SYS_ERR_OK;
     for (int i = 0; i < len && err_is_ok(err); i++) {
-        err = serial_driver_write(*str);
-        str++;
+        err = serial_driver_write(*(str + i));
     }
     return err;
 }
