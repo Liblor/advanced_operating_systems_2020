@@ -14,6 +14,7 @@
 #include <aos/coreboot.h>
 #include <aos/kernel_cap_invocations.h>
 #include <aos/aos_rpc_ump.h>
+#include <aos/deferred.h>
 #include <maps/imx8x_map.h>
 
 #include "first_main.h"
@@ -315,6 +316,49 @@ static void setup_core(
     register_service_channels(rpc, mpid);
 }
 
+static void serve_periodic_urpc_event(void *args) {
+    errval_t err;
+    err = initserver_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in initserver_serve_next");
+        abort();
+    }
+    err = serialserver_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in initserver_serve_next");
+        abort();
+    }
+    err = processserver_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in initserver_serve_next");
+        abort();
+    }
+    err = block_driver_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in block_dirver_serve_next");
+        abort();
+    }
+    err = memoryserver_ump_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in initserver_serve_next");
+        abort();
+    }
+}
+
+static errval_t setup_periodic_urpc_events(
+        struct periodic_event *periodic_urpc_ev
+){
+    errval_t  err;
+
+    memset(periodic_urpc_ev, 0, sizeof(struct periodic_event));
+
+    err = periodic_event_create(periodic_urpc_ev,
+                                get_default_waitset(),
+                                PERIODIC_URPC_EVENT_US_FIRST,
+                                MKCLOSURE(serve_periodic_urpc_event, NULL));
+    return err;
+}
+
 int first_main(int argc, char *argv[])
 {
     errval_t err;
@@ -342,6 +386,9 @@ int first_main(int argc, char *argv[])
     struct aos_rpc rpc_core1;
     setup_core(bi, 1, &rpc_core1);
 
+    struct periodic_event periodic_urpc_ev;
+    setup_periodic_urpc_events(&periodic_urpc_ev);
+
     // Grading
     grading_test_late();
 
@@ -360,38 +407,8 @@ int first_main(int argc, char *argv[])
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
-        err = initserver_serve_next();
+        err = event_dispatch(default_ws);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
-        err = serialserver_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
-        err = processserver_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
-        err = memoryserver_ump_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
-        err = block_driver_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in block_dirver_serve_next");
-            abort();
-        }
-
-        err = event_dispatch_non_block(default_ws);
-        if (err != LIB_ERR_NO_EVENT &&  err_is_fail(err)) {
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }

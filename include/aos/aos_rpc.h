@@ -21,7 +21,7 @@
 #include <aos/aos_rpc_ump.h>
 
 // How often a transient error can occur before it's regarded critical.
-#define TRANSIENT_ERR_RETRIES (20)
+#define TRANSIENT_ERR_RETRIES (1000)
 
 enum aos_rpc_type {
     RpcTypeLmp,
