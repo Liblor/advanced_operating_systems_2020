@@ -24,13 +24,14 @@ static errval_t icmp_reply(
     const ip_addr_t ip,
     const uint16_t identifier,
     const uint16_t sequence_number,
-    const uint8_t *base,
+    const lvaddr_t base,
     const gensize_t size
 )
 {
     errval_t err;
 
     assert(state != NULL);
+    assert((void *) base != NULL);
 
     const gensize_t total_size = sizeof(struct icmp_echo_hdr) + size;
     uint8_t buffer[total_size];
@@ -44,7 +45,7 @@ static errval_t icmp_reply(
     packet->seqno = sequence_number;
 
     uint8_t *payload = buffer + sizeof(struct icmp_echo_hdr);
-    memcpy(payload, base, size);
+    memcpy(payload, (void *) base, size);
 
     /* As per RFC 792, for calculating the checksum, the checksum field is set
      * to zero. Note that the checksum is calculated over the full packet, thus
@@ -127,6 +128,7 @@ errval_t icmp_process(
     errval_t err;
 
     assert(state != NULL);
+    assert(context != NULL);
 
     struct icmp_echo_hdr *packet = (struct icmp_echo_hdr *) base;
 
@@ -140,7 +142,7 @@ errval_t icmp_process(
     case ICMP_TYPE_ECHO_REQUEST:
         debug_printf("Packet is of type ECHO REQUEST.\n");
 
-        const uint8_t *payload = (uint8_t *) (base + sizeof(struct icmp_echo_hdr));
+        const lvaddr_t payload = base + sizeof(struct icmp_echo_hdr);
         const gensize_t payload_size = size - sizeof(struct icmp_echo_hdr);
 
         err = icmp_reply(
