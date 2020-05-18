@@ -120,7 +120,7 @@ static size_t aos_terminal_write_str(const char *buf, size_t len)
     errval_t err;
 
     struct aos_rpc *serial_rpc = aos_rpc_get_serial_channel();
-    err = aos_rpc_lmp_serial_putstr(serial_rpc, (char *) buf, len);
+    err = aos_rpc_serial_putstr(serial_rpc, (char *) buf, len);
     if (err_is_fail(err)) {
         return 0;
     }
