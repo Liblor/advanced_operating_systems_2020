@@ -204,7 +204,6 @@ validate_serial_getchar(struct lmp_recv_msg *msg, enum pending_state state)
     return SYS_ERR_OK;
 }
 
-/** returns AOS_ERR_SERIAL_BUSY if device is blocked for too long by someone else **/
 errval_t
 aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
@@ -225,7 +224,10 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 
     struct serial_getchar_reply reply;
 
-    for(size_t retries = 0 ;; retries ++) {
+    // XXX server resets a session on a linebreak
+    // so we can retry forever if device is busy.
+    // we continue if user presses newline if session was previously blocked
+    for(;;) {
         payload.session = channel_data->read_session;
         memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
         err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
@@ -244,10 +246,8 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
             thread_mutex_unlock(&rpc->mutex);
         }
         if (recv->msg.status == Status_Ok) {
+            // server responded ok, return to user
             break;
-        }
-        else if (retries > GETCHAR_DEVICE_BUSY_RETRY_COUNT) {
-            return AOS_ERR_SERIAL_BUSY;
         }
         else {
             // server was busy, try again

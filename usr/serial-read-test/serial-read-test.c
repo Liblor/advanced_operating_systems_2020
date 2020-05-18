@@ -27,38 +27,31 @@ static void read_newline(void)
     memset(&buf, 0, buf_size);
     systime_t id = systime_now();
     printf("[%d] Write something and hit return: ", id);
-
-
     int i = 0;
-
     char c;
-    err = aos_rpc_lmp_serial_getchar(rpc, &c);
-    if (err != AOS_ERR_SERIAL_BUSY) {
-        debug_printf("we timeout because device is busy\n");
-        return;
-    }
-    if (err_is_fail(err)) {
-        return;
-    }
+    while (1) {
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        if (err_is_fail(err)) {
+            return;
+        }
 
-    if (IS_CHAR_LINEBREAK(c)) {
-        // clearScreen();
-        printf("\r\n");
-        printf("[%d] You typed: '%s'\r\n", id, &buf);
-        fflush(stdout);
-        memset(&buf, 0, 2048);
-        i = 0;
-    } else {
-        buf[i] = c;
-        printf("%c", c);
-        fflush(stdout);
-        i++;
-        if (i == buf_size) {
+        if (IS_CHAR_LINEBREAK(c)) {
+            // clearScreen();
+            printf("\r\n");
+            printf("[%d] You typed: '%s'\r\n", id, &buf);
+            fflush(stdout);
+            memset(&buf, 0, 2048);
             i = 0;
+        } else {
+            buf[i] = c;
+            printf("%c", c);
+            fflush(stdout);
+            i++;
+            if (i == buf_size) {
+                i = 0;
+            }
         }
     }
-
-
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
         return;
@@ -89,12 +82,11 @@ static void scanf_test(void)
     errval_t err = aos_rpc_lmp_serial_getchar(rpc, &c);
     printf("you typed: %c\r\n", c);
 
-    if(err_is_fail(err)) {
+    if (err_is_fail(err)) {
         DEBUG_ERR(err, "");
     }
 
 }
-
 
 
 __unused
@@ -102,10 +94,7 @@ int main(int argc, char *argv[])
 {
     printf("Running serial-read test...\r\n");
 
-//    read_newline();
-//    read_newline();
-    scanf_test();
-
+    read_newline();
 
     fflush(stdout);
 

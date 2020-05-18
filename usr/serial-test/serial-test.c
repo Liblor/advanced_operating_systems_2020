@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
     errval_t err;
     debug_printf("Running RPC tests...\n");
     char c;
-    printf("type any key to spawn serial-read-test\r\n");
+    printf("type any key continue\r\n");
 
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
 
@@ -213,13 +213,20 @@ int main(int argc, char *argv[])
     if(err_is_fail(err)) {
         DEBUG_ERR(err, "");
     }
-    spawn_serial_tests();
-    printf("type any key to spawn serial-read-test\r\n");
-    err = aos_rpc_lmp_serial_getchar(rpc, &c);
-    if(err_is_fail(err)) {
-        DEBUG_ERR(err, "");
-    }
 
+    do {
+        printf("type the single digit number of dispatchers to spawn" ENDL);
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        if(err_is_fail(err)) {
+            DEBUG_ERR(err, "");
+        }
+    } while (atoi(&c) < 1 || atoi(&c) > 9);
+
+    for(int i = 0; i < atoi(&c); i ++) {
+        domainid_t pid;
+        printf("spawning %d\r\n", i);
+        aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+    }
 
 //     test_serial();
 //    write_simple();
