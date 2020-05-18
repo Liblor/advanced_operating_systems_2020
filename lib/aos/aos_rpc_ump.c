@@ -129,7 +129,8 @@ errval_t aos_rpc_ump_receive(
 
         // Block until we can receive a message.
         while (!ump_message->used) {
-            thread_yield();
+            // TODO: Investigate why this breaks sdhc
+            //thread_yield();
         }
         BARRIER_DATA;
 
