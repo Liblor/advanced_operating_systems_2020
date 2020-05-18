@@ -405,6 +405,7 @@ errval_t aos_rpc_lmp_block_driver_read_block(
     msg->msg.method = Method_Block_Driver_Read_Block;
     msg->msg.payload_length = sizeof(index);
     msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, &index, sizeof(index));
 
     struct rpc_message *recv = NULL;
     err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_block_driver_read_block);
@@ -440,6 +441,8 @@ errval_t aos_rpc_lmp_block_driver_write_block(
     msg->msg.method = Method_Block_Driver_Write_Block;
     msg->msg.payload_length = sizeof(index) + block_size;
     msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, &index, sizeof(index));
+    memcpy(msg->msg.payload + sizeof(index), buf, block_size);
 
     struct rpc_message *recv = NULL;
     err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_block_driver_write_block);
