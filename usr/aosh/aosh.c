@@ -19,26 +19,52 @@ static errval_t aosh_init(void)
     return SYS_ERR_OK;
 }
 
+static bool aosh_err_recoverable(errval_t err)
+{
+    return err == SYS_ERR_OK ||
+           err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR ||
+           err == AOS_ERR_AOSH_EXIT;
+}
+
 __unused
-static
-void aosh_clear_screen(void)
+static void clear_screen(void)
 {
     printf("\e[1;1H\e[2J");
     fflush(stdout);
 }
 
-__inline
+__unused
+static void trace_args(int argc, char **argv)
+{
+    for (int i = 0; i < argc; i++) {
+        printf("argv[%d] = '%s'" ENDL, i, argv[i]);
+    }
+}
+
+static void free_argv(int argc, char **argv)
+{
+    if (argv == NULL) {
+        return;
+    }
+    for (int i = 0; i < argc; i++) {
+        free(argv[i]);
+    }
+    free(argv);
+}
+
+/** read a line from serial port,
+ *  caller must free line  **/
 static errval_t aosh_readline(
         void **ret_line,
         size_t *ret_size
 )
 {
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-    char c;
     char *buf = calloc(1, AOSH_READLINE_MAX_LEN);
     if (buf == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
+    char c = 0;
     int i = 0;
     errval_t err;
 
@@ -62,7 +88,8 @@ static errval_t aosh_readline(
         debug_printf("AOSH_READLINE_MAX_LEN reached. truncating line\n");
         buf[i - 1] = '\0';
     }
-    if (c == CHAR_CODE_EOT) { // ctrl d {
+    if (c == CHAR_CODE_EOT) {
+        // ctrl d  pressed
         err = AOS_ERR_AOSH_EXIT;
         goto free_buf;
     }
@@ -73,6 +100,7 @@ static errval_t aosh_readline(
         err = LIB_ERR_MALLOC_FAIL;
         goto free_buf;
     }
+
     memcpy(*ret_line, buf, i);
     if (ret_size != NULL) {
         *ret_size = i;
@@ -85,30 +113,15 @@ static errval_t aosh_readline(
 }
 
 __unused
-static void trace_args(int argc, char **argv)
-{
-    for (int i = 0; i < argc; i++) {
-        printf("argv[%d] = '%s'" ENDL, i, argv[i]);
-    }
-}
-
-__unused
-static errval_t execute(char *line, int argc, char **argv)
+static errval_t execute(
+        char *line,
+        int argc,
+        char **argv
+)
 {
     trace_args(argc, argv);
 
     return SYS_ERR_OK;
-}
-
-static void free_argv(int argc, char **argv)
-{
-    if (argv == NULL) {
-        return;
-    }
-    for (int i = 0; i < argc; i++) {
-        free(argv[i]);
-    }
-    free(argv);
 }
 
 static errval_t tokenize_argv(
@@ -191,12 +204,6 @@ static errval_t tokenize_argv(
     return err;
 }
 
-static bool aosh_err_recoverable(errval_t err)
-{
-    return err == SYS_ERR_OK ||
-           err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR ||
-           err == AOS_ERR_AOSH_EXIT;
-}
 
 static errval_t repl(void)
 {
@@ -207,16 +214,14 @@ static errval_t repl(void)
     int argc = 0;
 
     while (1) {
-        printf("aosh >>> ");
+        printf(AOSH_CLI_HEAD);
         fflush(stdout);
 
-        size_t size = 0;
-        err = aosh_readline((void **) &line, &size);
+        err = aosh_readline((void **) &line, NULL);
         printf(ENDL);
 
         if (err == AOS_ERR_AOSH_EXIT) {
             goto err_free_line;
-
         } else if (err_is_fail(err)) {
             debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
             goto err_free_line;
@@ -234,12 +239,13 @@ static errval_t repl(void)
         if (!aosh_err_recoverable(err)) {
             goto err_free_argv;
         }
+
         err = execute(line, argc, argv);
         if (err_is_fail(err)) {
             goto err_free_argv;
         }
 
-        success_free:
+    success_free:
         free(line);
         free_argv(argc, argv);
         line = NULL;
@@ -249,7 +255,7 @@ static errval_t repl(void)
 
     return SYS_ERR_OK;
 
-    err_free_argv:
+err_free_argv:
     free_argv(argc, argv);
     err_free_line:
     free(line);
@@ -266,7 +272,7 @@ int main(int argc, char *argv[])
         debug_printf("failed to init aosh. %s", err_getstring(err));
         return EXIT_FAILURE;
     }
-    aosh_clear_screen();
+    clear_screen();
     printf("Welcome to aosh! "ENDL);
     err = repl();
 
