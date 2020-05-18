@@ -2,6 +2,36 @@
 // Created by b on 5/18/20.
 //
 
+//
+//        if ((!escape_double && line[i] == ' ') || line[i] == '\0') {
+//            // spaces or end of str
+//            buf[buf_i] = '\0';
+//            argv[argc] = &buf[arg_start];
+//            buf_i++;
+//            arg_start = buf_i;
+//            argc++;
+//
+//            if (line[i] == '\0') {
+//                // end of str
+//                break;
+//            }
+//
+//        } else if (IS_CHAR_LINEBREAK(line[i])) {
+//            // newlines
+//            break;
+//        } else if ((line[i] == '"' && i > 1 && line[i - 1] != '\\')
+//                   || (line[i] == '"' && i == 0)) {
+//            // quotation (") which is not escaped signalizes a string
+//            // we dont add (") into the list of parsed args
+//            escape_double = !escape_double;
+//
+//            buf_i++;
+//        } else {
+//            // all other chars
+//            buf[buf_i] = line[i];
+//            buf_i++;
+//        }
+
 #include <stdio.h>
 #include <aos/aos.h>
 #include <aos/debug.h>

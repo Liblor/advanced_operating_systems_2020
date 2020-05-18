@@ -9,8 +9,11 @@
 
 //void aosh_clear_screen(void)
 
-struct aosh_state {
+#define AOSH_READLINE_MAX_LEN 1024
+#define AOSH_MAX_ARGC 32
 
+struct aosh_state {
+    char read_buffer[AOSH_READLINE_MAX_LEN];
 };
 
 #endif //BFOS_AOSH_H

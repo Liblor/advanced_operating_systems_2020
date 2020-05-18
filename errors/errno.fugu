@@ -1405,9 +1405,12 @@ errors aos AOS_ERR_ {
     failure AOSH_INVALID_ESCAPE_CHAR "Invalid escape sequence.",
 };
 
+
+
 // errors for collections
 errors aos COLLECTIONS_ {
     failure RANGETRACKER_ALIGNMENT        "The base or size was not properly aligned",
+    failure COLLECTIONS_LIST_INSERT_TAIL_FAILED "collections_list_insert_tail failed",
 };
 
 // errors NIC driver
