@@ -1,0 +1,128 @@
+//
+// Created by b on 5/18/20.
+//
+
+#include <stdio.h>
+#include <aos/aos.h>
+#include <aos/debug.h>
+
+
+#include <aos/string.h>
+#include "aosh.h"
+
+static struct aosh_state aosh;
+
+static errval_t aosh_init(void)
+{
+    memset(&aosh, 0, sizeof(struct aosh_state));
+    return SYS_ERR_OK;
+}
+
+__unused
+static
+void aosh_clear_screen(void)
+{
+    printf("\e[1;1H\e[2J");
+    fflush(stdout);
+}
+
+#define AOSH_READLINE_MAX_LEN 64
+
+__inline
+static errval_t aosh_readline(
+        void **ret_line,
+        size_t *ret_size
+)
+{
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+    char c;
+    char buf[AOSH_READLINE_MAX_LEN];
+    int i = 0;
+    errval_t err;
+
+    while (i < AOSH_READLINE_MAX_LEN) {
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        if (err_is_fail(err)) {
+            return err;
+        }
+        if (IS_CHAR_LINEBREAK(c)) {
+            buf[i] = '\0';
+            i++;
+            break;
+        } else {
+            buf[i] = c;
+            i++;
+            printf("%c", c);
+            fflush(stdout);
+        }
+    }
+    if (i == AOSH_READLINE_MAX_LEN) {
+        debug_printf("AOSH_READLINE_MAX_LEN reached. truncating line\n");
+        buf[i - 1] = '\0';
+    }
+
+    assert(i <= AOSH_READLINE_MAX_LEN);
+
+    *ret_line = malloc(i);
+    if (*ret_line == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    memcpy(*ret_line, &buf, i);
+    debug_printf("typed; %s, size: %d, addr: %p" ENDL, *ret_line, i, *ret_line);
+
+    if (ret_size != NULL) {
+        *ret_size = i;
+    }
+    return SYS_ERR_OK;
+}
+
+int main(int argc, char *argv[])
+{
+    errval_t err;
+    printf("spawning aosh..." ENDL);
+    aosh_clear_screen();
+
+    err = aosh_init();
+    if (err_is_fail(err)) {
+        debug_printf("failed to init aosh. %s", err_getstring(err));
+        return EXIT_FAILURE;
+    }
+
+    char *line = NULL;
+    size_t size = 0;
+    while (1) {
+        printf("Welcome to aosh "ENDL);
+        printf("aosh >>> ");
+        fflush(stdout);
+        line = NULL;
+        HERE;
+        err = aosh_readline((void **) &line, &size);
+        debug_printf("here, size: %d\n", size);
+        debug_printf("typed; %p\n", line);
+        HERE;
+        line = NULL;
+        HERE;
+        line = NULL;
+        // debug_printf("typed; %s" ENDL, line);
+        continue;
+        HERE;
+        if (err_is_fail(err)) {
+            debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
+            return EXIT_FAILURE;
+        }
+        HERE;
+        debug_printf("here %p\n", line);
+        if (line == NULL) {
+            debug_printf("failed to aosh_readline. line is NULL\n");
+            return EXIT_FAILURE;
+        }
+
+        HERE;
+        printf(ENDL);
+        HERE;
+        printf("'%s'" ENDL, line);
+
+        free(line);
+    }
+    return EXIT_SUCCESS;
+}

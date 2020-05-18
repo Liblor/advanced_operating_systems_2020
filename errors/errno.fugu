@@ -1401,6 +1401,8 @@ errors aos AOS_ERR_ {
 
     failure SERIAL_SERVER_READ_OCCUPIED "Read session is currently occupied. Try again. ",
     failure SERIAL_BUSY "Serial device currently not available. try again",
+    failure AOSH_EXIT "Exit shell",
+    failure AOSH_INVALID_ESCAPE_CHAR "Invalid escape sequence.",
 };
 
 // errors for collections
