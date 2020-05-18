@@ -34,11 +34,12 @@ static errval_t queues_initialize_rx(
     }
 
     /* Map the receive buffers into virtual memory. */
-    err = paging_map_frame(
+    err = paging_map_frame_attr(
         get_current_paging_state(),
         (void **) &st->rx_base,
         rx_size,
         st->rx_mem,
+        VREGION_FLAGS_READ_WRITE_NOCACHE,
         NULL,
         NULL
     );
@@ -91,11 +92,12 @@ static errval_t queues_initialize_tx(
     }
 
     /* Map the send buffers into virtual memory. */
-    err = paging_map_frame(
+    err = paging_map_frame_attr(
         get_current_paging_state(),
         (void **) &st->tx_base,
         tx_size,
         st->tx_mem,
+        VREGION_FLAGS_READ_WRITE_NOCACHE,
         NULL,
         NULL
     );

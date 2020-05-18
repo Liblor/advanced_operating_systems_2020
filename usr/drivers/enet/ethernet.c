@@ -104,7 +104,6 @@ errval_t ethernet_send(
     assert((void *) base != NULL);
 
     debug_printf("Sending buffer of size 0x%zx.\n", size + sizeof(struct eth_hdr));
-    debug_dump_mem(base, base + size, 0);
 
     /* TODO: Check if offset is in bounds. */
     const genoffset_t offset = base - state->tx_base - sizeof(struct eth_hdr);
