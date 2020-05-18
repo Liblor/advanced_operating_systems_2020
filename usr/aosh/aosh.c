@@ -35,7 +35,7 @@ static errval_t aosh_readline(
 {
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
     char c;
-    char *buf = malloc(AOSH_READLINE_MAX_LEN);
+    char *buf = calloc(1, AOSH_READLINE_MAX_LEN);
     if (buf == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
@@ -68,16 +68,15 @@ static errval_t aosh_readline(
     }
     assert(i <= AOSH_READLINE_MAX_LEN);
 
-    *ret_line = malloc(i);
+    *ret_line = calloc(1, i);
     if (*ret_line == NULL) {
         err = LIB_ERR_MALLOC_FAIL;
         goto free_buf;
     }
-    memcpy(*ret_line, &buf, i);
+    memcpy(*ret_line, buf, i);
     if (ret_size != NULL) {
         *ret_size = i;
     }
-
     err = SYS_ERR_OK;
 
     free_buf:
@@ -86,12 +85,18 @@ static errval_t aosh_readline(
 }
 
 __unused
-static errval_t execute(char *line, int argc, char **argv)
+static void trace_args(int argc, char **argv)
 {
-    printf("argument line: '%s'"ENDL, line);
     for (int i = 0; i < argc; i++) {
         printf("argv[%d] = '%s'" ENDL, i, argv[i]);
     }
+}
+
+__unused
+static errval_t execute(char *line, int argc, char **argv)
+{
+    trace_args(argc, argv);
+
     return SYS_ERR_OK;
 }
 
@@ -100,14 +105,12 @@ static void free_argv(int argc, char **argv)
     if (argv == NULL) {
         return;
     }
-
     for (int i = 0; i < argc; i++) {
         free(argv[i]);
     }
     free(argv);
 }
 
-__unused
 static errval_t tokenize_argv(
         const char *line,
         int *ret_argc,
@@ -116,7 +119,7 @@ static errval_t tokenize_argv(
 {
     errval_t err;
     collections_listnode *argv_list = NULL;
-    collections_list_create(&argv_list, free);
+    collections_list_create(&argv_list, NULL);
     if (argv_list == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
@@ -124,7 +127,8 @@ static errval_t tokenize_argv(
     int arg_start = 0;
     bool quote_double = false;
     for (int i = 0; i < AOSH_READLINE_MAX_LEN; i++) {
-        if ((!quote_double && line[i] == ' ') || line[i] == '\0') {
+
+        if ((!quote_double && line[i] == ' ') || line[i] == '\0' || IS_CHAR_LINEBREAK(line[i])) {
 
             // 1. !quote_double
             // we dont create a new arg if space is within quotes
@@ -134,7 +138,14 @@ static errval_t tokenize_argv(
             // so we ignore current position of i and work with i - 1
             // at position i will be \0
 
-            size_t len = i - arg_start + 1; // +1 for \0
+            if (line[arg_start] == '"') {
+                arg_start++;
+            }
+            int arg_end = i;
+            if (i > 1 && line[i - 1] == '"') {
+                arg_end--;
+            }
+            size_t len = arg_end - arg_start + 1; // +1 for \0
             void *arg = calloc(1, len);
             if (arg == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
@@ -146,31 +157,29 @@ static errval_t tokenize_argv(
             }
 
             // 3. line[i] == '\0'
-            if (line[i] == '\0') {
+            if (line[i] == '\0' || IS_CHAR_LINEBREAK(line[i])) {
                 break;
             }
-
             arg_start = i + 1;
-        } else if (IS_CHAR_LINEBREAK(line[i])) {
-            break;
-
         } else if ((line[i] == '"' && i > 1 && line[i - 1] != '\\')
                    || (line[i] == '"' && i == 0)) {
-
             // quotation (") which is not escaped signalizes a string
             // we dont add (") into the list of parsed args
             quote_double = !quote_double;
         }
+        AOSH_TRACE("line[%d]='%c'\n", i, line[i]);
     }
 
-    uint32_t argc = collections_list_size(argv_list);
-    *ret_argv = calloc(1, argc * sizeof(lvaddr_t));
+    const int argc = collections_list_size(argv_list);
+    *ret_argv = calloc(1, argc * sizeof(char **));
+    if (ret_argv == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
     *ret_argc = argc;
-
     for (int i = 0; i < argc; i++) {
-        *ret_argv[i] = collections_list_get_ith_item(argv_list, i);
+        (*ret_argv)[i] = collections_list_get_ith_item(argv_list, i);
+        AOSH_TRACE("*ret_argv[%i]='%s'\n", i, (*ret_argv)[i]);
     }
-
     if (quote_double) {
         err = AOS_ERR_AOSH_INVALID_ESCAPE_CHAR;
         goto free_argv_list;
@@ -203,14 +212,15 @@ static errval_t repl(void)
 
         size_t size = 0;
         err = aosh_readline((void **) &line, &size);
+        printf(ENDL);
+
         if (err == AOS_ERR_AOSH_EXIT) {
             goto err_free_line;
+
         } else if (err_is_fail(err)) {
             debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
             goto err_free_line;
         }
-
-        printf(ENDL);
 
         err = tokenize_argv(line, &argc, &argv);
         if (!aosh_err_recoverable(err)) {
@@ -218,22 +228,18 @@ static errval_t repl(void)
         }
         if (err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR) {
             printf("Invalid combination of quotes given." ENDL);
-            printf("argument line: '%s'"ENDL, line);
-            for (int i = 0; i < argc; i++) {
-                printf("argv[%d] = '%s'" ENDL, i, argv[i]);
-            }
+            trace_args(argc, argv);
             goto success_free;
         }
         if (!aosh_err_recoverable(err)) {
             goto err_free_argv;
         }
-
         err = execute(line, argc, argv);
         if (err_is_fail(err)) {
             goto err_free_argv;
         }
 
-success_free:
+        success_free:
         free(line);
         free_argv(argc, argv);
         line = NULL;
