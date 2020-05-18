@@ -11,7 +11,9 @@
 --------------------------------------------------------------------------
 
 [ build application { target = "aosh",
-  		              cFiles = [ "aosh.c" ],
+  		              cFiles = [
+  		               "aosh.c",
+  		               "builtin/builtin.c" ],
                       architectures = allArchitectures
                     }
 ]

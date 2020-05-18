@@ -5,11 +5,11 @@
 #include <stdio.h>
 #include <aos/aos.h>
 #include <aos/debug.h>
-
-
 #include <aos/string.h>
-#include "aosh.h"
 #include <collections/list.h>
+
+#include "aosh.h"
+#include "builtin/builtin.h"
 
 static struct aosh_state aosh;
 
@@ -22,8 +22,7 @@ static errval_t aosh_init(void)
 static bool aosh_err_recoverable(errval_t err)
 {
     return err == SYS_ERR_OK ||
-           err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR ||
-           err == AOS_ERR_AOSH_EXIT;
+           err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR;
 }
 
 __unused
@@ -34,14 +33,18 @@ static void clear_screen(void)
 }
 
 __unused
-static void trace_args(int argc, char **argv)
+static void trace_args(
+        int argc,
+        char **argv)
 {
     for (int i = 0; i < argc; i++) {
         printf("argv[%d] = '%s'" ENDL, i, argv[i]);
     }
 }
 
-static void free_argv(int argc, char **argv)
+static void free_argv(
+        int argc,
+        char **argv)
 {
     if (argv == NULL) {
         return;
@@ -56,8 +59,7 @@ static void free_argv(int argc, char **argv)
  *  caller must free line  **/
 static errval_t aosh_readline(
         void **ret_line,
-        size_t *ret_size
-)
+        size_t *ret_size)
 {
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
     char *buf = calloc(1, AOSH_READLINE_MAX_LEN);
@@ -112,23 +114,24 @@ static errval_t aosh_readline(
     return err;
 }
 
-__unused
-static errval_t execute(
-        char *line,
-        int argc,
-        char **argv
-)
+static __inline bool is_quote_start(
+        int arg_start,
+        const char *line)
 {
-    trace_args(argc, argv);
+    const bool quote_first_char =
+            line[arg_start] == '"' && arg_start == 0;
+    const bool quote_not_escaped =
+            line[arg_start] == '"' && arg_start > 0 && line[arg_start - 1] == '\\';
 
-    return SYS_ERR_OK;
+    return quote_first_char || quote_not_escaped;
 }
 
+/** note: ret_argv must be freed;
+ * every entry within ret_argv as well as ret_argv itself **/
 static errval_t tokenize_argv(
         const char *line,
         int *ret_argc,
-        char ***ret_argv
-)
+        char ***ret_argv)
 {
     errval_t err;
     collections_listnode *argv_list = NULL;
@@ -141,23 +144,18 @@ static errval_t tokenize_argv(
     bool quote_double = false;
     for (int i = 0; i < AOSH_READLINE_MAX_LEN; i++) {
 
-        if ((!quote_double && line[i] == ' ') || line[i] == '\0' || IS_CHAR_LINEBREAK(line[i])) {
+        if ((!quote_double && line[i] == ' ')    // no arg in quotes, space tokenizes
+            || line[i] == '\0'
+            || IS_CHAR_LINEBREAK(line[i])) {
 
-            // 1. !quote_double
-            // we dont create a new arg if space is within quotes
-
-            // 2. line[i] == ' '
-            // we are not interested in the ' ' itself
-            // so we ignore current position of i and work with i - 1
-            // at position i will be \0
-
-            if (line[arg_start] == '"') {
+            if (is_quote_start(arg_start, line)) {
                 arg_start++;
             }
             int arg_end = i;
             if (i > 1 && line[i - 1] == '"') {
                 arg_end--;
             }
+
             size_t len = arg_end - arg_start + 1; // +1 for \0
             void *arg = calloc(1, len);
             if (arg == NULL) {
@@ -166,18 +164,18 @@ static errval_t tokenize_argv(
             strlcpy(arg, &line[arg_start], len);
             int succ = collections_list_insert_tail(argv_list, arg);
             if (succ != 0) {
+                // XXX: if this fails something bad happened with malloc
+                // no need to proper free
                 return COLLECTIONS_COLLECTIONS_LIST_INSERT_TAIL_FAILED;
             }
+            arg_start = i + 1;
 
-            // 3. line[i] == '\0'
             if (line[i] == '\0' || IS_CHAR_LINEBREAK(line[i])) {
                 break;
             }
-            arg_start = i + 1;
         } else if ((line[i] == '"' && i > 1 && line[i - 1] != '\\')
                    || (line[i] == '"' && i == 0)) {
-            // quotation (") which is not escaped signalizes a string
-            // we dont add (") into the list of parsed args
+            // dont tokenize within quotes
             quote_double = !quote_double;
         }
         AOSH_TRACE("line[%d]='%c'\n", i, line[i]);
@@ -204,65 +202,76 @@ static errval_t tokenize_argv(
     return err;
 }
 
+__unused
+static errval_t execute(
+        char *line,
+        int argc,
+        char **argv)
+{
+    errval_t err = aosh_dispatch_builtin(argc, argv);
+    if (err == AOS_ERR_AOSH_EXIT) {
+        return err;
+    }
+    if (!err_is_ok(err)) {
+        debug_printf("error executing %s: %s\n", argv[0], err_getstring(err));
+    }
+    return SYS_ERR_OK;
+}
 
-static errval_t repl(void)
+static errval_t read_eval_execute(void)
 {
     errval_t err;
-
     char *line = NULL;
     char **argv = NULL;
     int argc = 0;
 
-    while (1) {
-        printf(AOSH_CLI_HEAD);
-        fflush(stdout);
+    printf(AOSH_CLI_HEAD);
+    fflush(stdout);
 
-        err = aosh_readline((void **) &line, NULL);
-        printf(ENDL);
+    err = aosh_readline((void **) &line, NULL);
+    printf(ENDL);
 
-        if (err == AOS_ERR_AOSH_EXIT) {
-            goto err_free_line;
-        } else if (err_is_fail(err)) {
-            debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
-            goto err_free_line;
-        }
+    if (err == AOS_ERR_AOSH_EXIT) {
+        goto err_free_line;
+    } else if (err_is_fail(err)) {
+        debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
+        goto err_free_line;
+    }
 
-        err = tokenize_argv(line, &argc, &argv);
-        if (!aosh_err_recoverable(err)) {
-            goto err_free_argv;
-        }
-        if (err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR) {
-            printf("Invalid combination of quotes given." ENDL);
-            trace_args(argc, argv);
-            goto success_free;
-        }
-        if (!aosh_err_recoverable(err)) {
-            goto err_free_argv;
-        }
+    err = tokenize_argv(line, &argc, &argv);
+    if (!aosh_err_recoverable(err)) {
+        goto err_free;
+    }
+    if (err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR) {
+        printf("Invalid combination of quotes given." ENDL);
+        trace_args(argc, argv);
+        goto success_free;
+    }
 
-        err = execute(line, argc, argv);
-        if (err_is_fail(err)) {
-            goto err_free_argv;
-        }
+    err = execute(line, argc, argv);
+    if (!err_is_ok(err)) {
+        goto err_free;
+    }
 
     success_free:
-        free(line);
-        free_argv(argc, argv);
-        line = NULL;
-        argv = NULL;
-        argc = 0;
-    }
+    free(line);
+    free_argv(argc, argv);
+    line = NULL;
+    argv = NULL;
+    argc = 0;
 
     return SYS_ERR_OK;
 
-err_free_argv:
+    err_free:
     free_argv(argc, argv);
     err_free_line:
     free(line);
     return err;
 }
 
-int main(int argc, char *argv[])
+int main(
+        int argc,
+        char *argv[])
 {
     errval_t err;
     printf("spawning aosh..." ENDL);
@@ -272,9 +281,12 @@ int main(int argc, char *argv[])
         debug_printf("failed to init aosh. %s", err_getstring(err));
         return EXIT_FAILURE;
     }
-    clear_screen();
+    // clear_screen();
     printf("Welcome to aosh! "ENDL);
-    err = repl();
+
+    do {
+        err = read_eval_execute();
+    } while (err_is_ok(err));
 
     if (err == AOS_ERR_AOSH_EXIT) {
         printf("Goodbye. It was a pleasure to have fought along your side." ENDL);
