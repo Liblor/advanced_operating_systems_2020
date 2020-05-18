@@ -189,16 +189,49 @@ static void printf_test(void)
     }
 }
 
+__unused
+static void spawn_serial_tests(void) {
+    struct aos_rpc *rpc = aos_rpc_get_process_channel();
+    domainid_t pid;
+
+    aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+    // aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+}
+
 
 __unused
 int main(int argc, char *argv[])
 {
+    errval_t err;
     debug_printf("Running RPC tests...\n");
+    char c;
+    printf("type any key continue\r\n");
+
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    if(err_is_fail(err)) {
+        DEBUG_ERR(err, "");
+    }
+
+    do {
+        printf("type the single digit number of dispatchers to spawn" ENDL);
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        if(err_is_fail(err)) {
+            DEBUG_ERR(err, "");
+        }
+    } while (atoi(&c) < 1 || atoi(&c) > 9);
+
+    for(int i = 0; i < atoi(&c); i ++) {
+        domainid_t pid;
+        printf("spawning %d\r\n", i);
+        aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+    }
 
 //     test_serial();
 //    write_simple();
 //    debug_printf("write_simple: ok\n");
-    read_loop();
+//    read_loop();
 
 //    printf_test();
 

@@ -84,6 +84,8 @@ errval_t aos_rpc_get_remote_ram_cap(
 
 /**
  * \brief Get one character from the serial port
+ *
+ * returns AOS_ERR_SERIAL_BUSY if device is blocked for too long by someone else
  */
 errval_t aos_rpc_serial_getchar(struct aos_rpc *chan, char *retc);
 
@@ -91,6 +93,11 @@ errval_t aos_rpc_serial_getchar(struct aos_rpc *chan, char *retc);
  * \brief Send one character to the serial port
  */
 errval_t aos_rpc_serial_putchar(struct aos_rpc *chan, char c);
+
+/**
+ * \brief Send multiple character to the serial port
+ */
+errval_t aos_rpc_serial_putstr(struct aos_rpc *rpc, char *str, size_t len);
 
 /**
  * \brief Request that the process manager start a new process

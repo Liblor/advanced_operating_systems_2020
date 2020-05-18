@@ -192,7 +192,16 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 static errval_t
 validate_serial_getchar(struct lmp_recv_msg *msg, enum pending_state state)
 {
-    return validate_recv_header(msg, state, Method_Serial_Getchar);
+    if (state == EmptyState) {
+        return_err(msg == NULL, "msg is null");
+        return_err(sizeof(uint64_t) * msg->buf.buflen < sizeof(struct rpc_message_part),
+                   "invalid buflen");
+        const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+        return_err(((msg_part->status != Status_Ok)
+                    && msg_part->status != Serial_Getchar_Occupied), "status not ok");
+        return_err(msg_part->method != Method_Serial_Getchar, "wrong method in response");
+    }
+    return SYS_ERR_OK;
 }
 
 errval_t
@@ -210,28 +219,45 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     msg->msg.payload_length = sizeof(struct serial_getchar_req);
     msg->msg.status = Status_Ok;
 
-    struct serial_getchar_req payload;
-    payload.session = channel_data->read_session;
-    memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
-
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
+    struct serial_getchar_req payload;
+
+    struct serial_getchar_reply reply;
+
+    // XXX server resets a session on a linebreak
+    // so we can retry forever if device is busy.
+    // we continue if user presses newline if session was previously blocked
+    for(;;) {
+        payload.session = channel_data->read_session;
+        memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
+        err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
+
+        if (err_is_fail(err)) {
+            return err;
+        }
+
+        // always use memcpy when dealing with payload[0] (alignment issues)
+        memcpy(&reply, recv->msg.payload, sizeof(struct serial_getchar_reply));
+
+        // update session if we got one from server
+        if (reply.session != SERIAL_GETCHAR_SESSION_UNDEF) {
+            thread_mutex_lock_nested(&rpc->mutex);
+            channel_data->read_session = reply.session;
+            thread_mutex_unlock(&rpc->mutex);
+        }
+        if (recv->msg.status == Status_Ok) {
+            // server responded ok, return to user
+            break;
+        }
+        else {
+            // server was busy, try again
+            thread_yield();
+        }
+    }
     if (err_is_fail(err)) {
         return err;
     }
-
-    // always use memcpy when dealing with payload[0] (alignment issues)
-    struct serial_getchar_reply reply;
-    memcpy(&reply, recv->msg.payload, sizeof(struct serial_getchar_reply));
-
-    if (reply.session != SERIAL_GETCHAR_SESSION_UNDEF) {
-        thread_mutex_lock_nested(&rpc->mutex);
-        channel_data->read_session = reply.session;
-        thread_mutex_unlock(&rpc->mutex);
-    }
-
     *retc = reply.data;
-
     return SYS_ERR_OK;
 }
 
@@ -248,6 +274,33 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     msg->msg.payload_length = sizeof(char);
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &c, sizeof(char));
+
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
+errval_t
+aos_rpc_lmp_serial_putstr(struct aos_rpc *rpc, char *str, size_t len)
+{
+    errval_t err;
+    const uint32_t str_len = MIN(len + 1, RPC_LMP_MAX_STR_LEN); // add \0 at the end
+
+    if (len > RPC_LMP_MAX_STR_LEN) {
+        debug_printf("truncating len because larger than RPC_LMP_MAX_STR_LEN\n");
+    }
+    uint8_t send_buf[sizeof(struct rpc_message) + str_len];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->msg.method = Method_Serial_Putstr;
+    msg->msg.payload_length = str_len;
+    msg->cap = NULL_CAP;
+    msg->msg.status = Status_Ok;
+    strlcpy(msg->msg.payload, str, str_len);
 
     err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {

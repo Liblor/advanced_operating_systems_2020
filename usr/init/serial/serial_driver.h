@@ -10,12 +10,13 @@
 
 #define SERIAL_DRIVER_DEBUG_ON
 #if defined(SERIAL_DRIVER_DEBUG_ON)
-#define SERIAL_DEBUG(x...) debug_printf("serial:" x)
+#define SERIAL_DEBUG(x...) debug_printf("serial: " x)
 #else
 #define SERIAL_DEBUG(x...) ((void)0)
 #endif
 
 // disable userspace iqr handler for read events
+// useful for debugging
 // #define SERIAL_DEBUG_DISABLE_IQR
 
 typedef void (* serial_driver_read_cb)(char c);
@@ -33,7 +34,6 @@ errval_t serial_driver_write(char c);
 
 errval_t serial_driver_set_read_cb(serial_driver_read_cb cb);
 
-
-// errval_t serial_driver_write(char *str, size_t len);
+ errval_t serial_driver_write_str(char *str, size_t len);
 
 #endif //BFOS_SERIAL_DRIVER_H

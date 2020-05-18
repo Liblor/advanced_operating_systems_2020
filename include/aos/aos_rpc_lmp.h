@@ -8,6 +8,8 @@
 
 #define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH * sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
+#define GETCHAR_DEVICE_BUSY_RETRY_COUNT (1000) ///< retry count before handing control back to user
+
 #define LMP_SEGMENT_SIZE (sizeof(uintptr_t) * LMP_MSG_LENGTH)
 
 //#define ENABLE_LMP_MONITOR_CHAN
@@ -71,6 +73,12 @@ errval_t aos_rpc_lmp_serial_getchar(struct aos_rpc *chan, char *retc);
  * \brief Send one character to the serial port
  */
 errval_t aos_rpc_lmp_serial_putchar(struct aos_rpc *chan, char c);
+
+
+/**
+ * \brief Send multiple character to the serial port
+ */
+errval_t aos_rpc_lmp_serial_putstr(struct aos_rpc *chan, char *str, size_t len);
 
 /**
  * \brief Request that the process manager start a new process

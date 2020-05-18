@@ -54,7 +54,7 @@ static errval_t map_device_into_vspace(gensize_t offset, size_t objsize, void **
 __unused
 static void lpuart_iqr_handler(void *arg)
 {
- // SERIAL_DEBUG("iqr\n");
+    // SERIAL_DEBUG("iqr\n");
 
     errval_t err;
     char ret;
@@ -184,6 +184,15 @@ errval_t serial_driver_write(char c)
     return lpuart_putchar(serial_state.lpuart3_state, c);
 }
 
+errval_t serial_driver_write_str(char *str, size_t len)
+{
+    errval_t err = SYS_ERR_OK;
+    for (int i = 0; i < len && err_is_ok(err); i++) {
+        err = serial_driver_write(*(str + i));
+    }
+    return err;
+}
+
 errval_t serial_driver_init(void)
 {
     errval_t err;
@@ -191,7 +200,7 @@ errval_t serial_driver_init(void)
 
     err = setup_lpuart_irq();
     if (err_is_fail(err)) {
-        debug_printf("failed to setup lpuart for interruptst:  %s\n", err_getstring(err));
+        debug_printf("failed to setup lpuart for iqrs:  %s\n", err_getstring(err));
         return err;
     }
 
