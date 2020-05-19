@@ -6,13 +6,9 @@
 #include "builtin.h"
 #include "../aosh.h"
 
-errval_t builtin_invalid(int, char **); // is called if no builtin found
-
 // builtins:
 errval_t builtin_help(int, char **);
-
 errval_t builtin_exit(int, char **);
-
 errval_t builtin_clear(int, char **);
 
 static struct aosh_builtin_descr aosh_builtins[] = {
@@ -20,6 +16,7 @@ static struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_clear, "clear", Aosh_Builtin_Clear, "clear screen"},
         {builtin_exit,  "exit",  Aosh_Builtin_Exit,  "exit shell (Ctrl-d)"},
 };
+
 
 errval_t builtin_help(
         int argc,
@@ -45,7 +42,7 @@ errval_t builtin_clear(int argc, char **argv)
     return SYS_ERR_OK;
 }
 
-errval_t builtin_invalid(
+static errval_t builtin_invalid(
         int argc,
         char **argv)
 {

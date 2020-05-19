@@ -121,7 +121,7 @@ static __inline bool is_quote_start(
     const bool quote_first_char =
             line[arg_start] == '"' && arg_start == 0;
     const bool quote_not_escaped =
-            line[arg_start] == '"' && arg_start > 0 && line[arg_start - 1] == '\\';
+            line[arg_start] == '"' && arg_start > 0 && line[arg_start - 1] != '\\';
 
     return quote_first_char || quote_not_escaped;
 }
@@ -161,12 +161,19 @@ static errval_t aosh_tokenize_arg(
             if (i > 1 && line[i - 1] == '"') {
                 arg_end--;
             }
+            const size_t len = arg_end - arg_start + 1; // +1 for \0
 
-            size_t len = arg_end - arg_start + 1; // +1 for \0
+            if (len == 1) { // \0
+                // spaces will not cause empty args
+                arg_start = i + 1;
+                continue;
+            }
+
             void *arg = calloc(1, len);
             if (arg == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
             }
+
             strlcpy(arg, &line[arg_start], len);
             int succ = collections_list_insert_tail(argv_list, arg);
             if (succ != 0) {
