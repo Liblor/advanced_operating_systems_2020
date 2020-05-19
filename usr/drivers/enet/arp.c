@@ -20,7 +20,7 @@ errval_t arp_initialize(
     state->mac = mac;
     state->ip = ip;
 
-    /* TODO: This could fail if no more memory can be allocated. */
+    /* NOTE: This could fail if no more memory can be allocated. */
     collections_hash_create_with_buckets(&state->entries, ARP_HASHTABLE_BUCKETS, NULL);
 
     return SYS_ERR_OK;

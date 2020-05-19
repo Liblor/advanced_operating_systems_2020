@@ -6,9 +6,10 @@
 #include <netutil/udp.h>
 #include <netutil/htons.h>
 
-/* TODO: Remove this once dynamic ports are used. */
+/* TODO: Remove this once port bindings are used. */
 #define UDP_ECHO_PORT (9000)
 
+/* TODO: Set a callback function for incoming UDP datagrams. */
 errval_t udp_initialize(
     struct udp_state *state,
     struct ip_state *ip_state
@@ -18,6 +19,9 @@ errval_t udp_initialize(
     assert(ip_state != NULL);
 
     state->ip_state = ip_state;
+
+    /* NOTE: This could fail if no more memory can be allocated. */
+    collections_hash_create_with_buckets(&state->bindings, UDP_HASHTABLE_BUCKETS, NULL);
 
     return SYS_ERR_OK;
 }
@@ -110,6 +114,10 @@ errval_t udp_process(
 
     debug_printf("A valid UDP packet was received.\n");
 
+    /* TODO: Lookup the context for the destination in the hashtable and call
+     * the receive callback with it. */
+
+    /* TODO: Remove this once port bindings are used. */
     if (ntohs(packet->dest) == UDP_ECHO_PORT) {
         const lvaddr_t payload = base + sizeof(struct udp_hdr);
         const gensize_t payload_size = ntohs(packet->len) - sizeof(struct udp_hdr);
@@ -120,6 +128,22 @@ errval_t udp_process(
             return err;
         }
     }
+
+    return SYS_ERR_OK;
+}
+
+errval_t udp_register(
+    struct udp_state *state,
+    const udp_port_t port,
+    void *context
+)
+{
+    //errval_t err;
+
+    assert(state != NULL);
+    assert(context != NULL);
+
+    /* TODO: Insert context into hashtable. */
 
     return SYS_ERR_OK;
 }
