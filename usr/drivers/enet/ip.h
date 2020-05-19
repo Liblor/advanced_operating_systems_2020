@@ -30,7 +30,8 @@ enum ip_type {
 errval_t ip_initialize(
     struct ip_state *state,
     struct ethernet_state *eth_state,
-    const ip_addr_t ip
+    const ip_addr_t ip,
+    udp_receive_cb_t udp_receive_cb
 );
 
 errval_t ip_send_packet(

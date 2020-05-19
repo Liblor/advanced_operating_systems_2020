@@ -11,7 +11,8 @@
 errval_t ip_initialize(
     struct ip_state *state,
     struct ethernet_state *eth_state,
-    const ip_addr_t ip
+    const ip_addr_t ip,
+    udp_receive_cb_t udp_receive_cb
 )
 {
     errval_t err;
@@ -30,7 +31,7 @@ errval_t ip_initialize(
     }
 
     debug_printf("Initializing UDP state...\n");
-    err = udp_initialize(&state->udp_state, state);
+    err = udp_initialize(&state->udp_state, state, udp_receive_cb);
     if (err_is_fail(err)) {
         debug_printf("UDP initialization failed.\n");
         return err;

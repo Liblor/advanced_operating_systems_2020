@@ -29,6 +29,7 @@
 #include "enet.h"
 #include "queues.h"
 #include "ethernet.h"
+#include "udp.h"
 
 #define PHY_ID 0x2
 
@@ -640,6 +641,23 @@ static errval_t enet_initialize_device(
     return SYS_ERR_OK;
 }
 
+static void udp_receive_cb(
+    struct udp_state *state,
+    struct udp_binding *binding,
+    const lvaddr_t payload,
+    const gensize_t payload_size,
+    const ip_addr_t ip,
+    const udp_port_t port
+)
+{
+    errval_t err;
+
+    err = udp_send(state, payload, payload_size, binding->port, ip, port);
+    if (err_is_fail(err)) {
+        debug_printf("udp_send() failed: %s\n", err_getstring(err));
+    }
+}
+
 static regionid_t rx_rid;
 static regionid_t tx_rid;
 static errval_t enet_module_initialize(
@@ -665,7 +683,15 @@ static errval_t enet_module_initialize(
     }
 
     debug_printf("Initializing Ethernet state...\n");
-    err = ethernet_initialize(&st->eth_state, st->mac, TX_RING_SIZE, st->tx_base, tx_rid, st->txq);
+    err = ethernet_initialize(
+        &st->eth_state,
+        st->mac,
+        TX_RING_SIZE,
+        st->tx_base,
+        tx_rid,
+        st->txq,
+        udp_receive_cb
+    );
     if (err_is_fail(err)) {
         debug_printf("Ethernet initialization failed.\n");
         return err;
@@ -767,6 +793,11 @@ int main(
     enet_serve(st);
     ARP_QUERY(&st->eth_state, MK_IP(1, 0, 0, 10), &mac);
     debug_printf("Sending test packet complete.\n");
+
+    udp_register(&st->eth_state.ip_state.udp_state, 9000, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("Cannot register UDP receive callback.\n");
+    }
 
     while (true) {
         err = enet_serve(st);

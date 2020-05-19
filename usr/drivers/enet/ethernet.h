@@ -42,7 +42,8 @@ errval_t ethernet_initialize(
     const uint16_t tx_count,
     const lvaddr_t tx_base,
     const regionid_t tx_rid,
-    struct enet_queue *tx_queue
+    struct enet_queue *tx_queue,
+    udp_receive_cb_t udp_receive_cb
 );
 
 errval_t ethernet_create(

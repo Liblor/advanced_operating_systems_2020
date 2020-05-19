@@ -10,7 +10,8 @@ errval_t ethernet_initialize(
     const uint16_t tx_count,
     const lvaddr_t tx_base,
     const regionid_t tx_rid,
-    struct enet_queue *tx_queue
+    struct enet_queue *tx_queue,
+    udp_receive_cb_t udp_receive_cb
 )
 {
     errval_t err;
@@ -41,7 +42,7 @@ errval_t ethernet_initialize(
     }
 
     debug_printf("Initializing IP state...\n");
-    err = ip_initialize(&state->ip_state, state, OWN_IP_ADDRESS);
+    err = ip_initialize(&state->ip_state, state, OWN_IP_ADDRESS, udp_receive_cb);
     if (err_is_fail(err)) {
         debug_printf("IP initialization failed.\n");
         return err;
