@@ -188,6 +188,10 @@ static void register_service_channel(
     }
 
     struct aos_rpc *service_rpc = malloc(sizeof(struct aos_rpc));
+    if (service_rpc == NULL) {
+        debug_printf("malloc() failed\n");
+        abort();
+    }
 
     err = aos_rpc_ump_init(service_rpc, frame, true);
     if (err_is_fail(err)) {

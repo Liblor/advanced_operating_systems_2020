@@ -578,6 +578,10 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
 
     struct elf_allocator_state as;
     as.paging_state_child = malloc(sizeof(struct paging_state));
+    if (as.paging_state_child == NULL) {
+        debug_printf("malloc() failed\n");
+        return LIB_ERR_MALLOC_FAIL;
+    }
 
     err = setup_vspace(l0_table_child, as.paging_state_child);
     if (err_is_fail(err)) {
