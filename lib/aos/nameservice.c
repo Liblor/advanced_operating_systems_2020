@@ -179,7 +179,27 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
                          void **response, size_t *response_bytes,
                          struct capref tx_cap, struct capref rx_cap)
 {
-	return LIB_ERR_NOT_IMPLEMENTED;
+    errval_t err;
+
+    struct aos_rpc *rpc = chan;
+
+    uint8_t send_buf[sizeof(struct rpc_message) + bytes];
+    struct rpc_message *send = (struct rpc_message *) &send_buf;
+    send->msg.method = Method_Nameserver_Service_Request;
+    send->msg.payload_length = bytes;
+    send->msg.status = Status_Ok;
+    send->cap = tx_cap;
+    memcpy(send->msg.payload, message, bytes);
+
+    struct rpc_message *recv = NULL;
+
+    err = aos_rpc_ump_send_and_wait_recv(rpc, send, &recv);
+
+    *response = recv->msg.payload;
+    *response_bytes = recv->msg.payload_length;
+    cap_copy(rx_cap, recv->cap);
+
+	return SYS_ERR_OK;
 }
 
 
