@@ -1401,16 +1401,19 @@ errors aos AOS_ERR_ {
 
     failure SERIAL_SERVER_READ_OCCUPIED "Read session is currently occupied. Try again. ",
     failure SERIAL_BUSY "Serial device currently not available. try again",
-    failure AOSH_EXIT "Exit shell",
-    failure AOSH_INVALID_ESCAPE_CHAR "Invalid escape sequence.",
 };
 
-
+errors aos AOSH_ERR_ {
+    failure EXIT_SHELL "Exit shell",
+    failure INVALID_ESCAPE_CHAR "Invalid escape sequence.",
+    failure INVALID_ARGS "Invalid command line args",
+    failure BUILTIN_EXIT_SUCCESS "Command finished successfully",
+};
 
 // errors for collections
 errors aos COLLECTIONS_ {
     failure RANGETRACKER_ALIGNMENT        "The base or size was not properly aligned",
-    failure COLLECTIONS_LIST_INSERT_TAIL_FAILED "collections_list_insert_tail failed",
+    failure LIST_INSERT_TAIL_FAILED "collections_list_insert_tail failed",
 };
 
 // errors NIC driver

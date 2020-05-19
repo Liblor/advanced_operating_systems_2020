@@ -22,7 +22,9 @@ static errval_t aosh_init(void)
 static bool aosh_err_recoverable(errval_t err)
 {
     return err == SYS_ERR_OK ||
-           err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR;
+           err == AOSH_ERR_INVALID_ESCAPE_CHAR ||
+           err == AOSH_ERR_INVALID_ARGS ||
+           err == AOSH_ERR_BUILTIN_EXIT_SUCCESS;
 }
 
 __unused
@@ -55,8 +57,9 @@ static void free_argv(
     free(argv);
 }
 
-/** read a line from serial port,
- *  caller must free line  **/
+/** Read a line from serial port,
+ * caller must free line.
+ * On success, line is always null terminated **/
 static errval_t aosh_readline(
         void **ret_line,
         size_t *ret_size)
@@ -92,7 +95,7 @@ static errval_t aosh_readline(
     }
     if (c == CHAR_CODE_EOT) {
         // ctrl d  pressed
-        err = AOS_ERR_AOSH_EXIT;
+        err = AOSH_ERR_EXIT_SHELL;
         goto free_buf;
     }
     assert(i <= AOSH_READLINE_MAX_LEN);
@@ -149,7 +152,7 @@ static errval_t aosh_tokenize_arg(
     int arg_start = 0;
     bool quote_double = false;
     for (int i = 0; i < AOSH_READLINE_MAX_LEN; i++) {
-
+        AOSH_TRACE("parsing line[%d]='%d' \n", i, line[i]);
         if ((!quote_double && line[i] == ' ')    // no arg in quotes, space tokenizes
             || line[i] == '\0'
             || IS_CHAR_LINEBREAK(line[i])) {
@@ -163,8 +166,11 @@ static errval_t aosh_tokenize_arg(
             }
             const size_t len = arg_end - arg_start + 1; // +1 for \0
 
-            if (len == 1) { // \0
-                // spaces will not cause empty args
+            // XXX empty spaces should not cause empty args so we skip empty spaces here
+            // Make sure not to skip to next char when we are at the end of input!
+            if (len == 1 &&
+                line[i] != '\0'
+                && IS_CHAR_LINEBREAK(line[i])) {
                 arg_start = i + 1;
                 continue;
             }
@@ -179,7 +185,7 @@ static errval_t aosh_tokenize_arg(
             if (succ != 0) {
                 // XXX: if this fails something bad happened with malloc
                 // no need to proper free
-                return COLLECTIONS_COLLECTIONS_LIST_INSERT_TAIL_FAILED;
+                return COLLECTIONS_LIST_INSERT_TAIL_FAILED;
             }
             arg_start = i + 1;
 
@@ -205,7 +211,7 @@ static errval_t aosh_tokenize_arg(
         AOSH_TRACE("*ret_argv[%i]='%s'\n", i, (*ret_argv)[i]);
     }
     if (quote_double) {
-        err = AOS_ERR_AOSH_INVALID_ESCAPE_CHAR;
+        err = AOSH_ERR_INVALID_ESCAPE_CHAR;
         goto free_argv_list;
     }
     err = SYS_ERR_OK;
@@ -222,7 +228,7 @@ static errval_t aosh_dispatch(
         char **argv)
 {
     errval_t err = aosh_dispatch_builtin(argc, argv);
-    if (err == AOS_ERR_AOSH_EXIT) {
+    if (err == AOSH_ERR_EXIT_SHELL) {
         return err;
     }
     if (!err_is_ok(err)) {
@@ -237,30 +243,34 @@ static errval_t aosh_read_eval_execute(void)
     char *line = NULL;
     char **argv = NULL;
     int argc = 0;
+    size_t line_size = 0;
 
     printf(AOSH_CLI_HEAD);
     fflush(stdout);
 
-    err = aosh_readline((void **) &line, NULL);
+    err = aosh_readline((void **) &line, &line_size);
     printf(ENDL);
 
-    if (err == AOS_ERR_AOSH_EXIT) {
+    if (err == AOSH_ERR_EXIT_SHELL) {
         goto err_free_line;
     } else if (err_is_fail(err)) {
         debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
         goto err_free_line;
+    }
+    if (line_size == 1) {
+        // nothing read;
+        goto success_free;
     }
 
     err = aosh_tokenize_arg(line, &argc, &argv);
     if (!aosh_err_recoverable(err)) {
         goto err_free;
     }
-    if (err == AOS_ERR_AOSH_INVALID_ESCAPE_CHAR) {
+    if (err == AOSH_ERR_INVALID_ESCAPE_CHAR) {
         printf("Invalid combination of quotes given." ENDL);
         trace_args(argc, argv);
         goto success_free;
     }
-
     err = aosh_dispatch(line, argc, argv);
     if (!err_is_ok(err)) {
         goto err_free;
@@ -301,7 +311,7 @@ int main(
         err = aosh_read_eval_execute();
     } while (err_is_ok(err));
 
-    if (err == AOS_ERR_AOSH_EXIT) {
+    if (err == AOSH_ERR_EXIT_SHELL) {
         printf("Goodbye. It was a pleasure to have fought along your side." ENDL);
         return EXIT_SUCCESS;
 

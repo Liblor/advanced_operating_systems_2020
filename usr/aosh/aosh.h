@@ -7,7 +7,7 @@
 
 #include <aos/aos_rpc.h>
 
-//#define AOSH_TRACE_ON
+#define AOSH_TRACE_ON
 #if defined(AOSH_TRACE_ON)
 #define AOSH_TRACE(x...) debug_printf("aosh-trace: " x)
 #else
