@@ -3,5 +3,5 @@
 errval_t builtin_exit(int argc, char **argv);
 errval_t builtin_exit(int argc, char **argv)
 {
-    return AOS_ERR_AOSH_EXIT;
+    return AOSH_ERR_EXIT_SHELL;
 }
