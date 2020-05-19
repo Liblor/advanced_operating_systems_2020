@@ -89,7 +89,7 @@ static void run_server(void)
 
     domainid_t did;
     debug_printf("spawning test binary '%s'\n", TEST_BINARY);
-    err = aos_rpc_process_spawn(get_init_rpc(), TEST_BINARY " a", disp_get_core_id(), &did);
+    err = aos_rpc_process_spawn(aos_rpc_get_process_channel(), TEST_BINARY " a", disp_get_core_id(), &did);
     PANIC_IF_FAIL(err, "failed to spawn test\n");
 
     while(1) {
