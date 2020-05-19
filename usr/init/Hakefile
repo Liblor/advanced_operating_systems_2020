@@ -26,7 +26,7 @@
                         "monitorserver.c",
                         "test.c",
                         "serial/circular_buf.c",
-                        "serial/serial_driver.c",
+                        "serial/serial_facade.c",
                         "serial/serialserver.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init

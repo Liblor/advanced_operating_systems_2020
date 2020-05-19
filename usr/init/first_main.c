@@ -25,7 +25,7 @@
 #include "monitorserver.h"
 #include "processserver.h"
 #include "serial/serialserver.h"
-#include "serial/serial_driver.h"
+#include "serial/serial_facade.h"
 
 extern coreid_t my_core_id;
 
