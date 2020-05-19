@@ -529,6 +529,59 @@ aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc
     return SYS_ERR_OK;
 }
 
+static errval_t
+validate_ns_enumerate(struct lmp_recv_msg *msg, enum pending_state state)
+{
+    return validate_recv_header(msg, state, Method_Nameserver_Enumerate);
+}
+
+errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char ***result)
+{
+    errval_t err;
+
+    assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
+    assert(query != NULL);
+
+    const size_t query_len = strnlen(query, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+    if (query_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->msg.method = Method_Nameserver_Enumerate;
+    msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
+    msg->cap = NULL_CAP;
+    memset(msg->msg.payload, 0, payload_length);
+    memcpy(msg->msg.payload, query, query_len);
+
+    struct rpc_message *recv = NULL;
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_ns_enumerate);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    assert(capref_is_null(recv->cap));
+
+    uint64_t match_count = recv->msg.payload_length / (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
+    *num = match_count;
+    *result = malloc(match_count * sizeof(char *));
+    if (*result == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    for (int i = 0; i < match_count; i++) {
+        char *ptr = recv->msg.payload + i * (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
+        assert(ptr != NULL);
+        (*result)[i] = ptr;
+    }
+
+    return SYS_ERR_OK;
+}
+
 static void
 client_recv_open_cb(void *args)
 {

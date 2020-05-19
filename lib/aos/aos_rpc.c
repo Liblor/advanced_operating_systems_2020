@@ -129,6 +129,11 @@ errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc
     return aos_rpc_lmp_ns_lookup(rpc, name, rpc_service);
 }
 
+errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char ***result)
+{
+    return aos_rpc_lmp_ns_enumerate(rpc, query, num, result);
+}
+
 /**
  * \brief Returns the RPC channel to init.
  */

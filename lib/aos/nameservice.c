@@ -355,8 +355,18 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
  * @param num 		number of entries in the result array
  * @param result	an array of entries
  */
-errval_t nameservice_enumerate(char *query, size_t *num, char **result )
+errval_t nameservice_enumerate(char *query, size_t *num, char ***result)
 {
-	return LIB_ERR_NOT_IMPLEMENTED;
+    errval_t err;
+
+    struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
+
+    err = aos_rpc_ns_enumerate(monitor_chan, query, num, result);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ns_enumerate() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+	return SYS_ERR_OK;
 }
 

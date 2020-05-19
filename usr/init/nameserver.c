@@ -41,6 +41,14 @@ static void read_name(char dst[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1], struct r
     memcpy(dst, msg->msg.payload, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
 }
 
+static void reply_init(struct rpc_message *msg, struct rpc_message *resp)
+{
+    resp->msg.method = msg->msg.method;
+    resp->msg.status = Status_Ok;
+    resp->msg.payload_length = 0;
+    resp->cap = NULL_CAP;
+}
+
 static void handle_register(struct rpc_message *msg, struct nameserver_state *ns_state, struct rpc_message *resp)
 {
     errval_t err;
@@ -182,12 +190,62 @@ static void handle_lookup(struct rpc_message *msg, struct nameserver_state *ns_s
     resp->cap = client_frame_cap;
 }
 
-static void reply_init(struct rpc_message *msg, struct rpc_message *resp)
+static bool query_matches(char *query, char *name)
 {
-    resp->msg.method = msg->msg.method;
-    resp->msg.status = Status_Ok;
-    resp->msg.payload_length = 0;
-    resp->cap = NULL_CAP;
+    // Check if name starts with query
+    return strncmp(query, name, strlen(query)) == 0;
+}
+
+static void handle_enumerate(struct rpc_message *msg, struct nameserver_state *ns_state, struct rpc_message **resp)
+{
+    int32_t ret;
+
+    assert(msg != NULL);
+    assert(ns_state != NULL);
+
+    char query[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
+    read_name(query, msg);
+
+    collections_hash_table *service_table = ns_state->service_table;
+    assert(service_table != NULL);
+
+    // Count entries that match the received query
+    uint64_t match_count = 0;
+    __unused uint64_t key;
+    struct nameserver_entry *entry;
+
+    ret = collections_hash_traverse_start(service_table);
+    assert(ret == 1);
+    while ((entry = collections_hash_traverse_next(service_table, &key))) {
+        if (query_matches(query, entry->name)) {
+            match_count++;
+        }
+    }
+    ret = collections_hash_traverse_end(service_table);
+    assert(ret == 1);
+
+    // Allocate buffer large enough to contain all matches
+    size_t payload_length = match_count * (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
+    *resp = malloc(NAMESERVER_ENUMERATE_RESPONSE_SIZE + payload_length);
+    reply_init(msg, *resp);
+    (*resp)->msg.payload_length = payload_length;
+
+    // Write matches into response
+    uint64_t i = 0;
+
+    ret = collections_hash_traverse_start(service_table);
+    assert(ret == 1);
+    while ((entry = collections_hash_traverse_next(service_table, &key))) {
+        if (query_matches(query, entry->name)) {
+            char *payload_base = &((*resp)->msg.payload[0]);
+            char *ptr = payload_base + i * (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
+            memset(ptr, 0, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
+            memcpy(ptr, entry->name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+            i++;
+        }
+    }
+    ret = collections_hash_traverse_end(service_table);
+    assert(ret == 1);
 }
 
 static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
@@ -222,8 +280,8 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
         break;
     case Method_Nameserver_Enumerate:
         debug_printf("Method_Nameserver_Enumerate\n");
-        resp = malloc(NAMESERVER_ENUMERATE_RESPONSE_SIZE);
-        reply_init(msg, resp);
+
+        handle_enumerate(msg, ns_state, &resp);
         break;
     default:
         debug_printf("Unknown message type. Ignoring message.\n");
