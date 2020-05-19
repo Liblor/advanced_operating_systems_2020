@@ -126,9 +126,15 @@ static __inline bool is_quote_start(
     return quote_first_char || quote_not_escaped;
 }
 
-/** note: ret_argv must be freed;
- * every entry within ret_argv as well as ret_argv itself **/
-static errval_t tokenize_argv(
+/**
+ * simple arg tokenize implementation
+ * - supports double quotes for strings with spaces
+ * - and escape of quotes
+ *
+ * note: ret_argv must be freed;
+ * every entry within ret_argv as well as ret_argv itself
+ */
+static errval_t aosh_tokenize_arg(
         const char *line,
         int *ret_argc,
         char ***ret_argv)
@@ -203,7 +209,7 @@ static errval_t tokenize_argv(
 }
 
 __unused
-static errval_t execute(
+static errval_t aosh_dispatch(
         char *line,
         int argc,
         char **argv)
@@ -218,7 +224,7 @@ static errval_t execute(
     return SYS_ERR_OK;
 }
 
-static errval_t read_eval_execute(void)
+static errval_t aosh_read_eval_execute(void)
 {
     errval_t err;
     char *line = NULL;
@@ -238,7 +244,7 @@ static errval_t read_eval_execute(void)
         goto err_free_line;
     }
 
-    err = tokenize_argv(line, &argc, &argv);
+    err = aosh_tokenize_arg(line, &argc, &argv);
     if (!aosh_err_recoverable(err)) {
         goto err_free;
     }
@@ -248,7 +254,7 @@ static errval_t read_eval_execute(void)
         goto success_free;
     }
 
-    err = execute(line, argc, argv);
+    err = aosh_dispatch(line, argc, argv);
     if (!err_is_ok(err)) {
         goto err_free;
     }
@@ -285,7 +291,7 @@ int main(
     printf("Welcome to aosh! "ENDL);
 
     do {
-        err = read_eval_execute();
+        err = aosh_read_eval_execute();
     } while (err_is_ok(err));
 
     if (err == AOS_ERR_AOSH_EXIT) {
