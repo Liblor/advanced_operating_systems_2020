@@ -51,7 +51,7 @@ static errval_t map_device_into_vspace(
 __unused
 static void lpuart_iqr_handler(void *arg)
 {
-    // SERIAL_FACADE_DEBUG("serial_driver iqr\n");
+     // SERIAL_FACADE_DEBUG("serial_driver iqr\n");
 
     assert(arg != NULL);
     struct serial_facade *state = (struct serial_facade *) arg;

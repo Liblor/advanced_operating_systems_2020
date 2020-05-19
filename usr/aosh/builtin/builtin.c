@@ -5,7 +5,7 @@
 #include "../aosh.h"
 
 // builtins
-#include "spawn.c"
+#include "oncore.c"
 #include "exit.c"
 #include "clear.c"
 

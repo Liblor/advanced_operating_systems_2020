@@ -153,10 +153,12 @@ static errval_t aosh_tokenize_arg(
     bool quote_double = false;
     for (int i = 0; i < AOSH_READLINE_MAX_LEN; i++) {
         AOSH_TRACE("parsing line[%d]='%d' \n", i, line[i]);
-        if ((!quote_double && line[i] == ' ')    // no arg in quotes, space tokenizes
+
+        if ((!quote_double && line[i] == ' ')
             || line[i] == '\0'
             || IS_CHAR_LINEBREAK(line[i])) {
 
+            // XXX dont include quotes in argument
             if (is_quote_start(arg_start, line)) {
                 arg_start++;
             }
@@ -164,28 +166,27 @@ static errval_t aosh_tokenize_arg(
             if (i > 1 && line[i - 1] == '"') {
                 arg_end--;
             }
-            const size_t len = arg_end - arg_start + 1; // +1 for \0
 
-            // XXX empty spaces should not cause empty args so we skip empty spaces here
-            // Make sure not to skip to next char when we are at the end of input!
-            if (len == 1 &&
-                line[i] != '\0'
-                && IS_CHAR_LINEBREAK(line[i])) {
+            const size_t arg_len  = arg_end - arg_start + 1; // +1 for \0
+
+            // XXX empty spaces should not cause empty
+            // args so we skip empty spaces here
+            if (arg_len == 1 &&
+                line[i] == ' ') {
                 arg_start = i + 1;
                 continue;
             }
 
-            void *arg = calloc(1, len);
+            void *arg = calloc(1, arg_len);
             if (arg == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
             }
 
-            strlcpy(arg, &line[arg_start], len);
-            int succ = collections_list_insert_tail(argv_list, arg);
-            if (succ != 0) {
+            strlcpy(arg, &line[arg_start], arg_len);
+            if (collections_list_insert_tail(argv_list, arg) != 0) {
                 // XXX: if this fails something bad happened with malloc
                 // no need to proper free
-                return COLLECTIONS_LIST_INSERT_TAIL_FAILED;
+                return LIB_ERR_MALLOC_FAIL;
             }
             arg_start = i + 1;
 
@@ -257,7 +258,7 @@ static errval_t aosh_read_eval_execute(void)
         debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
         goto err_free_line;
     }
-    if (line_size == 1) {
+    if (line_size <= 1) { // \0
         // nothing read;
         goto success_free;
     }
