@@ -25,7 +25,6 @@ static void cbuf_retreat(struct cbuf *buf)
 void cbuf_put(struct cbuf *buf, void *data_entry)
 {
     memcpy((uint8_t *) buf->data + buf->head * buf->entry_size, data_entry, buf->entry_size);
-//      memcpy(&buf->data[buf->head * buf->entry_size], data_entry, buf->entry_size);
     cbuf_advance(buf);
 }
 
@@ -35,7 +34,6 @@ errval_t cbuf_put2(struct cbuf *buf, void *data_entry)
         return LIB_ERR_NOT_IMPLEMENTED; // TODO: buffer is full
     }
     memcpy(((uint8_t *) buf->data + buf->head * buf->entry_size), data_entry, buf->entry_size);
-//     memcpy(&buf->data[buf->head * buf->entry_size], data_entry, buf->entry_size);
     cbuf_advance(buf);
     return SYS_ERR_OK;
 }
