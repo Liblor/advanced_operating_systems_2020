@@ -59,6 +59,8 @@ static void handle_register(struct rpc_message *msg, struct nameserver_state *ns
     char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
     read_name(name, msg);
 
+    // TODO Check if name contains only alphanum characters
+
     struct capref chan_frame_cap = msg->cap;
 
     collections_hash_table *service_table = ns_state->service_table;

@@ -405,6 +405,7 @@ aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *c
 
     const size_t name_len = strnlen(name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
     if (name_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        // TODO Proper error
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
@@ -448,6 +449,7 @@ aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name)
 
     const size_t name_len = strnlen(name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
     if (name_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        // TODO Proper error
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
@@ -497,6 +499,7 @@ aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc
 
     const size_t name_len = strnlen(name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
     if (name_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        // TODO Proper error
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
@@ -545,6 +548,7 @@ errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t
 
     const size_t query_len = strnlen(query, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
     if (query_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        // TODO Proper error
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 

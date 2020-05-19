@@ -37,6 +37,22 @@
 
 static char *myrequest = "request !!";
 
+static void test_query(char *query)
+{
+    errval_t err;
+
+    size_t num;
+    char **result = NULL;
+    err = nameservice_enumerate(query, &num, &result);
+    PANIC_IF_FAIL(err, "failed to do the nameservice enumerate\n");
+
+    debug_printf("got enumeration for query '%s':\n", query);
+    for (int i = 0; i < num; i++) {
+        assert(result[i] != NULL);
+        debug_printf("found match '%s'\n", result[i]);
+    }
+}
+
 static void run_client(void)
 {
     errval_t err;
@@ -59,6 +75,14 @@ static void run_client(void)
     PANIC_IF_FAIL(err, "failed to do the nameservice rpc\n");
 
     debug_printf("got response: %s\n", (char *)response);
+
+    test_query("my");
+    test_query(SERVICE_NAME);
+    test_query(SERVICE_NAME "asdf");
+    test_query(SERVICE_NAME "bla");
+    test_query(SERVICE_NAME "bla1");
+    test_query(SERVICE_NAME "bla3");
+    test_query(SERVICE_NAME "bla32");
 }
 
 /*
@@ -85,6 +109,22 @@ static void run_server(void)
 
     debug_printf("register with nameservice '%s'\n", SERVICE_NAME);
     err = nameservice_register(SERVICE_NAME, server_recv_handler, NULL);
+    PANIC_IF_FAIL(err, "failed to register...\n");
+
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"bla1");
+    err = nameservice_register(SERVICE_NAME"bla1", server_recv_handler, NULL);
+    PANIC_IF_FAIL(err, "failed to register...\n");
+
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"bla12");
+    err = nameservice_register(SERVICE_NAME"bla12", server_recv_handler, NULL);
+    PANIC_IF_FAIL(err, "failed to register...\n");
+
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"bla31");
+    err = nameservice_register(SERVICE_NAME"bla31", server_recv_handler, NULL);
+    PANIC_IF_FAIL(err, "failed to register...\n");
+
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"bla32");
+    err = nameservice_register(SERVICE_NAME"bla32", server_recv_handler, NULL);
     PANIC_IF_FAIL(err, "failed to register...\n");
 
     err = nameservice_deregister(SERVICE_NAME);
