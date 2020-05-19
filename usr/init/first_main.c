@@ -360,6 +360,8 @@ int first_main(int argc, char *argv[])
     }
 #endif
 
+    nameserver_serve_in_thread(&ns_state);
+
     debug_printf("Entering message handler loop...\n");
 
     // Hang around
@@ -386,12 +388,6 @@ int first_main(int argc, char *argv[])
         err = memoryserver_ump_serve_next();
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "in memoryserver_ump_serve_next");
-            abort();
-        }
-
-        err = nameserver_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in nameserver_ump_serve_next");
             abort();
         }
 

@@ -119,6 +119,16 @@ errval_t aos_rpc_ns_register(struct aos_rpc *rpc, const char *name, struct aos_r
     return aos_rpc_lmp_ns_register(rpc, name, chan_add_client);
 }
 
+errval_t aos_rpc_ns_deregister(struct aos_rpc *rpc, const char *name)
+{
+    return aos_rpc_lmp_ns_deregister(rpc, name);
+}
+
+errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service)
+{
+    return aos_rpc_lmp_ns_lookup(rpc, name, rpc_service);
+}
+
 /**
  * \brief Returns the RPC channel to init.
  */

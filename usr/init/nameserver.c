@@ -35,6 +35,12 @@ static uint64_t hash_string(char *str)
     return hash;
 }
 
+static void read_name(char dst[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1], struct rpc_message *msg)
+{
+    memset(dst, 0, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
+    memcpy(dst, msg->msg.payload, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+}
+
 static void handle_register(struct rpc_message *msg, struct nameserver_state *ns_state, struct rpc_message *resp)
 {
     errval_t err;
@@ -43,8 +49,7 @@ static void handle_register(struct rpc_message *msg, struct nameserver_state *ns
     assert(ns_state != NULL);
 
     char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
-    memset(name, 0, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
-    memcpy(name, msg->msg.payload, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+    read_name(name, msg);
 
     struct capref chan_frame_cap = msg->cap;
 
@@ -71,7 +76,6 @@ static void handle_register(struct rpc_message *msg, struct nameserver_state *ns
 
     strncpy(entry->name, name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
 
-    debug_dump_cap_at_capref(chan_frame_cap);
     err = aos_rpc_ump_init(&entry->add_client_chan, chan_frame_cap, false);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ump_init() failed: %s", err_getstring(err));
@@ -80,6 +84,81 @@ static void handle_register(struct rpc_message *msg, struct nameserver_state *ns
     }
 
     collections_hash_insert(service_table, hash, entry);
+}
+
+static void handle_deregister(struct rpc_message *msg, struct nameserver_state *ns_state, struct rpc_message *resp)
+{
+}
+
+static errval_t send_add_client(struct aos_rpc *add_client_chan, struct capref *ret_frame_cap)
+{
+    errval_t err;
+
+    uint8_t send_buf[sizeof(struct rpc_message)];
+    struct rpc_message *send = (struct rpc_message *) &send_buf;
+
+    send->msg.method = Method_Ump_Add_Client;
+    send->msg.payload_length = 0;
+    send->msg.status = Status_Ok;
+    send->cap = NULL_CAP;
+
+    uint8_t recv_buf[sizeof(struct rpc_message)];
+    struct rpc_message *recv = (struct rpc_message *) &recv_buf;
+    // Allocate slot for receive message since we will receive a frame capability here
+    err = slot_alloc(&recv->cap);
+    if (err_is_fail(err)) {
+        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
+        return err_push(err, LIB_ERR_SLOT_ALLOC);
+    }
+
+    err = aos_rpc_ump_send_and_wait_recv(add_client_chan, send, &recv);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_send_and_wait_recv() failed: %s", err_getstring(err));
+        return err;
+    }
+
+    assert(recv->msg.method == Method_Ump_Add_Client);
+    assert(recv->msg.status == Status_Ok);
+    assert(recv->msg.payload_length == 0);
+    assert(!capref_is_null(recv->cap));
+
+    *ret_frame_cap = recv->cap;
+
+    return SYS_ERR_OK;
+}
+
+static void handle_lookup(struct rpc_message *msg, struct nameserver_state *ns_state, struct rpc_message *resp)
+{
+    errval_t err;
+
+    assert(msg != NULL);
+    assert(ns_state != NULL);
+
+    char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
+    read_name(name, msg);
+
+    collections_hash_table *service_table = ns_state->service_table;
+    assert(service_table != NULL);
+
+    uint64_t hash = hash_string(name);
+    struct nameserver_entry *entry = collections_hash_find(service_table, hash);
+
+    if (entry == NULL) {
+        debug_printf("Service '%s' not registered.\n", name);
+        resp->msg.status = Status_Error;
+        return;
+    }
+
+    struct capref client_frame_cap;
+
+    err = send_add_client(&entry->add_client_chan, &client_frame_cap);
+    if (err_is_fail(err)) {
+        debug_printf("send_add_client() failed: %s", err_getstring(err));
+        resp->msg.status = Status_Error;
+        return;
+    }
+
+    resp->cap = client_frame_cap;
 }
 
 static void reply_init(struct rpc_message *msg, struct rpc_message *resp)
@@ -100,7 +179,6 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
 	switch (msg->msg.method) {
     case Method_Nameserver_Register:
         debug_printf("Method_Nameserver_Register\n");
-        debug_dump_cap_at_capref(msg->cap);
 
         resp = malloc(NAMESERVER_REGISTER_RESPONSE_SIZE);
         reply_init(msg, resp);
@@ -111,11 +189,15 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
         debug_printf("Method_Nameserver_Deregister\n");
         resp = malloc(NAMESERVER_DEREGISTER_RESPONSE_SIZE);
         reply_init(msg, resp);
+
+        handle_deregister(msg, ns_state, resp);
         break;
     case Method_Nameserver_Lookup:
         debug_printf("Method_Nameserver_Lookup\n");
         resp = malloc(NAMESERVER_LOOKUP_RESPONSE_SIZE);
         reply_init(msg, resp);
+
+        handle_lookup(msg, ns_state, resp);
         break;
     case Method_Nameserver_Enumerate:
         debug_printf("Method_Nameserver_Enumerate\n");
@@ -169,4 +251,28 @@ errval_t nameserver_init(struct nameserver_state *server_state)
 
     debug_printf("Namerserver started.\n");
     return SYS_ERR_OK;
+}
+
+static int nameserver_thread_func(void *arg)
+{
+    errval_t err;
+
+    debug_printf("Serving nameserver requests.\n");
+
+    while (true) {
+        err = nameserver_serve_next();
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in nameserver_ump_serve_next");
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+void nameserver_serve_in_thread(struct nameserver_state *server_state)
+{
+    struct thread *nameserver_thread = thread_create(nameserver_thread_func, server_state);
+
+    assert(nameserver_thread != NULL);
 }

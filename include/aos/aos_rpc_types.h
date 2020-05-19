@@ -20,6 +20,9 @@ enum rpc_message_method {
     Method_Nameserver_Deregister,
     Method_Nameserver_Lookup,
     Method_Nameserver_Enumerate,
+    Method_Ump_Add_Client,
+    Method_Nameserver_Service_Request,
+    Method_Nameserver_Service_Response,
 };
 
 #define AOS_RPC_NAMESERVER_MAX_NAME_LENGTH 32

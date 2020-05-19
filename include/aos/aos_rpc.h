@@ -130,6 +130,8 @@ errval_t aos_rpc_get_device_cap(struct aos_rpc *chan,
 
 // Nameserver calls
 errval_t aos_rpc_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client);
+errval_t aos_rpc_ns_deregister(struct aos_rpc *rpc, const char *name);
+errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service);
 
 /**
  * \brief Returns the RPC channel to init.

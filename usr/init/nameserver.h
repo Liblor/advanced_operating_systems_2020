@@ -13,4 +13,6 @@ errval_t nameserver_serve_next(void);
 
 errval_t nameserver_init(struct nameserver_state *server_state);
 
+void nameserver_serve_in_thread(struct nameserver_state *server_state);
+
 #endif

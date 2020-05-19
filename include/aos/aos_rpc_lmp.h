@@ -106,7 +106,10 @@ errval_t aos_rpc_lmp_get_device_cap(struct aos_rpc *chan,
                                 lpaddr_t paddr, size_t bytes,
                                 struct capref *frame);
 
+// Nameserver calls
 errval_t aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client);
+errval_t aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name);
+errval_t aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service);
 
 /**
  * \brief Returns the RPC channel to monitor.

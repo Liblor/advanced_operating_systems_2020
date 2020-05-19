@@ -10,6 +10,7 @@
 #include <aos/nameserver.h>
 #include <aos/aos_rpc.h>
 
+#include <rpc/server/ump.h>
 
 #include <hashtable/hashtable.h>
 
@@ -18,6 +19,9 @@ struct srv_entry {
 	const char *name;
 	nameservice_receive_handler_t *recv_handler;
 	void *st;
+    struct aos_rpc add_client_chan;
+    struct thread *service_thread;
+    struct rpc_ump_server ump_server;
 };
 
 struct nameservice_chan
@@ -26,6 +30,139 @@ struct nameservice_chan
 	char *name;
 };
 
+struct srv_entry static_service;
+struct srv_entry *static_service_ptr = &static_service;
+
+static errval_t serve_add_client(struct srv_entry *service) {
+    errval_t err;
+
+    assert(service != NULL);
+
+    // TODO Allocate message on stack
+    struct rpc_message *msg = NULL;
+
+    err = aos_rpc_ump_receive_non_block(&service->add_client_chan, &msg);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_receive_non_block() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    // Check if a message has been received
+    if (msg != NULL) {
+        assert(msg->msg.method == Method_Ump_Add_Client);
+        assert(msg->msg.status == Status_Ok);
+        assert(msg->msg.payload_length == 0);
+        assert(capref_is_null(msg->cap));
+
+        // Create new channel for client
+        struct capref frame;
+
+        err = frame_alloc(&frame, UMP_SHARED_FRAME_SIZE, NULL);
+        if (err_is_fail(err)) {
+            debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
+            return err;
+        }
+
+        struct aos_rpc *client_chan = malloc(sizeof(struct aos_rpc));
+        if (client_chan == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+
+        err = aos_rpc_ump_init(client_chan, frame, true);
+        if (err_is_fail(err)) {
+            debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
+            return err;
+        }
+
+        // Add channel to UMP server
+        err = rpc_ump_server_add_client(&service->ump_server, client_chan);
+        if (err_is_fail(err)) {
+            debug_printf("rpc_ump_server_add_client() failed: %s\n", err_getstring(err));
+            return err;
+        }
+
+        // Reply with newly created client channel
+        uint8_t send_buf[sizeof(struct rpc_message)];
+        struct rpc_message *reply = (struct rpc_message *) &send_buf;
+
+        reply->msg.method = Method_Ump_Add_Client;
+        reply->msg.payload_length = 0;
+        reply->msg.status = Status_Ok;
+        reply->cap = frame;
+
+        err = aos_rpc_ump_send_message(&service->add_client_chan, reply);
+        if (err_is_fail(err)) {
+            debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
+            return err;
+        }
+    }
+
+    return SYS_ERR_OK;
+}
+
+static int service_thread_func(void *arg)
+{
+    errval_t err;
+
+    struct srv_entry *service = arg;
+
+    while (true) {
+        // Serve regular client requests
+        err = rpc_ump_server_serve_next(&service->ump_server);
+        if (err_is_fail(err)) {
+            debug_printf("Error when calling rpc_ump_server_serve_next() for service '%s': %s\n", service->name, err_getstring(err));
+            return 1;
+        }
+
+        // Serve client add request from the nameserver
+        err = serve_add_client(service);
+        if (err_is_fail(err)) {
+            debug_printf("serve_add_client() failed: %s\n", err_getstring(err));
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
+{
+    errval_t err;
+
+    assert(msg->msg.status == Status_Ok);
+    assert(msg->msg.method == Method_Nameserver_Service_Request);
+
+    struct srv_entry *service = server_state;
+
+    void *st = service->st;
+    void *message = msg->msg.payload;
+    size_t bytes = sizeof(struct rpc_message) + msg->msg.payload_length;
+    struct capref rx_cap = msg->cap;
+
+    void *response = NULL;
+    size_t response_bytes = 0;
+    struct capref tx_cap = NULL_CAP;
+
+    // Call callback to construct response
+    service->recv_handler(st, message, bytes, &response, &response_bytes, rx_cap, &tx_cap);
+
+    if (response != NULL && response_bytes > 0) {
+        // Send response
+        uint8_t send_buf[sizeof(struct rpc_message) + response_bytes];
+        struct rpc_message *send = (struct rpc_message *) &send_buf;
+        send->msg.method = Method_Nameserver_Service_Response;
+        send->msg.payload_length = response_bytes;
+        send->msg.status = Status_Ok;
+        send->cap = tx_cap;
+        memcpy(send->msg.payload, response, response_bytes);
+
+        err = aos_rpc_ump_send_message(rpc, send);
+        if (err_is_fail(err)) {
+            debug_printf("aos_rpc_ump_send_message() failed: %s\n", err_getstring(err));
+            return;
+        }
+    }
+}
 
 /**
  * @brief sends a message back to the client who sent us a message
@@ -76,20 +213,31 @@ errval_t nameservice_register(const char *name,
         return err;
     }
 
-    struct aos_rpc *chan_add_client = malloc(sizeof(struct aos_rpc));
-
-    err = aos_rpc_ump_init(chan_add_client, frame, true);
+    err = aos_rpc_ump_init(&static_service_ptr->add_client_chan, frame, true);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
         return err;
     }
 
     // Send message to nameserver to register new service
-    err = aos_rpc_ns_register(monitor_chan, name, chan_add_client);
+    err = aos_rpc_ns_register(monitor_chan, name, &static_service_ptr->add_client_chan);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_lmp_ns_register() failed: %s\n", err_getstring(err));
         return err;
     }
+
+    static_service_ptr->name = name;
+    static_service_ptr->recv_handler = recv_handler;
+    static_service_ptr->st = st;
+
+    err = rpc_ump_server_init(&static_service_ptr->ump_server, service_recv_cb, NULL, NULL, static_service_ptr);
+    if (err_is_fail(err)) {
+        debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
+        return err_push(err, RPC_ERR_INITIALIZATION);
+    }
+
+    static_service_ptr->service_thread = thread_create(service_thread_func, static_service_ptr);
+    assert(static_service_ptr->service_thread != NULL);
 
 	return SYS_ERR_OK;
 }
@@ -118,7 +266,22 @@ errval_t nameservice_deregister(const char *name)
  */
 errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
 {
-	return LIB_ERR_NOT_IMPLEMENTED;
+    errval_t err;
+
+    struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
+
+    // TODO Maybe have a single aos_rpc statically available to lookup the memory server
+    struct aos_rpc *service_chan = malloc(sizeof(struct aos_rpc));
+
+    err = aos_rpc_ns_lookup(monitor_chan, name, service_chan);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ns_lookup() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    *nschan = service_chan;
+
+	return SYS_ERR_OK;
 }
 
 
