@@ -136,7 +136,6 @@ static void service_recv_cb(
     case Method_Nameserver_Deregister:
     case Method_Nameserver_Lookup:
     case Method_Nameserver_Enumerate:
-        debug_printf("Received Nameserver RPC.\n");
         if (! is_registered(&mss->nameserver_rpc)) {
             goto unregistered_service;
         }
