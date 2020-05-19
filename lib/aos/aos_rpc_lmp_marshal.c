@@ -180,7 +180,9 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
+    if (!capref_is_null(ret_cap)) {
+        lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
+    }
 
     // TODO: Use custom callback.
     err = lmp_chan_register_recv(&rpc->lmp.chan, &state.ws, MKCLOSURE(client_response_cb_one_no_alloc, &state));
