@@ -30,8 +30,7 @@ struct nameservice_chan
 	char *name;
 };
 
-struct srv_entry static_service;
-struct srv_entry *static_service_ptr = &static_service;
+collections_listnode *service_list_head = NULL;
 
 static errval_t serve_add_client(struct srv_entry *service) {
     errval_t err;
@@ -218,12 +217,18 @@ errval_t nameservice_register(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st)
 {
-    // TODO Initialize UMP server for the given name
-    // TODO Create srv_entry and add to list
-    // TODO Create serve function that goes through all srv_entries
     errval_t err;
 
     struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
+
+    if (service_list_head == NULL) {
+        collections_list_create(&service_list_head, NULL);
+    }
+
+    struct srv_entry *service = malloc(sizeof(struct srv_entry));
+    if (service == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
 
     struct capref frame;
 
@@ -233,33 +238,45 @@ errval_t nameservice_register(const char *name,
         return err;
     }
 
-    err = aos_rpc_ump_init(&static_service_ptr->add_client_chan, frame, true);
+    err = aos_rpc_ump_init(&service->add_client_chan, frame, true);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
         return err;
     }
 
     // Send message to nameserver to register new service
-    err = aos_rpc_ns_register(monitor_chan, name, &static_service_ptr->add_client_chan);
+    err = aos_rpc_ns_register(monitor_chan, name, &service->add_client_chan);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_lmp_ns_register() failed: %s\n", err_getstring(err));
         return err;
     }
 
-    static_service_ptr->name = name;
-    static_service_ptr->recv_handler = recv_handler;
-    static_service_ptr->st = st;
+    service->name = name;
+    service->recv_handler = recv_handler;
+    service->st = st;
 
-    err = rpc_ump_server_init(&static_service_ptr->ump_server, service_recv_cb, NULL, NULL, static_service_ptr);
+    err = rpc_ump_server_init(&service->ump_server, service_recv_cb, NULL, NULL, service);
     if (err_is_fail(err)) {
         debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
-    static_service_ptr->service_thread = thread_create(service_thread_func, static_service_ptr);
-    assert(static_service_ptr->service_thread != NULL);
+    service->service_thread = thread_create(service_thread_func, service);
+    assert(service->service_thread != NULL);
+
+    int32_t ret = collections_list_insert(service_list_head, service);
+    assert(ret == 0);
 
 	return SYS_ERR_OK;
+}
+
+
+static int32_t service_has_name(void *data, void *arg)
+{
+    struct srv_entry *service = data;
+    const char *name = arg;
+
+    return strcmp(service->name, name) == 0;
 }
 
 
@@ -276,6 +293,13 @@ errval_t nameservice_deregister(const char *name)
 
     struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
 
+    struct srv_entry *service = collections_list_remove_if(service_list_head, service_has_name, (void *) name);
+    if (service == NULL) {
+        debug_printf("Service '%s' has not been registered by this process.", name);
+        // TODO Proper error
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
     // TODO Clean up local data structures that were created by nameservice_register():
     // TODO Free add_client_chan and the frame it uses
     // TODO Terminate and free service_thread
@@ -284,6 +308,10 @@ errval_t nameservice_deregister(const char *name)
     // TODO What happens to processes that got the now non-existant server in a lookup?
 
     err = aos_rpc_ns_deregister(monitor_chan, name);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ns_deregister() failed: %s\n", err_getstring(err));
+        return err;
+    }
 	return SYS_ERR_OK;
 }
 
@@ -304,6 +332,9 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
 
     // TODO Maybe have a single aos_rpc statically available to lookup the memory server
     struct aos_rpc *service_chan = malloc(sizeof(struct aos_rpc));
+    if (service_chan == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
 
     err = aos_rpc_ns_lookup(monitor_chan, name, service_chan);
     if (err_is_fail(err)) {
