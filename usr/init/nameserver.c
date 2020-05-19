@@ -88,6 +88,27 @@ static void handle_register(struct rpc_message *msg, struct nameserver_state *ns
 
 static void handle_deregister(struct rpc_message *msg, struct nameserver_state *ns_state, struct rpc_message *resp)
 {
+    assert(msg != NULL);
+    assert(ns_state != NULL);
+
+    char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
+    read_name(name, msg);
+
+    collections_hash_table *service_table = ns_state->service_table;
+    assert(service_table != NULL);
+
+    uint64_t hash = hash_string(name);
+    struct nameserver_entry *entry = collections_hash_find(service_table, hash);
+
+    if (entry == NULL) {
+        debug_printf("Service '%s' not registered.\n", name);
+        resp->msg.status = Status_Error;
+        return;
+    }
+
+    debug_printf("Removing service '%s' from service table.\n", name);
+
+    collections_hash_delete(service_table, hash);
 }
 
 static errval_t send_add_client(struct aos_rpc *add_client_chan, struct capref *ret_frame_cap)

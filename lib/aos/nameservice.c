@@ -272,7 +272,19 @@ errval_t nameservice_register(const char *name,
  */
 errval_t nameservice_deregister(const char *name)
 {
-	return LIB_ERR_NOT_IMPLEMENTED;
+    errval_t err;
+
+    struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
+
+    // TODO Clean up local data structures that were created by nameservice_register():
+    // TODO Free add_client_chan and the frame it uses
+    // TODO Terminate and free service_thread
+    // TODO Free st (?)
+    // TODO free ump_server
+    // TODO What happens to processes that got the now non-existant server in a lookup?
+
+    err = aos_rpc_ns_deregister(monitor_chan, name);
+	return SYS_ERR_OK;
 }
 
 

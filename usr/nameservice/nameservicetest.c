@@ -87,6 +87,12 @@ static void run_server(void)
     err = nameservice_register(SERVICE_NAME, server_recv_handler, NULL);
     PANIC_IF_FAIL(err, "failed to register...\n");
 
+    err = nameservice_deregister(SERVICE_NAME);
+    PANIC_IF_FAIL(err, "failed to deregister...\n");
+
+    err = nameservice_register(SERVICE_NAME, server_recv_handler, NULL);
+    PANIC_IF_FAIL(err, "failed to register second time...\n");
+
     domainid_t did;
     debug_printf("spawning test binary '%s'\n", TEST_BINARY);
     err = aos_rpc_process_spawn(aos_rpc_get_process_channel(), TEST_BINARY " a", disp_get_core_id(), &did);
