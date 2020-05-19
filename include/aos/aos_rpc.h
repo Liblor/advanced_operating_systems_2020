@@ -21,7 +21,7 @@
 #include <aos/aos_rpc_ump.h>
 
 // How often a transient error can occur before it's regarded critical.
-#define TRANSIENT_ERR_RETRIES (20)
+#define TRANSIENT_ERR_RETRIES (1000)
 
 enum aos_rpc_type {
     RpcTypeLmp,
@@ -117,6 +117,29 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
 errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
                                       domainid_t **pids, size_t *pid_count);
 
+
+/**
+ * \brief Read block of SDHC at index
+ * \arg index Read block at this index
+ * \arg buf Where to store data received
+ * \arg buf_size Size of buf
+ */
+errval_t aos_rpc_block_driver_read_block(struct aos_rpc *rpc,
+                                         uint32_t index,
+                                         void *buf,
+                                         size_t buf_size);
+
+/**
+ * \brief Write block of SDHC at index
+ * \arg index Write block at this index
+ * \arg buf Data to be written
+ * \arg block_size Size of block to be written, buf must be at least of this size
+ */
+errval_t aos_rpc_block_driver_write_block(struct aos_rpc *rpc,
+                                          uint32_t index,
+                                          void *buf,
+                                          size_t block_size);
+
 /**
  * \brief Request a device cap for the given region.
  * @param chan  the rpc channel
@@ -147,5 +170,10 @@ struct aos_rpc *aos_rpc_get_process_channel(void);
  * \brief Returns the channel to the serial console
  */
 struct aos_rpc *aos_rpc_get_serial_channel(void);
+
+/**
+ * \brief Returns the channel to the block driver
+ */
+struct aos_rpc *aos_rpc_get_block_driver_channel(void);
 
 #endif // _LIB_BARRELFISH_AOS_MESSAGES_H

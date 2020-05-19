@@ -3,7 +3,10 @@
 
 #include <aos/aos_rpc.h>
 #include <aos/threads.h>
+#include <aos/deferred.h>
 
+
+#define PERIODIC_LOCALTASKS_US 1000
 struct monitorserver_cb_state {
 };
 
@@ -13,6 +16,7 @@ enum monitorserver_binding_type {
     ProcessLocaltasksUrpc = 10,
     SerialserverUrpc = 15,
     MemoryserverUrpc = 20,
+    BlockDriverServerUrpc
 };
 
 struct monitorserver_rpc {
@@ -27,7 +31,9 @@ struct monitorserver_state {
     struct monitorserver_rpc processserver_rpc;
     struct monitorserver_rpc processserver_localtasks_rpc;
     struct monitorserver_rpc serialserver_rpc;
+    struct monitorserver_rpc blockdriverserver_rpc;
     struct waitset ws;
+    struct periodic_event periodic_localtask;
 };
 
 errval_t monitorserver_init(void

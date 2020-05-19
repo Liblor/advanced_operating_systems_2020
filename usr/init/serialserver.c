@@ -14,15 +14,16 @@ static getchar_callback_t getchar_cb = NULL;
 static errval_t reply_char(struct aos_rpc *rpc, char c) {
     errval_t err;
 
-    struct rpc_message msg;
+    char buf[sizeof(struct rpc_message) + sizeof(char)];
+    struct rpc_message *msg = (struct rpc_message*) &buf;
 
-    msg.cap = NULL_CAP;
-    msg.msg.method = Method_Serial_Getchar;
-    msg.msg.payload_length = sizeof(c);
-    msg.msg.status = Status_Ok;
-    msg.msg.payload[0] = c;
+    msg->cap = NULL_CAP;
+    msg->msg.method = Method_Serial_Getchar;
+    msg->msg.payload_length = sizeof(c);
+    msg->msg.status = Status_Ok;
+    msg->msg.payload[0] = c;
 
-    err = aos_rpc_ump_send_message(rpc, &msg);
+    err = aos_rpc_ump_send_message(rpc, msg);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "ump_send_message failed\n");
         return err;

@@ -1421,8 +1421,13 @@ errors serial LPUART_ERR_ {
 };
 
 // errors for SDHC driver lib
+errors sdhc BLOCK_DRIVER_ERR_ {
+    failure UNSUPPORTED_BLOCK_SIZE           "Provided block size is not supported",
+};
+
+// errors for SDHC driver lib
 errors sdhc SDHC_ERR_ {
-    failure UNKOWN_VENDOR           "Unknown SDHC controller idendtity",
+    failure UNKOWN_VENDOR           "Unknown SDHC controller identity",
     failure RESET_TIMEOUT           "Timeout while resetting",
     failure CMD_TIMEOUT             "Command time out",
     failure CMD_CONFLICT            "Conflict on command line",

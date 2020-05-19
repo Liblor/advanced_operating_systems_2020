@@ -52,7 +52,7 @@ errval_t sdhc_test(struct sdhc_s* sd, void * scratch, lpaddr_t scratch_p);
  * \param index     The block index to write
  * \param source    Physical address of the data to read from
  */
-errval_t sdhc_write_block(struct sdhc_s* sd, int index, lpaddr_t source);
+errval_t sdhc_write_block(struct sdhc_s* sd, uint32_t index, lpaddr_t source);
 
 /**
  * Read block number index of SDHC_BLOCK_LEN bytes to physical address dest
@@ -64,6 +64,6 @@ errval_t sdhc_write_block(struct sdhc_s* sd, int index, lpaddr_t source);
  * \param index     The block index to read
  * \param dest      Physical address where to write
  */
-errval_t sdhc_read_block(struct sdhc_s* sd, int index, lpaddr_t dest);
+errval_t sdhc_read_block(struct sdhc_s* sd, uint32_t index, lpaddr_t dest);
 
 #endif

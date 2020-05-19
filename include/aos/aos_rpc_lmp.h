@@ -96,6 +96,26 @@ errval_t aos_rpc_lmp_process_get_all_pids(struct aos_rpc *chan,
                                       domainid_t **pids, size_t *pid_count);
 
 /**
+ * \brief Read block of SDHC at index
+ * \arg index Read block at this index
+ * \arg buf Where to store data received
+ * \arg buf_size Size of buf
+ */
+errval_t aos_rpc_lmp_block_driver_read_block(
+        struct aos_rpc *rpc,
+        uint32_t index,
+        void *buf,
+        size_t buf_size
+);
+
+errval_t aos_rpc_lmp_block_driver_write_block(
+        struct aos_rpc *rpc,
+        uint32_t index,
+        void *buf,
+        size_t block_size
+);
+
+/**
  * \brief Request a device cap for the given region.
  * @param chan  the rpc channel
  * @param paddr physical address of the device
@@ -131,5 +151,10 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void);
  * \brief Returns the channel to the serial console
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void);
+
+/**
+ * \brief Returns the channel to the block driver
+ */
+struct aos_rpc *aos_rpc_lmp_get_block_driver_channel(void);
 
 #endif // _LIB_BARRELFISH_AOS_LMP_H

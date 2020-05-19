@@ -15,7 +15,9 @@ enum rpc_message_method {
     Method_Process_Get_Name,
     Method_Process_Get_All_Pids,
     Method_Spawn_Process,
-    Method_Localtask_Spawn_Process
+    Method_Localtask_Spawn_Process,
+    Method_Block_Driver_Read_Block,
+    Method_Block_Driver_Write_Block
 };
 
 enum rpc_message_status {
