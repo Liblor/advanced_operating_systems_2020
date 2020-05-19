@@ -656,6 +656,11 @@ static void udp_receive_cb(
     if (err_is_fail(err)) {
         debug_printf("udp_send() failed: %s\n", err_getstring(err));
     }
+
+    err = udp_deregister(state, 9000);
+    if (err_is_fail(err)) {
+        debug_printf("Cannot deregister UDP receive callback.\n");
+    }
 }
 
 static regionid_t rx_rid;

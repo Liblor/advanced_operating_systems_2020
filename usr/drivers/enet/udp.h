@@ -64,4 +64,9 @@ errval_t udp_register(
     void *context
 );
 
+errval_t udp_deregister(
+    struct udp_state *state,
+    const udp_port_t port
+);
+
 #endif

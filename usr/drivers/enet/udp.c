@@ -6,6 +6,16 @@
 #include <netutil/udp.h>
 #include <netutil/htons.h>
 
+static void udp_release_binding(
+    void *binding
+)
+{
+    struct udp_binding *b = binding;
+    debug_printf("Freeing binding for port %d\n", b->port);
+
+    free(binding);
+}
+
 errval_t udp_initialize(
     struct udp_state *state,
     struct ip_state *ip_state,
@@ -19,7 +29,7 @@ errval_t udp_initialize(
     state->receive_cb = receive_cb;
 
     /* NOTE: This could fail if no more memory can be allocated. */
-    collections_hash_create_with_buckets(&state->bindings, UDP_HASHTABLE_BUCKETS, NULL);
+    collections_hash_create_with_buckets(&state->bindings, UDP_HASHTABLE_BUCKETS, udp_release_binding);
 
     return SYS_ERR_OK;
 }
@@ -160,6 +170,28 @@ errval_t udp_register(
     binding->port = port;
 
     collections_hash_insert(state->bindings, port, binding);
+
+    return SYS_ERR_OK;
+}
+
+errval_t udp_deregister(
+    struct udp_state *state,
+    const udp_port_t port
+)
+{
+    //errval_t err;
+
+    assert(state != NULL);
+
+    struct udp_binding *binding = collections_hash_find(state->bindings, port);
+
+    if (binding == NULL) {
+        return SYS_ERR_NOT_IMPLEMENTED;
+    }
+
+    debug_printf("Removing UDP binding for port %d.\n", port);
+
+    collections_hash_delete(state->bindings, port);
 
     return SYS_ERR_OK;
 }
