@@ -23,6 +23,7 @@
 #include <aos/deferred.h>
 #include <driverkit/driverkit.h>
 #include <dev/imx8x/enet_dev.h>
+#include <aos/nameserver.h>
 
 #include <maps/imx8x_map.h> // IMX8X_ENET_BASE, IMX8X_ENET_SIZE
 
@@ -657,10 +658,24 @@ static void udp_receive_cb(
         debug_printf("udp_send() failed: %s\n", err_getstring(err));
     }
 
+#if 0
     err = udp_deregister(state, 9000);
     if (err_is_fail(err)) {
         debug_printf("Cannot deregister UDP receive callback.\n");
     }
+#endif
+}
+
+static void nameservice_receive_handler(
+    void *st,
+    void *message,
+    size_t bytes,
+    void **response,
+    size_t *response_bytes,
+    struct capref tx_cap,
+    struct capref *rx_cap
+)
+{
 }
 
 static regionid_t rx_rid;
@@ -799,9 +814,18 @@ int main(
     ARP_QUERY(&st->eth_state, MK_IP(1, 0, 0, 10), &mac);
     debug_printf("Sending test packet complete.\n");
 
+    err = nameservice_register(
+        ENET_SERVICE_NAME,
+        nameservice_receive_handler,
+        &st
+    );
+    if (err_is_fail(err)) {
+        USER_PANIC("Cannot register nameservice callback.\n");
+    }
+
     udp_register(&st->eth_state.ip_state.udp_state, 9000, NULL);
     if (err_is_fail(err)) {
-        debug_printf("Cannot register UDP receive callback.\n");
+        USER_PANIC("Cannot register UDP receive callback.\n");
     }
 
     while (true) {
