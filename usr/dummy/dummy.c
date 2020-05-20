@@ -2,7 +2,7 @@
 
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
-#include <aos/fat32.h>
+#include <fs/fat32.h>
 
 int main(int argc, char *argv[])
 {

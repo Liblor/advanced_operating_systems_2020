@@ -1,6 +1,6 @@
 #include <errors/errno.h>
 #include <aos/aos_rpc.h>
-#include <aos/fat32.h>
+#include <fs/fat32.h>
 
 
 static inline uint32_t cluster_to_lba(struct fat32_mnt *mnt, uint32_t cluster_num)
