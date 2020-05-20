@@ -6,6 +6,7 @@
 #define BF_AOS_FAT32_H
 
 #include <stdint.h>
+#include <fs/fs.h>
 
 typedef void *fat32_handle_t;
 
@@ -40,12 +41,34 @@ struct dir_entry {
     uint32_t size;
 } __attribute__((packed));
 
+struct fat32_dirent {
+    uint32_t cluster;
+    uint32_t offset;
+    struct dir_entry dir_entry;
+};
+
 struct fat32_handle {
     char *path;
     bool isdir;
-    uint32_t cluster;
+    struct fat32_dirent dirent;
 };
 
 errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt);
+errval_t fat32_opendir(
+        void *st,
+        const char *path,
+        fat32_handle_t *rethandle
+);
+
+errval_t fat32_dir_read_next(
+        void *st,
+        fat32_handle_t inhandle,
+        char **retname,
+        struct fs_fileinfo *info
+);
+errval_t fat32_closedir(
+        void *st,
+        fat32_handle_t dhandle
+);
 
 #endif //BF_AOS_FAT32_H
