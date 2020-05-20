@@ -25,6 +25,7 @@
                         "serialserver.c",
                         "processserver.c",
                         "monitorserver.c",
+                        "nameserver.c",
                         "test.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init

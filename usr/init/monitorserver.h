@@ -13,6 +13,7 @@ enum monitorserver_binding_type {
     ProcessLocaltasksUrpc = 10,
     SerialserverUrpc = 15,
     MemoryserverUrpc = 20,
+    NameserverUrpc = 25,
 };
 
 struct monitorserver_rpc {
@@ -27,6 +28,7 @@ struct monitorserver_state {
     struct monitorserver_rpc processserver_rpc;
     struct monitorserver_rpc processserver_localtasks_rpc;
     struct monitorserver_rpc serialserver_rpc;
+    struct monitorserver_rpc nameserver_rpc;
     struct waitset ws;
 };
 

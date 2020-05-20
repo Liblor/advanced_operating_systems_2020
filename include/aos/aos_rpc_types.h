@@ -15,8 +15,17 @@ enum rpc_message_method {
     Method_Process_Get_Name,
     Method_Process_Get_All_Pids,
     Method_Spawn_Process,
-    Method_Localtask_Spawn_Process
+    Method_Localtask_Spawn_Process,
+    Method_Nameserver_Register,
+    Method_Nameserver_Deregister,
+    Method_Nameserver_Lookup,
+    Method_Nameserver_Enumerate,
+    Method_Ump_Add_Client,
+    Method_Nameserver_Service_Request,
+    Method_Nameserver_Service_Response,
 };
+
+#define AOS_RPC_NAMESERVER_MAX_NAME_LENGTH 32
 
 enum rpc_message_status {
     Status_Ok = 0,

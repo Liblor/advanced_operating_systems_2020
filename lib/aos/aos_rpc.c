@@ -114,6 +114,26 @@ errval_t aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t byte
     return aos_rpc_lmp_get_device_cap(rpc, paddr, bytes, ret_cap);
 }
 
+errval_t aos_rpc_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client)
+{
+    return aos_rpc_lmp_ns_register(rpc, name, chan_add_client);
+}
+
+errval_t aos_rpc_ns_deregister(struct aos_rpc *rpc, const char *name)
+{
+    return aos_rpc_lmp_ns_deregister(rpc, name);
+}
+
+errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service)
+{
+    return aos_rpc_lmp_ns_lookup(rpc, name, rpc_service);
+}
+
+errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char ***result)
+{
+    return aos_rpc_lmp_ns_enumerate(rpc, query, num, result);
+}
+
 /**
  * \brief Returns the RPC channel to init.
  */

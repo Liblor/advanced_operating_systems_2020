@@ -55,6 +55,8 @@ errval_t aos_rpc_ump_init(
         rpc->ump.tx = (struct ump_shared_half *) (vaddr + sizeof(struct ump_shared_half));
     }
 
+    rpc->ump.frame_cap = frame_cap;
+
     return SYS_ERR_OK;
 }
 

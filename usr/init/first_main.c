@@ -24,8 +24,11 @@
 #include "monitorserver.h"
 #include "processserver.h"
 #include "serialserver.h"
+#include "nameserver.h"
 
 extern coreid_t my_core_id;
+
+struct nameserver_state ns_state;
 
 static void number_cb(uintptr_t num)
 {
@@ -125,6 +128,12 @@ static void setup_servers(
 {
     errval_t err;
 
+    err = nameserver_init(&ns_state);
+    if (err_is_fail(err)) {
+        debug_printf("nameserver_init() failed: %s\n", err_getstring(err));
+        abort();
+    }
+
     err = initserver_init(number_cb, string_cb);
     if (err_is_fail(err)) {
         debug_printf("initserver_init() failed: %s\n", err_getstring(err));
@@ -179,6 +188,10 @@ static void register_service_channel(
     }
 
     struct aos_rpc *service_rpc = malloc(sizeof(struct aos_rpc));
+    if (service_rpc == NULL) {
+        debug_printf("malloc() failed\n");
+        abort();
+    }
 
     err = aos_rpc_ump_init(service_rpc, frame, true);
     if (err_is_fail(err)) {
@@ -237,6 +250,7 @@ static void register_service_channels(
     register_service_channel(ProcessserverUrpc, rpc, mpid, processserver_add_client);
     register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
     register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
+    register_service_channel(NameserverUrpc, rpc, mpid, nameserver_add_client);
 
     debug_printf("all service channels for core %d registered\n", mpid);
 }
@@ -349,6 +363,8 @@ int first_main(int argc, char *argv[])
     }
 #endif
 
+    nameserver_serve_in_thread(&ns_state);
+
     debug_printf("Entering message handler loop...\n");
 
     // Hang around
@@ -362,19 +378,19 @@ int first_main(int argc, char *argv[])
 
         err = serialserver_serve_next();
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
+            DEBUG_ERR(err, "in serialserver_serve_next");
             abort();
         }
 
         err = processserver_serve_next();
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
+            DEBUG_ERR(err, "in processserver_serve_next");
             abort();
         }
 
         err = memoryserver_ump_serve_next();
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
+            DEBUG_ERR(err, "in memoryserver_ump_serve_next");
             abort();
         }
 
