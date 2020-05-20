@@ -2,6 +2,7 @@
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_ump.h>
 #include <aos/aos_rpc_types.h>
+#include <ctype.h>
 
 #include <rpc/server/ump.h>
 
@@ -49,6 +50,17 @@ static void reply_init(struct rpc_message *msg, struct rpc_message *resp)
     resp->cap = NULL_CAP;
 }
 
+static bool check_name_valid(char *name)
+{
+    for (char *ptr = name; *ptr != '\0'; ptr++) {
+        if (!isalnum(*ptr)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void handle_register(struct rpc_message *msg, struct nameserver_state *ns_state, struct rpc_message *resp)
 {
     errval_t err;
@@ -59,7 +71,11 @@ static void handle_register(struct rpc_message *msg, struct nameserver_state *ns
     char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
     read_name(name, msg);
 
-    // TODO Check if name contains only alphanum characters
+    if (!check_name_valid(name)) {
+        debug_printf("Service name '%s' is not allowed.\n", name);
+        resp->msg.status = Status_Error;
+        return;
+    }
 
     struct capref chan_frame_cap = msg->cap;
 
