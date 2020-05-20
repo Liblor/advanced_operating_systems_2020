@@ -2,6 +2,7 @@
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_ump.h>
 #include <aos/aos_rpc_types.h>
+#include <aos/domain.h>
 #include <ctype.h>
 
 #include <rpc/server/ump.h>
@@ -13,12 +14,13 @@ static struct rpc_ump_server server;
 #define NAMESERVER_STATUS_RESPONSE_SIZE (sizeof(struct rpc_message) + 0)
 #define NAMESERVER_REGISTER_RESPONSE_SIZE (NAMESERVER_STATUS_RESPONSE_SIZE)
 #define NAMESERVER_DEREGISTER_RESPONSE_SIZE (NAMESERVER_STATUS_RESPONSE_SIZE)
-#define NAMESERVER_LOOKUP_RESPONSE_SIZE (NAMESERVER_STATUS_RESPONSE_SIZE)
+#define NAMESERVER_LOOKUP_RESPONSE_SIZE (NAMESERVER_STATUS_RESPONSE_SIZE + sizeof(domainid_t))
 #define NAMESERVER_ENUMERATE_RESPONSE_SIZE (NAMESERVER_STATUS_RESPONSE_SIZE)
 
 struct nameserver_entry {
 	char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
     struct aos_rpc add_client_chan;
+    domainid_t pid;
 };
 
 // Source: http://www.cse.yorku.ca/~oz/hash.html
@@ -71,6 +73,9 @@ static void handle_register(struct rpc_message *msg, struct nameserver_state *ns
     char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
     read_name(name, msg);
 
+    domainid_t pid;
+    memcpy(&pid, &(msg->msg.payload[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH]), sizeof(domainid_t));
+
     if (!check_name_valid(name)) {
         debug_printf("Service name '%s' is not allowed.\n", name);
         resp->msg.status = Status_Error;
@@ -100,6 +105,7 @@ static void handle_register(struct rpc_message *msg, struct nameserver_state *ns
         return;
     }
 
+    entry->pid = pid;
     strncpy(entry->name, name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
 
     err = aos_rpc_ump_init(&entry->add_client_chan, chan_frame_cap, false);
@@ -205,6 +211,8 @@ static void handle_lookup(struct rpc_message *msg, struct nameserver_state *ns_s
         return;
     }
 
+    resp->msg.payload_length = sizeof(domainid_t);
+    memcpy(resp->msg.payload, &entry->pid, sizeof(domainid_t));
     resp->cap = client_frame_cap;
 }
 

@@ -7,10 +7,17 @@
 #define INCLUDE_NAMESERVICE_H_
 
 #include <aos/aos.h>
+#include <aos/aos_rpc.h>
 
 #define NAMESERVICE_INIT ("serverinit")
 
 typedef void* nameservice_chan_t;
+
+struct nameservice_chan {
+    const char *name;
+    struct aos_rpc rpc;
+    domainid_t pid;
+};
 
 ///< handler which is called when a message is received over the registered channel
 typedef void(nameservice_receive_handler_t)(void *st,
