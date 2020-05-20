@@ -185,12 +185,13 @@ static errval_t serve_localtask_spawn(
     switch(recv_msg->msg.method) {
         case Method_Localtask_Spawn_Process: {
             errval_t err;
-            char *name = recv_msg->msg.payload;
+            domainid_t pid = *((domainid_t *) recv_msg->msg.payload);
+            char *name = recv_msg->msg.payload + sizeof(domainid_t);
+
             enum rpc_message_status status = Status_Ok;
             {
                 struct spawninfo si;
-                domainid_t ret_pid;
-                err = spawn_load_by_name(name, &si, &ret_pid);
+                err = spawn_load_by_name(name, &si, &pid);
             }
             if (err_is_fail(err)) {
                 debug_printf("spawn_cb in local task failed: %s", err_getstring(err));

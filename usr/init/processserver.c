@@ -228,21 +228,22 @@ cleanup:
     }
 }
 
-errval_t processserver_send_spawn_local(struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t ret_pid)
+errval_t processserver_send_spawn_local(struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t pid)
 {
     errval_t err;
 
-    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN); // no \0 in strlen
+    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN - sizeof(domainid_t)); // no \0 in strlen
 
-    uint8_t send_buf[sizeof(struct rpc_message) + str_len];
+    uint8_t send_buf[sizeof(struct rpc_message) + str_len + sizeof(domainid_t)];
     struct rpc_message *req = (struct rpc_message *) &send_buf;
 
     req->msg.method = Method_Localtask_Spawn_Process;
     req->msg.status = Status_Ok;
     req->cap = NULL_CAP;
-    req->msg.payload_length = str_len;
+    req->msg.payload_length = str_len + sizeof(domainid_t);
 
-    strlcpy(req->msg.payload, name, str_len);
+    memcpy(req->msg.payload, &pid, sizeof(domainid_t));
+    strlcpy(req->msg.payload + sizeof(domainid_t), name, str_len);
 
     struct aos_rpc *rpc = server_state->local_task_chan_list[coreid];
     struct rpc_message resp;

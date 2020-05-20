@@ -77,7 +77,13 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
 
     // Map the new memory into the VSpace of the child. Without mappings, the
     // child will die due to a page fault.
-    err = paging_map_fixed_attr(as->paging_state_child, base_rounded, segment_frame, size_rounded, flags);
+    err = paging_map_fixed_attr(
+        as->paging_state_child,
+        base_rounded,
+        segment_frame,
+        size_rounded,
+        flags
+    );
     if (err_is_fail(err)) {
         debug_printf("paging_map_fixed_attr() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_VSPACE_MAP);
@@ -86,7 +92,15 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
     // Map the new memory into the VSpace of the parent. We need this for
     // writing the sections into the segments.
     void *mapped_parent;
-    err = paging_map_frame_attr(get_current_paging_state(), &mapped_parent, size_rounded, segment_frame, VREGION_FLAGS_READ_WRITE, NULL, NULL);
+    err = paging_map_frame_attr(
+        get_current_paging_state(),
+        &mapped_parent,
+        size_rounded,
+        segment_frame,
+        VREGION_FLAGS_READ_WRITE,
+        NULL,
+        NULL
+    );
     if (err_is_fail(err)) {
         debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_VSPACE_MAP);
@@ -99,7 +113,10 @@ static errval_t elf_allocator_cb(void *state, genvaddr_t base, size_t size, uint
     return SYS_ERR_OK;
 }
 
-static inline errval_t load_module(struct spawninfo *si, void **module_data)
+static inline errval_t load_module(
+    struct spawninfo *si,
+    void **module_data
+)
 {
     errval_t err;
 
@@ -127,7 +144,11 @@ static inline errval_t load_module(struct spawninfo *si, void **module_data)
     return SYS_ERR_OK;
 }
 
-static inline errval_t setup_cspace(struct capref *cap_cnode_l1, struct capref *l0_table_child, struct cnoderef *taskcn_child)
+static inline errval_t setup_cspace(
+    struct capref *cap_cnode_l1,
+    struct capref *l0_table_child,
+    struct cnoderef *taskcn_child
+)
 {
     errval_t err;
 
@@ -216,7 +237,10 @@ static inline errval_t setup_cspace(struct capref *cap_cnode_l1, struct capref *
     return SYS_ERR_OK;
 }
 
-static inline errval_t setup_vspace(struct capref l0_table_child, struct paging_state *paging_state_child)
+static inline errval_t setup_vspace(
+    struct capref l0_table_child,
+    struct paging_state *paging_state_child
+)
 {
     errval_t err;
 
@@ -248,7 +272,13 @@ static inline errval_t setup_vspace(struct capref l0_table_child, struct paging_
     return SYS_ERR_OK;
 }
 
-static inline errval_t parse_elf(struct mem_region *module, void *module_data, struct elf_allocator_state *as, genvaddr_t *entry_point_addr, void **got_section_addr)
+static inline errval_t parse_elf(
+    struct mem_region *module,
+    void *module_data,
+    struct elf_allocator_state *as,
+    genvaddr_t *entry_point_addr,
+    void **got_section_addr
+)
 {
     errval_t err;
 
@@ -277,7 +307,13 @@ static inline errval_t parse_elf(struct mem_region *module, void *module_data, s
     return SYS_ERR_OK;
 }
 
-static inline errval_t setup_arguments(struct paging_state *paging_state_child, int argc, char *argv[], struct cnoderef taskcn_child, void **args_page_child)
+static inline errval_t setup_arguments(
+    struct paging_state *paging_state_child,
+    int argc,
+    char *argv[],
+    struct cnoderef taskcn_child,
+    void **args_page_child
+)
 {
     errval_t err;
 
@@ -360,7 +396,17 @@ static inline errval_t setup_arguments(struct paging_state *paging_state_child, 
     return SYS_ERR_OK;
 }
 
-static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, struct capref *dp_child, void *got_section_addr, genvaddr_t entry_point_addr, void *args_page_child, struct capref *dp_frame_child, struct cnoderef taskcn_child)
+static inline errval_t setup_dispatcher(
+    struct paging_state *ps,
+    char *name,
+    struct capref *dp_child,
+    void *got_section_addr,
+    genvaddr_t entry_point_addr,
+    void *args_page_child,
+    struct capref *dp_frame_child,
+    struct cnoderef taskcn_child,
+    domainid_t pid
+)
 {
     errval_t err;
 
@@ -525,6 +571,7 @@ static inline errval_t setup_dispatcher(struct paging_state *ps, char *name, str
     arch_registers_state_t *disabled_area = dispatcher_get_disabled_save_area(handle_child);
 
     disp_gen->core_id = my_core_id;
+    disp_gen->domain_id = pid;
     disp_child->udisp = (lvaddr_t) dp_page_child;
     disp_child->disabled = 1;
     strncpy(disp_child->name, name, DISP_NAME_LEN);
@@ -571,7 +618,10 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     si->binary_name = argv[0];
 
     void *module_data;
-    err = load_module(si, &module_data);
+    err = load_module(
+        si,
+        &module_data
+    );
     if (err_is_fail(err)) {
         debug_printf("load_module() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_LOAD);
@@ -581,7 +631,11 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     struct capref l0_table_child;
     struct cnoderef taskcn_child;
 
-    err = setup_cspace(&cap_cnode_l1, &l0_table_child, &taskcn_child);
+    err = setup_cspace(
+        &cap_cnode_l1,
+        &l0_table_child,
+        &taskcn_child
+    );
     if (err_is_fail(err)) {
         debug_printf("setup_cspace() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_SETUP_CSPACE);
@@ -594,7 +648,10 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
         return LIB_ERR_MALLOC_FAIL;
     }
 
-    err = setup_vspace(l0_table_child, as.paging_state_child);
+    err = setup_vspace(
+        l0_table_child,
+        as.paging_state_child
+    );
     if (err_is_fail(err)) {
         debug_printf("setup_vspace() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_VSPACE_INIT);
@@ -603,7 +660,13 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     genvaddr_t entry_point_addr;
     void *got_section_addr;
 
-    err = parse_elf(si->module, module_data, &as, &entry_point_addr, &got_section_addr);
+    err = parse_elf(
+        si->module,
+        module_data,
+        &as,
+        &entry_point_addr,
+        &got_section_addr
+    );
     if (err_is_fail(err)) {
         debug_printf("parse_elf() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_ELF_MAP);
@@ -611,7 +674,13 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
 
     void *args_page_child;
 
-    err = setup_arguments(as.paging_state_child, argc, argv, taskcn_child, &args_page_child);
+    err = setup_arguments(
+        as.paging_state_child,
+        argc,
+        argv,
+        taskcn_child,
+        &args_page_child
+    );
     if (err_is_fail(err)) {
         debug_printf("setup_arguments() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_SETUP_ENV);
@@ -620,13 +689,30 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     struct capref dp_child;
     struct capref dp_frame_child;
 
-    err = setup_dispatcher(as.paging_state_child, si->binary_name, &dp_child, got_section_addr, entry_point_addr, args_page_child, &dp_frame_child, taskcn_child);
+    err = setup_dispatcher(
+        as.paging_state_child,
+        si->binary_name,
+        &dp_child,
+        got_section_addr,
+        entry_point_addr,
+        args_page_child,
+        &dp_frame_child,
+        taskcn_child,
+        *pid
+    );
     if (err_is_fail(err)) {
         debug_printf("setup_dispatcher() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_SETUP_DISPATCHER);
     }
 
-    err = invoke_dispatcher(dp_child, cap_dispatcher, cap_cnode_l1, l0_table_child, dp_frame_child, true);
+    err = invoke_dispatcher(
+        dp_child,
+        cap_dispatcher,
+        cap_cnode_l1,
+        l0_table_child,
+        dp_frame_child,
+        true
+    );
     if (err_is_fail(err)) {
         debug_printf("invoke_dispatcher() failed: %s\n", err_getstring(err));
         return err_push(err, SPAWN_ERR_DISPATCHER_SETUP);

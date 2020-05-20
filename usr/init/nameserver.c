@@ -346,6 +346,8 @@ static int nameserver_thread_func(void *arg)
             DEBUG_ERR(err, "in nameserver_ump_serve_next");
             return 1;
         }
+
+        thread_yield();
     }
 
     return 0;

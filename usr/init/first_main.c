@@ -353,6 +353,8 @@ int first_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
+    nameserver_serve_in_thread(&ns_state);
+
 #if 1
     domainid_t pid;
     struct spawninfo si;
@@ -362,8 +364,6 @@ int first_main(int argc, char *argv[])
         abort();
     }
 #endif
-
-    nameserver_serve_in_thread(&ns_state);
 
     debug_printf("Entering message handler loop...\n");
 
@@ -399,6 +399,8 @@ int first_main(int argc, char *argv[])
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }
+
+        thread_yield();
     }
 
     return EXIT_SUCCESS;
