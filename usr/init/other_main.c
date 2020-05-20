@@ -105,7 +105,6 @@ static void register_service_channels(
     struct aos_rpc *rpc
 )
 {
-    register_service_channel(InitserverUrpc, rpc);
     register_service_channel(MemoryserverUrpc, rpc);
     register_service_channel(ProcessserverUrpc, rpc);
 

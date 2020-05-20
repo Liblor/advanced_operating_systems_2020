@@ -14,12 +14,12 @@
 #include <aos/coreboot.h>
 #include <aos/kernel_cap_invocations.h>
 #include <aos/aos_rpc_ump.h>
+#include <aos/nameserver.h>
 
 #include "first_main.h"
 
 #include "mem_alloc.h"
 
-#include "initserver.h"
 #include "memoryserver.h"
 #include "monitorserver.h"
 #include "processserver.h"
@@ -29,22 +29,6 @@
 extern coreid_t my_core_id;
 
 struct nameserver_state ns_state;
-
-static void number_cb(uintptr_t num)
-{
-    grading_rpc_handle_number(num);
-#if 1
-    debug_printf("number_cb(%llu)\n", num);
-#endif
-}
-
-static void string_cb(char *c)
-{
-    grading_rpc_handler_string(c);
-#if 1
-    debug_printf("string_cb(%s)\n", c);
-#endif
-}
 
 static void putchar_cb(char c) {
     errval_t err;
@@ -122,6 +106,23 @@ static errval_t process_get_all_pids(struct processserver_state *processserver_s
     return err;
 }
 
+static void start_server(char *service_name, char *cmd)
+{
+    errval_t err;
+
+    domainid_t pid;
+    struct spawninfo si;
+
+    debug_printf("Spawning service '%s'.\n", service_name);
+
+    err = spawn_load_by_name("initserver", &si, &pid);
+    if (err_is_fail(err)) {
+        debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
+        abort();
+    }
+    debug_printf("Got pid %llu\n", pid);
+}
+
 static void setup_servers(
     void
 )
@@ -131,12 +132,6 @@ static void setup_servers(
     err = nameserver_init(&ns_state);
     if (err_is_fail(err)) {
         debug_printf("nameserver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
-
-    err = initserver_init(number_cb, string_cb);
-    if (err_is_fail(err)) {
-        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
 
@@ -231,11 +226,11 @@ static void register_service_channel(
 
 /*
  * The following channels are needed.
- * - remote monitor to local initserver
  * - remote monitor to local memoryserver
  * - remote monitor to local processserver
  * - remote monitor to local processserver (for local tasks)
  * - remote monitor to local serialserver
+ * - remote monitor to local nameserver
  *
  * If `rpc` is `NULL`, then initializes the local monitorserver.
  */
@@ -245,7 +240,6 @@ static void register_service_channels(
     coreid_t mpid
 )
 {
-    register_service_channel(InitserverUrpc, rpc, mpid, initserver_add_client);
     register_service_channel(MemoryserverUrpc, rpc, mpid, memoryserver_ump_add_client);
     register_service_channel(ProcessserverUrpc, rpc, mpid, processserver_add_client);
     register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
@@ -345,6 +339,8 @@ int first_main(int argc, char *argv[])
 
     register_service_channels(NULL, my_core_id);
 
+    start_server(NAMESERVICE_INIT, "initserver");
+
     // TODO Uncomment
     /*
     struct aos_rpc rpc_core1;
@@ -371,12 +367,6 @@ int first_main(int argc, char *argv[])
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
-        err = initserver_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
         err = serialserver_serve_next();
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "in serialserver_serve_next");

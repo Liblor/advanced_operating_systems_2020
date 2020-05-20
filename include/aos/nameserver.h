@@ -8,6 +8,8 @@
 
 #include <aos/aos.h>
 
+#define NAMESERVICE_INIT ("serverinit")
+
 typedef void* nameservice_chan_t;
 
 ///< handler which is called when a message is received over the registered channel
