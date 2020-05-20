@@ -180,6 +180,9 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
 {
     errval_t err;
 
+    assert(chan != NULL);
+    assert(message != NULL);
+
     struct aos_rpc *rpc = chan;
 
     uint8_t send_buf[sizeof(struct rpc_message) + bytes];

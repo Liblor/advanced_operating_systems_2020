@@ -65,6 +65,7 @@ static bool aos_rpc_ump_can_receive(
 )
 {
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeUmp);
 
     thread_mutex_lock_nested(&rpc->mutex);
 
@@ -116,6 +117,7 @@ errval_t aos_rpc_ump_receive(
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeUmp);
     assert(message != NULL);
     assert(rpc->ump.rx != NULL);
 
@@ -196,6 +198,7 @@ errval_t aos_rpc_ump_receive_non_block(
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeUmp);
     assert(message != NULL);
     assert(rpc->ump.rx != NULL);
 
@@ -230,6 +233,7 @@ errval_t aos_rpc_ump_send_and_wait_recv(
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeUmp);
     assert(send != NULL);
     assert(recv != NULL);
 
@@ -260,6 +264,7 @@ errval_t aos_rpc_ump_send_message(
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeUmp);
     assert(msg != NULL);
 
     uint64_t cap_base = 0;
