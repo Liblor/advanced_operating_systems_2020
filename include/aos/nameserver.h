@@ -8,6 +8,8 @@
 
 #include <aos/aos.h>
 
+#define NAMESERVICE_INIT ("serverinit")
+
 typedef void* nameservice_chan_t;
 
 ///< handler which is called when a message is received over the registered channel
@@ -75,7 +77,9 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *chan);
  * @param num 		number of entries in the result array
  * @param result	an array of entries
  */
-errval_t nameservice_enumerate(char *query, size_t *num, char ***result);
+errval_t nameservice_enumerate(char *query, size_t *num, char **result);
 
+
+void nameservice_wait_for(char *name);
 
 #endif /* INCLUDE_AOS_AOS_NAMESERVICE_H_ */

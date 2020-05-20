@@ -3,6 +3,7 @@
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
+#include <aos/nameserver.h>
 
 __unused static struct aos_rpc *init_channel = NULL;
 __unused static struct aos_rpc *memory_channel = NULL;
@@ -70,6 +71,8 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
     errval_t err;
 
+    assert(rpc != NULL);
+
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(num)];
 
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
@@ -79,10 +82,18 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     msg->cap = NULL_CAP;
     memcpy(msg->msg.payload, &num, sizeof(num));
 
-    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
-        return err;
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+            return err;
+        }
+    } else {
+        err = nameservice_rpc(rpc, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
     }
 
     return SYS_ERR_OK;
@@ -106,10 +117,19 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     msg->msg.status = Status_Ok;
     strlcpy(msg->msg.payload, string, str_len);
 
-    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
-        return err;
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+            return err;
+        }
+    } else {
+        err = nameservice_rpc(rpc, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
     }
 
     return SYS_ERR_OK;
@@ -538,7 +558,7 @@ validate_ns_enumerate(struct lmp_recv_msg *msg, enum pending_state state)
     return validate_recv_header(msg, state, Method_Nameserver_Enumerate);
 }
 
-errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char ***result)
+errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result)
 {
     errval_t err;
 
@@ -571,17 +591,12 @@ errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t
 
     assert(capref_is_null(recv->cap));
 
-    uint64_t match_count = recv->msg.payload_length / (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
-    *num = match_count;
-    *result = malloc(match_count * sizeof(char *));
-    if (*result == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    for (int i = 0; i < match_count; i++) {
-        char *ptr = recv->msg.payload + i * (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
-        assert(ptr != NULL);
-        (*result)[i] = ptr;
-    }
+    char * const payload_base = &(recv->msg.payload[0]);
+    char *ptr = payload_base;
+    memcpy(num, ptr, sizeof(size_t));
+    ptr += sizeof(size_t);
+
+    *result = ptr;
 
     return SYS_ERR_OK;
 }
@@ -733,7 +748,16 @@ struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
-    return aos_rpc_lmp_get_monitor_channel();
+    errval_t err;
+
+    nameservice_chan_t chan;
+    err = nameservice_lookup(NAMESERVICE_INIT, &chan);
+    if (err_is_fail(err)) {
+        debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+        return NULL;
+    }
+
+    return chan;
 }
 
 /**

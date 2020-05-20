@@ -165,6 +165,7 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(send != NULL);
     assert(recv != NULL);
 
@@ -227,6 +228,7 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(send != NULL);
 
     if (recv != NULL) {
@@ -316,6 +318,7 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(msg != NULL);
 
     const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;

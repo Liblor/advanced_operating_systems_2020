@@ -119,6 +119,8 @@ static int service_thread_func(void *arg)
             debug_printf("serve_add_client() failed: %s\n", err_getstring(err));
             return 1;
         }
+
+        thread_yield();
     }
 
     return 0;
@@ -180,6 +182,9 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
 {
     errval_t err;
 
+    assert(chan != NULL);
+    assert(message != NULL);
+
     struct aos_rpc *rpc = chan;
 
     uint8_t send_buf[sizeof(struct rpc_message) + bytes];
@@ -192,11 +197,17 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
 
     struct rpc_message *recv = NULL;
 
-    err = aos_rpc_ump_send_and_wait_recv(rpc, send, &recv);
+    if (response != NULL && response_bytes != NULL) {
+        err = aos_rpc_ump_send_and_wait_recv(rpc, send, &recv);
+        *response = recv->msg.payload;
+        *response_bytes = recv->msg.payload_length;
 
-    *response = recv->msg.payload;
-    *response_bytes = recv->msg.payload_length;
-    cap_copy(rx_cap, recv->cap);
+        if (!capref_is_null(rx_cap)) {
+            cap_copy(rx_cap, recv->cap);
+        }
+    } else {
+        err = aos_rpc_ump_send_message(rpc, send);
+    }
 
 	return SYS_ERR_OK;
 }
@@ -355,7 +366,7 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
  * @param num 		number of entries in the result array
  * @param result	an array of entries
  */
-errval_t nameservice_enumerate(char *query, size_t *num, char ***result)
+errval_t nameservice_enumerate(char *query, size_t *num, char **result)
 {
     errval_t err;
 
@@ -370,3 +381,17 @@ errval_t nameservice_enumerate(char *query, size_t *num, char ***result)
 	return SYS_ERR_OK;
 }
 
+
+void nameservice_wait_for(char *name)
+{
+    errval_t err;
+
+    nameservice_chan_t chan;
+
+    do {
+        err = nameservice_lookup(name, &chan);
+        thread_yield();
+    } while(err_is_fail(err));
+
+    free(chan);
+}

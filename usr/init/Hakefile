@@ -20,7 +20,6 @@
                         "first_main.c",
                         "other_main.c",
                         "mem_alloc.c",
-                        "initserver.c",
                         "memoryserver.c",
                         "serialserver.c",
                         "processserver.c",

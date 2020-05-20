@@ -14,6 +14,7 @@
 #include <aos/coreboot.h>
 #include <aos/kernel_cap_invocations.h>
 #include <aos/aos_rpc_ump.h>
+#include <aos/nameserver.h>
 
 #include "other_main.h"
 
@@ -72,32 +73,6 @@ static void register_service_channel(
 
     monitorserver_register_service(type, rpc_message->cap);
 
-#if 0
-    // TODO Remove this test
-    if (strcmp(name, "initserver") == 0) {
-        struct aos_rpc init_rpc;
-        err = aos_rpc_ump_init(&init_rpc, rpc_message->cap, false);
-        assert(err_is_ok(err));
-
-        uintptr_t payload = 123;
-        size_t size = sizeof(uintptr_t);
-
-        char buffer[sizeof(struct rpc_message) + size];
-        struct rpc_message *msg = (struct rpc_message *) buffer;
-        msg->msg.payload_length = size;
-        msg->msg.status = Status_Ok;
-        msg->msg.method = Method_Send_Number;
-        msg->cap = NULL_CAP;
-        memcpy(msg->msg.payload, &payload, size);
-
-        for (int i = 0; i < 10; i++) {
-            err = aos_rpc_ump_send_message(&init_rpc, msg);
-            assert(err_is_ok(err));
-        }
-    }
-
-#endif
-
     free(rpc_message);
 }
 
@@ -105,7 +80,6 @@ static void register_service_channels(
     struct aos_rpc *rpc
 )
 {
-    register_service_channel(InitserverUrpc, rpc);
     register_service_channel(MemoryserverUrpc, rpc);
     register_service_channel(ProcessserverUrpc, rpc);
 
@@ -113,6 +87,7 @@ static void register_service_channels(
     register_service_channel(ProcessLocaltasksUrpc, rpc);
 
     register_service_channel(SerialserverUrpc, rpc);
+    register_service_channel(NameserverUrpc, rpc);
 
     debug_printf("all register_service_channel registered\n");
 }
@@ -176,6 +151,8 @@ int other_main(int argc, char *argv[])
     grading_test_late();
 
 #if 1
+    nameservice_wait_for(NAMESERVICE_INIT);
+
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);
@@ -196,6 +173,8 @@ int other_main(int argc, char *argv[])
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }
+
+        thread_yield();
     }
 
     return EXIT_SUCCESS;
