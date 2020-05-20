@@ -54,8 +54,6 @@
 #define ENET_TX_LAST 0x0800
 #define ENET_TX_CRC 0x0400
 
-#define ENET_SERVICE_NAME "networking"
-
 struct region_entry {
     uint32_t rid;
     struct dmem mem;

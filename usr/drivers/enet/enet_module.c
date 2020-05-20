@@ -19,6 +19,7 @@
 #include <devif/queue_interface_backend.h>
 #include <devif/backends/net/enet_devif.h>
 #include <aos/aos.h>
+#include <aos/networking.h>
 #include <aos/debug.h>
 #include <aos/deferred.h>
 #include <driverkit/driverkit.h>
@@ -676,6 +677,7 @@ static void nameservice_receive_handler(
     struct capref *rx_cap
 )
 {
+    debug_printf("I received a new request!\n");
 }
 
 static regionid_t rx_rid;
@@ -815,7 +817,7 @@ int main(
     debug_printf("Sending test packet complete.\n");
 
     err = nameservice_register(
-        ENET_SERVICE_NAME,
+        NETWORKING_SERVICE_NAME,
         nameservice_receive_handler,
         &st
     );

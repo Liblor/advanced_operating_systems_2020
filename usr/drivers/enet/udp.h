@@ -2,14 +2,14 @@
 #define __UDP_H__
 
 #include <aos/aos.h>
+#include <aos/networking.h>
+
 #include <netutil/ip.h>
 #include <netutil/udp.h>
 
 #include "udp.h"
 
 #define UDP_HASHTABLE_BUCKETS (256)
-
-typedef uint16_t udp_port_t;
 
 struct udp_binding {
     void *context;
