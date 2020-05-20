@@ -21,6 +21,15 @@
 extern struct bootinfo *bi;
 extern struct mm aos_mm;
 
+#define MEM_ALLOC_DEBUG_ON
+
+#if defined(MEM_ALLOC_DEBUG_ON)
+#define MEM_ALLOC_DEBUG(x...) debug_printf("mem_alloc:" x)
+#else
+#define MEM_ALLOC_DEBUG(x...) ((void)0)
+#endif
+
+
 errval_t initialize_ram_alloc(size_t num_cores);
 errval_t ram_alloc_aligned_handler(const size_t bytes, const size_t alignment, struct capref *retcap, size_t *retbytes);
 errval_t aos_ram_alloc_aligned(struct capref *ret, size_t size, size_t alignment);

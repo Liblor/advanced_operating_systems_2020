@@ -84,6 +84,12 @@ errval_t aos_rpc_get_remote_ram_cap(
     }
 }
 
+errval_t
+aos_rpc_serial_putstr(struct aos_rpc *rpc, char *str, size_t len)
+{
+    return aos_rpc_lmp_serial_putstr(rpc, str, len);
+}
+
 errval_t aos_rpc_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
     return aos_rpc_lmp_serial_getchar(rpc, retc);
