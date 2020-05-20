@@ -375,3 +375,17 @@ errval_t nameservice_enumerate(char *query, size_t *num, char ***result)
 	return SYS_ERR_OK;
 }
 
+
+void nameservice_wait_for(char *name)
+{
+    errval_t err;
+
+    nameservice_chan_t chan;
+
+    do {
+        err = nameservice_lookup(name, &chan);
+        thread_yield();
+    } while(err_is_fail(err));
+
+    free(chan);
+}
