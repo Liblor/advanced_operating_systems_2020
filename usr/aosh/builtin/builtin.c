@@ -6,6 +6,7 @@
 
 // builtins
 #include "oncore.h"
+#include "time.h"
 
 // builtins within this file
 errval_t builtin_help(int, char **);
@@ -16,7 +17,8 @@ struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_help,   "help",   "prints this help"},
         {builtin_clear,  "clear",  "clear screen"},
         {builtin_oncore, "oncore", "spawn a dispatcher on a given core"},
-        {builtin_exit,   "exit",   "exit shell (Ctrl-d)"},
+        {builtin_time,   "time",   "time a command"},
+        {builtin_exit,   "exit",   "exit shell (ctrl-d)"},
 };
 
 
@@ -36,7 +38,7 @@ errval_t builtin_help(int argc, char **argv)
 {
     printf("list of commands:" ENDL);
     for (int i = 0; i < ARRAY_LENGTH(aosh_builtins); i++) {
-        printf("> %s: %s" ENDL, aosh_builtins[i].name, aosh_builtins[i].help);
+        printf("> "COLOR_RED"%s" COLOR_RESET": %s" ENDL, aosh_builtins[i].name, aosh_builtins[i].help);
     }
     return SYS_ERR_OK;
 }

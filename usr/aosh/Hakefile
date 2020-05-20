@@ -14,7 +14,8 @@
   		              cFiles = [
   		               "aosh.c",
   		               "builtin/builtin.c",
-  		               "builtin/oncore.c"
+  		               "builtin/oncore.c",
+  		               "builtin/time.c"
   		                ],
                       architectures = allArchitectures
                     }

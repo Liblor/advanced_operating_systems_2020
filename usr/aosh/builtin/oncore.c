@@ -79,6 +79,7 @@ errval_t builtin_oncore(
         return SYS_ERR_OK;
     }
     printf("spawning '%s' on core %d" ENDL, name, core_id);
+
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
     domainid_t pid;
     err = aos_rpc_process_spawn(rpc, name, core_id, &pid);
@@ -86,7 +87,6 @@ errval_t builtin_oncore(
     if (!err_is_ok(err)) {
         printf("Failed to spawn %s on core %d: %s" ENDL, name, core_id, err_getstring(err));
     }
-
     return SYS_ERR_OK;
 }
 
