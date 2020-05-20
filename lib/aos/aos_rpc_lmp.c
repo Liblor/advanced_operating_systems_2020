@@ -477,7 +477,7 @@ aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name)
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
@@ -527,7 +527,7 @@ aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
@@ -578,7 +578,7 @@ errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
