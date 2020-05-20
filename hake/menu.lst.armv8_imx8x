@@ -7,3 +7,4 @@ cpudriver /armv8/sbin/cpu_imx8x
 module  /armv8/sbin/init
 module /armv8/sbin/hello 123456 654321 "hello world"
 module /armv8/sbin/enet
+module /armv8/sbin/echoserver

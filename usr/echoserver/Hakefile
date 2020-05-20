@@ -1,0 +1,7 @@
+[
+    build application {
+        target = "echoserver",
+        cFiles = [ "main.c" ],
+        architectures = allArchitectures
+    }
+]
