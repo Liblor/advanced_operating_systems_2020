@@ -558,7 +558,7 @@ validate_ns_enumerate(struct lmp_recv_msg *msg, enum pending_state state)
     return validate_recv_header(msg, state, Method_Nameserver_Enumerate);
 }
 
-errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char ***result)
+errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result)
 {
     errval_t err;
 
@@ -591,17 +591,12 @@ errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t
 
     assert(capref_is_null(recv->cap));
 
-    uint64_t match_count = recv->msg.payload_length / (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
-    *num = match_count;
-    *result = malloc(match_count * sizeof(char *));
-    if (*result == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    for (int i = 0; i < match_count; i++) {
-        char *ptr = recv->msg.payload + i * (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
-        assert(ptr != NULL);
-        (*result)[i] = ptr;
-    }
+    char * const payload_base = &(recv->msg.payload[0]);
+    char *ptr = payload_base;
+    memcpy(num, ptr, sizeof(size_t));
+    ptr += sizeof(size_t);
+
+    *result = ptr;
 
     return SYS_ERR_OK;
 }

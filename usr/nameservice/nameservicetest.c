@@ -42,14 +42,16 @@ static void test_query(char *query)
     errval_t err;
 
     size_t num;
-    char **result = NULL;
+    char *result = NULL;
     err = nameservice_enumerate(query, &num, &result);
     PANIC_IF_FAIL(err, "failed to do the nameservice enumerate\n");
 
     debug_printf("got enumeration for query '%s':\n", query);
+    char *name = result;
     for (int i = 0; i < num; i++) {
-        assert(result[i] != NULL);
-        debug_printf("found match '%s'\n", result[i]);
+        size_t name_len = strlen(name);
+        debug_printf("found match '%s'\n", name);
+        name += name_len + 1;
     }
 }
 
@@ -76,6 +78,7 @@ static void run_client(void)
 
     debug_printf("got response: %s\n", (char *)response);
 
+    test_query("");
     test_query("my");
     test_query(SERVICE_NAME);
     test_query(SERVICE_NAME "asdf");

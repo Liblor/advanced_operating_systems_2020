@@ -212,7 +212,8 @@ static void handle_enumerate(struct rpc_message *msg, struct nameserver_state *n
     assert(service_table != NULL);
 
     // Count entries that match the received query
-    uint64_t match_count = 0;
+    size_t name_list_len = 0;
+    size_t match_count = 0;
     __unused uint64_t key;
     struct nameserver_entry *entry;
 
@@ -220,6 +221,8 @@ static void handle_enumerate(struct rpc_message *msg, struct nameserver_state *n
     assert(ret == 1);
     while ((entry = collections_hash_traverse_next(service_table, &key))) {
         if (query_matches(query, entry->name)) {
+            size_t name_len = strlen(entry->name);
+            name_list_len += name_len + 1; // Add one for null-byte
             match_count++;
         }
     }
@@ -227,25 +230,28 @@ static void handle_enumerate(struct rpc_message *msg, struct nameserver_state *n
     assert(ret == 1);
 
     // Allocate buffer large enough to contain all matches
-    size_t payload_length = match_count * (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
+    size_t payload_length = sizeof(size_t) + name_list_len;
     *resp = malloc(NAMESERVER_ENUMERATE_RESPONSE_SIZE + payload_length);
     reply_init(msg, *resp);
     (*resp)->msg.payload_length = payload_length;
 
     // Write matches into response
-    uint64_t i = 0;
+    char * const payload_base = &((*resp)->msg.payload[0]);
+    char *ptr = payload_base;
+    memcpy(ptr, &match_count, sizeof(size_t));
+    ptr += sizeof(size_t);
 
     ret = collections_hash_traverse_start(service_table);
     assert(ret == 1);
     while ((entry = collections_hash_traverse_next(service_table, &key))) {
         if (query_matches(query, entry->name)) {
-            char *payload_base = &((*resp)->msg.payload[0]);
-            char *ptr = payload_base + i * (AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
-            memset(ptr, 0, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1);
-            memcpy(ptr, entry->name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
-            i++;
+            size_t name_len = strlen(entry->name);
+            // Add one for null-byte
+            memcpy(ptr, entry->name, name_len + 1);
+            ptr += name_len + 1;
         }
     }
+    assert(((void *) ptr) - ((void *) payload_base) == payload_length);
     ret = collections_hash_traverse_end(service_table);
     assert(ret == 1);
 }
