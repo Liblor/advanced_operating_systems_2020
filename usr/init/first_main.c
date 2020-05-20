@@ -337,6 +337,8 @@ int first_main(int argc, char *argv[])
 
     setup_servers();
 
+    nameserver_serve_in_thread(&ns_state);
+
     register_service_channels(NULL, my_core_id);
 
     start_server(NAMESERVICE_INIT, "initserver");
@@ -359,8 +361,6 @@ int first_main(int argc, char *argv[])
         abort();
     }
 #endif
-
-    nameserver_serve_in_thread(&ns_state);
 
     debug_printf("Entering message handler loop...\n");
 
