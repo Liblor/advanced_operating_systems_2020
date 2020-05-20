@@ -2,14 +2,9 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <aos/aos_rpc.h>
-
-#include "builtin.h"
-
-errval_t builtin_oncore(
-        int argc,
-        char **argv);
+#include <aos/string.h>
+#include "oncore.h"
 
 static void help(
         int argc,

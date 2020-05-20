@@ -13,7 +13,8 @@
 [ build application { target = "aosh",
   		              cFiles = [
   		               "aosh.c",
-  		               "builtin/builtin.c"
+  		               "builtin/builtin.c",
+  		               "builtin/oncore.c"
   		                ],
                       architectures = allArchitectures
                     }

@@ -5,25 +5,32 @@
 #include "../aosh.h"
 
 // builtins
-#include "oncore.c"
-#include "exit.c"
-#include "clear.c"
+#include "oncore.h"
 
+// builtins within this file
 errval_t builtin_help(int, char **);
+errval_t builtin_clear(int, char **);
+errval_t builtin_exit(int, char **);
 
-/*
- * How to add a builtin:
- * - Create a new file and include "builtin.h"
- * - include the c file of your builtin in this file
- * - Add the main function to the list below
- * - no need to update Hakefile
- */
 struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_help,   "help",   "prints this help"},
         {builtin_clear,  "clear",  "clear screen"},
         {builtin_oncore, "oncore", "spawn a dispatcher on a given core"},
         {builtin_exit,   "exit",   "exit shell (Ctrl-d)"},
 };
+
+
+errval_t builtin_exit(int argc, char **argv)
+{
+    return AOSH_ERR_EXIT_SHELL;
+}
+
+errval_t builtin_clear(int argc, char **argv)
+{
+    printf("\e[1;1H\e[2J");
+    fflush(stdout);
+    return SYS_ERR_OK;
+}
 
 errval_t builtin_help(int argc, char **argv)
 {
