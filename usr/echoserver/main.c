@@ -9,17 +9,31 @@
 static void callback(
     const lvaddr_t payload,
     const gensize_t payload_size,
-    const ip_addr_t ip,
-    const udp_port_t port
+    const ip_addr_t from_ip,
+    const udp_port_t from_port,
+    const udp_port_t to_port
 )
 {
+    errval_t err;
+
+    debug_printf("echo: %s", (char *) payload);
+
+    err = networking_udp_send(
+        get_current_networking_state(),
+        payload,
+        payload_size,
+        from_ip,
+        from_port,
+        to_port
+    );
+    if (err_is_fail(err)) {
+        debug_printf("networking_udp_send() failed: %s\n", err_getstring(err));
+    }
 }
 
 int main(int argc, char *argv[])
 {
     errval_t err;
-
-    printf("Starting %s\n", argv[0]);
 
     udp_port_t port;
 
@@ -37,12 +51,19 @@ int main(int argc, char *argv[])
 
     printf("Listening for UDP packets on port %d...\n", port);
 
-    /* TODO: When a UDP datagram is received, echo it to the sender. */
-
-    err = networking_udp_register(
-        port,
+    err = networking_init(
+        get_current_networking_state(),
         callback
     );
+    assert(err_is_ok(err));
+
+    err = networking_udp_register(
+        get_current_networking_state(),
+        port
+    );
+    assert(err_is_ok(err));
+
+    thread_exit(0);
 
     return EXIT_SUCCESS;
 }

@@ -359,11 +359,6 @@ int first_main(int argc, char *argv[])
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
     }
-    err = spawn_load_by_name("echoserver", &si, &pid);
-    if (err_is_fail(err)) {
-        debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
-        abort();
-    }
 #endif
 
     debug_printf("Entering message handler loop...\n");

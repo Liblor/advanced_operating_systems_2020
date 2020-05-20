@@ -88,8 +88,6 @@ static bool udp_do_accept(
     assert(state != NULL);
     assert(packet != NULL);
 
-    debug_dump_mem((lvaddr_t) packet, (lvaddr_t) packet + size, 0);
-
     const lvaddr_t size_want = ntohs(packet->len);
 
     /* TODO: Sometimes, more data is sent than needed. Why? */
@@ -155,6 +153,7 @@ errval_t udp_register(
     //errval_t err;
 
     assert(state != NULL);
+    assert(state->bindings);
 
     struct udp_binding *binding = collections_hash_find(state->bindings, port);
 
@@ -165,6 +164,10 @@ errval_t udp_register(
     debug_printf("Adding UDP binding for port %d.\n", port);
 
     binding = calloc(1, sizeof(struct udp_binding));
+    if (binding == NULL) {
+        debug_printf("calloc() failed\n");
+        return LIB_ERR_MALLOC_FAIL;
+    }
 
     binding->context = context;
     binding->port = port;

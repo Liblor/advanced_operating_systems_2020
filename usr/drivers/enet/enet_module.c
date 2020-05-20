@@ -33,6 +33,9 @@
 #include "ethernet.h"
 #include "udp.h"
 
+#include <aos/aos_rpc.h>
+#include <spawn/spawn.h>
+
 #define PHY_ID 0x2
 
 static errval_t enet_write_mdio(
@@ -654,17 +657,39 @@ static void udp_receive_cb(
 {
     errval_t err;
 
-    err = udp_send(state, payload, payload_size, binding->port, ip, port);
-    if (err_is_fail(err)) {
-        debug_printf("udp_send() failed: %s\n", err_getstring(err));
-    }
+    assert(state != NULL);
+    assert(binding != NULL);
 
-#if 0
-    err = udp_deregister(state, 9000);
+    const gensize_t tsp_size = sizeof(struct networking_payload_udp_receive) + payload_size;
+    uint8_t tsp_buffer[tsp_size];
+    struct networking_payload_udp_receive *tsp = (struct networking_payload_udp_receive *) tsp_buffer;
+
+    tsp->from_ip = ip;
+    tsp->from_port = port;
+    tsp->to_port = binding->port;
+    tsp->payload_size = payload_size;
+    memcpy(tsp->payload, (void *) payload, payload_size);
+
+    const gensize_t size = sizeof(struct networking_message) + tsp_size;
+    uint8_t buffer[size];
+    struct networking_message *message = (struct networking_message *) buffer;
+
+    message->type = NETWORKING_MTYPE_UDP_RECEIVE;
+    message->size = tsp_size;
+    memcpy(message->payload, tsp, tsp_size);
+
+    err = nameservice_rpc(
+        binding->context,
+        message,
+        size,
+        NULL,
+        NULL,
+        NULL_CAP,
+        NULL_CAP
+    );
     if (err_is_fail(err)) {
-        debug_printf("Cannot deregister UDP receive callback.\n");
+        debug_printf("nameservice_rpc() failed: %s\n", err_getstring(err));
     }
-#endif
 }
 
 static void nameservice_receive_handler(
@@ -677,7 +702,66 @@ static void nameservice_receive_handler(
     struct capref *rx_cap
 )
 {
-    debug_printf("I received a new request!\n");
+    errval_t err;
+
+    debug_printf("nameservice_receive_handler()\n");
+
+    struct enet_driver_state *state = st;
+    struct networking_message *net_message = (struct networking_message *) message;
+
+    assert(state != NULL);
+    assert(net_message != NULL);
+
+    debug_printf("Reading module state %p\n", state);
+
+    const enum networking_mtype type = net_message->type;
+
+    /* Could not do the assignment in a switch block... */
+    if (type == NETWORKING_MTYPE_UDP_SEND) {
+        struct networking_payload_udp_send *tsp = (struct networking_payload_udp_send *) net_message->payload;
+        assert(tsp != NULL);
+
+        err = udp_send(
+            &state->eth_state.ip_state.udp_state,
+            (lvaddr_t) tsp->payload,
+            tsp->payload_size,
+            tsp->from_port,
+            tsp->to_ip,
+            tsp->to_port
+        );
+        if (err_is_fail(err)) {
+            debug_printf("udp_send() failed: %s\n", err_getstring(err));
+            return;
+        }
+    } else if (type == NETWORKING_MTYPE_UDP_REGISTER) {
+        debug_printf("NETWORKING_MTYPE_UDP_REGISTER\n");
+
+        struct networking_payload_udp_register *tsp = (struct networking_payload_udp_register *) net_message->payload;
+        assert(tsp != NULL);
+
+        char service_name[16];
+        snprintf(service_name, sizeof(service_name), "pid%d", tsp->pid);
+
+        nameservice_chan_t channel;
+
+        err = nameservice_lookup(
+            service_name,
+            &channel
+        );
+        if (err_is_fail(err)) {
+            debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+            return;
+        }
+
+        err = udp_register(&state->eth_state.ip_state.udp_state, tsp->port, channel);
+        if (err_is_fail(err)) {
+            debug_printf("Cannot register UDP receive callback.\n");
+            return;
+        }
+    } else {
+        debug_printf("Received unknown type in nameservice receive handler.\n");
+        return;
+    }
 }
 
 static regionid_t rx_rid;
@@ -819,15 +903,18 @@ int main(
     err = nameservice_register(
         NETWORKING_SERVICE_NAME,
         nameservice_receive_handler,
-        &st
+        st
     );
     if (err_is_fail(err)) {
         USER_PANIC("Cannot register nameservice callback.\n");
     }
 
-    udp_register(&st->eth_state.ip_state.udp_state, 9000, NULL);
+    domainid_t pid;
+    struct aos_rpc *rpc = aos_rpc_get_process_channel();
+    err = aos_rpc_process_spawn(rpc, "echoserver", 0, &pid);
     if (err_is_fail(err)) {
-        USER_PANIC("Cannot register UDP receive callback.\n");
+        DEBUG_ERR(err, "aos_rpc_process_spawn()");
+        abort();
     }
 
     while (true) {
