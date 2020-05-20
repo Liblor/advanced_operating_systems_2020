@@ -119,6 +119,8 @@ static int service_thread_func(void *arg)
             debug_printf("serve_add_client() failed: %s\n", err_getstring(err));
             return 1;
         }
+
+        thread_yield();
     }
 
     return 0;
