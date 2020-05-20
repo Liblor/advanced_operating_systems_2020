@@ -197,11 +197,17 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
 
     struct rpc_message *recv = NULL;
 
-    err = aos_rpc_ump_send_and_wait_recv(rpc, send, &recv);
+    if (response != NULL && response_bytes != NULL) {
+        err = aos_rpc_ump_send_and_wait_recv(rpc, send, &recv);
+        *response = recv->msg.payload;
+        *response_bytes = recv->msg.payload_length;
 
-    *response = recv->msg.payload;
-    *response_bytes = recv->msg.payload_length;
-    cap_copy(rx_cap, recv->cap);
+        if (!capref_is_null(rx_cap)) {
+            cap_copy(rx_cap, recv->cap);
+        }
+    } else {
+        err = aos_rpc_ump_send_message(rpc, send);
+    }
 
 	return SYS_ERR_OK;
 }
