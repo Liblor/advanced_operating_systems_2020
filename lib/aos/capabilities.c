@@ -205,12 +205,6 @@ struct capref cap_chan_monitor = {
         .slot = TASKCN_SLOT_CHAN_MONITOR
 };
 
-/// Cap to most register regions for the devices on the Toradex board
-struct capref cap_io_dev = {
-    .cnode = TASK_CNODE_INIT,
-    .slot = TASKCN_SLOT_DEV
-};
-
 /// Root PML4 VNode
 struct capref cap_vroot = {
     .cnode = PAGE_CNODE_INIT,
