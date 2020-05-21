@@ -21,7 +21,7 @@
 #include <aos/aos_rpc_ump.h>
 
 // How often a transient error can occur before it's regarded critical.
-#define TRANSIENT_ERR_RETRIES (20)
+#define TRANSIENT_ERR_RETRIES (1000)
 
 enum aos_rpc_type {
     RpcTypeLmp,
@@ -36,7 +36,11 @@ struct aos_rpc {
         struct aos_rpc_lmp lmp;
         struct aos_rpc_ump ump;
     };
+
+    void *priv_data;
 };
+
+
 
 /**
  * \brief Call this handler on the receive side for grading
@@ -80,6 +84,8 @@ errval_t aos_rpc_get_remote_ram_cap(
 
 /**
  * \brief Get one character from the serial port
+ *
+ * returns AOS_ERR_SERIAL_BUSY if device is blocked for too long by someone else
  */
 errval_t aos_rpc_serial_getchar(struct aos_rpc *chan, char *retc);
 
@@ -87,6 +93,11 @@ errval_t aos_rpc_serial_getchar(struct aos_rpc *chan, char *retc);
  * \brief Send one character to the serial port
  */
 errval_t aos_rpc_serial_putchar(struct aos_rpc *chan, char c);
+
+/**
+ * \brief Send multiple character to the serial port
+ */
+errval_t aos_rpc_serial_putstr(struct aos_rpc *rpc, char *str, size_t len);
 
 /**
  * \brief Request that the process manager start a new process

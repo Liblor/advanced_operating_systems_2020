@@ -12,6 +12,7 @@ enum rpc_message_method {
     Method_Send_String,
     Method_Serial_Putchar,
     Method_Serial_Getchar,
+    Method_Serial_Putstr,
     Method_Process_Get_Name,
     Method_Process_Get_All_Pids,
     Method_Spawn_Process,
@@ -33,6 +34,8 @@ enum rpc_message_status {
     Process_Get_Name_Failed = 2,
     Process_Get_All_Pids_Failed = 3,
     Status_Error = 4,
+    Serial_Getchar_Occupied = 5,     // serial read occupied. try again
+    Serial_Getchar_Nodata = 6
 };
 
 struct rpc_message_part {
@@ -45,6 +48,19 @@ struct rpc_message_part {
 struct rpc_message {
     struct capref cap; ///< Optional cap to exchange, NULL if not set
     struct rpc_message_part msg;
+};
+
+#define SERIAL_GETCHAR_SESSION_UNDEF 0
+
+typedef uint64_t serial_session_t;
+
+struct serial_getchar_reply {
+    serial_session_t session;    ///< read session
+    char data;                  ///< char to get
+};
+
+struct serial_getchar_req {
+    serial_session_t session;    ///< read session
 };
 
 #endif
