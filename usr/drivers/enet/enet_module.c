@@ -704,15 +704,11 @@ static void nameservice_receive_handler(
 {
     errval_t err;
 
-    debug_printf("nameservice_receive_handler()\n");
-
     struct enet_driver_state *state = st;
     struct networking_message *net_message = (struct networking_message *) message;
 
     assert(state != NULL);
     assert(net_message != NULL);
-
-    debug_printf("Reading module state %p\n", state);
 
     const enum networking_mtype type = net_message->type;
 
@@ -734,8 +730,6 @@ static void nameservice_receive_handler(
             return;
         }
     } else if (type == NETWORKING_MTYPE_UDP_REGISTER) {
-        debug_printf("NETWORKING_MTYPE_UDP_REGISTER\n");
-
         struct networking_payload_udp_register *tsp = (struct networking_payload_udp_register *) net_message->payload;
         assert(tsp != NULL);
 
