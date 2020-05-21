@@ -21,7 +21,6 @@
                         "other_main.c",
                         "mem_alloc.c",
                         "memoryserver.c",
-                        "processserver.c",
                         "monitorserver.c",
                         "nameserver.c",
                         "test.c",
