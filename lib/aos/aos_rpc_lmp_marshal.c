@@ -3,6 +3,7 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
 #include <aos/debug.h>
+#include <aos/deferred.h>
 
 static void
 client_response_cb(void *arg)
@@ -325,11 +326,9 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
 
     uint64_t retries = 0;
     err = SYS_ERR_OK;
-
     thread_mutex_lock_nested(&rpc->mutex);
 
-    //    while (size_sent < msg_size && retries < TRANSIENT_ERR_RETRIES) {
-while (size_sent < msg_size) {
+    while (size_sent < msg_size && retries < TRANSIENT_ERR_RETRIES) {
         uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);
@@ -338,7 +337,12 @@ while (size_sent < msg_size) {
 
         if (lmp_err_is_transient(err)) {
             retries++;
+
+            // TODO: evaluate performance what is better
+            // yield_thread on transient error or wait blocking on a waitset
+            // barrelfish_usleep(TRANSIENT_ERR_SLEEP_US);
             thread_yield();
+
             continue;
         } else if (err_is_fail(err)) {
             break;
