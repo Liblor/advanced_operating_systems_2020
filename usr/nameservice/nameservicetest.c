@@ -27,7 +27,7 @@
         USER_PANIC_ERR(err, msg);  \
     }
 
-#define SERVICE_NAME "myservicename"
+#define SERVICE_NAME "test"
 #define TEST_BINARY  "nameservicetest"
 /*
  * ============================================================================
@@ -79,13 +79,13 @@ static void run_client(void)
     debug_printf("got response: %s\n", (char *)response);
 
     test_query("");
-    test_query("my");
+    test_query("t");
     test_query(SERVICE_NAME);
-    test_query(SERVICE_NAME "asdf");
-    test_query(SERVICE_NAME "bla");
-    test_query(SERVICE_NAME "bla1");
-    test_query(SERVICE_NAME "bla3");
-    test_query(SERVICE_NAME "bla32");
+    test_query(SERVICE_NAME "/asdf");
+    test_query(SERVICE_NAME "/bla");
+    test_query(SERVICE_NAME "/bla1");
+    test_query(SERVICE_NAME "/bla3");
+    test_query(SERVICE_NAME "/bla32");
 }
 
 /*
@@ -114,20 +114,24 @@ static void run_server(void)
     err = nameservice_register(SERVICE_NAME, server_recv_handler, NULL);
     PANIC_IF_FAIL(err, "failed to register...\n");
 
-    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"bla1");
-    err = nameservice_register(SERVICE_NAME"bla1", server_recv_handler, NULL);
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"/bla");
+    err = nameservice_register(SERVICE_NAME"/bla", server_recv_handler, NULL);
     PANIC_IF_FAIL(err, "failed to register...\n");
 
-    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"bla12");
-    err = nameservice_register(SERVICE_NAME"bla12", server_recv_handler, NULL);
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"/bla1");
+    err = nameservice_register(SERVICE_NAME"/bla1", server_recv_handler, NULL);
     PANIC_IF_FAIL(err, "failed to register...\n");
 
-    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"bla31");
-    err = nameservice_register(SERVICE_NAME"bla31", server_recv_handler, NULL);
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"/bla12");
+    err = nameservice_register(SERVICE_NAME"/bla12", server_recv_handler, NULL);
     PANIC_IF_FAIL(err, "failed to register...\n");
 
-    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"bla32");
-    err = nameservice_register(SERVICE_NAME"bla32", server_recv_handler, NULL);
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"/bla31");
+    err = nameservice_register(SERVICE_NAME"/bla31", server_recv_handler, NULL);
+    PANIC_IF_FAIL(err, "failed to register...\n");
+
+    debug_printf("register with nameservice '%s'\n", SERVICE_NAME"/bla32");
+    err = nameservice_register(SERVICE_NAME"/bla32", server_recv_handler, NULL);
     PANIC_IF_FAIL(err, "failed to register...\n");
 
     err = nameservice_deregister(SERVICE_NAME);

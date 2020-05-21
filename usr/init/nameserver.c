@@ -55,7 +55,7 @@ static void reply_init(struct rpc_message *msg, struct rpc_message *resp)
 static bool check_name_valid(char *name)
 {
     for (char *ptr = name; *ptr != '\0'; ptr++) {
-        if (!isalnum(*ptr)) {
+        if (!(isalnum(*ptr) || *ptr == '/')) {
             return false;
         }
     }
