@@ -102,10 +102,10 @@ do_getchar_usr(
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "reply_char() failed");
         }
-
          SERIAL_SERVER_DEBUG("session is occupied: \n");
         return;
     }
+
     // read is free
     if (serial_server.curr_read_session == SERIAL_GETCHAR_SESSION_UNDEF) {
         serial_server.curr_read_session = req_getchar->session;
@@ -183,7 +183,6 @@ static void do_putstr_usr(
         char *str, size_t len
 )
 {
-
     errval_t err;
     err = serial_facade_write_str(&serial_server.serial_facade, str, len);
     if (err_is_fail(err)) {
@@ -248,8 +247,8 @@ static void service_recv_handle_putchar(
     memcpy(&c, msg->msg.payload, sizeof(char));
     grading_rpc_handler_serial_putchar(c);
 
-     do_putchar_sys(c); // kernel impl
-//    do_putchar_usr(c);    // userspace impl
+//     do_putchar_sys(c); // kernel impl
+    do_putchar_usr(c);    // userspace impl
 }
 
 __inline
@@ -267,7 +266,7 @@ static void service_recv_handle_getchar(
         return;
     }
     struct serial_getchar_req req_getchar;
-    memcpy(&msg->msg.payload, &req_getchar, sizeof(struct serial_getchar_req));
+    memcpy(&req_getchar, msg->msg.payload, sizeof(struct serial_getchar_req));
 
 //     do_getchar_sys(rpc, msg, &req_getchar);  // kernel impl
     do_getchar_usr(rpc, msg, &req_getchar);     // user space impl
