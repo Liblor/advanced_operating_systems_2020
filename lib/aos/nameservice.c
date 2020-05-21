@@ -157,6 +157,10 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
             return;
         }
     }
+
+    // TODO free message and response?
+    //free(message);
+    //free(response);
 }
 
 /**
@@ -170,6 +174,7 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
  *
  * @return error value
  */
+// TODO All callers have to free the response
 errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
                          void **response, size_t *response_bytes,
                          struct capref tx_cap, struct capref rx_cap)
