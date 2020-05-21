@@ -63,20 +63,32 @@ struct fat32_handle {
 
 errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt);
 errval_t fat32_opendir(
-        void *st,
-        const char *path,
-        fat32_handle_t *rethandle
+    void *st,
+    const char *path,
+    fat32_handle_t *rethandle
 );
 
 errval_t fat32_dir_read_next(
-        void *st,
-        fat32_handle_t inhandle,
-        char **retname,
-        struct fs_fileinfo *info
+    void *st,
+    fat32_handle_t inhandle,
+    char **retname,
+    struct fs_fileinfo *info
 );
 errval_t fat32_closedir(
-        void *st,
-        fat32_handle_t dhandle
+    void *st,
+    fat32_handle_t dhandle
+);
+
+errval_t fat32_open(void *st, const char *path, fat32_handle_t *rethandle);
+errval_t fat32_close(void *st, fat32_handle_t inhandle);
+errval_t fat32_tell(void *st, fat32_handle_t handle, size_t *pos);
+errval_t fat32_stat(void *st, fat32_handle_t inhandle, struct fs_fileinfo *info);
+errval_t fat32_read(
+    void *st,
+    fat32_handle_t handle,
+    void *buffer,
+    size_t bytes,
+    size_t *bytes_read
 );
 
 #endif //BF_AOS_FAT32_H

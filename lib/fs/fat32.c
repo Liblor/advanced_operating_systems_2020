@@ -105,7 +105,7 @@ static inline bool equal_shortname(
 ) {
     if (strcmp(name, "..") == 0) {
         return shortname[0] == '.' && shortname[1] == '.';
-    } else if (strcmp(name, ".")) {
+    } else if (strcmp(name, ".") == 0) {
         return shortname[0] == '.';
     }
     size_t len_name8;
@@ -354,7 +354,6 @@ __unused errval_t fat32_opendir(
     return SYS_ERR_OK;
 }
 
-
 static errval_t next_dir_entry(
     struct fat32_mnt *mnt,
     struct fat32_handle *h
@@ -375,7 +374,6 @@ static errval_t next_dir_entry(
     assert(h->current_cluster < 0xfffffff8);    // a end of directory entry should come first
     return err;
 }
-
 
 __unused errval_t fat32_dir_read_next(
     void *st,
@@ -429,5 +427,113 @@ __unused errval_t fat32_closedir(
     }
     free(handle->path);
     free(handle);
+    return SYS_ERR_OK;
+}
+
+__unused errval_t fat32_open(void *st, const char *path, fat32_handle_t *rethandle)
+{
+    errval_t err;
+    struct fat32_mnt *mnt = st;
+
+    struct fat32_handle *handle;
+    err = resolve_path(mnt, &mnt->root, path, &handle);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    if (handle->isdir) {
+        handle_close(handle);
+        return FS_ERR_NOTFILE;
+    }
+
+    *rethandle = handle;
+    return SYS_ERR_OK;
+}
+
+__unused errval_t fat32_close(void *st, fat32_handle_t inhandle)
+{
+    struct fat32_handle *handle = inhandle;
+    if (handle->isdir) {
+        return FS_ERR_NOTFILE;
+    }
+    handle_close(handle);
+    return SYS_ERR_OK;
+}
+
+__unused errval_t fat32_tell(void *st, fat32_handle_t handle, size_t *pos)
+{
+    struct fat32_handle *h = handle;
+    if (h->isdir) {
+        *pos = 0;
+    } else {
+        *pos = h->file_pos;
+    }
+    return SYS_ERR_OK;
+}
+
+__unused errval_t fat32_stat(void *st, fat32_handle_t inhandle, struct fs_fileinfo *info)
+{
+    struct fat32_handle *h = inhandle;
+    assert(info != NULL);
+    info->type = h->isdir ? FS_DIRECTORY : FS_FILE;
+    info->size = h->dirent.dir_entry.size;
+    return SYS_ERR_OK;
+}
+
+errval_t fat32_read(
+    void *st,
+    fat32_handle_t handle,
+    void *buffer,
+    size_t bytes,
+    size_t *bytes_read
+) {
+    errval_t err;
+    struct fat32_mnt *mnt = st;
+    struct fat32_handle *h = handle;
+
+    if (h->isdir) {
+        return FS_ERR_NOTFILE;
+    }
+
+    *bytes_read = 0;
+
+    if (h->dirent.dir_entry.size < h->file_pos) {
+        bytes = 0;
+    } else if (h->dirent.dir_entry.size < h->file_pos + bytes) {
+        bytes = h->dirent.dir_entry.size - h->file_pos;
+        assert(h->file_pos + bytes == h->dirent.dir_entry.size);
+    }
+
+    uint8_t buf[BLOCK_SIZE];
+    while (*bytes_read < bytes) {
+        err = aos_rpc_block_driver_read_block(
+            aos_rpc_get_block_driver_channel(),
+            cluster_to_lba(mnt, h->current_cluster) + h->sector_rel_cluster,
+            buf,
+            BLOCK_SIZE
+        );
+        if (err_is_fail(err)) {
+            return err;
+        }
+        uint32_t from = h->file_pos % BLOCK_SIZE;
+        uint32_t size = MIN(BLOCK_SIZE - from, bytes - *bytes_read);
+        //size = MIN(size, h->dirent.dir_entry.size - h->file_pos);
+        memcpy(buffer + *bytes_read, &buf[from], size);
+        uint32_t new_sector = (h->file_pos + size)/BLOCK_SIZE - h->file_pos/BLOCK_SIZE;
+        *bytes_read += size;
+        h->file_pos += size;
+        h->sector_rel_cluster += new_sector;
+        if (h->sector_rel_cluster >= mnt->sectors_per_cluster) {
+            // new cluster
+            h->sector_rel_cluster = 0;
+            err = next_cluster(mnt, h->current_cluster, &h->current_cluster);
+            if (err_is_fail(err)) {
+                return err;
+            }
+            assert(h->current_cluster < 0xfffffff8);    // a end of directory entry should come first
+        }
+    }
+
+    assert(*bytes_read == bytes);
     return SYS_ERR_OK;
 }
