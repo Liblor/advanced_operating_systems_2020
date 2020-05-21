@@ -313,6 +313,9 @@ __unused static errval_t resolve_path(
         if (err_is_fail(err)) {
             return err;
         }
+        if (next_dirent.dir_entry.first_cluster_lo == 0) {  // ".." special case
+            next_dirent.dir_entry.first_cluster_lo = mnt->root_dir_first_cluster;
+        }
         if (!is_dir(&next_dirent.dir_entry) && nextsep != NULL) {
             return FS_ERR_NOTDIR;
         }
@@ -400,6 +403,24 @@ __unused errval_t fat32_dir_read_next(
     }
     struct dir_entry *dir_entry = ((struct dir_entry *)buf) + h->dir_offset;
 
+    while (dir_entry->shortname[0] == 0xe5) {
+        uint32_t old_offset = h->dir_offset;
+        err = next_dir_entry(mnt, h);
+        if (err_is_fail(err)) {
+            return err;
+        }
+        if (h->dir_offset < old_offset) {   // new sector
+            err = aos_rpc_block_driver_read_block(
+                aos_rpc_get_block_driver_channel(),
+                cluster_to_lba(mnt, h->current_cluster) + h->sector_rel_cluster,
+                buf,
+                BLOCK_SIZE
+            );
+            if (err_is_fail(err)) {
+                return err;
+            }
+        }
+    }
     if (end_of_directory(dir_entry)) {
         return FS_ERR_INDEX_BOUNDS;
     }
@@ -576,7 +597,6 @@ errval_t fat32_seek(
     struct fat32_mnt *mnt = st;
     struct fat32_handle *h = handle;
     errval_t err = SYS_ERR_OK;
-    debug_printf("CALLED\n");
 
     switch (whence) {
         case FS_SEEK_SET:
