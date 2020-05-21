@@ -380,7 +380,7 @@ int first_main(int argc, char *argv[])
         abort();
     }
 #endif
-;
+
     debug_printf("Entering message handler loop...\n");
 
     // Hang around
