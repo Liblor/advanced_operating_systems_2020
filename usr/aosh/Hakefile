@@ -15,7 +15,9 @@
   		               "aosh.c",
   		               "builtin/builtin.c",
   		               "builtin/oncore.c",
-  		               "builtin/time.c"
+  		               "builtin/time.c",
+  		               "builtin/nslookup.c",
+  		               "builtin/nslist.c"
   		                ],
                       architectures = allArchitectures
                     }
