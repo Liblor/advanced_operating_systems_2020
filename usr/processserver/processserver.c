@@ -48,6 +48,10 @@ static nameservice_chan_t get_monitor_chan(struct processserver_state *server_st
         snprintf(service_name, sizeof(service_name), NAMESERVICE_MONITOR "%llu", cid);
 
         err = nameservice_lookup(service_name, entry_ptr);
+        if (err_is_fail(err)) {
+            debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+            *entry_ptr = NULL;
+        }
     }
 
     return *entry_ptr;
@@ -71,6 +75,11 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
     strlcpy(req->msg.payload + sizeof(domainid_t), name, str_len);
 
     nameservice_chan_t monitor_chan = get_monitor_chan(server_state, coreid);
+    if (monitor_chan == NULL) {
+        debug_printf("Failed to get monitor service for core %llu.\n", coreid);
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
     struct rpc_message *resp = NULL;
     size_t resp_len;
 
