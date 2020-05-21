@@ -4,50 +4,6 @@
 #include <aos/inthandler.h>
 #include "serial_facade.h"
 
-static errval_t map_device_into_vspace(
-        gensize_t offset,
-        size_t objsize,
-        void **ret_vaddr)
-{
-    errval_t err;
-    objsize = ROUND_UP(objsize, BASE_PAGE_SIZE);
-
-    struct capref dev_cap;
-    err = slot_alloc(&dev_cap);
-    if (err_is_fail(err)) {
-        debug_printf("slot_alloc() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_SLOT_ALLOC);
-    }
-
-    err = cap_retype(
-            dev_cap,
-            cap_io_dev,
-            offset,
-            ObjType_DevFrame,
-            objsize,
-            1);
-
-    if (err_is_fail(err)) {
-        debug_printf("cap_retype() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_SLOT_ALLOC);
-    }
-
-    err = paging_map_frame_attr(get_current_paging_state(),
-                                ret_vaddr,
-                                objsize,
-                                dev_cap,
-                                VREGION_FLAGS_READ_WRITE_NOCACHE,
-                                0,
-                                0);
-
-    if (err_is_fail(err)) {
-        debug_printf("paging_map_frame_attr() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
-    }
-
-    return SYS_ERR_OK;
-}
-
 __unused
 static void lpuart_iqr_handler(void *arg)
 {
@@ -68,15 +24,18 @@ static void lpuart_iqr_handler(void *arg)
     }
 }
 
-__inline
-static errval_t setup_lpuart_irq(
+__inline static errval_t setup_lpuart_irq(
         struct serial_facade *serial_state)
 {
     errval_t err;
     void *gic_base;
-    err = map_device_into_vspace((IMX8X_GIC_DIST_BASE - IMX8X_START_DEV_RANGE),
-                                 IMX8X_GIC_DIST_SIZE,
-                                 &gic_base);
+    struct capref gic_cap;
+    err = map_driver(IMX8X_GIC_DIST_BASE,
+                     IMX8X_GIC_DIST_SIZE,
+                     false,
+                     &gic_cap,
+                     (lvaddr_t *) &gic_base);
+
     if (err_is_fail(err)) {
         debug_printf("failed to map gic into vspace: %s\n", err_getstring(err));
         return err;
@@ -90,14 +49,19 @@ static errval_t setup_lpuart_irq(
         return err;
     }
 
+    struct capref lpuart3_cap;
     void *lpuart3_base;
-    err = map_device_into_vspace((IMX8X_UART3_BASE - IMX8X_START_DEV_RANGE),
-                                 IMX8X_UART_SIZE,
-                                 &lpuart3_base);
+    err = map_driver(IMX8X_UART3_BASE,
+                     IMX8X_UART_SIZE,
+                     false,
+                     &lpuart3_cap,
+                     (lvaddr_t *) &lpuart3_base);
+
     if (err_is_fail(err)) {
-        debug_printf("paging_map_frame() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_PAGING_MAP_FRAME);
+        debug_printf("map_driver() failed: %s\n", err_getstring(err));
+        return err;
     }
+
     SERIAL_FACADE_DEBUG("mapped lpuart3 at addr %p\n", gic_base);
 
     err = lpuart_init(&serial_state->lpuart3_state, lpuart3_base);

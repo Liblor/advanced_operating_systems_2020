@@ -11,6 +11,9 @@
 #include "aosh.h"
 #include "builtin/builtin.h"
 
+#define err_is_fail(err) ((err_is_fail(err) ? (HERE, true) : false))
+
+
 static struct aosh_state aosh;
 
 static errval_t aosh_init(void)
@@ -91,7 +94,7 @@ static errval_t aosh_readline(
     }
     if (i == AOSH_READLINE_MAX_LEN) {
         debug_printf("AOSH_READLINE_MAX_LEN reached. truncating line\n");
-        buf[i - 1] = '\0';
+      //   buf[AOSH_READLINE_MAX_LEN - 1] = '\0';
     }
     if (c == CHAR_CODE_EOT) {
         // ctrl d  pressed
@@ -106,7 +109,7 @@ static errval_t aosh_readline(
         goto free_buf;
     }
 
-    memcpy(*ret_line, buf, i);
+    strlcpy((*ret_line), buf, i);
     if (ret_size != NULL) {
         *ret_size = i;
     }
@@ -245,7 +248,7 @@ static errval_t aosh_read_eval_execute(void)
     char **argv = NULL;
     int argc = 0;
     size_t line_size = 0;
-
+    HERE;
     printf(AOSH_CLI_HEAD);
     fflush(stdout);
 
@@ -262,6 +265,9 @@ static errval_t aosh_read_eval_execute(void)
         // nothing read;
         goto success_free;
     }
+
+//    printf("%s" ENDL, line);
+//    goto success_free;
 
     err = aosh_tokenize_arg(line, &argc, &argv);
     if (!aosh_err_recoverable(err)) {
@@ -310,6 +316,7 @@ int main(
 
     do {
         err = aosh_read_eval_execute();
+        thread_yield();
     } while (err_is_ok(err));
 
     if (err == AOSH_ERR_EXIT_SHELL) {

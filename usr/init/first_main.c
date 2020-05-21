@@ -391,8 +391,6 @@ int first_main(int argc, char *argv[])
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }
-
-        thread_yield();
     }
 
     return EXIT_SUCCESS;

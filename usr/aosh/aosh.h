@@ -14,7 +14,7 @@
 #define AOSH_TRACE(x...) ((void)0)
 #endif
 
-#define AOSH_READLINE_MAX_LEN 1024
+#define AOSH_READLINE_MAX_LEN (512)
 
 #define AOSH_CLI_HEAD (COLOR_RED "aosh " COLOR_BLU ">>> " COLOR_RESET)
 
