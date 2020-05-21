@@ -352,7 +352,11 @@ int first_main(int argc, char *argv[])
     setup_core(bi, 1, &rpc_core1);
 
     struct periodic_event periodic_urpc_ev;
-    setup_periodic_urpc_events(&periodic_urpc_ev);
+    err = setup_periodic_urpc_events(&periodic_urpc_ev);
+    if (err_is_fail(err)) {
+        debug_printf("failed to call setup_periodic_urpc_events: %s\n", err_getstring(err));
+        abort();
+    }
 
     // Grading
     grading_test_late();
