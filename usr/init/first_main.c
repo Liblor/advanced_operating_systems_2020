@@ -86,7 +86,7 @@ static errval_t process_get_all_pids(struct processserver_state *processserver_s
     return err;
 }
 
-static void start_server(char *service_name, char *cmd)
+static inline void start_server(char *service_name, char *cmd)
 {
     errval_t err;
 
@@ -354,13 +354,12 @@ int first_main(int argc, char *argv[])
 
     register_service_channels(NULL, my_core_id);
 
-    start_server(NAMESERVICE_INIT, "initserver");
+    //start_server(NAMESERVICE_INIT, "initserver");
 
-    // TODO Uncomment
-    /*
+#if 0
     struct aos_rpc rpc_core1;
     setup_core(bi, 1, &rpc_core1);
-    */
+#endif
 
     struct periodic_event periodic_urpc_ev;
     setup_periodic_urpc_events(&periodic_urpc_ev);
@@ -371,7 +370,6 @@ int first_main(int argc, char *argv[])
 #if 1
     domainid_t pid;
     struct spawninfo si;
-    //err = spawn_load_by_name("nameservicetest", &si, &pid);
     err = spawn_load_by_name("aosh", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));

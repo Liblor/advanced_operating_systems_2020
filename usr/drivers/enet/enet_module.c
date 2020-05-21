@@ -19,33 +19,45 @@
 #include <devif/queue_interface_backend.h>
 #include <devif/backends/net/enet_devif.h>
 #include <aos/aos.h>
+#include <aos/networking.h>
+#include <aos/debug.h>
 #include <aos/deferred.h>
 #include <driverkit/driverkit.h>
 #include <dev/imx8x/enet_dev.h>
-#include <netutil/etharp.h>
+#include <aos/nameserver.h>
 
+#include <maps/imx8x_map.h> // IMX8X_ENET_BASE, IMX8X_ENET_SIZE
 
 #include "enet.h"
+#include "queues.h"
+#include "ethernet.h"
+#include "udp.h"
+
+#include <aos/aos_rpc.h>
+#include <spawn/spawn.h>
 
 #define PHY_ID 0x2
 
-static errval_t enet_write_mdio(struct enet_driver_state* st, int8_t phyaddr,
-                                int8_t regaddr, int16_t data)
+static errval_t enet_write_mdio(
+    struct enet_driver_state *st,
+    int8_t phyaddr,
+    int8_t regaddr,
+    int16_t data
+)
 {
-    
-    // Some protocol ...
+    assert(st != NULL);
 
     enet_mmfr_t reg = 0;
     reg = enet_mmfr_pa_insert(reg, phyaddr);
     reg = enet_mmfr_ra_insert(reg, regaddr);
-    reg = enet_mmfr_data_insert(reg, data);   
-    reg = enet_mmfr_st_insert(reg, 0x1);   
-    reg = enet_mmfr_ta_insert(reg, 0x2);   
+    reg = enet_mmfr_data_insert(reg, data);
+    reg = enet_mmfr_st_insert(reg, 0x1);
+    reg = enet_mmfr_ta_insert(reg, 0x2);
 
-    // 1 is write 2 is read
-    reg = enet_mmfr_op_insert(reg, 0x1);   
- 
-    ENET_DEBUG("Write MDIO: write cmd %lx \n", reg);
+    /* 1 is write 2 is read */
+    reg = enet_mmfr_op_insert(reg, 0x1);
+
+    ENET_DEBUG("Write MDIO: write cmd %lx\n", reg);
 
     enet_mmfr_wr(st->d, reg);
 
@@ -57,29 +69,34 @@ static errval_t enet_write_mdio(struct enet_driver_state* st, int8_t phyaddr,
             return ENET_ERR_MDIO_WRITE;
         }
     }
-   
+
     enet_eir_mii_wrf(st->d, 0x1);
     return SYS_ERR_OK;
 }
 
-static errval_t enet_read_mdio(struct enet_driver_state* st, int8_t phyaddr,
-                               int8_t regaddr, int16_t *data)
+static errval_t enet_read_mdio(
+    struct enet_driver_state *st,
+    int8_t phyaddr,
+    int8_t regaddr,
+    int16_t *data
+)
 {
-    
-    // Some protocol ...
+    assert(st != NULL);
+    assert(data != NULL);
+
     enet_eir_mii_wrf(st->d, 0x1);
 
     enet_mmfr_t reg = 0;
     reg = enet_mmfr_pa_insert(reg, phyaddr);
     reg = enet_mmfr_ra_insert(reg, regaddr);
-    reg = enet_mmfr_st_insert(reg, 0x1);   
-    reg = enet_mmfr_ta_insert(reg, 0x2);   
-    // 1 is write 2 is read
-    reg = enet_mmfr_op_insert(reg, 0x2);   
+    reg = enet_mmfr_st_insert(reg, 0x1);
+    reg = enet_mmfr_ta_insert(reg, 0x2);
+    /* 1 is write, 2 is read. */
+    reg = enet_mmfr_op_insert(reg, 0x2);
 
     enet_mmfr_wr(st->d, reg);
-    
-    ENET_DEBUG("Read MDIO: read cmd %lx \n", reg);
+
+    ENET_DEBUG("Read MDIO: read cmd %lx\n", reg);
 
     uint16_t tries = 1000;
     while (!(enet_eir_mii_rdf(st->d) & 0x1)) {
@@ -89,34 +106,40 @@ static errval_t enet_read_mdio(struct enet_driver_state* st, int8_t phyaddr,
             return ENET_ERR_MDIO_WRITE;
         }
     }
-    
+
     enet_eir_mii_wrf(st->d, 0x1);
     *data = enet_mmfr_data_rdf(st->d);
-    
+
     return SYS_ERR_OK;
 }
 
-static errval_t enet_get_phy_id(struct enet_driver_state* st)
+static errval_t enet_get_phy_id(
+    struct enet_driver_state *st
+)
 {
     errval_t err;
-    int16_t data; 
+
+    assert(st != NULL);
+
+    int16_t data;
     uint32_t phy_id;
 
-    // get phy ID1
-    err = enet_read_mdio(st, PHY_ID,  0x2, &data);
-    if (err_is_fail(err))  {
+    /* Get phy ID1. */
+    err = enet_read_mdio(st, PHY_ID, 0x2, &data);
+    if (err_is_fail(err)) {
         return err;
-    }   
+    }
     phy_id = data << 16;
 
-    // get phy ID2
-    err = enet_read_mdio(st, PHY_ID,  0x3, &data);
-    if (err_is_fail(err))  {
+    /* Get phy ID2. */
+    err = enet_read_mdio(st, PHY_ID, 0x3, &data);
+    if (err_is_fail(err)) {
         return err;
-    }   
+    }
 
     phy_id |= data;
-    st->phy_id = phy_id;    
+    st->phy_id = phy_id;
+
     return err;
 }
 
@@ -129,27 +152,32 @@ static errval_t enet_get_phy_id(struct enet_driver_state* st)
 #define PHY_CTRL1000_CMD 0x09
 #define PHY_STAT1000_CMD 0x0a
 
-static errval_t enet_reset_phy(struct enet_driver_state* st)
+static errval_t enet_reset_phy(
+    struct enet_driver_state *st
+)
 {
     errval_t err;
+
+    assert(st != NULL);
+
     err = enet_write_mdio(st, PHY_ID, PHY_RESET_CMD, PHY_RESET);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    }   
+    }
 
     int16_t data;
     err = enet_read_mdio(st, PHY_ID, PHY_RESET_CMD, &data);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    }   
-    
+    }
+
     int timeout = 500;
     while ((data & PHY_RESET) && timeout > 0) {
         err = enet_read_mdio(st, PHY_ID, PHY_RESET_CMD, &data);
-        if (err_is_fail(err))  {
+        if (err_is_fail(err)) {
             return err;
-        }   
-    
+        }
+
         barrelfish_usleep(1000);
         timeout--;
     }
@@ -161,29 +189,34 @@ static errval_t enet_reset_phy(struct enet_driver_state* st)
     return SYS_ERR_OK;
 }
 
-static errval_t enet_setup_autoneg(struct enet_driver_state* st)
+static errval_t enet_setup_autoneg(
+    struct enet_driver_state *st
+)
 {
     errval_t err;
+
+    assert(st != NULL);
+
     int16_t status;
     int16_t autoneg;
 
-    // Read BASIC MODE status register
+    /* Read BASIC MODE status register. */
     err = enet_read_mdio(st, PHY_ID, 0x1, &status);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    }   
+    }
 
-    // READ autoneg status
+    /* READ autoneg status. */
     err = enet_read_mdio(st, PHY_ID, PHY_AUTONEG_CMD, &autoneg);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    }   
-    
-    // Read BASIC contorl register
+    }
+
+    /* Read BASIC contorl register. */
     err = enet_read_mdio(st, PHY_ID, PHY_RESET_CMD, &status);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    }   
+    }
 
     return SYS_ERR_OK;
 }
@@ -196,9 +229,15 @@ static errval_t enet_setup_autoneg(struct enet_driver_state* st)
 
 #define AUTONEG_ENABLE 0x1000
 #define AUTONEG_RESTART 0x0200
-static errval_t enet_restart_autoneg(struct enet_driver_state* st)
+
+static errval_t enet_restart_autoneg(
+    struct enet_driver_state *st
+)
 {
     errval_t err;
+
+    assert(st != NULL);
+
     err = enet_write_mdio(st, PHY_ID, PHY_RESET_CMD, PHY_RESET);
     if (err_is_fail(err)) {
         return err;
@@ -207,38 +246,39 @@ static errval_t enet_restart_autoneg(struct enet_driver_state* st)
     barrelfish_usleep(1000);
     //barrelfish_usleep(1000);
 
-    err = enet_write_mdio(st, PHY_ID, PHY_AUTONEG_CMD, 
-                          AUTONEG_100FULL | AUTONEG_100HALF | AUTONEG_10FULL |
-                          AUTONEG_10HALF | AUTONEG_PSB_802_3);
+    err = enet_write_mdio(st, PHY_ID, PHY_AUTONEG_CMD,
+                          AUTONEG_100FULL | AUTONEG_100HALF | AUTONEG_10FULL | AUTONEG_10HALF | AUTONEG_PSB_802_3);
     if (err_is_fail(err)) {
         return err;
     }
- 
-    err = enet_write_mdio(st, PHY_ID, PHY_RESET_CMD, 
-                          AUTONEG_ENABLE | AUTONEG_RESTART);
+
+    err = enet_write_mdio(st, PHY_ID, PHY_RESET_CMD, AUTONEG_ENABLE | AUTONEG_RESTART);
     if (err_is_fail(err)) {
         return err;
     }
-   
+
     return SYS_ERR_OK;
 }
 
-
-static errval_t enet_init_phy(struct enet_driver_state* st)
+static errval_t enet_init_phy(
+    struct enet_driver_state *st
+)
 {
     errval_t err;
+
+    assert(st != NULL);
+
     err = enet_get_phy_id(st);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    }   
- 
+    }
+
     err = enet_reset_phy(st);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    }   
-   
-    // board_phy_config in uboot driver. Don't know what
-    // this actually does ...
+    }
+
+    /* board_phy_config in uboot driver. Don't know what this actually does. */
     err = enet_write_mdio(st, PHY_ID, 0x1d, 0x1f);
     assert(err_is_ok(err));
     err = enet_write_mdio(st, PHY_ID, 0x1e, 0x8);
@@ -253,29 +293,32 @@ static errval_t enet_init_phy(struct enet_driver_state* st)
     assert(err_is_ok(err));
 
     err = enet_setup_autoneg(st);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    }   
+    }
 
     return SYS_ERR_OK;
 }
-
-
 
 #define PHY_STATUS_LSTATUS 0x0004
 #define PHY_STATUS_ANEG_COMP 0x0020
 #define PHY_STATUS_ESTAT 0x0100
 #define PHY_STATUS_ERCAP 0x0001
 
-
 #define PHY_LPA_100HALF  0x0080
 #define PHY_LPA_100FULL 0x0100
 #define PHY_LPA_10FULL  0x0040
-// TODO check for rest of link capabilities
-static void enet_parse_link(struct enet_driver_state* st)
+
+/* TODO check for rest of link capabilities */
+static void enet_parse_link(
+    struct enet_driver_state *st
+)
 {
-    // just a sanity check if values are ok
     errval_t err;
+
+    assert(st != NULL);
+
+    /* Check if the values are ok. */
     int16_t status;
     err = enet_read_mdio(st, PHY_ID, PHY_STAT1000_CMD, &status);
     assert(err_is_ok(err));
@@ -284,39 +327,42 @@ static void enet_parse_link(struct enet_driver_state* st)
     err = enet_read_mdio(st, PHY_ID, PHY_STATUS_CMD, &mii_reg);
     assert(err_is_ok(err));
 
-    if (status < 0) {   
-        debug_printf("ENET not capable of 1G \n");
+    if (status < 0) {
+        debug_printf("ENET not capable of 1G\n");
         return;
     } else {
         err = enet_read_mdio(st, PHY_ID, PHY_CTRL1000_CMD, &status);
         assert(err_is_ok(err));
-        
+
         if (status == 0) {
-            int16_t lpa, lpa2;   
+            int16_t lpa, lpa2;
             err = enet_read_mdio(st, PHY_ID, PHY_AUTONEG_CMD, &lpa);
             assert(err_is_ok(err));
 
             err = enet_read_mdio(st, PHY_ID, PHY_LPA_CMD, &lpa2);
             assert(err_is_ok(err));
-        
+
             lpa &= lpa2;
             if (lpa & (PHY_LPA_100FULL | PHY_LPA_100HALF)) {
                 if (lpa & PHY_LPA_100FULL) {
-                    debug_printf("LINK 100 Mbit/s FULL duplex \n");
+                    debug_printf("LINK 100 Mbit/s FULL duplex\n");
                 } else {
                     debug_printf("LINK 100 Mbit/s half\n");
                 }
             }
         }
     }
-
 }
 
-static errval_t enet_phy_startup(struct enet_driver_state* st)
+static errval_t enet_phy_startup(
+    struct enet_driver_state *st
+)
 {
     errval_t err;
-    // board_phy_config in uboot driver. Don't know what
-    // this actually does ...
+
+    assert(st != NULL);
+
+    /* board_phy_config in uboot driver. Don't know what this actually does. */
     int16_t mii_reg;
     err = enet_read_mdio(st, PHY_ID, PHY_STATUS_CMD, &mii_reg);
     assert(err_is_ok(err));
@@ -325,82 +371,46 @@ static errval_t enet_phy_startup(struct enet_driver_state* st)
         debug_printf("LINK already UP\n");
         return SYS_ERR_OK;
     }
-    
+
     if (!(mii_reg & PHY_STATUS_ANEG_COMP)) {
 
-        debug_printf("[enet] Starting autonegotiation \n");
-        while(!(mii_reg & PHY_STATUS_ANEG_COMP))  {
+        debug_printf("[enet] Starting autonegotiation\n");
+        while (!(mii_reg & PHY_STATUS_ANEG_COMP)) {
             err = enet_read_mdio(st, PHY_ID, PHY_STATUS_CMD, &mii_reg);
             assert(err_is_ok(err));
             barrelfish_usleep(1000);
         }
-        
+
         ENET_DEBUG("Autonegotation done\n");
     }
-    
+
     enet_parse_link(st);
-    
+
     return SYS_ERR_OK;
 }
 
-// bool promiscous for promiscous mode. 
-// This will also set it so that all multicast packets will also be received!
-/*
-static void enet_init_multicast_filt(struct enet_driver_state* st, bool promisc)
+static void enet_read_mac(
+    struct enet_driver_state *st
+)
 {
-    if (promisc) {
-        enet_rcr_prom_wrf(st->d, 1);
-        return;
-    }
+    assert(st != NULL);
 
-    enet_rcr_prom_wrf(st->d, 0);
-    
-    // TODO Catching all multicast packets for now
-    enet_gaur_wr(st->d, 0xFFFFFFFF);
-    enet_galr_wr(st->d, 0xFFFFFFFF);
-    // TODO if we do not catch all multicast packet then do this:
-    // crc32 value of mac address
-    #if 0
-    unsigned int crc = 0xffffffff;
-    unsigned char hash;
-    unsigned int hash_high = 0, hash_low = 0;
-    for (int i = 0; i < 6; i++) {
-        unsigned char data = ((uint8_t*) &st->mac)[i];
-
-        for (int bit = 0; bit < 8; bit++, data >>= 1) {
-            crc = (crc >> 1) ^ (((crc ^ data) & 1) ? ENET_CRC32_POLY : 0);  
-        }
-        
-        hash = (crc >> (32 - ENET_HASH_BITS)) & 0x3f;  
-        
-        if (hash > 31) {
-            hash_high |= 1 << (hash - 32);
-        } else {
-            hash_low |= 1 << hash;
-        }
-    } 
-  
-    enet_gaur_gaddr_wrf(st->d, hash_high);
-    enet_galr_gaddr_wrf(st->d, hash_low);
-    #endif
-    // TODO if this is M5272 then set the hash table entries to 0 ...
-}
-*/
-
-static void enet_read_mac(struct enet_driver_state* st)
-{
     uint64_t lower = enet_palr_paddr1_rdf(st->d);
     uint64_t upper = enet_paur_paddr2_rdf(st->d);
-    // this is weird lower seems to be the upper part of the address ..
+
+    /* Lower seems to be the upper part of the address. */
     uint64_t mac = (lower << 16) | upper;
 
-    ENET_DEBUG("MAC %lx \n", mac);
-    st->mac = mac;  
+    ENET_DEBUG("MAC %lx\n", mac);
+    st->mac = mac;
 }
 
-static void enet_write_mac(struct enet_driver_state* st)
+static void enet_write_mac(
+    struct enet_driver_state *st
+)
 {
-    
+    assert(st != NULL);
+
     uint64_t lower = st->mac >> 16;
     uint32_t upper = st->mac & 0xFFFF;
 
@@ -408,37 +418,45 @@ static void enet_write_mac(struct enet_driver_state* st)
     enet_paur_paddr2_wrf(st->d, upper);
 }
 
-static errval_t enet_reset(struct enet_driver_state* st)
+static errval_t enet_reset(
+    struct enet_driver_state *st
+)
 {
-    // reset device
+    assert(st != NULL);
+
+    /* Reset device. */
     ENET_DEBUG("Reset device\n");
-    
+
     uint64_t ecr = enet_ecr_rd(st->d);
     enet_ecr_wr(st->d, ecr | 0x1);
     int timeout = 500;
     while ((enet_ecr_rd(st->d) & 0x1) && timeout > 0) {
         barrelfish_usleep(10);
-        // TODO timeout
+        /* TODO: Timeout. */
     }
 
     if (timeout <= 0) {
         return ENET_ERR_DEV_RESET;
     }
-   
+
     return SYS_ERR_OK;
 }
 
-static void enet_reg_setup(struct enet_driver_state* st)
+static void enet_reg_setup(
+    struct enet_driver_state *st
+)
 {
-    // Set interrupt mask register
+    assert(st != NULL);
+
+    /* Set interrupt mask register. */
     ENET_DEBUG("Set interrupt mask register\n");
     enet_eimr_wr(st->d, 0x0);
-    // Clear outstanding interrupts
+    /* Clear outstanding interrupts. */
     ENET_DEBUG("Clear outstanding interrupts\n");
     enet_eir_wr(st->d, 0xFFFFFFFF);
-    
-    uint64_t reg; 
-    // TODO see if other fields are required, not in dump
+
+    uint64_t reg;
+    /* TODO: See if other fields are required, not in dump. */
     reg = enet_rcr_rd(st->d);
     reg = enet_rcr_loop_insert(reg, 0x0);
     reg = enet_rcr_rmii_mode_insert(reg, 0x1);
@@ -446,45 +464,57 @@ static void enet_reg_setup(struct enet_driver_state* st)
     reg = enet_rcr_fce_insert(reg, 0x1);
     reg = enet_rcr_max_fl_insert(reg, 1522);
     //reg = enet_rcr_prom_insert(reg, 1);
-    enet_rcr_wr(st->d, reg);   
+    enet_rcr_wr(st->d, reg);
 }
 
-static errval_t enet_open(struct enet_driver_state *st)
+static errval_t enet_open(
+    struct enet_driver_state *st
+)
 {
-    errval_t err = SYS_ERR_OK;
-    // Enable full duplex, disable heartbeet
+    errval_t err;
+
+    assert(st != NULL);
+
+    err = SYS_ERR_OK;
+    /* Enable full duplex, disable heartbeet. */
     enet_tcr_fden_wrf(st->d, 0x1);
 
-    // Enable HW endian swap
+    /* Enable HW endian swap. */
     enet_ecr_dbswp_wrf(st->d, 0x1);
     enet_ecr_en1588_wrf(st->d, 0x0);
-    // Enable store and forward mode
+    /* Enable store and forward mode. */
     enet_tfwr_strfwd_wrf(st->d, 0x1);
-    // Enable controler
+    /* Enable controller. */
     enet_ecr_etheren_wrf(st->d, 0x1);
 
-    // TODO don't think this is MX25/MX53 or MX6SL
-    // Startup PHY
+    /* TODO: Don't think this is MX25/MX53 or MX6SL. */
+
+    /* Startup PHY. */
     err = enet_phy_startup(st);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         return err;
-    } 
+    }
 
     uint8_t speed = enet_ecr_speed_rdf(st->d);
-    
+
     if (!speed) {
         enet_rcr_rmii_10t_wrf(st->d, 0x0);
     }
-
     //enet_activate_rx_ring(st);
-    ENET_DEBUG("Init done! \n");
+    ENET_DEBUG("Init done!\n");
     return err;
 }
 
-static errval_t enet_init(struct enet_driver_state* st)
+static errval_t enet_init(
+    struct enet_driver_state *st
+)
 {
-    errval_t err = SYS_ERR_OK;
-    // set HW addreses
+    errval_t err;
+
+    assert(st != NULL);
+
+    err = SYS_ERR_OK;
+    /* Set HW addreses. */
     enet_iaur_wr(st->d, 0);
     enet_ialr_wr(st->d, 0);
     enet_gaur_wr(st->d, 0);
@@ -493,25 +523,25 @@ static errval_t enet_init(struct enet_driver_state* st)
 
     enet_reg_setup(st);
 
-    uint64_t reg; 
-    // Set MII speed, do not drop preamble and set hold time to 10ns
+    uint64_t reg;
+    /* Set MII speed, do not drop preamble and set hold time to 10ns. */
     reg = enet_mscr_rd(st->d);
     reg = enet_mscr_mii_speed_insert(reg, 0x18);
     reg = enet_mscr_hold_time_insert(reg, 0x1);
     enet_mscr_wr(st->d, reg);
 
-    // Set Opcode and Pause duration
+    /* Set Opcode and Pause duration. */
     enet_opd_wr(st->d, 0x00010020);
     enet_tfwr_tfwr_wrf(st->d, 0x2);
 
-    // Set multicast addr filter
+    /* Set multicast addr filter. */
     enet_gaur_wr(st->d, 0);
     enet_galr_wr(st->d, 0);
 
-    // Max pkt size rewrite ...
+    /* Max packet size rewrite. */
     enet_mrbr_wr(st->d, 0x600);
 
-    // Tell card beginning of rx/tx rings
+    /* Tell card beginning of rx/tx rings. */
     //enet_rdsr_wr(st->d, st->rxq->desc_mem.devaddr);
     //enet_tdsr_wr(st->d, st->txq->desc_mem.devaddr);
 
@@ -522,138 +552,401 @@ static errval_t enet_init(struct enet_driver_state* st)
 
     err = enet_open(st);
     if (err_is_fail(err)) {
-        // TODO cleanup
+        /* TODO: Cleanup. */
         return err;
     }
 
     return err;
 }
 
-static errval_t enet_probe(struct enet_driver_state* st)
+static errval_t enet_probe(
+    struct enet_driver_state *st
+)
 {
     errval_t err;
+
+    assert(st != NULL);
+
     err = enet_reset(st);
     if (err_is_fail(err)) {
         return err;
     }
- 
+
     enet_reg_setup(st);
-   
-    uint64_t reg; 
-    // Set MII speed, do not drop preamble and set hold time to 10ns
+
+    uint64_t reg;
+    /* Set MII speed, do not drop preamble and set hold time to 10ns. */
     reg = enet_mscr_rd(st->d);
     reg = enet_mscr_mii_speed_insert(reg, 0x18);
     reg = enet_mscr_hold_time_insert(reg, 0x1);
     enet_mscr_wr(st->d, reg);
 
     err = enet_init_phy(st);
-    if (err_is_fail(err))  {
+    if (err_is_fail(err)) {
         debug_printf("Failed PHY reset\n");
         return err;
-    }   
-
-    // Write back mac again
+    }
+    /* Write back mac again. */
     ENET_DEBUG("Reset MAC\n");
-    // TODO do this later? NOT in dump
+    /* TODO: Do this later? NOT in dump. */
     enet_write_mac(st);
     enet_read_mac(st);
 
-    // TODO checked dump until here! 
+    /* TODO: Checked dump until here! */
     return SYS_ERR_OK;
 }
 
-
-int main(int argc, char *argv[]) {
+static errval_t enet_initialize_device(
+    struct enet_driver_state *st
+)
+{
     errval_t err;
 
-    debug_printf("Enet driver started \n");
-    struct enet_driver_state * st = (struct enet_driver_state*) 
-                                    calloc(1, sizeof(struct enet_driver_state));    
     assert(st != NULL);
 
-    /* TODO Net Project: get the capability to the register region
-     * and then map it so it is accessible. 
-     * TODO set st->d_vaddr to the memory mapped register region */
-    if (st->d_vaddr == NULL) {
-        USER_PANIC("ENET: No register region mapped \N");
+    struct capref cap;
+    const genpaddr_t base = IMX8X_ENET_BASE;
+    const gensize_t size = IMX8X_ENET_SIZE;
+
+    err = map_driver(
+        base,
+        size,
+        false,
+        &cap,
+        (lvaddr_t *) &st->d_vaddr
+    );
+    if (err_is_fail(err)) {
+        debug_printf("Failed mapping device memory.\n");
+        return err;
+    }
+
+    if (st->d_vaddr == (lvaddr_t) NULL) {
+        USER_PANIC("ENET: No register region mapped\n");
     }
 
     /* Initialize Mackerel binding */
     st->d = (enet_t *) malloc(sizeof(enet_t));
-    enet_initialize(st->d, (void *) st->d_vaddr);
+    enet_initialize(st->d, (void *)st->d_vaddr);
 
     assert(st->d != NULL);
     enet_read_mac(st);
 
     err = enet_probe(st);
     if (err_is_fail(err)) {
-        // TODO cleanup
+        /* TODO: Cleanup. */
         return err;
     }
 
     err = enet_init(st);
     if (err_is_fail(err)) {
-        // TODO cleanup
+        /* TODO: Cleanup. */
         return err;
     }
 
-    debug_printf("Enet driver init done \n");
-    
-    debug_printf("Creating devqs \n");
-   
-    err = enet_rx_queue_create(&st->rxq, st->d);
+    return SYS_ERR_OK;
+}
+
+static void udp_receive_cb(
+    struct udp_state *state,
+    struct udp_binding *binding,
+    const lvaddr_t payload,
+    const gensize_t payload_size,
+    const ip_addr_t ip,
+    const udp_port_t port
+)
+{
+    errval_t err;
+
+    assert(state != NULL);
+    assert(binding != NULL);
+
+    const gensize_t tsp_size = sizeof(struct networking_payload_udp_receive) + payload_size;
+    uint8_t tsp_buffer[tsp_size];
+    struct networking_payload_udp_receive *tsp = (struct networking_payload_udp_receive *) tsp_buffer;
+
+    tsp->from_ip = ip;
+    tsp->from_port = port;
+    tsp->to_port = binding->port;
+    tsp->payload_size = payload_size;
+    memcpy(tsp->payload, (void *) payload, payload_size);
+
+    const gensize_t size = sizeof(struct networking_message) + tsp_size;
+    uint8_t buffer[size];
+    struct networking_message *message = (struct networking_message *) buffer;
+
+    message->type = NETWORKING_MTYPE_UDP_RECEIVE;
+    message->size = tsp_size;
+    memcpy(message->payload, tsp, tsp_size);
+
+    err = nameservice_rpc(
+        binding->context,
+        message,
+        size,
+        NULL,
+        NULL,
+        NULL_CAP,
+        NULL_CAP
+    );
     if (err_is_fail(err)) {
-        debug_printf("Failed creating RX devq \n");
-        return err;
+        debug_printf("nameservice_rpc() failed: %s\n", err_getstring(err));
     }
+}
 
-    err = enet_tx_queue_create(&st->txq, st->d);
-    if (err_is_fail(err)) {
-        debug_printf("Failed creating RX devq \n");
-        return err;
-    }
+static void nameservice_receive_handler(
+    void *st,
+    void *message,
+    size_t bytes,
+    void **response,
+    size_t *response_bytes,
+    struct capref tx_cap,
+    struct capref *rx_cap
+)
+{
+    errval_t err;
 
-    // Add some memory to receive stuffa
-    err = frame_alloc(&st->rx_mem, 512*2048, NULL);
-    if (err_is_fail(err)) {
-        return err;
-    }
+    struct enet_driver_state *state = st;
+    struct networking_message *net_message = (struct networking_message *) message;
 
-    regionid_t rid;
-    err = devq_register((struct devq*) st->rxq, st->rx_mem, &rid);
-    if (err_is_fail(err)) {
-        return err;
-    }
+    assert(state != NULL);
+    assert(net_message != NULL);
 
-    // Enqueue buffers
-    for (int i = 0; i < st->rxq->size-1; i++) {
-        err = devq_enqueue((struct devq*) st->rxq, rid, i*(2048), 2048,
-                            0, 2048, 0);
+    const enum networking_mtype type = net_message->type;
+
+    /* Could not do the assignment in a switch block... */
+    if (type == NETWORKING_MTYPE_UDP_SEND) {
+        struct networking_payload_udp_send *tsp = (struct networking_payload_udp_send *) net_message->payload;
+        assert(tsp != NULL);
+
+        err = udp_send(
+            &state->eth_state.ip_state.udp_state,
+            (lvaddr_t) tsp->payload,
+            tsp->payload_size,
+            tsp->from_port,
+            tsp->to_ip,
+            tsp->to_port
+        );
         if (err_is_fail(err)) {
-            return err;
+            debug_printf("udp_send() failed: %s\n", err_getstring(err));
+            return;
         }
-    }
+    } else if (type == NETWORKING_MTYPE_UDP_REGISTER) {
+        struct networking_payload_udp_register *tsp = (struct networking_payload_udp_register *) net_message->payload;
+        assert(tsp != NULL);
 
-    err = frame_alloc(&st->tx_mem, 512*2048, NULL);
+        char service_name[16];
+        snprintf(service_name, sizeof(service_name), "pid%d", tsp->pid);
+
+        nameservice_chan_t channel;
+
+        err = nameservice_lookup(
+            service_name,
+            &channel
+        );
+        if (err_is_fail(err)) {
+            debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+            return;
+        }
+
+        err = udp_register(&state->eth_state.ip_state.udp_state, tsp->port, channel);
+        if (err_is_fail(err)) {
+            debug_printf("Cannot register UDP receive callback.\n");
+            return;
+        }
+    } else {
+        debug_printf("Received unknown type in nameservice receive handler.\n");
+        return;
+    }
+}
+
+static regionid_t rx_rid;
+static regionid_t tx_rid;
+static errval_t enet_module_initialize(
+    struct enet_driver_state *st
+)
+{
+    errval_t err;
+
+    assert(st != NULL);
+
+    debug_printf("Initializing device...\n");
+    err = enet_initialize_device(st);
     if (err_is_fail(err)) {
+        debug_printf("Device initialization failed.\n");
         return err;
     }
 
-    err = devq_register((struct devq*) st->txq, st->tx_mem, &rid);
+    debug_printf("Initializing queues...\n");
+    err = queues_initialize(st, &rx_rid, &tx_rid);
     if (err_is_fail(err)) {
+        debug_printf("Queues initialization failed.\n");
         return err;
     }
+
+    debug_printf("Initializing Ethernet state...\n");
+    err = ethernet_initialize(
+        &st->eth_state,
+        st->mac,
+        TX_RING_SIZE,
+        st->tx_base,
+        tx_rid,
+        st->txq,
+        udp_receive_cb
+    );
+    if (err_is_fail(err)) {
+        debug_printf("Ethernet initialization failed.\n");
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
+static errval_t enet_serve(
+    struct enet_driver_state *st
+)
+{
+    errval_t err;
+
+    assert(st != NULL);
+
     struct devq_buf buf;
-    while(true) {
-        err = devq_dequeue((struct devq*) st->rxq, &buf.rid, &buf.offset,
-                           &buf.length, &buf.valid_data, &buf.valid_length,
-                           &buf.flags);
-        if (err_is_ok(err)) {
-            debug_printf("Received Packet of size %lu \n", buf.valid_length);
-            err = devq_enqueue((struct devq*) st->rxq, buf.rid, buf.offset,
-                               buf.length, buf.valid_data, buf.valid_length,
-                               buf.flags);
-            assert(err_is_ok(err));
-        }
+
+    err = devq_dequeue(
+        (struct devq *)st->rxq,
+        &buf.rid,
+        &buf.offset,
+        &buf.length,
+        &buf.valid_data,
+        &buf.valid_length,
+        &buf.flags
+    );
+
+    if (err_is_fail(err) && err_no(err) == DEVQ_ERR_QUEUE_EMPTY) {
+        return SYS_ERR_OK;
+    } else if (err_is_fail(err)) {
+        debug_printf("devq_dequeue() failed: %s\n", err_getstring(err));
+        return err;
     }
+
+    const lvaddr_t base = st->rx_base + buf.offset + buf.valid_data;
+
+    debug_printf("Received packet of size %lu.\n", buf.valid_length);
+    //debug_dump_mem(base, base + buf.valid_length, st->rx_base);
+
+    err = ethernet_process(&st->eth_state, base, buf.valid_length);
+    if (err_is_fail(err)) {
+        debug_printf("ethernet_process() failed: %s\n", err_getstring(err));
+        /* We do not need to return, this error is not critical. */
+    }
+
+    /* Hand the buffer back so the device can use it again. */
+    err = devq_enqueue(
+        (struct devq *)st->rxq,
+        buf.rid,
+        buf.offset,
+        buf.length,
+        buf.valid_data,
+        buf.valid_length,
+        buf.flags
+    );
+    if (err_is_fail(err)) {
+        return SYS_ERR_NOT_IMPLEMENTED;
+    }
+
+    return SYS_ERR_OK;
+}
+
+static void serve_periodic_events(
+    void *args
+)
+{
+    errval_t err;
+
+    struct enet_driver_state *state = args;
+
+    err = enet_serve(state);
+    if (err_is_fail(err)) {
+        debug_printf("Failuring during serve routine.\n");
+    }
+}
+
+static errval_t setup_periodic_events(
+    struct periodic_event *periodic_ev,
+    struct enet_driver_state *state
+)
+{
+    errval_t err;
+
+    memset(periodic_ev, 0, sizeof(struct periodic_event));
+
+    err = periodic_event_create(
+        periodic_ev,
+        get_default_waitset(),
+        ENET_PERIODIC_SERVE_INTERVAL,
+        MKCLOSURE(serve_periodic_events, state)
+    );
+
+    return err;
+}
+
+int main(
+    int argc,
+    char *argv[]
+)
+{
+    errval_t err;
+
+    debug_printf("Driver started.\n");
+    struct enet_driver_state *state = calloc(1, sizeof(struct enet_driver_state));
+    if (state == NULL) {
+        debug_printf("Cannot claim memory for driver state.\n");
+        return EXIT_FAILURE;
+    }
+
+    err = enet_module_initialize(state);
+    if (err_is_fail(err)) {
+        debug_printf("Driver initialization failed.\n");
+        return EXIT_FAILURE;
+    }
+
+    debug_printf("Initialization complete.\n");
+
+    debug_printf("MAC address is 0x%x.\n", state->mac);
+
+    err = nameservice_register(
+        NETWORKING_SERVICE_NAME,
+        nameservice_receive_handler,
+        state
+    );
+    if (err_is_fail(err)) {
+        USER_PANIC("Cannot register nameservice callback.\n");
+    }
+    debug_printf("Registering nameserver complete.\n");
+
+    domainid_t pid;
+    struct aos_rpc *rpc = aos_rpc_get_process_channel();
+    err = aos_rpc_process_spawn(rpc, "echoserver", 0, &pid);
+    if (err_is_fail(err)) {
+        USER_PANIC("Cannot spawn default echoserver.\n");
+    }
+    debug_printf("Spawing default echoserver complete.\n");
+
+    struct periodic_event periodic_ev;
+    err = setup_periodic_events(&periodic_ev, state);
+    if (err_is_fail(err)) {
+        USER_PANIC("Cannot register periodic events.\n");
+    }
+    debug_printf("Registering periodic events complete.\n");
+
+    struct waitset *default_ws = get_default_waitset();
+
+    while (true) {
+        err = event_dispatch(default_ws);
+        if (err_is_fail(err)) {
+            debug_printf("Error while serving. Continuing...\n");
+        }
+
+        thread_yield();
+    }
+
+    return EXIT_SUCCESS;
 }

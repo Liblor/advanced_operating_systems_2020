@@ -39,6 +39,10 @@ struct eth_hdr {
 #define ARP_OP_REQ 0x1
 #define ARP_OP_REP 0x2
 #define ARP_HLEN 28
+#define ARP_BROADCAST_MAC (0xFFFFFFFFFFFFL)
+
+/* Length of the network address. For IPv4, this is 4 bytes. */
+#define ARP_PLEN_IPV4 4
 
 struct arp_hdr {
     uint16_t hwtype;
@@ -52,6 +56,34 @@ struct arp_hdr {
     uint32_t ip_dst;
 } __attribute__((__packed__));
 
+static inline void to_eth_addr(
+    struct eth_addr *d,
+    uint64_t source
+)
+{
+    uint8_t *s = (uint8_t *) &source;
 
+    d->addr[0] = s[5];
+    d->addr[1] = s[4];
+    d->addr[2] = s[3];
+    d->addr[3] = s[2];
+    d->addr[4] = s[1];
+    d->addr[5] = s[0];
+}
+
+static inline void from_eth_addr(
+    uint64_t *destination,
+    struct eth_addr *s
+)
+{
+    uint8_t *d = (uint8_t *) destination;
+
+    d[0] = s->addr[5];
+    d[1] = s->addr[4];
+    d[2] = s->addr[3];
+    d[3] = s->addr[2];
+    d[4] = s->addr[1];
+    d[5] = s->addr[0];
+}
 
 #endif

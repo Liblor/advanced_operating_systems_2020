@@ -49,6 +49,7 @@
                              "ram_alloc.c",
                              "slab.c",
                              "sys_debug.c",
+                             "networking.c",
                              "syscalls.c",
                              "systime.c",
                              "thread_once.c",
