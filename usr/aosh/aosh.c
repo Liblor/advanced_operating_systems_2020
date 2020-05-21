@@ -247,7 +247,7 @@ static errval_t aosh_read_eval_execute(void)
     char **argv = NULL;
     int argc = 0;
     size_t line_size = 0;
-    HERE;
+
     printf(AOSH_CLI_HEAD);
     fflush(stdout);
 
