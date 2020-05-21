@@ -24,12 +24,6 @@ struct srv_entry {
     struct rpc_ump_server ump_server;
 };
 
-struct nameservice_chan
-{
-	struct aos_rpc rpc;
-	char *name;
-};
-
 collections_listnode *service_list_head = NULL;
 
 static errval_t serve_add_client(struct srv_entry *service) {
@@ -185,7 +179,7 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
     assert(chan != NULL);
     assert(message != NULL);
 
-    struct aos_rpc *rpc = chan;
+    struct aos_rpc *rpc = &((struct nameservice_chan *) chan)->rpc;
 
     uint8_t send_buf[sizeof(struct rpc_message) + bytes];
     struct rpc_message *send = (struct rpc_message *) &send_buf;
@@ -255,8 +249,10 @@ errval_t nameservice_register(const char *name,
         return err;
     }
 
+    domainid_t pid = disp_get_domain_id();
+
     // Send message to nameserver to register new service
-    err = aos_rpc_ns_register(monitor_chan, name, &service->add_client_chan);
+    err = aos_rpc_ns_register(monitor_chan, name, &service->add_client_chan, pid);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_lmp_ns_register() failed: %s\n", err_getstring(err));
         return err;
@@ -342,16 +338,18 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
     struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
 
     // TODO Maybe have a single aos_rpc statically available to lookup the memory server
-    struct aos_rpc *service_chan = malloc(sizeof(struct aos_rpc));
+    struct nameservice_chan *service_chan = malloc(sizeof(struct nameservice_chan));
     if (service_chan == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
 
-    err = aos_rpc_ns_lookup(monitor_chan, name, service_chan);
+    err = aos_rpc_ns_lookup(monitor_chan, name, &service_chan->rpc, &service_chan->pid);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ns_lookup() failed: %s\n", err_getstring(err));
         return err;
     }
+
+    service_chan->name = name;
 
     *nschan = service_chan;
 

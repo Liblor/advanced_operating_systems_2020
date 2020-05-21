@@ -413,7 +413,7 @@ validate_ns_register(struct lmp_recv_msg *msg, enum pending_state state)
 }
 
 errval_t
-aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client)
+aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid)
 {
     errval_t err;
 
@@ -429,7 +429,7 @@ aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *c
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    const size_t payload_length = sizeof(domainid_t) + AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
@@ -438,7 +438,11 @@ aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *c
     msg->msg.status = Status_Ok;
     msg->cap = chan_add_client->ump.frame_cap;
     memset(msg->msg.payload, 0, payload_length);
-    memcpy(msg->msg.payload, name, name_len);
+    char * const payload_base = msg->msg.payload;
+    char *ptr = payload_base;
+    memcpy(ptr, name, name_len);
+    ptr += AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
+    memcpy(ptr, &pid, sizeof(domainid_t));
 
     char message[sizeof(struct rpc_message)];
     struct rpc_message *recv = (struct rpc_message *) message;
@@ -473,7 +477,7 @@ aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name)
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
@@ -503,7 +507,7 @@ validate_ns_lookup(struct lmp_recv_msg *msg, enum pending_state state)
 }
 
 errval_t
-aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service)
+aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid)
 {
     errval_t err;
 
@@ -523,7 +527,7 @@ aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
@@ -542,6 +546,8 @@ aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc
     }
 
     assert(!capref_is_null(recv->cap));
+
+    memcpy(pid, recv->msg.payload, sizeof(domainid_t));
 
     err = aos_rpc_ump_init(rpc_service, ret_cap, false);
     if (err_is_fail(err)) {
@@ -572,7 +578,7 @@ errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1;
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
     uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
@@ -750,14 +756,14 @@ struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
     errval_t err;
 
-    nameservice_chan_t chan;
-    err = nameservice_lookup(NAMESERVICE_INIT, &chan);
+    struct nameservice_chan *chan;
+    err = nameservice_lookup(NAMESERVICE_INIT, (nameservice_chan_t *) &chan);
     if (err_is_fail(err)) {
         debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
         return NULL;
     }
 
-    return chan;
+    return &chan->rpc;
 }
 
 /**
