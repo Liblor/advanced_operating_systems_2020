@@ -537,3 +537,78 @@ errval_t fat32_read(
     assert(*bytes_read == bytes);
     return SYS_ERR_OK;
 }
+
+static errval_t file_seek_pos(
+    struct fat32_mnt *mnt,
+    struct fat32_handle *h,
+    uint32_t new_pos
+) {
+    uint32_t pos = MIN(new_pos, h->dirent.dir_entry.size);
+    uint32_t number_of_cluster_to_pos = pos / (BLOCK_SIZE * mnt->sectors_per_cluster);
+    uint32_t curr_cluster_count = h->file_pos / (BLOCK_SIZE * mnt->sectors_per_cluster);
+    uint32_t curr_cluster = h->current_cluster;
+    h->file_pos = new_pos;
+    if (curr_cluster_count > number_of_cluster_to_pos) {
+        curr_cluster_count = 0;
+        curr_cluster = h->dirent.dir_entry.first_cluster_lo;
+    }
+
+    while (curr_cluster_count < number_of_cluster_to_pos) {
+        errval_t err = next_cluster(mnt, curr_cluster, &curr_cluster);
+        if (err_is_fail(err)) {
+            return err;
+        }
+        assert(curr_cluster < 0xfffffff8);
+        curr_cluster_count++;
+    }
+
+    h->current_cluster = curr_cluster;
+    h->sector_rel_cluster = (new_pos % (BLOCK_SIZE * mnt->sectors_per_cluster)) / BLOCK_SIZE;
+    return SYS_ERR_OK;
+}
+
+errval_t fat32_seek(
+    void *st,
+    fat32_handle_t handle,
+    enum fs_seekpos whence,
+    off_t offset
+) {
+    struct fat32_mnt *mnt = st;
+    struct fat32_handle *h = handle;
+    errval_t err = SYS_ERR_OK;
+    debug_printf("CALLED\n");
+
+    switch (whence) {
+        case FS_SEEK_SET:
+            assert(offset >= 0);
+            if (h->isdir) {
+                assert(!"NYI");
+            } else {
+                err = file_seek_pos(mnt, h, offset);
+            }
+            break;
+
+        case FS_SEEK_CUR:
+            if (h->isdir) {
+                assert(!"NYI");
+            } else {
+                assert(offset >= 0 || -offset <= (int32_t)h->file_pos);
+                err = file_seek_pos(mnt, h, (int32_t )h->file_pos + (int32_t)offset);
+            }
+
+            break;
+
+        case FS_SEEK_END:
+            if (h->isdir) {
+                assert(!"NYI");
+            } else {
+                assert(offset >= 0 || -offset <= (int32_t )h->dirent.dir_entry.size);
+                err = file_seek_pos(mnt, h, (int32_t )h->dirent.dir_entry.size + (int32_t)offset);
+            }
+            break;
+
+        default:
+            USER_PANIC("invalid whence argument to fat32fs seek");
+    }
+    return err;
+}

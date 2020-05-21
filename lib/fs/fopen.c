@@ -222,7 +222,7 @@ static int fs_libc_close(int fd)
 static off_t fs_libc_lseek(int fd, off_t offset, int whence)
 {
     struct fdtab_entry *e = fdtab_get(fd);
-    ramfs_handle_t fh = e->handle;
+    fat32_handle_t fh = e->handle;
     switch(e->type) {
     case FDTAB_TYPE_FILE:
     {
@@ -247,13 +247,13 @@ static off_t fs_libc_lseek(int fd, off_t offset, int whence)
             return -1;
         }
 
-        err = ramfs_seek(mount, fh, fs_whence, offset);
+        err = fat32_seek(mount, fh, fs_whence, offset);
         if(err_is_fail(err)) {
             DEBUG_ERR(err, "vfs_seek");
             return -1;
         }
 
-        err = ramfs_tell(mount, fh, &retpos);
+        err = fat32_tell(mount, fh, &retpos);
         if(err_is_fail(err)) {
             return -1;
         }

@@ -90,5 +90,11 @@ errval_t fat32_read(
     size_t bytes,
     size_t *bytes_read
 );
+errval_t fat32_seek(
+    void *st,
+    fat32_handle_t handle,
+    enum fs_seekpos whence,
+    off_t offset
+);
 
 #endif //BF_AOS_FAT32_H
