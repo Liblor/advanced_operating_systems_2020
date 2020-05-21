@@ -94,7 +94,6 @@ static errval_t aosh_readline(
     }
     if (i == AOSH_READLINE_MAX_LEN) {
         debug_printf("AOSH_READLINE_MAX_LEN reached. truncating line\n");
-      //   buf[AOSH_READLINE_MAX_LEN - 1] = '\0';
     }
     if (c == CHAR_CODE_EOT) {
         // ctrl d  pressed
@@ -265,9 +264,6 @@ static errval_t aosh_read_eval_execute(void)
         // nothing read;
         goto success_free;
     }
-
-//    printf("%s" ENDL, line);
-//    goto success_free;
 
     err = aosh_tokenize_arg(line, &argc, &argv);
     if (!aosh_err_recoverable(err)) {
