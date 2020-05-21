@@ -90,20 +90,6 @@ __unused static void test_process(void) {
         debug_printf("spawned child: pid %d\n", pid1);
     }
 
-    debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
-
-    for(int i = 0; i < process_number; i ++) {
-        char *name = NULL;
-
-        err = aos_rpc_lmp_process_get_name(rpc, i, &name);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
-            return;
-        }
-
-        debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
-    }
-
     debug_printf("Testing aos_rpc_lmp_process_get_all_pids()...\n");
 
     domainid_t *pids = NULL;
@@ -116,8 +102,22 @@ __unused static void test_process(void) {
 
     debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
 
-    for(int j = 0; j < pid_count; j ++){
-        debug_printf("pid: %d:\n", pids[j]);
+    for(int i = 0; i < pid_count; i ++){
+        debug_printf("pid: %d\n", pids[i]);
+    }
+
+    debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
+
+    for(int i = 0; i < pid_count; i ++) {
+        char *name = NULL;
+
+        err = aos_rpc_lmp_process_get_name(rpc, pids[i], &name);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
+            return;
+        }
+
+        debug_printf("aos_rpc_lmp_process_get_name: %s (%llu)\n", name, pids[i]);
     }
 }
 
