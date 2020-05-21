@@ -18,16 +18,6 @@ typedef void *fat32_handle_t;
 #define BPB_FATSz32    0x24
 #define BPB_RootClus   0x2c
 
-struct fat32_mnt {
-    uint32_t fat_lba;
-    uint32_t cluster_begin_lba;
-    uint32_t root_dir_first_cluster;
-    uint32_t sector_per_fat;
-    uint16_t reserved_sector_count;
-    uint8_t sectors_per_cluster;
-    uint8_t number_of_fats;
-};
-
 struct dir_entry {
     char shortname[11];
     uint8_t attr;
@@ -42,15 +32,33 @@ struct dir_entry {
 } __attribute__((packed));
 
 struct fat32_dirent {
+    struct dir_entry dir_entry;
     uint32_t cluster;
     uint32_t offset;
-    struct dir_entry dir_entry;
+};
+
+struct fat32_mnt {
+    struct fat32_dirent root;
+    uint32_t fat_lba;
+    uint32_t cluster_begin_lba;
+    uint32_t root_dir_first_cluster;
+    uint32_t sector_per_fat;
+    uint16_t reserved_sector_count;
+    uint8_t sectors_per_cluster;
+    uint8_t number_of_fats;
+    const char *mount_point;
 };
 
 struct fat32_handle {
+    struct fat32_dirent dirent;
+    uint32_t current_cluster;
+    uint32_t sector_rel_cluster;    ///< The sector we are at, relative to the cluster
+    union {
+        uint32_t dir_offset;        ///< Dir entry offset relative to the current sector
+        uint32_t file_pos;          ///< The file position of the current file handler
+    };
     char *path;
     bool isdir;
-    struct fat32_dirent dirent;
 };
 
 errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt);

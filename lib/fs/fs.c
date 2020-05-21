@@ -7,6 +7,7 @@
 
 
 #include <fs/fs.h>
+#include <fs/fat32.h>
 #include <fs/dirent.h>
 #include <fs/ramfs.h>
 
@@ -33,18 +34,23 @@ errval_t filesystem_init(void)
 {
     errval_t err;
 
-    /* TODO: Filesystem project: hook up your init code here */
 
+#if 0
     ramfs_mount_t st = NULL;
     err = ramfs_mount("/", &st);
     if (err_is_fail(err)) {
         return err;
     }
+#endif
 
-    /* TODO: Mount your sdcard at /sdcard */
+    void *fat32_mnt;
+    err = mount_fat32("/sdcard", (struct fat32_mnt **)&fat32_mnt);
+    if (err_is_fail(err)) {
+        return err;
+    }
 
     /* register libc fopen/fread and friends */
-    fs_libc_init(st);
+    fs_libc_init(fat32_mnt);
 
     return SYS_ERR_OK;
 }

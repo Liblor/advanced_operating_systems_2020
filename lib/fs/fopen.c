@@ -20,6 +20,7 @@
 #include <fs/fs.h>
 #include <fs/dirent.h>
 #include <fs/ramfs.h>
+#include <fs/fat32.h>
 #include "fs_internal.h"
 
 
@@ -268,9 +269,9 @@ static off_t fs_libc_lseek(int fd, off_t offset, int whence)
 static errval_t fs_mkdir(const char *path){ return ramfs_mkdir(mount, path);}
 static errval_t fs_rmdir(const char *path){ return ramfs_rmdir(mount, path); }
 static errval_t fs_rm(const char *path){ return ramfs_remove(mount, path); }
-static errval_t fs_opendir(const char *path, fs_dirhandle_t *h){ return ramfs_opendir(mount, path, h); }
-static errval_t fs_readdir(fs_dirhandle_t h, char **name) { return ramfs_dir_read_next(mount, h, name, NULL); }
-static errval_t fs_closedir(fs_dirhandle_t h) { return ramfs_closedir(mount, h); }
+static errval_t fs_opendir(const char *path, fs_dirhandle_t *h){ return fat32_opendir(mount, path, h); }
+static errval_t fs_readdir(fs_dirhandle_t h, char **name) { return fat32_dir_read_next(mount, h, name, NULL); }
+static errval_t fs_closedir(fs_dirhandle_t h) { return fat32_closedir(mount, h); }
 static errval_t fs_fstat(fs_dirhandle_t h, struct fs_fileinfo *b) { return ramfs_stat(mount, h, b); }
 
 typedef int   fsopen_fn_t(char *, int);
