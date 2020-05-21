@@ -151,8 +151,6 @@ int other_main(int argc, char *argv[])
     grading_test_late();
 
 #if 1
-    nameservice_wait_for(NAMESERVICE_INIT);
-
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);
