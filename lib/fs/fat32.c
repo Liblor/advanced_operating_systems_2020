@@ -420,6 +420,7 @@ __unused errval_t fat32_dir_read_next(
                 return err;
             }
         }
+        dir_entry = ((struct dir_entry *)buf) + h->dir_offset;
     }
     if (end_of_directory(dir_entry)) {
         return FS_ERR_INDEX_BOUNDS;
