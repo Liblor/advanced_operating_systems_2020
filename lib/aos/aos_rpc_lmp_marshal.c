@@ -165,6 +165,7 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(send != NULL);
     assert(recv != NULL);
 
@@ -180,7 +181,9 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
+    if (!capref_is_null(ret_cap)) {
+        lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
+    }
 
     // TODO: Use custom callback.
     err = lmp_chan_register_recv(&rpc->lmp.chan, &state.ws, MKCLOSURE(client_response_cb_one_no_alloc, &state));
@@ -225,6 +228,7 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(send != NULL);
 
     if (recv != NULL) {
@@ -314,6 +318,7 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(msg != NULL);
 
     const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;
@@ -328,7 +333,8 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    while (size_sent < msg_size && retries < TRANSIENT_ERR_RETRIES) {
+    //    while (size_sent < msg_size && retries < TRANSIENT_ERR_RETRIES) {
+while (size_sent < msg_size) {
         uint64_t to_send = MIN(sizeof(words), msg_size - size_sent);
         memset(words, 0, sizeof(words));
         memcpy(words, base + size_sent, to_send);

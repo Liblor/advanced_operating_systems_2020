@@ -1,17 +1,26 @@
 /**
  * \file nameservice.h
- * \brief 
+ * \brief
  */
 
 #ifndef INCLUDE_NAMESERVICE_H_
 #define INCLUDE_NAMESERVICE_H_
 
 #include <aos/aos.h>
+#include <aos/aos_rpc.h>
+
+#define NAMESERVICE_INIT ("serverinit")
 
 typedef void* nameservice_chan_t;
 
+struct nameservice_chan {
+    const char *name;
+    struct aos_rpc rpc;
+    domainid_t pid;
+};
+
 ///< handler which is called when a message is received over the registered channel
-typedef void(nameservice_receive_handler_t)(void *st, 
+typedef void(nameservice_receive_handler_t)(void *st,
 										    void *message, size_t bytes,
 										    void **response, size_t *response_bytes,
                                             struct capref tx_cap, struct capref *rx_cap);
@@ -24,10 +33,10 @@ typedef void(nameservice_receive_handler_t)(void *st,
  * @param bytes size of the message in bytes
  * @param response the response message
  * @param response_byts the size of the response
- * 
+ *
  * @return error value
  */
-errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes, 
+errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
                          void **response, size_t *response_bytes,
                          struct capref tx_cap, struct capref rx_cap);
 
@@ -42,7 +51,7 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
  *
  * @return SYS_ERR_OK
  */
-errval_t nameservice_register(const char *name, 
+errval_t nameservice_register(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st);
 
@@ -51,7 +60,7 @@ errval_t nameservice_register(const char *name,
  * @brief deregisters the service 'name'
  *
  * @param the name to deregister
- * 
+ *
  * @return error value
  */
 errval_t nameservice_deregister(const char *name);
@@ -70,12 +79,14 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *chan);
 
 /**
  * @brief enumerates all entries that match an query (prefix match)
- * 
+ *
  * @param query     the query
  * @param num 		number of entries in the result array
  * @param result	an array of entries
  */
-errval_t nameservice_enumerate(char *query, size_t *num, char **result );
+errval_t nameservice_enumerate(char *query, size_t *num, char **result);
 
+
+void nameservice_wait_for(char *name);
 
 #endif /* INCLUDE_AOS_AOS_NAMESERVICE_H_ */

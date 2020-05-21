@@ -3,12 +3,16 @@
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
+#include <aos/nameserver.h>
 
 __unused static struct aos_rpc *init_channel = NULL;
 __unused static struct aos_rpc *memory_channel = NULL;
 __unused static struct aos_rpc *process_channel = NULL;
 __unused static struct aos_rpc *serial_channel = NULL;
 __unused static struct aos_rpc *monitor_channel = NULL;
+
+// serial session to read from serial port
+static struct serial_channel_priv_data serial_channel_data;
 
 /*
  * Used for setting up the channels. While the init_channel and memory_channel
@@ -70,6 +74,8 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
 {
     errval_t err;
 
+    assert(rpc != NULL);
+
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(num)];
 
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
@@ -79,10 +85,18 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     msg->cap = NULL_CAP;
     memcpy(msg->msg.payload, &num, sizeof(num));
 
-    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
-        return err;
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+            return err;
+        }
+    } else {
+        err = nameservice_rpc(rpc, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
     }
 
     return SYS_ERR_OK;
@@ -106,10 +120,19 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     msg->msg.status = Status_Ok;
     strlcpy(msg->msg.payload, string, str_len);
 
-    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
-        return err;
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+            return err;
+        }
+    } else {
+        err = nameservice_rpc(rpc, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
     }
 
     return SYS_ERR_OK;
@@ -189,7 +212,16 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 static errval_t
 validate_serial_getchar(struct lmp_recv_msg *msg, enum pending_state state)
 {
-    return validate_recv_header(msg, state, Method_Serial_Getchar);
+    if (state == EmptyState) {
+        return_err(msg == NULL, "msg is null");
+        return_err(sizeof(uint64_t) * msg->buf.buflen < sizeof(struct rpc_message_part),
+                   "invalid buflen");
+        const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
+        return_err(((msg_part->status != Status_Ok)
+                    && msg_part->status != Serial_Getchar_Occupied), "status not ok");
+        return_err(msg_part->method != Method_Serial_Getchar, "wrong method in response");
+    }
+    return SYS_ERR_OK;
 }
 
 errval_t
@@ -199,19 +231,53 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     uint8_t send_buf[sizeof(struct rpc_message)];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
+    assert(rpc->priv_data != NULL);
+    struct serial_channel_priv_data *channel_data = rpc->priv_data;
+
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
-    msg->msg.payload_length = 0;
+    msg->msg.payload_length = sizeof(struct serial_getchar_req);
     msg->msg.status = Status_Ok;
 
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
+    struct serial_getchar_req payload;
+
+    struct serial_getchar_reply reply;
+
+    // XXX server resets a session on a linebreak
+    // so we can retry forever if device is busy.
+    // we continue if user presses newline if session was previously blocked
+    for(;;) {
+        payload.session = channel_data->read_session;
+        memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
+        err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
+
+        if (err_is_fail(err)) {
+            return err;
+        }
+
+        // always use memcpy when dealing with payload[0] (alignment issues)
+        memcpy(&reply, recv->msg.payload, sizeof(struct serial_getchar_reply));
+
+        // update session if we got one from server
+        if (reply.session != SERIAL_GETCHAR_SESSION_UNDEF) {
+            thread_mutex_lock_nested(&rpc->mutex);
+            channel_data->read_session = reply.session;
+            thread_mutex_unlock(&rpc->mutex);
+        }
+        if (recv->msg.status == Status_Ok) {
+            // server responded ok, return to user
+            break;
+        }
+        else {
+            // server was busy, try again
+            thread_yield();
+        }
+    }
     if (err_is_fail(err)) {
         return err;
     }
-
-    // always use memcpy when dealing with payload[0] (alignment issues)
-    memcpy(retc, recv->msg.payload, sizeof(char));
+    *retc = reply.data;
     return SYS_ERR_OK;
 }
 
@@ -228,6 +294,33 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     msg->msg.payload_length = sizeof(char);
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &c, sizeof(char));
+
+    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
+errval_t
+aos_rpc_lmp_serial_putstr(struct aos_rpc *rpc, char *str, size_t len)
+{
+    errval_t err;
+    const uint32_t str_len = MIN(len + 1, RPC_LMP_MAX_STR_LEN); // add \0 at the end
+
+    if (len > RPC_LMP_MAX_STR_LEN) {
+        debug_printf("truncating len because larger than RPC_LMP_MAX_STR_LEN\n");
+    }
+    uint8_t send_buf[sizeof(struct rpc_message) + str_len];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->msg.method = Method_Serial_Putstr;
+    msg->msg.payload_length = str_len;
+    msg->cap = NULL_CAP;
+    msg->msg.status = Status_Ok;
+    strlcpy(msg->msg.payload, str, str_len);
 
     err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
     if (err_is_fail(err)) {
@@ -386,6 +479,207 @@ aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
     return LIB_ERR_NOT_IMPLEMENTED;
 }
 
+static errval_t
+validate_ns_register(struct lmp_recv_msg *msg, enum pending_state state)
+{
+    return validate_recv_header(msg, state, Method_Nameserver_Register);
+}
+
+errval_t
+aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid)
+{
+    errval_t err;
+
+    assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
+    assert(name != NULL);
+    assert(chan_add_client != NULL);
+    assert(chan_add_client->type == RpcTypeUmp);
+
+    const size_t name_len = strnlen(name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+    if (name_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        // TODO Proper error
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    const size_t payload_length = sizeof(domainid_t) + AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->msg.method = Method_Nameserver_Register;
+    msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
+    msg->cap = chan_add_client->ump.frame_cap;
+    memset(msg->msg.payload, 0, payload_length);
+    char * const payload_base = msg->msg.payload;
+    char *ptr = payload_base;
+    memcpy(ptr, name, name_len);
+    ptr += AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
+    memcpy(ptr, &pid, sizeof(domainid_t));
+
+    char message[sizeof(struct rpc_message)];
+    struct rpc_message *recv = (struct rpc_message *) message;
+    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_register, NULL_CAP);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    assert(capref_is_null(recv->cap));
+
+    return SYS_ERR_OK;
+}
+
+static errval_t
+validate_ns_deregister(struct lmp_recv_msg *msg, enum pending_state state)
+{
+    return validate_recv_header(msg, state, Method_Nameserver_Deregister);
+}
+
+errval_t
+aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name)
+{
+    errval_t err;
+
+    assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
+    assert(name != NULL);
+
+    const size_t name_len = strnlen(name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+    if (name_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        // TODO Proper error
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->msg.method = Method_Nameserver_Deregister;
+    msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
+    msg->cap = NULL_CAP;
+    memset(msg->msg.payload, 0, payload_length);
+    memcpy(msg->msg.payload, name, name_len);
+
+    char message[sizeof(struct rpc_message)];
+    struct rpc_message *recv = (struct rpc_message *) message;
+    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_deregister, NULL_CAP);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    assert(capref_is_null(recv->cap));
+
+    return SYS_ERR_OK;
+}
+
+static errval_t
+validate_ns_lookup(struct lmp_recv_msg *msg, enum pending_state state)
+{
+    return validate_recv_header(msg, state, Method_Nameserver_Lookup);
+}
+
+errval_t
+aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid)
+{
+    errval_t err;
+
+    assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
+    assert(name != NULL);
+
+    struct capref ret_cap;
+    err = slot_alloc(&ret_cap);
+    if (err_is_fail(err)) {
+        return err_push(err, LIB_ERR_SLOT_ALLOC);
+    }
+
+    const size_t name_len = strnlen(name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+    if (name_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        // TODO Proper error
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->msg.method = Method_Nameserver_Lookup;
+    msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
+    msg->cap = NULL_CAP;
+    memset(msg->msg.payload, 0, payload_length);
+    memcpy(msg->msg.payload, name, name_len);
+
+    char message[sizeof(struct rpc_message)];
+    struct rpc_message *recv = (struct rpc_message *) message;
+    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_lookup, ret_cap);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    assert(!capref_is_null(recv->cap));
+
+    memcpy(pid, recv->msg.payload, sizeof(domainid_t));
+
+    err = aos_rpc_ump_init(rpc_service, ret_cap, false);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
+static errval_t
+validate_ns_enumerate(struct lmp_recv_msg *msg, enum pending_state state)
+{
+    return validate_recv_header(msg, state, Method_Nameserver_Enumerate);
+}
+
+errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result)
+{
+    errval_t err;
+
+    assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
+    assert(query != NULL);
+
+    const size_t query_len = strnlen(query, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+    if (query_len == AOS_RPC_NAMESERVER_MAX_NAME_LENGTH) {
+        // TODO Proper error
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    const size_t payload_length = AOS_RPC_NAMESERVER_MAX_NAME_LENGTH;
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_length];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->msg.method = Method_Nameserver_Enumerate;
+    msg->msg.payload_length = payload_length;
+    msg->msg.status = Status_Ok;
+    msg->cap = NULL_CAP;
+    memset(msg->msg.payload, 0, payload_length);
+    memcpy(msg->msg.payload, query, query_len);
+
+    struct rpc_message *recv = NULL;
+    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_ns_enumerate);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    assert(capref_is_null(recv->cap));
+
+    char * const payload_base = &(recv->msg.payload[0]);
+    char *ptr = payload_base;
+    memcpy(num, ptr, sizeof(size_t));
+    ptr += sizeof(size_t);
+
+    *result = ptr;
+
+    return SYS_ERR_OK;
+}
+
 static void
 client_recv_open_cb(void *args)
 {
@@ -533,7 +827,16 @@ struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
-    return aos_rpc_lmp_get_monitor_channel();
+    errval_t err;
+
+    struct nameservice_chan *chan;
+    err = nameservice_lookup(NAMESERVICE_INIT, (nameservice_chan_t *) &chan);
+    if (err_is_fail(err)) {
+        debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+        return NULL;
+    }
+
+    return &chan->rpc;
 }
 
 /**
@@ -558,5 +861,17 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-    return aos_rpc_lmp_get_monitor_channel();
+    // XXX: we store serial specific state in channel which is why
+    // we use a serial channel instead of reuse monitor
+    struct aos_rpc *chan = aos_rpc_lmp_get_channel(&serial_channel, cap_chan_monitor, "serial");
+    if (chan == NULL) {return NULL;}
+
+    thread_mutex_lock_nested(&chan->mutex);
+    if (chan->priv_data == NULL) {
+        chan->priv_data = &serial_channel_data;
+        memset(chan->priv_data, 0, sizeof(struct serial_channel_priv_data));
+        serial_channel_data.read_session = SERIAL_GETCHAR_SESSION_UNDEF;
+    }
+    thread_mutex_unlock(&chan->mutex);
+    return chan;
 }

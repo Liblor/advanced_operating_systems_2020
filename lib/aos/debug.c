@@ -359,6 +359,13 @@ int debug_print_cap_at_capref(char *buf, size_t len, struct capref cap)
     }
 }
 
+void debug_dump_cap_at_capref(struct capref cap)
+{
+    char buf[100];
+    debug_print_cap_at_capref(buf, sizeof(buf), cap);
+    debug_printf("%s\n", buf);
+}
+
 /**
  * \brief Walk and debug print a L2 CNode
  */

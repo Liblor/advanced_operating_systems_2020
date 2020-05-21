@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <aos/aos.h>
 
-//#define LPUART_DEBUG_ON
+#define LPUART_DEBUG_ON
 #if defined(LPUART_DEBUG_ON)
 #define LPUART_DEBUG(x...) debug_printf("lpuart:" x)
 #else

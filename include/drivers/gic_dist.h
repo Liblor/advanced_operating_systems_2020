@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <aos/aos.h>
 
-//#define GIC_DIST_DEBUG_ON
+#define GIC_DIST_DEBUG_ON
 #if defined(GIC_DIST_DEBUG_ON)
 #define GIC_DIST_DEBUG(x...) debug_printf("gic_dist:" x)
 #else

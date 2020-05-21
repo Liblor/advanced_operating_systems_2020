@@ -14,56 +14,23 @@
 #include <aos/coreboot.h>
 #include <aos/kernel_cap_invocations.h>
 #include <aos/aos_rpc_ump.h>
+#include <aos/nameserver.h>
+#include <aos/deferred.h>
 
 #include "first_main.h"
 
 #include "mem_alloc.h"
 
-#include "initserver.h"
 #include "memoryserver.h"
 #include "monitorserver.h"
 #include "processserver.h"
-#include "serialserver.h"
+#include "nameserver.h"
+#include "serial/serialserver.h"
+#include "serial/serial_facade.h"
 
 extern coreid_t my_core_id;
 
-static void number_cb(uintptr_t num)
-{
-    grading_rpc_handle_number(num);
-#if 1
-    debug_printf("number_cb(%llu)\n", num);
-#endif
-}
-
-static void string_cb(char *c)
-{
-    grading_rpc_handler_string(c);
-#if 1
-    debug_printf("string_cb(%s)\n", c);
-#endif
-}
-
-static void putchar_cb(char c) {
-    errval_t err;
-
-    grading_rpc_handler_serial_putchar(c);
-
-    err = sys_print((const char *)&c, 1);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_print() failed");
-    }
-}
-
-static void getchar_cb(char *c) {
-    errval_t err;
-
-    grading_rpc_handler_serial_getchar();
-
-    err = sys_getchar(c);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_getchar() failed");
-    }
-}
+struct nameserver_state ns_state;
 
 static errval_t spawn_cb(struct processserver_state *processserver_state, char *name, coreid_t coreid, domainid_t *ret_pid)
 {
@@ -119,15 +86,32 @@ static errval_t process_get_all_pids(struct processserver_state *processserver_s
     return err;
 }
 
+static void start_server(char *service_name, char *cmd)
+{
+    errval_t err;
+
+    domainid_t pid;
+    struct spawninfo si;
+
+    debug_printf("Spawning service '%s'.\n", service_name);
+
+    err = spawn_load_by_name("initserver", &si, &pid);
+    if (err_is_fail(err)) {
+        debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
+        abort();
+    }
+    debug_printf("Got pid %llu\n", pid);
+}
+
 static void setup_servers(
-    void
+        void
 )
 {
     errval_t err;
 
-    err = initserver_init(number_cb, string_cb);
+    err = nameserver_init(&ns_state);
     if (err_is_fail(err)) {
-        debug_printf("initserver_init() failed: %s\n", err_getstring(err));
+        debug_printf("nameserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
 
@@ -137,7 +121,7 @@ static void setup_servers(
         abort();
     }
 
-    err = serialserver_init(putchar_cb, getchar_cb);
+    err = serialserver_init();
     if (err_is_fail(err)) {
         debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
         abort();
@@ -162,10 +146,10 @@ static void setup_servers(
 }
 
 static void register_service_channel(
-    enum monitorserver_binding_type type,
-    struct aos_rpc *rpc,
-    coreid_t mpid,
-    errval_t (*register_func)(struct aos_rpc *rpc, coreid_t mpid)
+        enum monitorserver_binding_type type,
+        struct aos_rpc *rpc,
+        coreid_t mpid,
+        errval_t (*register_func)(struct aos_rpc *rpc, coreid_t mpid)
 )
 {
     errval_t err;
@@ -179,6 +163,10 @@ static void register_service_channel(
     }
 
     struct aos_rpc *service_rpc = malloc(sizeof(struct aos_rpc));
+    if (service_rpc == NULL) {
+        debug_printf("malloc() failed\n");
+        abort();
+    }
 
     err = aos_rpc_ump_init(service_rpc, frame, true);
     if (err_is_fail(err)) {
@@ -218,33 +206,34 @@ static void register_service_channel(
 
 /*
  * The following channels are needed.
- * - remote monitor to local initserver
  * - remote monitor to local memoryserver
  * - remote monitor to local processserver
  * - remote monitor to local processserver (for local tasks)
  * - remote monitor to local serialserver
+ * - remote monitor to local nameserver
  *
  * If `rpc` is `NULL`, then initializes the local monitorserver.
  */
 __unused
 static void register_service_channels(
-    struct aos_rpc *rpc,
-    coreid_t mpid
+        struct aos_rpc *rpc,
+        coreid_t mpid
 )
 {
-    register_service_channel(InitserverUrpc, rpc, mpid, initserver_add_client);
     register_service_channel(MemoryserverUrpc, rpc, mpid, memoryserver_ump_add_client);
     register_service_channel(ProcessserverUrpc, rpc, mpid, processserver_add_client);
     register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
     register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
+    register_service_channel(NameserverUrpc, rpc, mpid, nameserver_add_client);
 
     debug_printf("all service channels for core %d registered\n", mpid);
 }
 
+__unused
 static void setup_core(
-    struct bootinfo *bootinfo,
-    coreid_t mpid,
-    struct aos_rpc *rpc
+        struct bootinfo *bootinfo,
+        coreid_t mpid,
+        struct aos_rpc *rpc
 ){
     errval_t err;
 
@@ -306,6 +295,39 @@ static void setup_core(
     register_service_channels(rpc, mpid);
 }
 
+static void serve_periodic_urpc_event(void *args) {
+    errval_t err;
+    err = serialserver_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in serialserver_serve_next");
+        abort();
+    }
+    err = processserver_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in processserver_serve_next");
+        abort();
+    }
+    err = memoryserver_ump_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in memoryserver_ump_serve_next");
+        abort();
+    }
+}
+
+static errval_t setup_periodic_urpc_events(
+        struct periodic_event *periodic_urpc_ev
+){
+    errval_t  err;
+
+    memset(periodic_urpc_ev, 0, sizeof(struct periodic_event));
+
+    err = periodic_event_create(periodic_urpc_ev,
+                                get_default_waitset(),
+                                PERIODIC_URPC_EVENT_US_FIRST,
+                                MKCLOSURE(serve_periodic_urpc_event, NULL));
+    return err;
+}
+
 int first_main(int argc, char *argv[])
 {
     errval_t err;
@@ -328,18 +350,29 @@ int first_main(int argc, char *argv[])
 
     setup_servers();
 
+    nameserver_serve_in_thread(&ns_state);
+
     register_service_channels(NULL, my_core_id);
 
+    start_server(NAMESERVICE_INIT, "initserver");
+
+    // TODO Uncomment
+    /*
     struct aos_rpc rpc_core1;
     setup_core(bi, 1, &rpc_core1);
+    */
+
+    struct periodic_event periodic_urpc_ev;
+    setup_periodic_urpc_events(&periodic_urpc_ev);
 
     // Grading
     grading_test_late();
 
-#if 0
+#if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("process-server-demo", &si, &pid);
+    //err = spawn_load_by_name("nameservicetest", &si, &pid);
+    err = spawn_load_by_name("aosh", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
@@ -351,35 +384,13 @@ int first_main(int argc, char *argv[])
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
-        err = initserver_serve_next();
+        err = event_dispatch(default_ws);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
-        err = serialserver_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
-        err = processserver_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
-        err = memoryserver_ump_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in initserver_serve_next");
-            abort();
-        }
-
-        err = event_dispatch_non_block(default_ws);
-        if (err != LIB_ERR_NO_EVENT &&  err_is_fail(err)) {
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }
+
+        thread_yield();
     }
 
     return EXIT_SUCCESS;

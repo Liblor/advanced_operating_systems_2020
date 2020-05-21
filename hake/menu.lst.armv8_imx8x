@@ -18,3 +18,8 @@ module /armv8/sbin/multithreading
 module /armv8/sbin/memory-other-core
 module /armv8/sbin/remote-dummy
 module /armv8/sbin/process-server-demo
+module /armv8/sbin/nameservicetest
+module /armv8/sbin/initserver
+module /armv8/sbin/serial-test
+module /armv8/sbin/serial-read-test
+module /armv8/sbin/aosh
