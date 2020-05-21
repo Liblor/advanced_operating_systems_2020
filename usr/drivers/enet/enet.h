@@ -54,6 +54,8 @@
 #define ENET_TX_LAST 0x0800
 #define ENET_TX_CRC 0x0400
 
+#define ENET_PERIODIC_SERVE_INTERVAL (20)
+
 struct region_entry {
     uint32_t rid;
     struct dmem mem;

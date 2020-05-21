@@ -855,6 +855,39 @@ static errval_t enet_serve(
     return SYS_ERR_OK;
 }
 
+static void serve_periodic_events(
+    void *args
+)
+{
+    errval_t err;
+
+    struct enet_driver_state *state = args;
+
+    err = enet_serve(state);
+    if (err_is_fail(err)) {
+        debug_printf("Failuring during serve routine.\n");
+    }
+}
+
+static errval_t setup_periodic_events(
+    struct periodic_event *periodic_ev,
+    struct enet_driver_state *state
+)
+{
+    errval_t err;
+
+    memset(periodic_ev, 0, sizeof(struct periodic_event));
+
+    err = periodic_event_create(
+        periodic_ev,
+        get_default_waitset(),
+        ENET_PERIODIC_SERVE_INTERVAL,
+        MKCLOSURE(serve_periodic_events, state)
+    );
+
+    return err;
+}
+
 int main(
     int argc,
     char *argv[]
@@ -863,13 +896,13 @@ int main(
     errval_t err;
 
     debug_printf("Driver started.\n");
-    struct enet_driver_state *st = calloc(1, sizeof(struct enet_driver_state));
-    if (st == NULL) {
+    struct enet_driver_state *state = calloc(1, sizeof(struct enet_driver_state));
+    if (state == NULL) {
         debug_printf("Cannot claim memory for driver state.\n");
         return EXIT_FAILURE;
     }
 
-    err = enet_module_initialize(st);
+    err = enet_module_initialize(state);
     if (err_is_fail(err)) {
         debug_printf("Driver initialization failed.\n");
         return EXIT_FAILURE;
@@ -877,42 +910,37 @@ int main(
 
     debug_printf("Initialization complete.\n");
 
-    debug_printf("MAC address is 0x%x.\n", st->mac);
-
-    debug_printf("Sending a test packet.\n");
-    uint64_t mac;
-    ARP_QUERY(&st->eth_state, MK_IP(1, 0, 0, 10), &mac);
-    enet_serve(st);
-    enet_serve(st);
-    enet_serve(st);
-    enet_serve(st);
-    enet_serve(st);
-    enet_serve(st);
-    enet_serve(st);
-    enet_serve(st);
-    enet_serve(st);
-    ARP_QUERY(&st->eth_state, MK_IP(1, 0, 0, 10), &mac);
-    debug_printf("Sending test packet complete.\n");
+    debug_printf("MAC address is 0x%x.\n", state->mac);
 
     err = nameservice_register(
         NETWORKING_SERVICE_NAME,
         nameservice_receive_handler,
-        st
+        state
     );
     if (err_is_fail(err)) {
         USER_PANIC("Cannot register nameservice callback.\n");
     }
+    debug_printf("Registering nameserver complete.\n");
 
     domainid_t pid;
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
     err = aos_rpc_process_spawn(rpc, "echoserver", 0, &pid);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_process_spawn()");
-        abort();
+        USER_PANIC("Cannot spawn default echoserver.\n");
     }
+    debug_printf("Spawing default echoserver complete.\n");
+
+    struct periodic_event periodic_ev;
+    err = setup_periodic_events(&periodic_ev, state);
+    if (err_is_fail(err)) {
+        USER_PANIC("Cannot register periodic events.\n");
+    }
+    debug_printf("Registering periodic events complete.\n");
+
+    struct waitset *default_ws = get_default_waitset();
 
     while (true) {
-        err = enet_serve(st);
+        err = event_dispatch(default_ws);
         if (err_is_fail(err)) {
             debug_printf("Error while serving. Continuing...\n");
         }
