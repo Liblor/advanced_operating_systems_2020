@@ -438,9 +438,27 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     memcpy(msg->msg.payload, &pid, sizeof(pid));
 
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_name);
-    if (err_is_fail(err)) {
-        goto clean_up_recv;
+    size_t recv_bytes;
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_name);
+        if (err_is_fail(err)) {
+            goto clean_up_recv;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
+
+        // TODO Response is not getting validated here
     }
 
     *name = malloc(recv->msg.payload_length);
@@ -453,7 +471,7 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     err = SYS_ERR_OK;
     goto clean_up_recv;
 
-    clean_up_recv:
+clean_up_recv:
     if (recv != NULL) {
         free(recv);
     }
@@ -480,10 +498,29 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     msg->msg.status = Status_Ok;
 
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_all_pids);
-    if (err_is_fail(err)) {
-        goto clean_up;
+    size_t recv_bytes;
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_all_pids);
+        if (err_is_fail(err)) {
+            goto clean_up;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
+
+        // TODO Response is not getting validated here
     }
+
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
     assert(pid_array != NULL);
 
@@ -499,7 +536,7 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     err = SYS_ERR_OK;
     goto clean_up;
 
-    clean_up:
+clean_up:
     if (recv != NULL) {
         free(recv);
     }
