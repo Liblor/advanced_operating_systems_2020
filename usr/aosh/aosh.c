@@ -13,6 +13,10 @@
 
 //#define err_is_fail(err) ((err_is_fail(err) ? (HERE, true) :  (HERE, false)))
 
+#define CODE_UP "\033[1A"
+#define CODE_DOWN "\033[1B"
+#define CODE_RIGHT "\033[1C"
+#define CODE_LEFT "\033[1D"
 
 static struct aosh_state aosh;
 
@@ -85,6 +89,14 @@ static errval_t aosh_readline(
             buf[i] = '\0';
             i++;
             break;
+        } else if ((int) c == 127) { // del
+            if (i <= 0) {
+                continue;
+            }
+            printf("\b " CODE_LEFT);
+            fflush(stdout);
+            i--;
+            continue;
         } else {
             buf[i] = c;
             i++;
