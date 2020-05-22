@@ -11,7 +11,7 @@
 #include "aosh.h"
 #include "builtin/builtin.h"
 
-#define err_is_fail(err) ((err_is_fail(err) ? (HERE, true) : false))
+//#define err_is_fail(err) ((err_is_fail(err) ? (HERE, true) :  (HERE, false)))
 
 
 static struct aosh_state aosh;
