@@ -26,7 +26,8 @@ static uint64_t new_session(void)
     return s;
 }
 
-// --------- urpc marshalling --------------
+// ---------  marshalling --------------
+
 static errval_t reply_char(
         struct rpc_message **resp,
         uint64_t session,
@@ -127,39 +128,16 @@ do_getchar_usr(
     }
 }
 
-//__unused
-//static void
-//do_getchar_sys(
-//        struct aos_rpc *rpc,
-//        struct rpc_message *req,
-//        struct serial_getchar_req *req_getchar
-//)
-//{
-//    errval_t err;
-//    char c;
-//
-//    err = sys_getchar(&c);
-//    if (err_is_fail(err)) {
-//        DEBUG_ERR(err, "sys_getchar() failed");
-//    }
-//
-//    err = reply_char(rpc, req_getchar->session, c, Status_Ok);
-//    if (err_is_fail(err)) {
-//        DEBUG_ERR(err, "reply_char() failed");
-//    }
-//}
-
-//__unused
-//static void do_putchar_sys(
-//        char c
-//)
-//{
-//    errval_t err;
-//    err = sys_print((const char *) &c, 1);
-//    if (err_is_fail(err)) {
-//        DEBUG_ERR(err, "sys_print() failed");
-//    }
-//}
+__unused static void do_putchar_sys(
+        char c
+)
+{
+    errval_t err;
+    err = sys_print((const char *) &c, 1);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "sys_print() failed");
+    }
+}
 
 __unused
 static void do_putchar_usr(
@@ -186,7 +164,7 @@ static void do_putstr_usr(
 }
 
 __unused
-static void read_irq_cb(
+static void getchar_iqr_handler(
         char c,
         void *args
 
@@ -237,8 +215,7 @@ static void service_recv_handle_putchar(
     memcpy(&c, msg->msg.payload, sizeof(char));
     grading_rpc_handler_serial_putchar(c);
 
-//     do_putchar_sys(c); // kernel impl
-    do_putchar_usr(c);    // userspace impl
+    do_putchar_usr(c);
 }
 
 __inline
@@ -257,8 +234,7 @@ static void service_recv_handle_getchar(
     struct serial_getchar_req req_getchar;
     memcpy(&req_getchar, msg->msg.payload, sizeof(struct serial_getchar_req));
 
-//     do_getchar_sys(rpc, msg, &req_getchar);  // kernel impl
-    do_getchar_usr(&req_getchar, resp); // user space impl
+    do_getchar_usr(&req_getchar, resp);
 }
 
 __unused
@@ -300,7 +276,7 @@ static void ns_service_handler(
 }
 
 __unused
-static errval_t init_features(void)
+static errval_t serialserver_init(void)
 {
     errval_t err;
 
@@ -314,95 +290,60 @@ static errval_t init_features(void)
                     SERIAL_BUF_SLOTS);
 
     if (err_is_fail(err)) {
-        debug_printf("failed to init cbuf_init(): %s\n", err_getstring(err));
+        debug_printf("failed to init cbuf_init(): %s\n",
+                     err_getstring(err));
         return err;
     }
 
     err = serial_facade_init(&serial_server.serial_facade,
                              SERIAL_FACADE_TARGET_CPU_0);
     if (err_is_fail(err)) {
-        debug_printf("error in shell_init(): %s\n", err_getstring(err));
+        debug_printf("error in shell_init(): %s\n",
+                     err_getstring(err));
         return err;
     }
 
     err = serial_facade_set_read_cb(&serial_server.serial_facade,
-                                    read_irq_cb,
+                                    getchar_iqr_handler,
                                     NULL);
     if (err_is_fail(err)) {
-        debug_printf("failed to call serial_facade_set_read_cb() %s\n", err_getstring(err));
+        debug_printf("failed to call serial_facade_set_read_cb() %s\n",
+                     err_getstring(err));
         return err;
     }
 
     return SYS_ERR_OK;
 }
 
-
-#if 0
-static void debug_iqr_handler(char c, void *args)
-{
-    struct serial_facade *state = (struct serial_facade *) args;
-    serial_facade_write(state, c);
-}
-
-__unused
-static void debug_iqr_main(void)
-{
-
-    struct serial_facade state;
-    errval_t err = serial_facade_init(
-            &state,
-            1);
-
-    assert(err_is_ok(err));
-    serial_facade_set_read_cb(&state, debug_iqr_handler, &state);
-    assert(err_is_ok(err));
-
-
-//    while(1) {
-//    __unused dispatcher_handle_t d = disp_disable();
-//        volatile int i = 100000;
-//        while(i > 0) {
-//            i --;
-//        }
-//        disp_enable(d);
-//
-//    }
-
-
-    while (1) {
-        err = event_dispatch(get_default_waitset());
-        if (err_is_fail(err)) {
-            assert(false);
-        }
-
-    }
-}
-
-#endif
-
 int main(int argc, char *argv[])
 {
     errval_t err = SYS_ERR_OK;
 
-    err = init_features();
+    err = serialserver_init();
     if (err_is_fail(err)) {
-        debug_printf("failed to init features of serial server: %s\n", err_getstring(err));
+        debug_printf("failed to init features of serial server: %s\n",
+                     err_getstring(err));
         abort();
     }
-
-    err = nameservice_register(NAMESERVICE_SERIAL, ns_service_handler, NULL);
+    err = nameservice_register(NAMESERVICE_SERIAL,
+                               ns_service_handler,
+                               NULL);
     if (err_is_fail(err)) {
-        debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
+        debug_printf("nameservice_register() failed: %s\n",
+                     err_getstring(err));
         abort();
     }
     debug_printf("Serialserver registered at nameserver.\n");
 
-
-    debug_printf("Serialserver features init. Waiting for requests.\n");
     while (1) {
-        event_dispatch_non_block(get_default_waitset());
+        // XXX: we need to call event_dispatch otherwise
+        // iqr are not delivered
+
+        err = event_dispatch_non_block(get_default_waitset());
+        if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
+            debug_printf("error occured in serialserver: %s\n", err_getstring(err));
+        }
         thread_yield();
     }
-
     return EXIT_SUCCESS;
 }

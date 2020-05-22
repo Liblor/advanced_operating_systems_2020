@@ -33,6 +33,4 @@ struct serialserver_state {
     struct serial_buf_entry serial_buf_data[SERIAL_BUF_SLOTS]; ///< Ring buffer data
 };
 
-errval_t serialserver_init(void);
-
 #endif
