@@ -222,17 +222,12 @@ static void read_irq_cb(
 
 __inline
 static void service_recv_handle_putstr(
-        struct rpc_message *msg,
-        void *callback_state,
-        struct aos_rpc *rpc,
-        void *server_state
-)
+        struct rpc_message *msg)
 {
     char *cptr = (char *) msg->msg.payload;
     for (size_t i = 0; i < msg->msg.payload_length; i++) {
         grading_rpc_handler_serial_putchar(*(cptr + i));
     }
-
     do_putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
 }
 
@@ -269,6 +264,7 @@ static void service_recv_handle_getchar(
     do_getchar_usr(rpc, msg, &req_getchar);     // user space impl
 }
 
+// TODO: deprecated. old RPC handler
 __unused
 static void service_recv_cb(
         struct rpc_message *msg,
@@ -279,7 +275,7 @@ static void service_recv_cb(
 {
     switch (msg->msg.method) {
         case Method_Serial_Putstr: {
-            service_recv_handle_putstr(msg, callback_state, rpc, server_state);
+            service_recv_handle_putstr(msg);
             break;
         }
         case Method_Serial_Putchar:
@@ -309,6 +305,9 @@ static void ns_service_handler(
     switch (msg->msg.method) {
         case Method_Serial_Putchar:
             service_recv_handle_putchar(msg);
+            break;
+        case Method_Serial_Putstr:
+            service_recv_handle_putstr(msg);
             break;
         default:
             debug_printf("unknown method given: %d\n", msg->msg.method);
