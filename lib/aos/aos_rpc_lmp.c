@@ -13,8 +13,6 @@ __unused static nameservice_chan_t init_channel = NULL;
 __unused static nameservice_chan_t process_channel = NULL;
 __unused static nameservice_chan_t serial_channel = NULL;
 
-//__unused static struct aos_rpc *serial_channel = NULL;
-
 // serial session to read from serial port
 __unused
 static struct serial_channel_priv_data serial_channel_data;
