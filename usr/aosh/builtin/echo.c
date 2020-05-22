@@ -22,7 +22,7 @@ errval_t builtin_echo(
             b++;
             a++;
         }
-        if (a > 0) {
+        if (a > 0 && i + 1 < argc) {
             out[b] = ' ';
             b++;
         }
