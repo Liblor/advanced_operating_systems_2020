@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     printf("1234567890abcdefghejklmnopqrstuvwxyz" ENDL);
 
     int i = 0;
-    while(1) {
+    while(i < 100) {
         printf("%d" ENDL, i);
         i++;
     }

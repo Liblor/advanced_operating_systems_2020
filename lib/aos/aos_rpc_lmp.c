@@ -246,7 +246,10 @@ errval_t
 aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
     errval_t err;
-    uint8_t send_buf[sizeof(struct rpc_message)];
+
+    const uint32_t payload_len = sizeof(struct serial_getchar_req);
+    const size_t send_buf_size = sizeof(struct rpc_message) + payload_len;
+    uint8_t send_buf[send_buf_size];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 
     assert(rpc->priv_data != NULL);
@@ -254,10 +257,12 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
-    msg->msg.payload_length = sizeof(struct serial_getchar_req);
+    msg->msg.payload_length = payload_len;
     msg->msg.status = Status_Ok;
 
     struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+
     struct serial_getchar_req payload;
     struct serial_getchar_reply reply;
 
@@ -267,11 +272,29 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
     for(;;) {
         payload.session = channel_data->read_session;
         memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
-        err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
 
-        if (lmp_err_is_transient(err)) {
-            barrelfish_usleep(AOS_RPC_LMP_SERIAL_GETCHAR_NODATA_SLEEP_US);
-            continue;
+        if (rpc->type == RpcTypeLmp) {
+            err = aos_rpc_lmp_send_and_wait_recv(rpc,
+                                                 msg,
+                                                 &recv,
+                                                 validate_serial_getchar);
+            if (lmp_err_is_transient(err)) {
+                barrelfish_usleep(AOS_RPC_LMP_SERIAL_GETCHAR_NODATA_SLEEP_US);
+                continue;
+            }
+        } else {
+            assert(rpc->type == RpcTypeUmp);
+            struct nameservice_chan chan = {
+                    .name = "",
+                    .rpc = rpc,
+                    .pid = 0,
+            };
+            err = nameservice_rpc(&chan,
+                                  msg,
+                                  send_buf_size,
+                                  (void **) &recv,
+                                  &recv_bytes,
+                                  msg->cap, NULL_CAP);
         }
         if (err_is_fail(err)) {
             goto free_recv;
@@ -292,6 +315,8 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
         }
         else {
             // server was busy, try again
+            free(recv);
+            recv = NULL;
             barrelfish_usleep(AOS_RPC_LMP_SERIAL_GETCHAR_NODATA_SLEEP_US);
         }
     }
@@ -988,23 +1013,20 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-    return get_service_channel(&init_channel, NAMESERVICE_SERIAL);
+    struct aos_rpc *rpc =
+            get_service_channel(&serial_channel, NAMESERVICE_SERIAL);
 
-#if 0
-    // XXX: we store serial specific state in channel which is why
-    // we use a serial channel instead of reuse monitor
-    struct aos_rpc *chan = aos_rpc_lmp_get_channel(&serial_channel, cap_chan_monitor, "serial");
-    if (chan == NULL) {return NULL;}
+    if (rpc == NULL) {return NULL;}
 
-    thread_mutex_lock_nested(&chan->mutex);
-    if (chan->priv_data == NULL) {
-        chan->priv_data = &serial_channel_data;
-        memset(chan->priv_data, 0, sizeof(struct serial_channel_priv_data));
+    // XXX: we store serial specific state in channel
+    thread_mutex_lock_nested(&rpc->mutex);
+    if (rpc->priv_data == NULL) {
+        rpc->priv_data = &serial_channel_data;
+        memset(rpc->priv_data, 0, sizeof(struct serial_channel_priv_data));
         serial_channel_data.read_session = SERIAL_GETCHAR_SESSION_UNDEF;
     }
-    thread_mutex_unlock(&chan->mutex);
-    return chan;
-#endif
+    thread_mutex_unlock(&rpc->mutex);
+    return rpc;
 }
 
 
