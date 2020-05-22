@@ -26,19 +26,19 @@ static uint64_t new_session(void)
 }
 
 // --------- urpc marshalling --------------
-
 static errval_t reply_char(
-        struct aos_rpc *rpc,
+        struct rpc_message **resp,
         uint64_t session,
         char c,
         enum rpc_message_status status
 )
 {
-    errval_t err;
-
-    char buf[sizeof(struct rpc_message) + sizeof(struct serial_getchar_reply)];
-    struct rpc_message *msg = (struct rpc_message *) &buf;
-
+    const size_t size = sizeof(struct rpc_message)
+                        + sizeof(struct serial_getchar_reply);
+    struct rpc_message *msg = calloc(1, size);
+    if (msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
     msg->cap = NULL_CAP;
     msg->msg.method = Method_Serial_Getchar;
     msg->msg.payload_length = sizeof(struct serial_getchar_reply);
@@ -48,18 +48,12 @@ static errval_t reply_char(
             .data = c
     };
     memcpy(&msg->msg.payload, &payload, sizeof(struct serial_getchar_reply));
-
-    err = aos_rpc_ump_send_message(rpc, msg);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "ump_send_message failed\n");
-        return err;
-    }
-
+    *resp = msg;
     return SYS_ERR_OK;
 }
 
 static void send_getchar_reply(
-        struct aos_rpc *rpc
+        struct rpc_message **resp
 )
 {
     errval_t err;
@@ -75,7 +69,7 @@ static void send_getchar_reply(
         release_session();
     }
 
-    err = reply_char(rpc, session, res_char, Status_Ok);
+    err = reply_char(resp, session, res_char, Status_Ok);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "reply_char() failed");
     }
@@ -86,9 +80,8 @@ static void send_getchar_reply(
 __unused
 static void
 do_getchar_usr(
-        struct aos_rpc *rpc,
-        struct rpc_message *req,
-        struct serial_getchar_req *req_getchar
+        struct serial_getchar_req *req_getchar,
+        struct rpc_message **resp
 )
 {
     errval_t err;
@@ -99,7 +92,7 @@ do_getchar_usr(
     // read is occupied, try again
     if (serial_server.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
         serial_server.curr_read_session != req_getchar->session) {
-        err = reply_char(rpc, req_getchar->session, 0, Serial_Getchar_Occupied);
+        err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Occupied);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "reply_char() failed");
         }
@@ -119,7 +112,7 @@ do_getchar_usr(
     }
     if (cbuf_empty(&serial_server.serial_buf)) {
         // SERIAL_SERVER_DEBUG("session %d no data\n", req_getchar->session);
-        err = reply_char(rpc, req_getchar->session, 0, Serial_Getchar_Nodata);
+        err = reply_char(resp,  req_getchar->session, 0, Serial_Getchar_Nodata);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "reply_char() failed");
         }
@@ -129,43 +122,43 @@ do_getchar_usr(
 //        serial_server.deferred_rpc = rpc;
         return;
     } else {
-        send_getchar_reply(rpc);
+        send_getchar_reply(resp);
     }
 }
 
-__unused
-static void
-do_getchar_sys(
-        struct aos_rpc *rpc,
-        struct rpc_message *req,
-        struct serial_getchar_req *req_getchar
-)
-{
-    errval_t err;
-    char c;
+//__unused
+//static void
+//do_getchar_sys(
+//        struct aos_rpc *rpc,
+//        struct rpc_message *req,
+//        struct serial_getchar_req *req_getchar
+//)
+//{
+//    errval_t err;
+//    char c;
+//
+//    err = sys_getchar(&c);
+//    if (err_is_fail(err)) {
+//        DEBUG_ERR(err, "sys_getchar() failed");
+//    }
+//
+//    err = reply_char(rpc, req_getchar->session, c, Status_Ok);
+//    if (err_is_fail(err)) {
+//        DEBUG_ERR(err, "reply_char() failed");
+//    }
+//}
 
-    err = sys_getchar(&c);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_getchar() failed");
-    }
-
-    err = reply_char(rpc, req_getchar->session, c, Status_Ok);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "reply_char() failed");
-    }
-}
-
-__unused
-static void do_putchar_sys(
-        char c
-)
-{
-    errval_t err;
-    err = sys_print((const char *) &c, 1);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_print() failed");
-    }
-}
+//__unused
+//static void do_putchar_sys(
+//        char c
+//)
+//{
+//    errval_t err;
+//    err = sys_print((const char *) &c, 1);
+//    if (err_is_fail(err)) {
+//        DEBUG_ERR(err, "sys_print() failed");
+//    }
+//}
 
 __unused
 static void do_putchar_usr(
@@ -246,9 +239,7 @@ static void service_recv_handle_putchar(
 __inline
 static void service_recv_handle_getchar(
         struct rpc_message *msg,
-        void *callback_state,
-        struct aos_rpc *rpc,
-        void *server_state
+        struct rpc_message **resp
 )
 {
     grading_rpc_handler_serial_getchar();
@@ -257,37 +248,12 @@ static void service_recv_handle_getchar(
         debug_printf("invalid req. for Method_Serial_Getchar");
         return;
     }
+
     struct serial_getchar_req req_getchar;
     memcpy(&req_getchar, msg->msg.payload, sizeof(struct serial_getchar_req));
 
 //     do_getchar_sys(rpc, msg, &req_getchar);  // kernel impl
-    do_getchar_usr(rpc, msg, &req_getchar);     // user space impl
-}
-
-// TODO: deprecated. old RPC handler
-__unused
-static void service_recv_cb(
-        struct rpc_message *msg,
-        void *callback_state,
-        struct aos_rpc *rpc,
-        void *server_state
-)
-{
-    switch (msg->msg.method) {
-        case Method_Serial_Putstr: {
-            service_recv_handle_putstr(msg);
-            break;
-        }
-        case Method_Serial_Putchar:
-            service_recv_handle_putchar(msg);
-            break;
-        case Method_Serial_Getchar:
-            service_recv_handle_getchar(msg, callback_state, rpc, server_state);
-            break;
-        default:
-            debug_printf("unknown method given: %d\n", msg->msg.method);
-            break;
-    }
+    do_getchar_usr(&req_getchar, resp); // user space impl
 }
 
 static void ns_service_handler(
@@ -297,10 +263,13 @@ static void ns_service_handler(
         void **response,
         size_t *response_bytes,
         struct capref tx_cap,
-        struct capref *rx_cap) {
+        struct capref *rx_cap)
+{
+
+    struct rpc_message *msg = message;
+    struct rpc_message *resp_msg = NULL;
 
     SERIAL_SERVER_DEBUG("ns_service_handler called\n");
-    struct rpc_message *msg = message;
 
     switch (msg->msg.method) {
         case Method_Serial_Putchar:
@@ -309,15 +278,26 @@ static void ns_service_handler(
         case Method_Serial_Putstr:
             service_recv_handle_putstr(msg);
             break;
+        case Method_Serial_Getchar:
+            service_recv_handle_getchar(msg, &resp_msg);
+            break;
         default:
             debug_printf("unknown method given: %d\n", msg->msg.method);
             break;
     }
 
+    if (resp_msg == NULL) {
+        *response = NULL;
+        *response_bytes = 0;
+    } else {
+        *response = resp_msg;
+        *response_bytes = sizeof(struct rpc_message) + resp_msg->msg.payload_length;
+    }
     return;
 }
 
-static errval_t init_features(void) {
+static errval_t init_features(void)
+{
     errval_t err;
 
     memset(&serial_server, 0, sizeof(struct serialserver_state));
@@ -366,7 +346,7 @@ int main(int argc, char *argv[])
     debug_printf("Serialserver registered at nameserver.\n");
 
     err = init_features();
-    if (err_is_fail(err)){
+    if (err_is_fail(err)) {
         debug_printf("failed to init features of serial server: %s\n", err_getstring(err));
         abort();
     }
