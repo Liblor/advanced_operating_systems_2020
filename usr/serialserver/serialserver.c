@@ -32,8 +32,7 @@ static errval_t reply_char(
         struct rpc_message **resp,
         uint64_t session,
         char c,
-        enum rpc_message_status status
-)
+        enum rpc_message_status status)
 {
     const size_t size = sizeof(struct rpc_message)
                         + sizeof(struct serial_getchar_reply);
@@ -55,8 +54,7 @@ static errval_t reply_char(
 }
 
 static void send_getchar_reply(
-        struct rpc_message **resp
-)
+        struct rpc_message **resp)
 {
     errval_t err;
 
@@ -83,78 +81,80 @@ __unused
 static void
 do_getchar_usr(
         struct serial_getchar_req *req_getchar,
-        struct rpc_message **resp
-)
+        struct rpc_message **resp)
 {
     errval_t err;
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
     }
 
-    // read is occupied, try again
     if (serial_server.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
         serial_server.curr_read_session != req_getchar->session) {
-        err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Occupied);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "reply_char() failed");
-        }
         SERIAL_SERVER_DEBUG("session is occupied: \n");
+
+        err = reply_char(resp,
+                         req_getchar->session,
+                         0,
+                         Serial_Getchar_Occupied);
+        if (err_is_fail(err)) {
+            debug_printf("reply_char() failed: %s\n", err_getstring(err));;
+        }
         return;
     }
 
-    // read is free
     if (serial_server.curr_read_session == SERIAL_GETCHAR_SESSION_UNDEF) {
         serial_server.curr_read_session = req_getchar->session;
-        SERIAL_SERVER_DEBUG("session %d acquired serial port\n", req_getchar->session);
+        SERIAL_SERVER_DEBUG("session %d acquired serial port\n",
+                            req_getchar->session);
 
-        // disable read iqr to prevent race conditions
+        // XXX: disable read iqr to prevent race conditions
         dispatcher_handle_t d = disp_disable();
         cbuf_reset(&serial_server.serial_buf);
         disp_enable(d);
+
     }
     if (cbuf_empty(&serial_server.serial_buf)) {
-        // SERIAL_SERVER_DEBUG("session %d no data\n", req_getchar->session);
-        err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Nodata);
+        err = reply_char(resp,
+                         req_getchar->session,
+                         0,
+                         Serial_Getchar_Nodata);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "reply_char() failed");
+            debug_printf("failed to send reply in serialserver: %s",
+                         err_getstring(err));
         }
-
-        // TODO optimization get rid of polling
-        // SERIAL_SERVER_DEBUG("deferring request \n");
-//        serial_server.deferred_rpc = rpc;
         return;
     } else {
         send_getchar_reply(resp);
     }
 }
 
-__unused static void do_putchar_sys(
-        char c
-)
+
+__unused __inline
+static void putchar_kernel(
+        char c)
 {
     errval_t err;
     err = sys_print((const char *) &c, 1);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_print() failed");
+        debug_printf("putchar_kernel failed: %s\n", err_getstring(err));
     }
 }
 
-__unused
-static void do_putchar_usr(
-        char c
-)
+__unused __inline
+static void putchar_usr(
+        char c)
 {
     errval_t err;
     err = serial_facade_write(&serial_server.serial_facade, c);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_print() failed");
+        debug_printf("serial_facade_write failed: %s\n", err_getstring(err));
     }
 }
 
 __unused
-static void do_putstr_usr(
-        char *str, size_t len
-)
+static void putstr_usr(
+        const char *str,
+        size_t len)
 {
     errval_t err = SYS_ERR_OK;
 
@@ -180,9 +180,7 @@ static void do_putstr_usr(
 __unused
 static void getchar_iqr_handler(
         char c,
-        void *args
-
-)
+        void *args)
 {
     struct serial_buf_entry data = {.val = c};
     cbuf_put(&serial_server.serial_buf, &data);
@@ -192,20 +190,7 @@ static void getchar_iqr_handler(
 #endif
 
     // TODO: in case monitor is not a serializer for rpc requests
-    // reply only on new data such that client dont need to poll
-#if 0
-    if (serial_server.deferred_rpc != NULL) {
-        // reply and release session if newline arrives
-        send_getchar_reply(serial_server.deferred_rpc);
-        serial_server.deferred_rpc = NULL;
-    } else {
-        // we serve chars on a line basis so a newline
-        // frees a locked session
-        if (IS_CHAR_LINEBREAK(c)) {
-            release_session();
-        }
-    }
-#endif
+    // reply only on new data such that client does not need to poll
 }
 
 // --------- urpc server --------------
@@ -218,7 +203,7 @@ static void service_recv_handle_putstr(
     for (size_t i = 0; i < msg->msg.payload_length; i++) {
         grading_rpc_handler_serial_putchar(*(cptr + i));
     }
-    do_putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
+    putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
 }
 
 __inline
@@ -229,14 +214,13 @@ static void service_recv_handle_putchar(
     memcpy(&c, msg->msg.payload, sizeof(char));
     grading_rpc_handler_serial_putchar(c);
 
-    do_putchar_usr(c);
+    putchar_usr(c);
 }
 
 __inline
 static void service_recv_handle_getchar(
         struct rpc_message *msg,
-        struct rpc_message **resp
-)
+        struct rpc_message **resp)
 {
     grading_rpc_handler_serial_getchar();
 
@@ -251,7 +235,6 @@ static void service_recv_handle_getchar(
     do_getchar_usr(&req_getchar, resp);
 }
 
-__unused
 static void ns_service_handler(
         void *st,
         void *message,
@@ -286,10 +269,8 @@ static void ns_service_handler(
         *response = resp_msg;
         *response_bytes = sizeof(struct rpc_message) + resp_msg->msg.payload_length;
     }
-    return;
 }
 
-__unused
 static errval_t serialserver_init(void)
 {
     errval_t err;
@@ -350,7 +331,6 @@ int main(int argc, char *argv[])
     while (1) {
         // XXX: we need to call event_dispatch otherwise
         // iqr are not delivered
-
         err = event_dispatch_non_block(get_default_waitset());
         if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
             debug_printf("error occured in serialserver: %s\n", err_getstring(err));
