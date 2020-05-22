@@ -23,7 +23,6 @@
 
 #include "memoryserver.h"
 #include "monitorserver.h"
-#include "processserver.h"
 #include "nameserver.h"
 #include "serial/serialserver.h"
 #include "serial/serial_facade.h"
@@ -31,60 +30,6 @@
 extern coreid_t my_core_id;
 
 struct nameserver_state ns_state;
-
-static errval_t spawn_cb(struct processserver_state *processserver_state, char *name, coreid_t coreid, domainid_t *ret_pid)
-{
-    errval_t err;
-
-    grading_rpc_handler_process_spawn(name, coreid);
-
-    struct spawninfo si;
-
-    // TODO: Also store coreid
-    err = add_to_proc_list(processserver_state, name, ret_pid);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "add_to_proc_list()");
-        return err;
-    }
-
-    // XXX: we currently use add_to_proc_list to get a ret_pid
-    // and ignore the ret_pid set by urpc_send_spawn_request or spawn_load_by_name
-    // reason: legacy, spawn_load_by_name does not set pid itself, so
-    // add_to_proc_list implemented the behavior
-
-    if (coreid == disp_get_core_id()) {
-        err = spawn_load_by_name(name, &si, ret_pid);
-    } else {
-        err = processserver_send_spawn_local(processserver_state, name, coreid, *ret_pid);
-    }
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "spawn_load_by_name()");
-        // TODO: If spawn failed, remove the process from the processserver state list.
-        return err;
-    }
-
-    return SYS_ERR_OK;
-}
-
-static errval_t get_name_cb(struct processserver_state *processserver_state, domainid_t pid, char **ret_name) {
-    errval_t err;
-
-    grading_rpc_handler_process_get_name(pid);
-
-    err = get_name_by_pid(processserver_state, pid, ret_name);
-
-    return err;
-}
-
-static errval_t process_get_all_pids(struct processserver_state *processserver_state, size_t *ret_count, domainid_t **ret_pids) {
-    errval_t err;
-
-    grading_rpc_handler_process_get_all_pids();
-
-    err = get_all_pids(processserver_state, ret_count, ret_pids);
-
-    return err;
-}
 
 static inline void start_server(char *service_name, char *cmd)
 {
@@ -124,12 +69,6 @@ static void setup_servers(
     err = serialserver_init();
     if (err_is_fail(err)) {
         debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
-
-    err = processserver_init(spawn_cb, get_name_cb, process_get_all_pids);
-    if (err_is_fail(err)) {
-        debug_printf("processserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
 
@@ -221,8 +160,6 @@ static void register_service_channels(
 )
 {
     register_service_channel(MemoryserverUrpc, rpc, mpid, memoryserver_ump_add_client);
-    register_service_channel(ProcessserverUrpc, rpc, mpid, processserver_add_client);
-    register_service_channel(ProcessLocaltasksUrpc, rpc, mpid, processserver_set_local_task_chan);
     register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
     register_service_channel(NameserverUrpc, rpc, mpid, nameserver_add_client);
 
@@ -297,16 +234,13 @@ static void setup_core(
 
 static void serve_periodic_urpc_event(void *args) {
     errval_t err;
+
     err = serialserver_serve_next();
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "in serialserver_serve_next");
         abort();
     }
-    err = processserver_serve_next();
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in processserver_serve_next");
-        abort();
-    }
+
     err = memoryserver_ump_serve_next();
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "in memoryserver_ump_serve_next");
@@ -354,7 +288,8 @@ int first_main(int argc, char *argv[])
 
     register_service_channels(NULL, my_core_id);
 
-//    start_server(NAMESERVICE_INIT, "initserver");
+    start_server(NAMESERVICE_INIT, "initserver");
+    start_server(NAMESERVICE_PROCESS, "processserver");
     start_server(NAMESERVICE_SERIAL, "serialserver");
 
 

@@ -6,11 +6,14 @@
 #include <aos/nameserver.h>
 #include <aos/deferred.h>
 
-__unused static struct aos_rpc *init_channel = NULL;
 __unused static struct aos_rpc *memory_channel = NULL;
-__unused static struct aos_rpc *process_channel = NULL;
-__unused static struct aos_rpc *serial_channel = NULL;
+
 __unused static struct aos_rpc *monitor_channel = NULL;
+__unused static nameservice_chan_t init_channel = NULL;
+__unused static nameservice_chan_t process_channel = NULL;
+__unused static nameservice_chan_t serial_channel = NULL;
+
+//__unused static struct aos_rpc *serial_channel = NULL;
 
 // serial session to read from serial port
 __unused
@@ -94,7 +97,13 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
             return err;
         }
     } else {
-        err = nameservice_rpc(rpc, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "nameservice_rpc()\n");
             return err;
@@ -130,7 +139,13 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
             return err;
         }
     } else {
-        err = nameservice_rpc(rpc, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "nameservice_rpc()\n");
             return err;
@@ -314,9 +329,15 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
             return err;
         }
     } else {
-        err = nameservice_rpc(rpc, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
-            DEBUG_ERR(err, "nameservice_rpc() in aos_rpc_lmp_serial_putchar\n");
+            DEBUG_ERR(err, "nameservice_rpc()\n");
             return err;
         }
     }
@@ -371,6 +392,11 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
                           coreid_t core, domainid_t *newpid)
 {
     errval_t err;
+
+    assert(rpc != NULL);
+    assert(cmdline != NULL);
+    assert(newpid != NULL);
+
     const uint32_t str_len =
             MIN(strnlen(cmdline, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN); // no \0 in strlen
     const size_t payload_len = str_len + sizeof(core);
@@ -386,10 +412,27 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     strlcpy(send->msg.payload + sizeof(core), cmdline, str_len);
 
     struct rpc_message *recv = NULL;
+    size_t recv_bytes;
 
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, send, &recv, validate_process_spawn);
-    if (err_is_fail(err)) {
-        goto clean_up;
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_and_wait_recv(rpc, send, &recv, validate_process_spawn);
+        if (err_is_fail(err)) {
+            goto clean_up;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, send->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
+
+        // TODO Response is not getting validated here
     }
 
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
@@ -424,9 +467,27 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     memcpy(msg->msg.payload, &pid, sizeof(pid));
 
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_name);
-    if (err_is_fail(err)) {
-        goto clean_up_recv;
+    size_t recv_bytes;
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_name);
+        if (err_is_fail(err)) {
+            goto clean_up_recv;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
+
+        // TODO Response is not getting validated here
     }
 
     *name = malloc(recv->msg.payload_length);
@@ -439,7 +500,7 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     err = SYS_ERR_OK;
     goto clean_up_recv;
 
-    clean_up_recv:
+clean_up_recv:
     if (recv != NULL) {
         free(recv);
     }
@@ -466,10 +527,29 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     msg->msg.status = Status_Ok;
 
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_all_pids);
-    if (err_is_fail(err)) {
-        goto clean_up;
+    size_t recv_bytes;
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_process_get_all_pids);
+        if (err_is_fail(err)) {
+            goto clean_up;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
+
+        // TODO Response is not getting validated here
     }
+
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
     assert(pid_array != NULL);
 
@@ -485,7 +565,7 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     err = SYS_ERR_OK;
     goto clean_up;
 
-    clean_up:
+clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -836,6 +916,31 @@ static struct aos_rpc *aos_rpc_lmp_get_channel(
     return *rpc;
 }
 
+static struct aos_rpc *get_service_channel(nameservice_chan_t *chan, const char *service_name)
+{
+    errval_t err;
+
+    bool was_unset = false;
+
+    thread_mutex_lock_nested(&rpc_lmp_mutex);
+
+    if (*chan == NULL) {
+        was_unset = true;
+        err = nameservice_lookup(service_name, chan);
+        if (err_is_fail(err)) {
+            debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+            *chan = NULL;
+        }
+    }
+
+    thread_mutex_unlock(&rpc_lmp_mutex);
+
+    if (was_unset && *chan == NULL) {
+        debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+    }
+
+    return (*chan)->rpc;
+}
 
 struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void)
 {
@@ -847,16 +952,7 @@ struct aos_rpc *aos_rpc_lmp_get_monitor_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_init_channel(void)
 {
-    errval_t err;
-
-    struct nameservice_chan *chan;
-    err = nameservice_lookup(NAMESERVICE_INIT, (nameservice_chan_t *) &chan);
-    if (err_is_fail(err)) {
-        debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
-        return NULL;
-    }
-
-    return &chan->rpc;
+    return get_service_channel(&init_channel, NAMESERVICE_INIT);
 }
 
 /**
@@ -873,33 +969,16 @@ struct aos_rpc *aos_rpc_lmp_get_memory_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
 {
-    return aos_rpc_lmp_get_monitor_channel();
+    return get_service_channel(&process_channel, NAMESERVICE_PROCESS);
 }
-
-__unused
-static struct aos_rpc *aos_rpc_lmp_get_serial_channel_ns(void)
-{
-    errval_t err;
-
-    struct nameservice_chan *chan;
-    err = nameservice_lookup(NAMESERVICE_SERIAL, (nameservice_chan_t *) &chan);
-    if (err_is_fail(err)) {
-        debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
-        return NULL;
-    }
-    return &chan->rpc;
-}
-
-
 
 /**
  * \brief Returns the channel to the serial console.
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-
     HERE;
-    return aos_rpc_lmp_get_serial_channel_ns();
+    return get_service_channel(&init_channel, NAMESERVICE_SERIAL);
 
 #if 0
     // XXX: we store serial specific state in channel which is why

@@ -184,7 +184,7 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
     assert(chan != NULL);
     assert(message != NULL);
 
-    struct aos_rpc *rpc = &((struct nameservice_chan *) chan)->rpc;
+    struct aos_rpc *rpc = chan->rpc;
 
     uint8_t send_buf[sizeof(struct rpc_message) + bytes];
     struct rpc_message *send = (struct rpc_message *) &send_buf;
@@ -343,18 +343,24 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
     struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
 
     // TODO Maybe have a single aos_rpc statically available to lookup the memory server
+    struct aos_rpc *rpc = malloc(sizeof(struct aos_rpc));
     struct nameservice_chan *service_chan = malloc(sizeof(struct nameservice_chan));
     if (service_chan == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
 
-    err = aos_rpc_ns_lookup(monitor_chan, name, &service_chan->rpc, &service_chan->pid);
+    domainid_t pid;
+    err = aos_rpc_ns_lookup(monitor_chan, name, rpc, &pid);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ns_lookup() failed: %s\n", err_getstring(err));
         return err;
     }
 
+    assert(rpc->type == RpcTypeUmp);
+
     service_chan->name = name;
+    service_chan->rpc = rpc;
+    service_chan->pid = pid;
 
     *nschan = service_chan;
 

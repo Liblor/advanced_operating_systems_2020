@@ -11,9 +11,6 @@ struct monitorserver_cb_state {
 };
 
 enum monitorserver_binding_type {
-    InitserverUrpc = 0,
-    ProcessserverUrpc = 5,
-    ProcessLocaltasksUrpc = 10,
     SerialserverUrpc = 15,
     MemoryserverUrpc = 20,
     NameserverUrpc = 25,
@@ -26,10 +23,7 @@ struct monitorserver_rpc {
 
 struct monitorserver_state {
     struct thread_mutex mutex;
-    struct monitorserver_rpc initserver_rpc;
     struct monitorserver_rpc memoryserver_rpc;
-    struct monitorserver_rpc processserver_rpc;
-    struct monitorserver_rpc processserver_localtasks_rpc;
     struct monitorserver_rpc serialserver_rpc;
     struct monitorserver_rpc nameserver_rpc;
     struct waitset ws;

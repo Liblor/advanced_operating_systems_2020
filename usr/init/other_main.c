@@ -81,10 +81,6 @@ static void register_service_channels(
 )
 {
     register_service_channel(MemoryserverUrpc, rpc);
-    register_service_channel(ProcessserverUrpc, rpc);
-
-    // This is the channel from which the monitor will receive local task requests.
-    register_service_channel(ProcessLocaltasksUrpc, rpc);
 
     register_service_channel(SerialserverUrpc, rpc);
     register_service_channel(NameserverUrpc, rpc);

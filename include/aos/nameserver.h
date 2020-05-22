@@ -9,21 +9,23 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 
-#define NAMESERVICE_INIT ("serverinit")
-#define NAMESERVICE_SERIAL ("serverserial")
+#define NAMESERVICE_INIT "serverinit"
+#define NAMESERVICE_PROCESS "serverprocess"
+#define NAMESERVICE_MONITOR "servermonitor"
+#define NAMESERVICE_SERIAL "serverserial"
 
-typedef void* nameservice_chan_t;
+typedef struct nameservice_chan* nameservice_chan_t;
 
 struct nameservice_chan {
     const char *name;
-    struct aos_rpc rpc;
+    struct aos_rpc *rpc;
     domainid_t pid;
 };
 
 ///< handler which is called when a message is received over the registered channel
 typedef void(nameservice_receive_handler_t)(void *st,
-										    void *message, size_t bytes,
-										    void **response, size_t *response_bytes,
+                                            void *message, size_t bytes,
+                                            void **response, size_t *response_bytes,
                                             struct capref tx_cap, struct capref *rx_cap);
 
 /**
@@ -53,8 +55,8 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
  * @return SYS_ERR_OK
  */
 errval_t nameservice_register(const char *name,
-	                              nameservice_receive_handler_t recv_handler,
-	                              void *st);
+                              nameservice_receive_handler_t recv_handler,
+                              void *st);
 
 
 /**
