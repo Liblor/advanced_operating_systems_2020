@@ -104,9 +104,6 @@ static errval_t aosh_readline(
             fflush(stdout);
         }
     }
-    if (i == AOSH_READLINE_MAX_LEN) {
-        debug_printf("AOSH_READLINE_MAX_LEN reached. truncating line\n");
-    }
     if (c == CHAR_CODE_EOT) {
         // ctrl d  pressed
         err = AOSH_ERR_EXIT_SHELL;
@@ -124,7 +121,11 @@ static errval_t aosh_readline(
     if (ret_size != NULL) {
         *ret_size = i;
     }
-    err = SYS_ERR_OK;
+    if (i >= AOSH_READLINE_MAX_LEN) {
+        err = AOSH_ERR_READLINE_MAX_EXCEEDED;
+    } else {
+        err = SYS_ERR_OK;
+    }
 
     free_buf:
     free(buf);
@@ -265,9 +266,13 @@ static errval_t aosh_read_eval_execute(void)
 
     err = aosh_readline((void **) &line, &line_size);
     printf(ENDL);
+    fflush(stdout);
 
     if (err == AOSH_ERR_EXIT_SHELL) {
         goto err_free_line;
+    }else if (err == AOSH_ERR_READLINE_MAX_EXCEEDED) {
+        printf("AOSH_READLINE_MAX_LEN reached. Skipping command\n");
+        goto success_free;
     } else if (err_is_fail(err)) {
         debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
         goto err_free_line;
@@ -276,7 +281,10 @@ static errval_t aosh_read_eval_execute(void)
         // nothing read;
         goto success_free;
     }
-
+    if (line_size >= AOSH_READLINE_MAX_LEN) {
+        debug_printf("Skipping execution of truncated line\n");
+        goto success_free;
+    }
     err = aosh_tokenize_arg(line, &argc, &argv);
     if (!aosh_err_recoverable(err)) {
         goto err_free;
