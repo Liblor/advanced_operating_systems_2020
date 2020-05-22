@@ -357,7 +357,6 @@ int main(int argc, char *argv[])
     }
 
     debug_printf("Processserver registered at nameserver.\n");
-    while (true) {
-        thread_yield();
-    }
+
+    thread_exit(0);
 }
