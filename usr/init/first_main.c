@@ -24,8 +24,6 @@
 #include "memoryserver.h"
 #include "monitorserver.h"
 #include "nameserver.h"
-#include "serial/serialserver.h"
-#include "serial/serial_facade.h"
 
 extern coreid_t my_core_id;
 
@@ -63,12 +61,6 @@ static void setup_servers(
     err = memoryserver_init(ram_alloc_aligned_handler);
     if (err_is_fail(err)) {
         debug_printf("memoryserver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
-
-    err = serialserver_init();
-    if (err_is_fail(err)) {
-        debug_printf("serialserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
 
@@ -160,7 +152,6 @@ static void register_service_channels(
 )
 {
     register_service_channel(MemoryserverUrpc, rpc, mpid, memoryserver_ump_add_client);
-    register_service_channel(SerialserverUrpc, rpc, mpid, serialserver_add_client);
     register_service_channel(NameserverUrpc, rpc, mpid, nameserver_add_client);
 
     debug_printf("all service channels for core %d registered\n", mpid);
@@ -235,12 +226,6 @@ static void setup_core(
 static void serve_periodic_urpc_event(void *args) {
     errval_t err;
 
-    err = serialserver_serve_next();
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in serialserver_serve_next");
-        abort();
-    }
-
     err = memoryserver_ump_serve_next();
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "in memoryserver_ump_serve_next");
@@ -290,6 +275,8 @@ int first_main(int argc, char *argv[])
 
     start_server(NAMESERVICE_INIT, "initserver");
     start_server(NAMESERVICE_PROCESS, "processserver");
+    start_server(NAMESERVICE_SERIAL, "serialserver");
+
 
 #if 0
     struct aos_rpc rpc_core1;

@@ -15,7 +15,7 @@
 //#define ENABLE_LMP_MONITOR_CHAN
 
 // how long to give away resources to other threads until we retry
-#define AOS_RPC_LMP_SERIAL_GETCHAR_NODATA_SLEEP_US (20 * 1000)
+#define AOS_RPC_LMP_SERIAL_GETCHAR_NODATA_SLEEP_US (1000)
 
 struct aos_rpc_lmp {
     struct lmp_chan chan;

@@ -21,22 +21,13 @@ struct serial_buf_entry {
 } __packed;
 
 struct serialserver_state {
-    struct rpc_ump_server ump_server;      ///< ump server for rpc calls
-
     struct serial_facade serial_facade;   ///<facade to serial driver in userspace
 
     serial_session_t curr_read_session;   ///< read session which got serial_driver
-    struct aos_rpc *deferred_rpc;         ///< deferred rpc call because serial driver no input
     size_t read_session_ctr;
 
     struct cbuf serial_buf;              ///< Ring buffer for arriving serial chars
     struct serial_buf_entry serial_buf_data[SERIAL_BUF_SLOTS]; ///< Ring buffer data
 };
-
-errval_t serialserver_add_client(struct aos_rpc *rpc, coreid_t mpid);
-
-errval_t serialserver_serve_next(void);
-
-errval_t serialserver_init(void);
 
 #endif

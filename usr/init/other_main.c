@@ -81,8 +81,6 @@ static void register_service_channels(
 )
 {
     register_service_channel(MemoryserverUrpc, rpc);
-
-    register_service_channel(SerialserverUrpc, rpc);
     register_service_channel(NameserverUrpc, rpc);
 
     debug_printf("all register_service_channel registered\n");

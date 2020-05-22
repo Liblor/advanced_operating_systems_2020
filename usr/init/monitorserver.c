@@ -105,19 +105,6 @@ static void service_recv_cb(
         }
         err = monitor_forward_receive(msg, rpc, &mss->memoryserver_rpc.ump_rpc);
         break;
-    case Method_Serial_Putchar:
-    case Method_Serial_Putstr:
-        if (! is_registered(&mss->serialserver_rpc)) {
-            goto unregistered_service;
-        }
-        err = monitor_forward(msg, &mss->serialserver_rpc.ump_rpc);
-        break;
-    case Method_Serial_Getchar:
-        if (! is_registered(&mss->serialserver_rpc)) {
-            goto unregistered_service;
-        }
-        err = monitor_forward_receive(msg, rpc, &mss->serialserver_rpc.ump_rpc);
-        break;
     case Method_Nameserver_Register:
     case Method_Nameserver_Deregister:
     case Method_Nameserver_Lookup:

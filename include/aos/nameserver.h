@@ -12,6 +12,7 @@
 #define NAMESERVICE_INIT "serverinit"
 #define NAMESERVICE_PROCESS "serverprocess"
 #define NAMESERVICE_MONITOR "servermonitor"
+#define NAMESERVICE_SERIAL "serverserial"
 
 typedef struct nameservice_chan* nameservice_chan_t;
 
