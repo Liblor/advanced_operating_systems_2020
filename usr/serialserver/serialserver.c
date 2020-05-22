@@ -273,6 +273,7 @@ static void service_recv_handle_getchar(
     do_getchar_usr(rpc, msg, &req_getchar);     // user space impl
 }
 
+__unused
 static void service_recv_cb(
         struct rpc_message *msg,
         void *callback_state,
@@ -309,8 +310,20 @@ errval_t serialserver_serve_next(void)
     return rpc_ump_server_serve_next(&serial_server.ump_server);
 }
 
-errval_t serialserver_init(void)
-{
+static void ns_service_handler(
+        void *st,
+        void *message,
+        size_t bytes,
+        void **response,
+        size_t *response_bytes,
+        struct capref tx_cap,
+        struct capref *rx_cap) {
+    debug_printf("ns_service_handler called\n");
+
+    return;
+}
+
+static errval_t init_features(void) {
     errval_t err;
 
     memset(&serial_server, 0, sizeof(struct serialserver_state));
@@ -342,28 +355,7 @@ errval_t serialserver_init(void)
         return err;
     }
 
-    err = rpc_ump_server_init(&serial_server.ump_server,
-                              service_recv_cb,
-                              NULL,
-                              NULL,
-                              NULL);
-    if (err_is_fail(err)) {
-        debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
-        return err_push(err, RPC_ERR_INITIALIZATION);
-    }
-
     return SYS_ERR_OK;
-}
-
-static void ns_service_handler(
-        void *st,
-        void *message,
-        size_t bytes,
-        void **response,
-        size_t *response_bytes,
-        struct capref tx_cap,
-        struct capref *rx_cap) {
-    debug_printf("ns_service_handler called\n");
 }
 
 int main(int argc, char *argv[])
@@ -377,9 +369,18 @@ int main(int argc, char *argv[])
         debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
         abort();
     }
-
     debug_printf("Serialserver registered at nameserver.\n");
+
+    err = init_features();
+    if (err_is_fail(err)){
+        debug_printf("failed to init features of serial server: %s\n", err_getstring(err));
+        abort();
+    }
+
+    debug_printf("Serialserver features init. Waiting for requests.\n");
     while (true) {
         thread_yield();
     }
+
+    return EXIT_SUCCESS;
 }
