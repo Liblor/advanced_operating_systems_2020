@@ -1,5 +1,5 @@
-[ build application { target = "initserver",
-  		              cFiles = [ "initserver.c" ],
+[ build application { target = "processserver",
+  		              cFiles = [ "processserver.c" ],
                       addLibraries = [ "grading" ],
                       architectures = allArchitectures
                     }

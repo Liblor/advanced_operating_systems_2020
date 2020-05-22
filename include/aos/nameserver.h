@@ -9,13 +9,15 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 
-#define NAMESERVICE_INIT ("serverinit")
+#define NAMESERVICE_INIT "serverinit"
+#define NAMESERVICE_PROCESS "serverprocess"
+#define NAMESERVICE_MONITOR "servermonitor"
 
-typedef void* nameservice_chan_t;
+typedef struct nameservice_chan* nameservice_chan_t;
 
 struct nameservice_chan {
     const char *name;
-    struct aos_rpc rpc;
+    struct aos_rpc *rpc;
     domainid_t pid;
 };
 
