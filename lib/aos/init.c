@@ -83,12 +83,14 @@ __attribute__((__used__))
 static size_t aos_terminal_read(char *buf, size_t len)
 {
     errval_t err;
+
     struct aos_rpc *serial_rpc = aos_rpc_get_serial_channel();
     size_t i = 0;
 
     for (i = 0; i < len; i++) {
         err = aos_rpc_serial_getchar(serial_rpc, &buf[i]);
         if (err_is_fail(err)) {
+            debug_printf("error while calling aos_rpc_serial_getchar: %s\n", err_getstring(err));
             break;
         }
     }
@@ -106,6 +108,7 @@ static size_t aos_terminal_write_char(const char *buf, size_t len)
     for (i = 0; i < len; i++) {
         err = aos_rpc_serial_putchar(serial_rpc, buf[i]);
         if (err_is_fail(err)) {
+            debug_printf("error while calling aos_rpc_serial_putchar: %s\n", err_getstring(err));
             break;
         }
     }
@@ -121,6 +124,7 @@ static size_t aos_terminal_write_str(const char *buf, size_t len)
     struct aos_rpc *serial_rpc = aos_rpc_get_serial_channel();
     err = aos_rpc_serial_putstr(serial_rpc, (char *) buf, len);
     if (err_is_fail(err)) {
+        debug_printf("error while calling aos_rpc_serial_putstr: %s\n", err_getstring(err));
         return 0;
     }
     return len;
@@ -204,7 +208,7 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         */
 
         _libc_terminal_read_func = aos_terminal_read;
-        _libc_terminal_write_func = aos_terminal_write_str;
+        _libc_terminal_write_func = aos_terminal_write_char;
 
         // This call is to setup the channel to the memory server before
         // ram_alloc() is set to use the RPC call for memory allocation. This

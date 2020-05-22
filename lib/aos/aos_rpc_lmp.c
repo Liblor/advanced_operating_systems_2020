@@ -4,6 +4,7 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
 #include <aos/nameserver.h>
+#include <aos/deferred.h>
 
 __unused static struct aos_rpc *init_channel = NULL;
 __unused static struct aos_rpc *memory_channel = NULL;
@@ -218,7 +219,8 @@ validate_serial_getchar(struct lmp_recv_msg *msg, enum pending_state state)
                    "invalid buflen");
         const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
         return_err(((msg_part->status != Status_Ok)
-                    && msg_part->status != Serial_Getchar_Occupied), "status not ok");
+                         && msg_part->status != Serial_Getchar_Occupied)
+                         && (msg_part->status != Serial_Getchar_Nodata), "status not ok");
         return_err(msg_part->method != Method_Serial_Getchar, "wrong method in response");
     }
     return SYS_ERR_OK;
@@ -241,19 +243,22 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 
     struct rpc_message *recv = NULL;
     struct serial_getchar_req payload;
-
     struct serial_getchar_reply reply;
 
     // XXX server resets a session on a linebreak
     // so we can retry forever if device is busy.
-    // we continue if user presses newline if session was previously blocked
+    // we continue if user presses newline and we acquire session
     for(;;) {
         payload.session = channel_data->read_session;
         memcpy(msg->msg.payload, &payload, sizeof(struct serial_getchar_req));
         err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_serial_getchar);
 
+        if (lmp_err_is_transient(err)) {
+            barrelfish_usleep(AOS_RPC_LMP_SERIAL_GETCHAR_NODATA_SLEEP_US);
+            continue;
+        }
         if (err_is_fail(err)) {
-            return err;
+            goto free_recv;
         }
 
         // always use memcpy when dealing with payload[0] (alignment issues)
@@ -271,14 +276,19 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
         }
         else {
             // server was busy, try again
-            thread_yield();
+            barrelfish_usleep(AOS_RPC_LMP_SERIAL_GETCHAR_NODATA_SLEEP_US);
         }
     }
     if (err_is_fail(err)) {
-        return err;
+        goto free_recv;
     }
+
     *retc = reply.data;
-    return SYS_ERR_OK;
+    err = SYS_ERR_OK;
+
+    free_recv:
+    free(recv);
+    return err;
 }
 
 errval_t

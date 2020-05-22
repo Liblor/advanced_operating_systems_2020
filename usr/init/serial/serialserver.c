@@ -93,6 +93,7 @@ do_getchar_usr(
     errval_t err;
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
+        debug_printf("new serial session\n");
     }
     // read is occupied, try again
     if (serial_server.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
@@ -101,10 +102,10 @@ do_getchar_usr(
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "reply_char() failed");
         }
-
-        // SERIAL_SERVER_DEBUG("session is occupied: \n");
+         SERIAL_SERVER_DEBUG("session is occupied: \n");
         return;
     }
+
     // read is free
     if (serial_server.curr_read_session == SERIAL_GETCHAR_SESSION_UNDEF) {
         serial_server.curr_read_session = req_getchar->session;
@@ -116,9 +117,15 @@ do_getchar_usr(
         disp_enable(d);
     }
     if (cbuf_empty(&serial_server.serial_buf)) {
-        // SERIAL_SERVER_DEBUG("deferring request \n");
-        serial_server.deferred_rpc = rpc;
+        // SERIAL_SERVER_DEBUG("session %d no data\n", req_getchar->session);
+        err = reply_char(rpc, req_getchar->session, 0, Serial_Getchar_Nodata);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "reply_char() failed");
+        }
 
+        // TODO optimization get rid of polling
+        // SERIAL_SERVER_DEBUG("deferring request \n");
+//        serial_server.deferred_rpc = rpc;
         return;
     } else {
         send_getchar_reply(rpc);
@@ -193,6 +200,9 @@ static void read_irq_cb(
     struct serial_buf_entry data = {.val = c};
     cbuf_put(&serial_server.serial_buf, &data);
 
+    // TODO: in case monitor is not a serializer for rpc requests
+    // reply only on new data such that client dont need to poll
+#if 0
     if (serial_server.deferred_rpc != NULL) {
         // reply and release session if newline arrives
         send_getchar_reply(serial_server.deferred_rpc);
@@ -204,6 +214,7 @@ static void read_irq_cb(
             release_session();
         }
     }
+#endif
 }
 
 // --------- urpc server --------------
@@ -236,7 +247,7 @@ static void service_recv_handle_putchar(
     memcpy(&c, msg->msg.payload, sizeof(char));
     grading_rpc_handler_serial_putchar(c);
 
-    // do_putchar_sys(c); // kernel impl
+//     do_putchar_sys(c); // kernel impl
     do_putchar_usr(c);    // userspace impl
 }
 
@@ -254,10 +265,11 @@ static void service_recv_handle_getchar(
         debug_printf("invalid req. for Method_Serial_Getchar");
         return;
     }
-    struct serial_getchar_req *req_getchar = (struct serial_getchar_req *) &msg->msg.payload;
+    struct serial_getchar_req req_getchar;
+    memcpy(&req_getchar, msg->msg.payload, sizeof(struct serial_getchar_req));
 
-    // do_getchar_sys(rpc, msg, req_getchar);  // kernel impl
-    do_getchar_usr(rpc, msg, req_getchar);     // user space impl
+//     do_getchar_sys(rpc, msg, &req_getchar);  // kernel impl
+    do_getchar_usr(rpc, msg, &req_getchar);     // user space impl
 }
 
 static void service_recv_cb(
