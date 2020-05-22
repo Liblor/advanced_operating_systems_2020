@@ -73,7 +73,7 @@ static void send_getchar_reply(
 
     err = reply_char(resp, session, res_char, Status_Ok);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "reply_char() failed");
+        debug_printf("reply_char() failed: %s\n", err_getstring(err));
     }
 }
 
@@ -156,10 +156,24 @@ static void do_putstr_usr(
         char *str, size_t len
 )
 {
-    errval_t err;
-    err = serial_facade_write_str(&serial_server.serial_facade, str, len);
+    errval_t err = SYS_ERR_OK;
+
+    for (int i = 0; i < len && err_is_ok(err); i++) {
+        // XXX: lpuart requires carriage return and line feed
+        // In order to be compatible with linux line feed
+        // we introduce a carriage return on line break
+        if (i > 0
+            && *(str + i) == '\n'
+            && *(str + i + -1) != '\r') {
+            err = serial_facade_write(&serial_server.serial_facade, '\r');
+            if (!err_is_ok(err)) {
+                break;
+            }
+        }
+        err = serial_facade_write(&serial_server.serial_facade, *(str + i));
+    }
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "sys_print() failed");
+        debug_printf("serial_facade_write failed: %s\n", err_getstring(err));
     }
 }
 
