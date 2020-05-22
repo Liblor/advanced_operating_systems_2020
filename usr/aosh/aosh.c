@@ -281,10 +281,7 @@ static errval_t aosh_read_eval_execute(void)
         // nothing read;
         goto success_free;
     }
-    if (line_size >= AOSH_READLINE_MAX_LEN) {
-        debug_printf("Skipping execution of truncated line\n");
-        goto success_free;
-    }
+    
     err = aosh_tokenize_arg(line, &argc, &argv);
     if (!aosh_err_recoverable(err)) {
         goto err_free;
