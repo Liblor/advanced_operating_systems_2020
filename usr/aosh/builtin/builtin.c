@@ -23,7 +23,7 @@ struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_echo,    "echo",    "display a line of text"},
         {builtin_oncore,   "oncore",   "spawn a dispatcher on a given core"},
         {builtin_time,     "time",     "time a command"},
-        {builtin_ps,     "ps",     "report a snapshot of the spawned processes."},
+        {builtin_ps,     "ps",     "report a snapshot of spawned processes"},
         {builtin_nslookup, "nslookup", "lookup a service at the nameserver"},
         {builtin_nslist,   "nslist",   "list services registered at the nameserver"},
         {builtin_exit,     "exit",     "exit shell (ctrl-d)"},
