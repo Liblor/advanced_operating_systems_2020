@@ -988,7 +988,6 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
-    HERE;
     return get_service_channel(&init_channel, NAMESERVICE_SERIAL);
 
 #if 0

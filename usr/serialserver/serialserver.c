@@ -299,7 +299,7 @@ static void ns_service_handler(
         struct capref tx_cap,
         struct capref *rx_cap) {
 
-    debug_printf("ns_service_handler called\n");
+    SERIAL_SERVER_DEBUG("ns_service_handler called\n");
     struct rpc_message *msg = message;
 
     switch (msg->msg.method) {

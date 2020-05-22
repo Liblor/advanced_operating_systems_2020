@@ -31,10 +31,18 @@ int main(int argc, char *argv[])
     __unused
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
     debug_printf("rpc : %p\n", rpc);
-    errval_t err =aos_rpc_serial_putchar(rpc, '7');
+    errval_t err = aos_rpc_serial_putchar(rpc, '7');
+
+    printf("1234567890abcdefghejklmnopqrstuvwxyz" ENDL);
+    printf("1234567890abcdefghejklmnopqrstuvwxyz" ENDL);
+
+    int i = 0;
+    while(1) {
+        printf("%d" ENDL, i);
+        i++;
+    }
 
     assert(err_is_ok(err));
-
 
     debug_printf("done\n");
 
