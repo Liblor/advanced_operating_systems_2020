@@ -7,7 +7,7 @@
 __unused
 static void lpuart_iqr_handler(void *arg)
 {
-    // SERIAL_FACADE_DEBUG("iqr\n");
+     SERIAL_FACADE_DEBUG("iqr\n");
 
     assert(arg != NULL);
     struct serial_facade *state = (struct serial_facade *) arg;

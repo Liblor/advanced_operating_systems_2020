@@ -87,8 +87,10 @@ do_getchar_usr(
     errval_t err;
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
-        debug_printf("new serial session\n");
     }
+
+    SERIAL_SERVER_DEBUG("Method_Serial_Getchar, session: %d\n", req_getchar->session);
+
     // read is occupied, try again
     if (serial_server.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
         serial_server.curr_read_session != req_getchar->session) {
@@ -110,9 +112,12 @@ do_getchar_usr(
         cbuf_reset(&serial_server.serial_buf);
         disp_enable(d);
     }
+
+    SERIAL_SERVER_DEBUG("cbuf_empty: %d\n", cbuf_empty(&serial_server.serial_buf));
+
     if (cbuf_empty(&serial_server.serial_buf)) {
         // SERIAL_SERVER_DEBUG("session %d no data\n", req_getchar->session);
-        err = reply_char(resp,  req_getchar->session, 0, Serial_Getchar_Nodata);
+        err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Nodata);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "reply_char() failed");
         }
@@ -268,14 +273,13 @@ static void ns_service_handler(
 
     struct rpc_message *msg = message;
     struct rpc_message *resp_msg = NULL;
-
-    SERIAL_SERVER_DEBUG("ns_service_handler called\n");
-
     switch (msg->msg.method) {
         case Method_Serial_Putchar:
+            SERIAL_SERVER_DEBUG("Method_Serial_Putchar\n");
             service_recv_handle_putchar(msg);
             break;
         case Method_Serial_Putstr:
+            SERIAL_SERVER_DEBUG("Method_Serial_Putstr\n");
             service_recv_handle_putstr(msg);
             break;
         case Method_Serial_Getchar:
