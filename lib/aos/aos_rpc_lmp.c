@@ -13,6 +13,7 @@ __unused static struct aos_rpc *serial_channel = NULL;
 __unused static struct aos_rpc *monitor_channel = NULL;
 
 // serial session to read from serial port
+__unused
 static struct serial_channel_priv_data serial_channel_data;
 
 /*
@@ -294,6 +295,7 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
+    HERE;
     errval_t err;
 
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(char)];
@@ -304,13 +306,21 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     msg->msg.payload_length = sizeof(char);
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &c, sizeof(char));
-
-    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
-        return err;
+    HERE;
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+            return err;
+        }
+    } else {
+        err = nameservice_rpc(rpc, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc() in aos_rpc_lmp_serial_putchar\n");
+            return err;
+        }
     }
-
+    HERE;
     return SYS_ERR_OK;
 }
 
@@ -866,11 +876,32 @@ struct aos_rpc *aos_rpc_lmp_get_process_channel(void)
     return aos_rpc_lmp_get_monitor_channel();
 }
 
+__unused
+static struct aos_rpc *aos_rpc_lmp_get_serial_channel_ns(void)
+{
+    errval_t err;
+
+    struct nameservice_chan *chan;
+    err = nameservice_lookup(NAMESERVICE_SERIAL, (nameservice_chan_t *) &chan);
+    if (err_is_fail(err)) {
+        debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+        return NULL;
+    }
+    return &chan->rpc;
+}
+
+
+
 /**
  * \brief Returns the channel to the serial console.
  */
 struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 {
+
+    HERE;
+    return aos_rpc_lmp_get_serial_channel_ns();
+
+#if 0
     // XXX: we store serial specific state in channel which is why
     // we use a serial channel instead of reuse monitor
     struct aos_rpc *chan = aos_rpc_lmp_get_channel(&serial_channel, cap_chan_monitor, "serial");
@@ -884,4 +915,7 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
     }
     thread_mutex_unlock(&chan->mutex);
     return chan;
+#endif
 }
+
+

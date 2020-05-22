@@ -207,8 +207,12 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         set_init_rpc(init_rpc);
         */
 
-        _libc_terminal_read_func = aos_terminal_read;
-        _libc_terminal_write_func = aos_terminal_write_char;
+        // TODO: disabled during serial server migration
+//        _libc_terminal_read_func = aos_terminal_read;
+//        _libc_terminal_write_func = aos_terminal_write_char;
+
+        _libc_terminal_read_func = dummy_terminal_read;
+        _libc_terminal_write_func = syscall_terminal_write;
 
         // This call is to setup the channel to the memory server before
         // ram_alloc() is set to use the RPC call for memory allocation. This

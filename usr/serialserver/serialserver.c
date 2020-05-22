@@ -380,7 +380,6 @@ int main(int argc, char *argv[])
 
     debug_printf("Serialserver registered at nameserver.\n");
     while (true) {
-
         thread_yield();
     }
 }

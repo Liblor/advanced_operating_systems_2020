@@ -95,7 +95,7 @@ static inline void start_server(char *service_name, char *cmd)
 
     debug_printf("Spawning service '%s'.\n", service_name);
 
-    err = spawn_load_by_name("initserver", &si, &pid);
+    err = spawn_load_by_name(cmd, &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
@@ -354,7 +354,9 @@ int first_main(int argc, char *argv[])
 
     register_service_channels(NULL, my_core_id);
 
-    //start_server(NAMESERVICE_INIT, "initserver");
+//    start_server(NAMESERVICE_INIT, "initserver");
+    start_server(NAMESERVICE_SERIAL, "serialserver");
+
 
 #if 0
     struct aos_rpc rpc_core1;
@@ -375,7 +377,7 @@ int first_main(int argc, char *argv[])
     domainid_t pid;
     struct spawninfo si;
 //    err = spawn_load_by_name("aosh", &si, &pid);
-    err = spawn_load_by_name("serialserver", &si, &pid);
+    err = spawn_load_by_name("serial-test", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
