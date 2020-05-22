@@ -10,6 +10,7 @@
 #include <aos/aos_rpc.h>
 
 #define NAMESERVICE_INIT ("serverinit")
+#define NAMESERVICE_SERIAL ("serverserial")
 
 typedef void* nameservice_chan_t;
 
