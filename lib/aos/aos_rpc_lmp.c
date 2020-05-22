@@ -293,6 +293,8 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
                                   (void **) &recv,
                                   &recv_bytes,
                                   msg->cap, NULL_CAP);
+
+            // TODO: no response validation
         }
         if (err_is_fail(err)) {
             goto free_recv;
