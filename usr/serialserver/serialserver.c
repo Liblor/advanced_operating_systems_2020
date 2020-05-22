@@ -7,6 +7,7 @@
 #include <aos/syscalls.h>
 #include <aos/string.h>
 #include <aos/nameserver.h>
+#include <aos/deferred.h>
 
 static struct serialserver_state serial_server;
 
@@ -89,8 +90,6 @@ do_getchar_usr(
         req_getchar->session = new_session();
     }
 
-    SERIAL_SERVER_DEBUG("Method_Serial_Getchar, session: %d\n", req_getchar->session);
-
     // read is occupied, try again
     if (serial_server.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
         serial_server.curr_read_session != req_getchar->session) {
@@ -112,9 +111,6 @@ do_getchar_usr(
         cbuf_reset(&serial_server.serial_buf);
         disp_enable(d);
     }
-
-    SERIAL_SERVER_DEBUG("cbuf_empty: %d\n", cbuf_empty(&serial_server.serial_buf));
-
     if (cbuf_empty(&serial_server.serial_buf)) {
         // SERIAL_SERVER_DEBUG("session %d no data\n", req_getchar->session);
         err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Nodata);
@@ -199,6 +195,10 @@ static void read_irq_cb(
     struct serial_buf_entry data = {.val = c};
     cbuf_put(&serial_server.serial_buf, &data);
 
+#if 0
+    serial_facade_write(&serial_server.serial_facade, c);
+#endif
+
     // TODO: in case monitor is not a serializer for rpc requests
     // reply only on new data such that client dont need to poll
 #if 0
@@ -261,6 +261,7 @@ static void service_recv_handle_getchar(
     do_getchar_usr(&req_getchar, resp); // user space impl
 }
 
+__unused
 static void ns_service_handler(
         void *st,
         void *message,
@@ -275,11 +276,9 @@ static void ns_service_handler(
     struct rpc_message *resp_msg = NULL;
     switch (msg->msg.method) {
         case Method_Serial_Putchar:
-            SERIAL_SERVER_DEBUG("Method_Serial_Putchar\n");
             service_recv_handle_putchar(msg);
             break;
         case Method_Serial_Putstr:
-            SERIAL_SERVER_DEBUG("Method_Serial_Putstr\n");
             service_recv_handle_putstr(msg);
             break;
         case Method_Serial_Getchar:
@@ -300,6 +299,7 @@ static void ns_service_handler(
     return;
 }
 
+__unused
 static errval_t init_features(void)
 {
     errval_t err;
@@ -336,11 +336,59 @@ static errval_t init_features(void)
     return SYS_ERR_OK;
 }
 
+
+#if 0
+static void debug_iqr_handler(char c, void *args)
+{
+    struct serial_facade *state = (struct serial_facade *) args;
+    serial_facade_write(state, c);
+}
+
+__unused
+static void debug_iqr_main(void)
+{
+
+    struct serial_facade state;
+    errval_t err = serial_facade_init(
+            &state,
+            1);
+
+    assert(err_is_ok(err));
+    serial_facade_set_read_cb(&state, debug_iqr_handler, &state);
+    assert(err_is_ok(err));
+
+
+//    while(1) {
+//    __unused dispatcher_handle_t d = disp_disable();
+//        volatile int i = 100000;
+//        while(i > 0) {
+//            i --;
+//        }
+//        disp_enable(d);
+//
+//    }
+
+
+    while (1) {
+        err = event_dispatch(get_default_waitset());
+        if (err_is_fail(err)) {
+            assert(false);
+        }
+
+    }
+}
+
+#endif
+
 int main(int argc, char *argv[])
 {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
 
-    debug_printf("Serialserver spawned.\n");
+    err = init_features();
+    if (err_is_fail(err)) {
+        debug_printf("failed to init features of serial server: %s\n", err_getstring(err));
+        abort();
+    }
 
     err = nameservice_register(NAMESERVICE_SERIAL, ns_service_handler, NULL);
     if (err_is_fail(err)) {
@@ -349,14 +397,10 @@ int main(int argc, char *argv[])
     }
     debug_printf("Serialserver registered at nameserver.\n");
 
-    err = init_features();
-    if (err_is_fail(err)) {
-        debug_printf("failed to init features of serial server: %s\n", err_getstring(err));
-        abort();
-    }
 
     debug_printf("Serialserver features init. Waiting for requests.\n");
-    while (true) {
+    while (1) {
+        event_dispatch_non_block(get_default_waitset());
         thread_yield();
     }
 

@@ -7,8 +7,6 @@
 __unused
 static void lpuart_iqr_handler(void *arg)
 {
-     SERIAL_FACADE_DEBUG("iqr\n");
-
     assert(arg != NULL);
     struct serial_facade *state = (struct serial_facade *) arg;
 
@@ -18,6 +16,10 @@ static void lpuart_iqr_handler(void *arg)
     if (err_is_fail(err)) {
         debug_printf("lpuart_getchar() failed: %s\n", err_getstring(err));
     } else {
+
+#ifdef SERIAL_FACADE_TRACE_IQR_ON
+        lpuart_putchar(state->lpuart3_state, ret);
+#endif
         if (state->read_cb != NULL) {
             state->read_cb(ret, state->read_cb_args);
         }

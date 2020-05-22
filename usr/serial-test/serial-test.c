@@ -88,8 +88,6 @@ __unused
 static
 void test_getchar(void)
 {
-//    read_loop();
-
     errval_t err;
     char c;
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
@@ -105,6 +103,7 @@ int main(int argc, char *argv[])
 {
     debug_printf("Running serial tests...\n");
 //    test_putstr();
+    read_loop();
     test_getchar();
 
     debug_printf("hanging around\n");
