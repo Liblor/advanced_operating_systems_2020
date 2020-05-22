@@ -294,7 +294,7 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
                                   &recv_bytes,
                                   msg->cap, NULL_CAP);
 
-            // TODO: no response validation
+            // XXX: ns API does not call validate_serial_getchar
         }
         if (err_is_fail(err)) {
             goto free_recv;
