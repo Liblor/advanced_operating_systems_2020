@@ -7,6 +7,8 @@
 // builtins
 #include "oncore.h"
 #include "time.h"
+#include "nslookup.h"
+#include "nslist.h"
 
 // builtins within this file
 errval_t builtin_help(int, char **);
@@ -14,11 +16,13 @@ errval_t builtin_clear(int, char **);
 errval_t builtin_exit(int, char **);
 
 struct aosh_builtin_descr aosh_builtins[] = {
-        {builtin_help,   "help",   "prints this help"},
-        {builtin_clear,  "clear",  "clear screen"},
-        {builtin_oncore, "oncore", "spawn a dispatcher on a given core"},
-        {builtin_time,   "time",   "time a command"},
-        {builtin_exit,   "exit",   "exit shell (ctrl-d)"},
+        {builtin_help,     "help",     "prints this help"},
+        {builtin_clear,    "clear",    "clear screen"},
+        {builtin_oncore,   "oncore",   "spawn a dispatcher on a given core"},
+        {builtin_time,     "time",     "time a command"},
+        {builtin_exit,     "exit",     "exit shell (ctrl-d)"},
+        {builtin_nslookup, "nslookup", "lookup a service at the nameserver"},
+        {builtin_nslist,   "nslist",   "list services registered at the nameserver"},
 };
 
 
