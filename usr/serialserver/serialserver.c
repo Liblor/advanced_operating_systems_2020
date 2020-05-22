@@ -321,16 +321,14 @@ int main(int argc, char *argv[])
 
     err = serialserver_init();
     if (err_is_fail(err)) {
-        debug_printf("failed to init features of serial server: %s\n",
-                     err_getstring(err));
+        debug_printf("failed to init features of serial server: %s\n", err_getstring(err));
         abort();
     }
     err = nameservice_register(NAMESERVICE_SERIAL,
                                ns_service_handler,
                                NULL);
     if (err_is_fail(err)) {
-        debug_printf("nameservice_register() failed: %s\n",
-                     err_getstring(err));
+        debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
         abort();
     }
     debug_printf("Serialserver registered at nameserver.\n");
