@@ -516,7 +516,7 @@ static inline errval_t setup_dispatcher(
             .cnode = taskcn_child,
             .slot = TASKCN_SLOT_IRQ,
     };
-    err = cap_copy(iqr_child, cap_io_dev);
+    err = cap_copy(iqr_child, cap_irq);
     if (err_is_fail(err)) {
         debug_printf("cap_copy() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_CAP_COPY);
