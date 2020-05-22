@@ -21,7 +21,7 @@
 extern struct bootinfo *bi;
 extern struct mm aos_mm;
 
-#define MEM_ALLOC_DEBUG_ON
+//#define MEM_ALLOC_DEBUG_ON
 
 #if defined(MEM_ALLOC_DEBUG_ON)
 #define MEM_ALLOC_DEBUG(x...) debug_printf("mem_alloc:" x)
