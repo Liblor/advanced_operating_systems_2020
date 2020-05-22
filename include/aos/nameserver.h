@@ -12,7 +12,7 @@
 #define NAMESERVICE_INIT "serverinit"
 #define NAMESERVICE_PROCESS "serverprocess"
 #define NAMESERVICE_MONITOR "servermonitor"
-#define NAMESERVICE_SERIAL "serverserial"
+#define NAMESERVICE_SERIAL "servermonitor"
 
 typedef struct nameservice_chan* nameservice_chan_t;
 
@@ -24,8 +24,8 @@ struct nameservice_chan {
 
 ///< handler which is called when a message is received over the registered channel
 typedef void(nameservice_receive_handler_t)(void *st,
-                                            void *message, size_t bytes,
-                                            void **response, size_t *response_bytes,
+										    void *message, size_t bytes,
+										    void **response, size_t *response_bytes,
                                             struct capref tx_cap, struct capref *rx_cap);
 
 /**
@@ -55,8 +55,8 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
  * @return SYS_ERR_OK
  */
 errval_t nameservice_register(const char *name,
-                              nameservice_receive_handler_t recv_handler,
-                              void *st);
+	                              nameservice_receive_handler_t recv_handler,
+	                              void *st);
 
 
 /**
