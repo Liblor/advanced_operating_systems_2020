@@ -62,7 +62,7 @@ static errval_t parse_args(
     *ret_name = argv[optind];
     *ret_core = atoi(core); // treat invalid input as 0
     int t = atoi(times); // treat invalid input as 1 times
-    *ret_times = t == 0 ? 1 : t;
+    *ret_times = t <= 0 ? 1 : t;
     *ret_name_ind = optind;
     return SYS_ERR_OK;
 }
