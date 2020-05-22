@@ -310,7 +310,6 @@ aos_rpc_lmp_serial_getchar(struct aos_rpc *rpc, char *retc)
 errval_t
 aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
 {
-    HERE;
     errval_t err;
 
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(char)];
@@ -321,7 +320,7 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
     msg->msg.payload_length = sizeof(char);
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &c, sizeof(char));
-    HERE;
+
     if (rpc->type == RpcTypeLmp) {
         err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
         if (err_is_fail(err)) {
@@ -341,7 +340,6 @@ aos_rpc_lmp_serial_putchar(struct aos_rpc *rpc, char c)
             return err;
         }
     }
-    HERE;
     return SYS_ERR_OK;
 }
 
@@ -363,12 +361,25 @@ aos_rpc_lmp_serial_putstr(struct aos_rpc *rpc, char *str, size_t len)
     msg->msg.status = Status_Ok;
     strlcpy(msg->msg.payload, str, str_len);
 
-    err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
-        return err;
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+            return err;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            debug_printf("nameservice_rpc() failed: %s\n", err_getstring(err));
+            return err;
+        }
     }
-
     return SYS_ERR_OK;
 }
 
