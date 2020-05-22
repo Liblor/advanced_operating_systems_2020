@@ -22,25 +22,104 @@
 #include <spawn/spawn.h>
 #include <aos/string.h>
 
-__unused
-static
-void test_putstr(void)
+const char long_string[] = "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
+                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
+                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
+                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
+                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
+                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string";
+
+__unused static void test_serial(void)
 {
-    __unused
+    errval_t err;
+
+    debug_printf("Testing serial RPC...\n");
+
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-    debug_printf("rpc : %p\n", rpc);
-    errval_t err = aos_rpc_serial_putchar(rpc, '7');
+    if (rpc == NULL) {
+        debug_printf("Could not create serial channel\n");
+        return;
+    }
+    /*
+    // Explicit test not necessary since printf is redirected to rpc during thex
+    // execution of this entire program.
+    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
+        return;
+    }
+    */
 
-    printf("1234567890abcdefghejklmnopqrstuvwxyz" ENDL);
-    printf("1234567890abcdefghejklmnopqrstuvwxyz" ENDL);
+    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
+    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
 
-    int i = 0;
-    while (i < 100) {
-        printf("%d" ENDL, i);
-        i++;
+    debug_printf("Press a button to test aos_rpc_lmp_serial_getchar(): ");
+    char c;
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
+        return;
+    }
+    debug_printf("\n");
+    debug_printf("Received %c\n", c);
+}
+
+__unused
+static void write_simple(void)
+{
+    debug_printf("Testing write_simple ...\n");
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+    if (rpc == NULL) {
+        debug_printf("Could not create serial channel\n");
+        return;
     }
 
-    assert(err_is_ok(err));
+    printf("%s\n", long_string);
+    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
+    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
+
+}
+
+__unused
+static int write_simple_th_func(void *args)
+{
+    debug_printf("starting thread\n");
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+    if (rpc == NULL) {
+        debug_printf("Could not create serial channel\n");
+        return 1;
+    }
+
+    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
+
+    return 0;
+}
+
+__unused
+static void run_threads(size_t num_th, thread_func_t start_func, void *data)
+{
+    errval_t err;
+
+    struct thread *threads[num_th];
+
+    for (int i = 0; i < num_th; i++) {
+        threads[i] = thread_create(start_func, data);
+        assert(threads[i] != NULL);
+    }
+
+    for (int i = 0; i < num_th; i++) {
+        int retval;
+        err = thread_join(threads[i], &retval);
+        assert(err_is_ok(err));
+    }
+}
+
+// Threads dont work :(
+__unused
+static void write_simple_threads(void)
+{
+    debug_printf("running threads\n");
+    run_threads(2, write_simple_th_func, NULL);
 }
 
 __unused
@@ -74,7 +153,6 @@ static void read_loop(void)
                 i = 0;
             }
         }
-        thread_yield();
     } while (err_is_ok(err));
 
     if (err_is_fail(err)) {
@@ -85,30 +163,81 @@ static void read_loop(void)
 }
 
 __unused
-static
-void test_getchar(void)
+static void printf_test(void)
 {
     errval_t err;
     char c;
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-    printf("type a char:" ENDL);
     err = aos_rpc_lmp_serial_getchar(rpc, &c);
-    assert(err_is_ok(err));
-    printf("->: %c" ENDL, c);
-    debug_printf("done\n");
+    printf("test 2\n");
+
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+
+
+    char buf2[1024];
+    memset(&buf2, 0, sizeof(buf2));
+
+
+    char buf[] = "hello there";
+    printf("%s", buf);
+
+
+    for (int i = 0; i < 10; i++) {
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        printf("%c", c);
+        fflush(stdout); // must be flushed explicitly, took a while to debug
+    }
 }
+
+__unused
+static void spawn_serial_tests(void) {
+    struct aos_rpc *rpc = aos_rpc_get_process_channel();
+    domainid_t pid;
+
+    aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+    // aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+}
+
 
 __unused
 int main(int argc, char *argv[])
 {
-    debug_printf("Running serial tests...\n");
-//    test_putstr();
-    read_loop();
-    test_getchar();
+    errval_t err;
+    debug_printf("Running RPC tests...\n");
+    char c;
+    printf("type any key continue\r\n");
 
-    debug_printf("hanging around\n");
-    while (true) {
-        event_dispatch(get_default_waitset());
+    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+
+    err = aos_rpc_lmp_serial_getchar(rpc, &c);
+    if(err_is_fail(err)) {
+        DEBUG_ERR(err, "");
     }
+
+    do {
+        printf("type the single digit number of dispatchers to spawn" ENDL);
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        if(err_is_fail(err)) {
+            DEBUG_ERR(err, "");
+        }
+    } while (atoi(&c) < 1 || atoi(&c) > 9);
+
+    for(int i = 0; i < atoi(&c); i ++) {
+        domainid_t pid;
+        printf("spawning %d\r\n", i);
+        aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+    }
+
+//     test_serial();
+//    write_simple();
+//    debug_printf("write_simple: ok\n");
+//    read_loop();
+
+//    printf_test();
+
+    // write_simple_threads();
+
+    debug_printf("done\n");
+
     return EXIT_SUCCESS;
 }
