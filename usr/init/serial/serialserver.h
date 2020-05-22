@@ -6,7 +6,7 @@
 #include "serial_facade.h"
 #include <rpc/server/ump.h>
 
-#define SERIAL_SERVER_DEBUG_ON
+//#define SERIAL_SERVER_DEBUG_ON
 
 #if defined(SERIAL_SERVER_DEBUG_ON)
 #define SERIAL_SERVER_DEBUG(x...) debug_printf("serial-server:" x)
