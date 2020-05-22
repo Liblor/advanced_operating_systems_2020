@@ -166,23 +166,23 @@ static errval_t aosh_tokenize_arg(
             || line[i] == '\0'
             || IS_CHAR_LINEBREAK(line[i])) {
 
-            const size_t arg_len = bufi + 1; // +1 for \0
-            AOSH_TRACE("arg_len: %d\n", arg_len);
+            const size_t arg_size = bufi + 1; // +1 for \0
+            AOSH_TRACE("arg_len: %d\n", arg_size);
 
             // XXX empty spaces should not cause empty
             // args so we skip empty spaces here
-            if (arg_len == 1 &&
+            if (arg_size == 1 &&
                 line[i] == ' ') {
                 bufi = 0;
                 continue;
             }
 
-            void *arg = calloc(1, arg_len);
+            void *arg = calloc(1, arg_size);
             if (arg == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
             }
 
-            strlcpy(arg, buf, arg_len);
+            strlcpy(arg, buf, arg_size);
             if (collections_list_insert_tail(argv_list, arg) != 0) {
                 // XXX: if this fails something bad happened with malloc
                 // no need to proper free
