@@ -326,6 +326,9 @@ errval_t serialserver_init(void)
         return err;
     }
 
+
+#if 0
+
     err = serial_facade_init(&serial_server.serial_facade,
                              SERIAL_FACADE_TARGET_CPU_0);
     if (err_is_fail(err)) {
@@ -340,6 +343,7 @@ errval_t serialserver_init(void)
         debug_printf("failed to call serial_facade_set_read_cb() %s\n", err_getstring(err));
         return err;
     }
+#endif
 
     err = rpc_ump_server_init(&serial_server.ump_server,
                               service_recv_cb,

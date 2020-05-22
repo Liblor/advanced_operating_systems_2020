@@ -238,11 +238,7 @@ static void service_recv_handle_putstr(
 
 __inline
 static void service_recv_handle_putchar(
-        struct rpc_message *msg,
-        void *callback_state,
-        struct aos_rpc *rpc,
-        void *server_state
-)
+        struct rpc_message *msg)
 {
     char c;
     memcpy(&c, msg->msg.payload, sizeof(char));
@@ -287,7 +283,7 @@ static void service_recv_cb(
             break;
         }
         case Method_Serial_Putchar:
-            service_recv_handle_putchar(msg, callback_state, rpc, server_state);
+            service_recv_handle_putchar(msg);
             break;
         case Method_Serial_Getchar:
             service_recv_handle_getchar(msg, callback_state, rpc, server_state);
@@ -298,18 +294,6 @@ static void service_recv_cb(
     }
 }
 
-errval_t serialserver_add_client(
-        struct aos_rpc *rpc,
-        coreid_t mpid)
-{
-    return rpc_ump_server_add_client(&serial_server.ump_server, rpc);
-}
-
-errval_t serialserver_serve_next(void)
-{
-    return rpc_ump_server_serve_next(&serial_server.ump_server);
-}
-
 static void ns_service_handler(
         void *st,
         void *message,
@@ -318,7 +302,18 @@ static void ns_service_handler(
         size_t *response_bytes,
         struct capref tx_cap,
         struct capref *rx_cap) {
+
     debug_printf("ns_service_handler called\n");
+    struct rpc_message *msg = message;
+
+    switch (msg->msg.method) {
+        case Method_Serial_Putchar:
+            service_recv_handle_putchar(msg);
+            break;
+        default:
+            debug_printf("unknown method given: %d\n", msg->msg.method);
+            break;
+    }
 
     return;
 }

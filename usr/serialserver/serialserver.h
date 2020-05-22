@@ -33,10 +33,6 @@ struct serialserver_state {
     struct serial_buf_entry serial_buf_data[SERIAL_BUF_SLOTS]; ///< Ring buffer data
 };
 
-errval_t serialserver_add_client(struct aos_rpc *rpc, coreid_t mpid);
-
-errval_t serialserver_serve_next(void);
-
 errval_t serialserver_init(void);
 
 #endif
