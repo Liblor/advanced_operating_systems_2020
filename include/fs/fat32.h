@@ -31,11 +31,15 @@ struct dir_entry {
     uint32_t size;
 } __attribute__((packed));
 
+typedef bool (*dir_comparator)(struct dir_entry *dir_entry, void *);
+
 struct fat32_dirent {
     struct dir_entry dir_entry;
     uint32_t cluster;
-    uint32_t offset;
+    uint32_t index;                ///< The index from the beginning of the cluster to this entry
 };
+
+#define FAT32_ENTRIES_PER_BLOCK (BLOCK_SIZE / sizeof(struct dir_entry))
 
 struct fat32_mnt {
     struct fat32_dirent root;
@@ -95,6 +99,10 @@ errval_t fat32_seek(
     fat32_handle_t handle,
     enum fs_seekpos whence,
     off_t offset
+);
+errval_t fat32_rmdir(
+    void *st,
+    const char *path
 );
 
 #endif //BF_AOS_FAT32_H

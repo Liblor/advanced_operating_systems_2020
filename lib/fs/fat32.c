@@ -42,7 +42,7 @@ errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt)
     mnt->sectors_per_cluster = *(uint8_t *)(block + BPB_SecPerClus);
     mnt->root_dir_first_cluster = *(uint32_t *)(block + BPB_RootClus);
     mnt->number_of_fats = *(uint8_t *)(block + BPB_NumFATs);
-    // XXX: No partition support, i.e. 0 stands for partition offset
+    // XXX: No partition support, i.e. 0 stands for partition index
     mnt->fat_lba = 0 + mnt->reserved_sector_count;
     mnt->cluster_begin_lba = mnt->fat_lba + (mnt->number_of_fats * mnt->sector_per_fat);
     memset(&mnt->root, 0, sizeof(struct fat32_dirent));
@@ -66,9 +66,14 @@ errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt)
     return SYS_ERR_OK;
 }
 
-static inline bool end_of_directory(struct dir_entry *dir_entry)
-{
+static inline bool end_of_directory(struct dir_entry *dir_entry) {
     return dir_entry->shortname[0] == '\0';
+}
+
+static inline bool shortname_marked_unused(
+    struct dir_entry *dir_entry
+) {
+    return dir_entry->shortname[0] == 0xe5;
 }
 
 static inline size_t shortname8_len(const char *shortname)
@@ -95,14 +100,16 @@ static inline size_t shortname3_len(const char *shortname)
 
 /**
  * Helper function to compare a filename to 8.3 shortname
- * @param name Zero ended string
- * @param shortname 8.3 Shortname.
+ * @param dir_entry Fat32 32 byte directory entry
+ * @param cname Zero terminated string
  * @return
  */
-static inline bool equal_shortname(
-    const char *name,
-    const char *shortname
+static bool equal_shortname(
+    struct dir_entry *dir_entry,
+    void *cname
 ) {
+    const char *shortname = dir_entry->shortname;
+    const char *name = cname;
     if (strcmp(name, "..") == 0) {
         return shortname[0] == '.' && shortname[1] == '.';
     } else if (strcmp(name, ".") == 0) {
@@ -125,6 +132,21 @@ static inline bool equal_shortname(
     if (strncasecmp(name, shortname, len_shortname8) != 0) { return false; }
     if (strncasecmp(dot, shortname+8, len_shortname3) != 0) { return false; }
     return true;
+}
+
+__unused static bool entry_is_used(
+    struct dir_entry *dir_entry,
+    void *ign
+) {
+    return (! shortname_marked_unused(dir_entry));
+}
+
+static bool entry_is_used_not_dot(
+        struct dir_entry *dir_entry,
+        void *ign
+) {
+    debug_printf("used? 0x%x\n", dir_entry->shortname[0]);
+    return ((! shortname_marked_unused(dir_entry)) && dir_entry->shortname[0] != '.');
 }
 
 static void lower_string(char *str)
@@ -188,10 +210,10 @@ static inline errval_t next_cluster(
     uint8_t buf[BLOCK_SIZE];
     uint32_t index = mnt->fat_lba + cluster_nr / 128;
     err = aos_rpc_block_driver_read_block(
-            aos_rpc_get_block_driver_channel(),
-            index,
-            buf,
-            BLOCK_SIZE
+        aos_rpc_get_block_driver_channel(),
+        index,
+        buf,
+        BLOCK_SIZE
     );
     if (err_is_fail(err)) {
         return err;
@@ -201,10 +223,15 @@ static inline errval_t next_cluster(
     return SYS_ERR_OK;
 }
 
+/**
+ * Set `dirent` to first dirent that satisfies `comparator(dirent, comparator_arg1)`,
+ * if no such entry can be found the last one in `root` is returned.
+ */
 static errval_t find_dirent(
     struct fat32_mnt *mnt,
     struct fat32_dirent *root,
-    const char *name,
+    dir_comparator comparator,
+    void *comparator_arg1,
     struct fat32_dirent *dirent
 ) {
     if (!is_dir(&root->dir_entry)) { return FS_ERR_NOTDIR; }
@@ -217,24 +244,27 @@ static errval_t find_dirent(
     do {
         uint32_t current_lba = cluster_to_lba(mnt, cluster_nr);
         err = aos_rpc_block_driver_read_block(
-                aos_rpc_get_block_driver_channel(),
-                current_lba,
-                buf,
-                BLOCK_SIZE
+            aos_rpc_get_block_driver_channel(),
+            current_lba,
+            buf,
+            BLOCK_SIZE
         );
         if (err_is_fail(err)) {
             return err;
         }
-        assert(BLOCK_SIZE / sizeof(struct dir_entry) == 16);
+        assert(FAT32_ENTRIES_PER_BLOCK == 16);
         for (uint8_t i = 0; i < mnt->sectors_per_cluster; i++) {
-            for (int j = 0; j < BLOCK_SIZE / sizeof(struct dir_entry); j++) {
+            for (int j = 0; j < FAT32_ENTRIES_PER_BLOCK; j++) {
                 if (end_of_directory(d + j)) {
-                    return FS_ERR_NOTFOUND;
-                } else if (d[j].shortname[0] == 0xe5) { continue; }   // 0xe5 == unused
-                if (equal_shortname(name, d[j].shortname)) {
                     dirent->dir_entry = d[j];
                     dirent->cluster = cluster_nr;
-                    dirent->offset = j;
+                    dirent->index = i * FAT32_ENTRIES_PER_BLOCK + j;
+                    return FS_ERR_NOTFOUND;
+                }
+                if (comparator(d + j, comparator_arg1)) {
+                    dirent->dir_entry = d[j];
+                    dirent->cluster = cluster_nr;
+                    dirent->index = i * FAT32_ENTRIES_PER_BLOCK + j;
                     return SYS_ERR_OK;
                 }
             }
@@ -309,7 +339,7 @@ __unused static errval_t resolve_path(
         memcpy(pathbuf, &path[pos], nextlen);
         pathbuf[nextlen] = '\0';
 
-        err = find_dirent(mnt, root, pathbuf, &next_dirent);
+        err = find_dirent(mnt, root, &equal_shortname, pathbuf, &next_dirent);
         if (err_is_fail(err)) {
             return err;
         }
@@ -362,7 +392,7 @@ static errval_t next_dir_entry(
     struct fat32_handle *h
 ) {
     h->dir_offset++;
-    if (h->dir_offset < BLOCK_SIZE / sizeof(struct dir_entry)) {
+    if (h->dir_offset < FAT32_ENTRIES_PER_BLOCK) {
         return SYS_ERR_OK;
     }
     // new sector
@@ -403,7 +433,8 @@ __unused errval_t fat32_dir_read_next(
     }
     struct dir_entry *dir_entry = ((struct dir_entry *)buf) + h->dir_offset;
 
-    while (dir_entry->shortname[0] == 0xe5) {
+    //while (dir_entry->shortname[0] == 0xe5) {
+    while (shortname_marked_unused(dir_entry)) {
         uint32_t old_offset = h->dir_offset;
         err = next_dir_entry(mnt, h);
         if (err_is_fail(err)) {
@@ -608,7 +639,6 @@ errval_t fat32_seek(
                 err = file_seek_pos(mnt, h, offset);
             }
             break;
-
         case FS_SEEK_CUR:
             if (h->isdir) {
                 assert(!"NYI");
@@ -618,7 +648,6 @@ errval_t fat32_seek(
             }
 
             break;
-
         case FS_SEEK_END:
             if (h->isdir) {
                 assert(!"NYI");
@@ -627,9 +656,136 @@ errval_t fat32_seek(
                 err = file_seek_pos(mnt, h, (int32_t )h->dirent.dir_entry.size + (int32_t)offset);
             }
             break;
-
         default:
             USER_PANIC("invalid whence argument to fat32fs seek");
     }
+    return err;
+}
+
+/**
+ * Check if directory directory handler is empty
+ * @param mnt Fat32 mount
+ * @param h Handler to directory that is checked if it is empty
+ * @return SYS_ERR_OK if empty, FS_ERR_NOTEMPTY if not empty, or some error if call failed
+ */
+static errval_t is_dir_empty(
+    struct fat32_mnt *mnt,
+    struct fat32_handle *h
+) {
+    errval_t err;
+    struct fat32_dirent dirent;
+    err = find_dirent(mnt, &h->dirent, entry_is_used_not_dot, NULL, &dirent);
+    if (err == SYS_ERR_OK) {
+        return FS_ERR_NOTEMPTY;
+    } else if (err == FS_ERR_NOTFOUND){
+        return SYS_ERR_OK;
+    } else {
+        return err;
+    }
+}
+
+__unused static errval_t clean_fat_chain(
+    struct fat32_mnt *mnt,
+    uint32_t cluster_start
+) {
+    errval_t err;
+    uint32_t fat_cutout[BLOCK_SIZE / sizeof(uint32_t)];
+    uint32_t cluster_nr = cluster_start;
+
+    uint32_t index = mnt->fat_lba + cluster_nr / 128;
+    uint32_t prev_index = index - 1;
+    while (cluster_nr < 0xfffffff8) {
+        if (prev_index != index) {
+            err = aos_rpc_block_driver_read_block(
+                aos_rpc_get_block_driver_channel(),
+                index,
+                (uint8_t *)fat_cutout,
+                BLOCK_SIZE
+            );
+            if (err_is_fail(err)) {
+                return err;
+            }
+        }
+        uint32_t prev_cluster_nr = cluster_nr;
+        cluster_nr = fat_cutout[prev_cluster_nr % 128];
+        fat_cutout[prev_cluster_nr % 128] = 0;
+        prev_index = index;
+        index = mnt->fat_lba + cluster_nr / 128;
+        if (prev_index != index || cluster_nr >= 0xfffffff8) {
+            err = aos_rpc_block_driver_write_block(
+                aos_rpc_get_block_driver_channel(),
+                index,
+                (uint8_t *)fat_cutout,
+                BLOCK_SIZE
+            );
+            if (err_is_fail(err)) {
+                return err;
+            }
+        }
+    }
+    return SYS_ERR_OK;
+}
+
+/**
+ * Write back dir_entry of handle
+ */
+static errval_t update_dir_entry_on_disk(
+    struct fat32_mnt *mnt,
+    struct fat32_handle *h
+) {
+    errval_t err;
+    uint8_t *buf[BLOCK_SIZE];
+    uint32_t index = cluster_to_lba(mnt, h->dirent.cluster);
+    index += h->dirent.index / FAT32_ENTRIES_PER_BLOCK;     // get section
+    uint32_t offset = h->dirent.index % FAT32_ENTRIES_PER_BLOCK;
+    err = aos_rpc_block_driver_read_block(
+        aos_rpc_get_block_driver_channel(),
+        index,
+        buf,
+        BLOCK_SIZE
+    );
+    if (err_is_fail(err)) {
+        return err;
+    }
+    struct dir_entry *dir_entry = buf;
+    dir_entry[offset] = h->dirent.dir_entry;
+    return aos_rpc_block_driver_write_block(
+        aos_rpc_get_block_driver_channel(),
+        index,
+        buf,
+        BLOCK_SIZE
+    );
+}
+
+__unused errval_t fat32_rmdir(
+        void *st,
+        const char *path
+) {
+    errval_t err;
+    struct fat32_mnt *mnt = st;
+    struct fat32_handle *handle;
+    err = resolve_path(mnt, &mnt->root, path, &handle);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    if (!handle->isdir) {
+        err = FS_ERR_NOTDIR;
+        goto cleanup;
+    }
+
+    // TODO: Check if directory is not open (FS_ERR_BUSY)
+
+    err = is_dir_empty(mnt, handle);
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    err = clean_fat_chain(mnt, handle->dirent.dir_entry.first_cluster_lo);
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    handle->dirent.dir_entry.shortname[0] = 0xe5;   // unused
+    err = update_dir_entry_on_disk(mnt, handle);
+cleanup:
+    handle_close(handle);
     return err;
 }
