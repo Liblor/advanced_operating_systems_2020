@@ -10,7 +10,7 @@
 
 typedef void *fat32_handle_t;
 
-#define BLOCK_SIZE 512
+#define BLOCK_SIZE 512    // All occurrences must be checked to support arbitrary sector/block size
 #define BPB_BytsPerSec 0x0b
 #define BPB_SecPerClus 0x0d
 #define BPB_NumFATs    0x10
@@ -18,6 +18,7 @@ typedef void *fat32_handle_t;
 #define BPB_FATSz32    0x24
 #define BPB_RootClus   0x2c
 #define FAT32_EndCluster 0xffffff8
+#define FAT32_FatEntriesPerSector (BLOCK_SIZE / sizeof(uint32_t))
 
 struct dir_entry {
     char shortname[11];
@@ -47,7 +48,8 @@ struct fat32_mnt {
     uint32_t fat_lba;
     uint32_t cluster_begin_lba;
     uint32_t root_dir_first_cluster;
-    uint32_t sector_per_fat;
+    uint32_t sectors_per_fat;
+    uint32_t next_free;
     uint16_t reserved_sector_count;
     uint8_t sectors_per_cluster;
     uint8_t number_of_fats;

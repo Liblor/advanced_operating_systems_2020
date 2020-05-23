@@ -38,13 +38,13 @@ errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt)
     }
 
     mnt->reserved_sector_count = *(uint16_t *)(block + BPB_RsvdSecCnt);
-    mnt->sector_per_fat = *(uint32_t *)(block + BPB_FATSz32);
+    mnt->sectors_per_fat = *(uint32_t *)(block + BPB_FATSz32);
     mnt->sectors_per_cluster = *(uint8_t *)(block + BPB_SecPerClus);
     mnt->root_dir_first_cluster = *(uint32_t *)(block + BPB_RootClus);
     mnt->number_of_fats = *(uint8_t *)(block + BPB_NumFATs);
     // XXX: No partition support, i.e. 0 stands for partition offset
     mnt->fat_lba = 0 + mnt->reserved_sector_count;
-    mnt->cluster_begin_lba = mnt->fat_lba + (mnt->number_of_fats * mnt->sector_per_fat);
+    mnt->cluster_begin_lba = mnt->fat_lba + (mnt->number_of_fats * mnt->sectors_per_fat);
     memset(&mnt->root, 0, sizeof(struct fat32_dirent));
     mnt->root.cluster = mnt->root_dir_first_cluster;
     mnt->root.dir_entry.first_cluster_lo = mnt->root_dir_first_cluster;
@@ -53,10 +53,11 @@ errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt)
     if (mnt->mount_point[0] == FS_PATH_SEP) {
         mnt->mount_point++;
     }
+    mnt->next_free = 2;     // TODO: read value from FSI
 
 #if 0
     debug_printf("reserved_sector_count 0x%x\n", mnt->reserved_sector_count);
-    debug_printf("sector_per_fat 0x%x\n", mnt->sector_per_fat);
+    debug_printf("sectors_per_fat 0x%x\n", mnt->sectors_per_fat);
     debug_printf("sector_per_clustor 0x%x\n", mnt->sectors_per_cluster);
     debug_printf("root_dir_first_cluster 0x%x\n", mnt->root_dir_first_cluster);
     debug_printf("number_of_fats 0x%x\n", mnt->number_of_fats);
@@ -208,7 +209,7 @@ static inline errval_t next_cluster(
 ) {
     errval_t err;
     uint8_t buf[BLOCK_SIZE];
-    uint32_t index = mnt->fat_lba + cluster_nr / 128;
+    uint32_t index = mnt->fat_lba + cluster_nr / FAT32_FatEntriesPerSector;
     err = aos_rpc_block_driver_read_block(
         aos_rpc_get_block_driver_channel(),
         index,
@@ -219,7 +220,7 @@ static inline errval_t next_cluster(
         return err;
     }
 
-    *ret_cluster_nr = *((uint32_t *)buf + cluster_nr % 128);
+    *ret_cluster_nr = *((uint32_t *)buf + cluster_nr % FAT32_FatEntriesPerSector);
     return SYS_ERR_OK;
 }
 
@@ -433,7 +434,6 @@ __unused errval_t fat32_dir_read_next(
     }
     struct dir_entry *dir_entry = ((struct dir_entry *)buf) + h->dir_offset;
 
-    //while (dir_entry->shortname[0] == 0xe5) {
     while (shortname_marked_unused(dir_entry)) {
         uint32_t old_offset = h->dir_offset;
         err = next_dir_entry(mnt, h);
@@ -692,9 +692,10 @@ __unused static errval_t clean_fat_chain(
     uint32_t fat_cutout[BLOCK_SIZE / sizeof(uint32_t)];
     uint32_t cluster_nr = cluster_start;
 
-    uint32_t index = mnt->fat_lba + cluster_nr / 128;
+    uint32_t index = mnt->fat_lba + cluster_nr / FAT32_FatEntriesPerSector;
     uint32_t prev_index = index - 1;
     while (cluster_nr < FAT32_EndCluster) {
+        // Only read when new block is accessed
         if (prev_index != index) {
             err = aos_rpc_block_driver_read_block(
                 aos_rpc_get_block_driver_channel(),
@@ -707,20 +708,21 @@ __unused static errval_t clean_fat_chain(
             }
         }
         uint32_t prev_cluster_nr = cluster_nr;
-        cluster_nr = fat_cutout[prev_cluster_nr % 128];
-        debug_printf("next cluster nr: 0x%x\n", cluster_nr);
-        fat_cutout[prev_cluster_nr % 128] = 0;
+        cluster_nr = fat_cutout[prev_cluster_nr % FAT32_FatEntriesPerSector];
+        fat_cutout[prev_cluster_nr % FAT32_FatEntriesPerSector] = 0;
         prev_index = index;
-        index = mnt->fat_lba + cluster_nr / 128;
+        index = mnt->fat_lba + cluster_nr / FAT32_FatEntriesPerSector;
         if (prev_index != index || cluster_nr >= FAT32_EndCluster) {
-            err = aos_rpc_block_driver_write_block(
-                aos_rpc_get_block_driver_channel(),
-                index,
-                (uint8_t *)fat_cutout,
-                BLOCK_SIZE
-            );
-            if (err_is_fail(err)) {
-                return err;
+            for (int i = 0; i < mnt->number_of_fats; i++) {
+                err = aos_rpc_block_driver_write_block(
+                        aos_rpc_get_block_driver_channel(),
+                        prev_index + i * mnt->sectors_per_fat,
+                        (uint8_t *)fat_cutout,
+                        BLOCK_SIZE
+                );
+                if (err_is_fail(err)) {
+                    return err;
+                }
             }
         }
     }
@@ -814,4 +816,77 @@ errval_t fat32_remove(void *st, const char *path)
 cleanup:
     handle_close(handle);
     return err;
+}
+
+/**
+ * Returns true iff fat entry is marked as free
+ * @param fat_entry Fat entry
+ * @return true iff fat entry is marked free
+ */
+static bool fat_is_free_cluster(uint32_t fat_entry)
+{
+    return !(fat_entry & 0x0fffffff);
+}
+
+/**
+ * Allocate `number_of_cluster` many clusters in the FAT
+ * @param mnt
+ * @param number_of_clusters How many clusters should be allocated
+ * @param ret_nr_allocated How many clusters could be allocated
+ * @param ret_first_cluster_nr Cluster nr to first cluster of cluster chain
+ * @return Error
+ */
+__unused static errval_t allocate_clusters(
+    struct fat32_mnt *mnt,
+    uint32_t number_of_clusters,
+    uint32_t *ret_nr_allocated,
+    uint32_t *ret_first_cluster_nr
+) {
+    errval_t err;
+    uint32_t last_allocated_cluster_nr = FAT32_EndCluster;
+    *ret_nr_allocated = 0;
+    uint32_t start_sector = mnt->next_free / FAT32_FatEntriesPerSector;     // relative to FAT
+    uint32_t current_sector = start_sector;
+    uint32_t fat_cutout[FAT32_FatEntriesPerSector];
+
+    do {
+        err = aos_rpc_block_driver_read_block(
+            aos_rpc_get_block_driver_channel(),
+            mnt->fat_lba + current_sector,
+            fat_cutout,
+            BLOCK_SIZE
+        );
+        if (err_is_fail(err)) {
+            return err;
+        }
+        for (
+            int i = (current_sector != 0 ? 0 : 2);      // first two entries are reserved!
+            i < FAT32_FatEntriesPerSector && *ret_nr_allocated < number_of_clusters;
+            i++
+        ) {
+            if (! fat_is_free_cluster(fat_cutout[i])) { continue; }
+            fat_cutout[i] = last_allocated_cluster_nr;
+            last_allocated_cluster_nr = i + FAT32_FatEntriesPerSector * current_sector;
+            (*ret_nr_allocated)++;
+        }
+        for (int i = 0; i < mnt->number_of_fats; i++) {
+            err = aos_rpc_block_driver_write_block(
+                aos_rpc_get_block_driver_channel(),
+                mnt->fat_lba + current_sector + i * mnt->sectors_per_fat,
+                fat_cutout,
+                BLOCK_SIZE
+            );
+            if (err_is_fail(err)) {
+                return err;
+            }
+        }
+        current_sector++;
+        if (current_sector >= mnt->sectors_per_fat) {
+            current_sector = 0;
+        }
+    } while(current_sector != start_sector && *ret_nr_allocated < number_of_clusters);
+
+    *ret_first_cluster_nr = last_allocated_cluster_nr;
+    mnt->next_free = last_allocated_cluster_nr + 1;
+    return SYS_ERR_OK;
 }
