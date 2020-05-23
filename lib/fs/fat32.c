@@ -747,7 +747,7 @@ static errval_t update_dir_entry_on_disk(
     if (err_is_fail(err)) {
         return err;
     }
-    struct dir_entry *dir_entry = buf;
+    struct dir_entry *dir_entry = (struct dir_entry *)buf;
     dir_entry[offset] = h->dirent.dir_entry;
     return aos_rpc_block_driver_write_block(
         aos_rpc_get_block_driver_channel(),
