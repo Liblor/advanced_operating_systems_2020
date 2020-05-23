@@ -65,6 +65,21 @@ static void free_argv(
     free(argv);
 }
 
+static
+errval_t aosh_linenoise_readline(
+        struct aosh_state *state,
+        char **ret_line,
+        size_t *ret_size)
+{
+    *ret_line = linenoise("aosh >>> ");
+    if (*ret_line == NULL) {
+        return AOSH_ERR_EXIT_SHELL;
+    }
+    *ret_size = strlen(*ret_line) + 1;
+    linenoiseHistoryAdd(*ret_line);
+    return SYS_ERR_OK;
+}
+
 /** Read a line from serial port,
  * caller must free line.
  * On success, line is always null terminated **/
@@ -253,11 +268,15 @@ static errval_t aosh_read_eval_execute(void)
     int argc = 0;
     size_t line_size = 0;
 
-//    printf(AOSH_CLI_HEAD);
-//    fflush(stdout);
+#if 0
+    printf(AOSH_CLI_HEAD);
+    fflush(stdout);
+    err = aosh_readline((void **) &line, &line_size);
+    printf(ENDL);
+    fflush(stdout);
+#endif
 
     err = aosh_linenoise_readline(&aosh, &line, &line_size);
-    // err = aosh_readline((void **) &line, &line_size);
     printf(ENDL);
     fflush(stdout);
 
@@ -306,7 +325,6 @@ static errval_t aosh_read_eval_execute(void)
 }
 
 
-
 int main(
         int argc,
         char *argv[])
@@ -320,7 +338,6 @@ int main(
         return EXIT_FAILURE;
     }
 
-    err = aosh_linenoise_init(&aosh);
     assert(err_is_ok(err));
 
     printf("Welcome to aosh! "ENDL);
