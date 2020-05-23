@@ -17,6 +17,7 @@ typedef void *fat32_handle_t;
 #define BPB_RsvdSecCnt 0x0e
 #define BPB_FATSz32    0x24
 #define BPB_RootClus   0x2c
+#define FAT32_EndCluster 0xffffff8
 
 struct dir_entry {
     char shortname[11];

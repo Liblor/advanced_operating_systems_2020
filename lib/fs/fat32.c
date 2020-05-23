@@ -282,7 +282,7 @@ static errval_t find_dirent(
         if (err_is_fail(err)) {
             return err;
         }
-    } while (cluster_nr < 0xfffffff8);
+    } while (cluster_nr < FAT32_EndCluster);
 
     return FS_ERR_NOTFOUND;
 }
@@ -404,7 +404,7 @@ static errval_t next_dir_entry(
     // new cluster
     h->sector_rel_cluster = 0;
     errval_t err = next_cluster(mnt, h->current_cluster, &h->current_cluster);
-    assert(h->current_cluster < 0xfffffff8);    // a end of directory entry should come first
+    assert(h->current_cluster < FAT32_EndCluster);    // a end of directory entry should come first
     return err;
 }
 
@@ -583,7 +583,7 @@ errval_t fat32_read(
             if (err_is_fail(err)) {
                 return err;
             }
-            assert(h->current_cluster < 0xfffffff8);    // a end of directory entry should come first
+            assert(h->current_cluster < FAT32_EndCluster);    // a end of directory entry should come first
         }
     }
 
@@ -611,7 +611,7 @@ static errval_t file_seek_pos(
         if (err_is_fail(err)) {
             return err;
         }
-        assert(curr_cluster < 0xfffffff8);
+        assert(curr_cluster < FAT32_EndCluster);
         curr_cluster_count++;
     }
 
@@ -694,7 +694,7 @@ __unused static errval_t clean_fat_chain(
 
     uint32_t index = mnt->fat_lba + cluster_nr / 128;
     uint32_t prev_index = index - 1;
-    while (cluster_nr < 0xfffffff8) {
+    while (cluster_nr < FAT32_EndCluster) {
         if (prev_index != index) {
             err = aos_rpc_block_driver_read_block(
                 aos_rpc_get_block_driver_channel(),
@@ -708,10 +708,11 @@ __unused static errval_t clean_fat_chain(
         }
         uint32_t prev_cluster_nr = cluster_nr;
         cluster_nr = fat_cutout[prev_cluster_nr % 128];
+        debug_printf("next cluster nr: 0x%x\n", cluster_nr);
         fat_cutout[prev_cluster_nr % 128] = 0;
         prev_index = index;
         index = mnt->fat_lba + cluster_nr / 128;
-        if (prev_index != index || cluster_nr >= 0xfffffff8) {
+        if (prev_index != index || cluster_nr >= FAT32_EndCluster) {
             err = aos_rpc_block_driver_write_block(
                 aos_rpc_get_block_driver_channel(),
                 index,
@@ -779,6 +780,7 @@ __unused errval_t fat32_rmdir(
     if (err_is_fail(err)) {
         goto cleanup;
     }
+    debug_printf("cluster lo 0x%x\n", handle->dirent.dir_entry.first_cluster_lo);
     err = clean_fat_chain(mnt, handle->dirent.dir_entry.first_cluster_lo);
     if (err_is_fail(err)) {
         goto cleanup;
