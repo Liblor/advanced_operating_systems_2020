@@ -105,5 +105,9 @@ errval_t fat32_rmdir(
     void *st,
     const char *path
 );
+errval_t fat32_remove(
+    void *st,
+    const char *path
+);
 
 #endif //BF_AOS_FAT32_H

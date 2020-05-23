@@ -780,7 +780,31 @@ __unused errval_t fat32_rmdir(
     if (err_is_fail(err)) {
         goto cleanup;
     }
-    debug_printf("cluster lo 0x%x\n", handle->dirent.dir_entry.first_cluster_lo);
+    err = clean_fat_chain(mnt, handle->dirent.dir_entry.first_cluster_lo);
+    if (err_is_fail(err)) {
+        goto cleanup;
+    }
+    handle->dirent.dir_entry.shortname[0] = 0xe5;   // unused
+    err = update_dir_entry_on_disk(mnt, handle);
+cleanup:
+    handle_close(handle);
+    return err;
+}
+
+errval_t fat32_remove(void *st, const char *path)
+{
+    errval_t err;
+    struct fat32_mnt *mnt = st;
+    struct fat32_handle *handle;
+    err = resolve_path(mnt, &mnt->root, path, &handle);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    if (handle->isdir) {
+        err = FS_ERR_NOTFILE;
+        goto cleanup;
+    }
+    // TODO: Check if file is not open (FS_ERR_BUSY)
     err = clean_fat_chain(mnt, handle->dirent.dir_entry.first_cluster_lo);
     if (err_is_fail(err)) {
         goto cleanup;
