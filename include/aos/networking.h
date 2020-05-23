@@ -28,6 +28,7 @@ enum networking_mtype {
     NETWORKING_MTYPE_UDP_DEREGISTER,
     NETWORKING_MTYPE_UDP_RECEIVE,
     NETWORKING_MTYPE_UDP_SEND,
+    NETWORKING_MTYPE_ARP_LIST,
 };
 
 struct networking_message {
@@ -62,6 +63,10 @@ struct networking_payload_udp_send {
     uint8_t payload[0];
 };
 
+struct networking_payload_arp_list {
+    char entries[0];
+};
+
 struct networking_state *get_current_networking_state(
     void
 );
@@ -83,6 +88,10 @@ errval_t networking_udp_send(
     const ip_addr_t to_ip,
     const udp_port_t to_port,
     const udp_port_t from_port
+);
+
+errval_t networking_arp_list(
+    char **entries
 );
 
 #endif

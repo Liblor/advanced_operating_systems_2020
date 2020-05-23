@@ -162,3 +162,54 @@ errval_t networking_udp_send(
 
     return SYS_ERR_OK;
 }
+
+errval_t networking_arp_list(
+    char **entries
+)
+{
+    errval_t err;
+
+    assert(entries != NULL);
+    *entries = NULL;
+
+    nameservice_chan_t channel;
+
+    err = nameservice_lookup(
+        NETWORKING_SERVICE_NAME,
+        &channel
+    );
+    if (err_is_fail(err)) {
+        debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+        return err_push(err, SYS_ERR_NOT_IMPLEMENTED);
+    }
+
+    const gensize_t size = sizeof(struct networking_message);
+    uint8_t buffer[size];
+    struct networking_message *message = (struct networking_message *) buffer;
+
+    message->type = NETWORKING_MTYPE_ARP_LIST;
+    message->size = 0;
+
+    struct networking_message *response;
+    size_t response_size;
+
+    err = nameservice_rpc(
+        channel,
+        message,
+        size,
+        (void **) &response,
+        &response_size,
+        NULL_CAP,
+        NULL_CAP
+    );
+    if (err_is_fail(err)) {
+        debug_printf("nameservice_rpc() failed: %s\n", err_getstring(err));
+        return err_push(err, SYS_ERR_NOT_IMPLEMENTED);
+    }
+
+    struct networking_payload_arp_list *tsp = (struct networking_payload_arp_list *) response->payload;
+
+    *entries = tsp->entries;
+
+    return SYS_ERR_OK;
+}

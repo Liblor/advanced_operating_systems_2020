@@ -5,6 +5,8 @@
 #include <netutil/ip.h>
 
 #define ARP_HASHTABLE_BUCKETS (256)
+#define ARP_CACHE_STRING_LINE_LENGTH (IP_DIGEST_LENGTH + ETHERNET_DIGEST_LENGTH + 4)
+#define ARP_CACHE_STRING_LENGTH(x) (ARP_CACHE_STRING_LINE_LENGTH * x + 1)
 
 struct ethernet_state;
 
@@ -41,6 +43,15 @@ errval_t arp_query(
 errval_t arp_process(
     struct arp_state *state,
     lvaddr_t base
+);
+
+gensize_t arp_get_cache_size(
+    struct arp_state *state
+);
+
+void arp_print_cache(
+    struct arp_state *state,
+    char *m
 );
 
 #endif

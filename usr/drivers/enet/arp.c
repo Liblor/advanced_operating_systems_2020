@@ -282,3 +282,51 @@ errval_t arp_process(
 
     return SYS_ERR_OK;
 }
+
+gensize_t arp_get_cache_size(
+    struct arp_state *state
+)
+{
+    assert(state != NULL);
+
+    return collections_hash_size(state->entries);
+}
+
+void arp_print_cache(
+    struct arp_state *state,
+    char *m
+)
+{
+    assert(state != NULL);
+
+    int32_t position = 0;
+    int32_t ret;
+    uint64_t key;
+    struct arp_entry *entry;
+
+    ret = collections_hash_traverse_start(state->entries);
+    assert(ret == 1);
+
+    while ((entry = collections_hash_traverse_next(state->entries, &key)) != NULL) {
+        uint8_t *eth8 = (uint8_t *) &entry->mac;
+        char ethernet_digest[ETHERNET_DIGEST_LENGTH + 1];
+        snprintf(
+            ethernet_digest, ETHERNET_DIGEST_LENGTH + 1, "%02x:%02x:%02x:%02x:%02x:%02x",
+            eth8[5], eth8[4], eth8[3], eth8[2], eth8[1], eth8[0]
+        );
+
+        uint8_t *ip8 = (uint8_t *) &key;
+        char ip_digest[IP_DIGEST_LENGTH + 1];
+        snprintf(
+            ip_digest, IP_DIGEST_LENGTH + 1, "%d.%d.%d.%d",
+            ip8[0], ip8[1], ip8[2], ip8[3]
+        );
+
+        snprintf(m + position, ARP_CACHE_STRING_LINE_LENGTH, "%s - %s\n", ethernet_digest, ip_digest);
+
+        position += ARP_CACHE_STRING_LINE_LENGTH;
+    }
+
+    ret = collections_hash_traverse_end(state->entries);
+    assert(ret == 1);
+}

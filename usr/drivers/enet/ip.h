@@ -7,6 +7,8 @@
 #include "icmp.h"
 #include "udp.h"
 
+#define IP_DIGEST_LENGTH (15)
+
 struct ethernet_state;
 
 struct ip_state {

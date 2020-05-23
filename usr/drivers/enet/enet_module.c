@@ -32,6 +32,7 @@
 #include "queues.h"
 #include "ethernet.h"
 #include "udp.h"
+#include "router.h"
 
 #include <aos/aos_rpc.h>
 #include <spawn/spawn.h>
@@ -374,7 +375,7 @@ static errval_t enet_phy_startup(
 
     if (!(mii_reg & PHY_STATUS_ANEG_COMP)) {
 
-        debug_printf("[enet] Starting autonegotiation\n");
+        ENET_DEBUG("Starting autonegotiation\n");
         while (!(mii_reg & PHY_STATUS_ANEG_COMP)) {
             err = enet_read_mdio(st, PHY_ID, PHY_STATUS_CMD, &mii_reg);
             assert(err_is_ok(err));
@@ -646,120 +647,6 @@ static errval_t enet_initialize_device(
     return SYS_ERR_OK;
 }
 
-static void udp_receive_cb(
-    struct udp_state *state,
-    struct udp_binding *binding,
-    const lvaddr_t payload,
-    const gensize_t payload_size,
-    const ip_addr_t ip,
-    const udp_port_t port
-)
-{
-    errval_t err;
-
-    assert(state != NULL);
-    assert(binding != NULL);
-
-    const gensize_t tsp_size = sizeof(struct networking_payload_udp_receive) + payload_size;
-    uint8_t tsp_buffer[tsp_size];
-    struct networking_payload_udp_receive *tsp = (struct networking_payload_udp_receive *) tsp_buffer;
-
-    tsp->from_ip = ip;
-    tsp->from_port = port;
-    tsp->to_port = binding->port;
-    tsp->payload_size = payload_size;
-    memcpy(tsp->payload, (void *) payload, payload_size);
-
-    const gensize_t size = sizeof(struct networking_message) + tsp_size;
-    uint8_t buffer[size];
-    struct networking_message *message = (struct networking_message *) buffer;
-
-    message->type = NETWORKING_MTYPE_UDP_RECEIVE;
-    message->size = tsp_size;
-    memcpy(message->payload, tsp, tsp_size);
-
-    err = nameservice_rpc(
-        binding->context,
-        message,
-        size,
-        NULL,
-        NULL,
-        NULL_CAP,
-        NULL_CAP
-    );
-    if (err_is_fail(err)) {
-        debug_printf("nameservice_rpc() failed: %s\n", err_getstring(err));
-    }
-}
-
-static void nameservice_receive_handler(
-    void *st,
-    void *message,
-    size_t bytes,
-    void **response,
-    size_t *response_bytes,
-    struct capref tx_cap,
-    struct capref *rx_cap
-)
-{
-    errval_t err;
-
-    struct enet_driver_state *state = st;
-    struct networking_message *net_message = (struct networking_message *) message;
-
-    assert(state != NULL);
-    assert(net_message != NULL);
-
-    const enum networking_mtype type = net_message->type;
-
-    /* Could not do the assignment in a switch block... */
-    if (type == NETWORKING_MTYPE_UDP_SEND) {
-        struct networking_payload_udp_send *tsp = (struct networking_payload_udp_send *) net_message->payload;
-        assert(tsp != NULL);
-
-        err = udp_send(
-            &state->eth_state.ip_state.udp_state,
-            (lvaddr_t) tsp->payload,
-            tsp->payload_size,
-            tsp->from_port,
-            tsp->to_ip,
-            tsp->to_port
-        );
-        if (err_is_fail(err)) {
-            debug_printf("udp_send() failed: %s\n", err_getstring(err));
-            return;
-        }
-    } else if (type == NETWORKING_MTYPE_UDP_REGISTER) {
-        struct networking_payload_udp_register *tsp = (struct networking_payload_udp_register *) net_message->payload;
-        assert(tsp != NULL);
-
-        char service_name[16];
-        snprintf(service_name, sizeof(service_name), "pid%d", tsp->pid);
-
-        nameservice_chan_t channel;
-
-        err = nameservice_lookup(
-            service_name,
-            &channel
-        );
-        if (err_is_fail(err)) {
-            debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
-            return;
-        }
-
-        err = udp_register(&state->eth_state.ip_state.udp_state, tsp->port, channel);
-        if (err_is_fail(err)) {
-            debug_printf("Cannot register UDP receive callback.\n");
-            return;
-        }
-    } else {
-        debug_printf("Received unknown type in nameservice receive handler.\n");
-        return;
-    }
-}
-
-static regionid_t rx_rid;
-static regionid_t tx_rid;
 static errval_t enet_module_initialize(
     struct enet_driver_state *st
 )
@@ -768,21 +655,24 @@ static errval_t enet_module_initialize(
 
     assert(st != NULL);
 
-    debug_printf("Initializing device...\n");
+    ENET_DEBUG("Initializing device...\n");
     err = enet_initialize_device(st);
     if (err_is_fail(err)) {
         debug_printf("Device initialization failed.\n");
         return err;
     }
 
-    debug_printf("Initializing queues...\n");
+    regionid_t rx_rid;
+    regionid_t tx_rid;
+
+    ENET_DEBUG("Initializing queues...\n");
     err = queues_initialize(st, &rx_rid, &tx_rid);
     if (err_is_fail(err)) {
         debug_printf("Queues initialization failed.\n");
         return err;
     }
 
-    debug_printf("Initializing Ethernet state...\n");
+    ENET_DEBUG("Initializing Ethernet state...\n");
     err = ethernet_initialize(
         &st->eth_state,
         st->mac,
@@ -829,7 +719,7 @@ static errval_t enet_serve(
 
     const lvaddr_t base = st->rx_base + buf.offset + buf.valid_data;
 
-    debug_printf("Received packet of size %lu.\n", buf.valid_length);
+    ENET_DEBUG("Received packet of size %lu.\n", buf.valid_length);
     //debug_dump_mem(base, base + buf.valid_length, st->rx_base);
 
     err = ethernet_process(&st->eth_state, base, buf.valid_length);
@@ -895,7 +785,8 @@ int main(
 {
     errval_t err;
 
-    debug_printf("Driver started.\n");
+    debug_printf("ENET started.\n");
+
     struct enet_driver_state *state = calloc(1, sizeof(struct enet_driver_state));
     if (state == NULL) {
         debug_printf("Cannot claim memory for driver state.\n");
@@ -910,7 +801,7 @@ int main(
 
     debug_printf("Initialization complete.\n");
 
-    debug_printf("MAC address is 0x%x.\n", state->mac);
+    ENET_DEBUG("MAC address is 0x%x.\n", state->mac);
 
     err = nameservice_register(
         NETWORKING_SERVICE_NAME,
@@ -920,7 +811,7 @@ int main(
     if (err_is_fail(err)) {
         USER_PANIC("Cannot register nameservice callback.\n");
     }
-    debug_printf("Registering nameserver complete.\n");
+    ENET_DEBUG("Registering nameserver complete.\n");
 
     domainid_t pid;
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
@@ -928,14 +819,14 @@ int main(
     if (err_is_fail(err)) {
         USER_PANIC("Cannot spawn default echoserver.\n");
     }
-    debug_printf("Spawing default echoserver complete.\n");
+    ENET_DEBUG("Spawing default echoserver complete.\n");
 
     struct periodic_event periodic_ev;
     err = setup_periodic_events(&periodic_ev, state);
     if (err_is_fail(err)) {
         USER_PANIC("Cannot register periodic events.\n");
     }
-    debug_printf("Registering periodic events complete.\n");
+    ENET_DEBUG("Registering periodic events complete.\n");
 
     struct waitset *default_ws = get_default_waitset();
 
@@ -944,8 +835,6 @@ int main(
         if (err_is_fail(err)) {
             debug_printf("Error while serving. Continuing...\n");
         }
-
-        thread_yield();
     }
 
     return EXIT_SUCCESS;
