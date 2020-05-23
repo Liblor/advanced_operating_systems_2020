@@ -21,4 +21,11 @@
 struct aosh_state {
 };
 
+errval_t aosh_linenoise_init(struct aosh_state *state);
+
+errval_t aosh_linenoise_readline(
+        struct aosh_state *state,
+        char **ret_line,
+        size_t *ret_size);
+
 #endif //BFOS_AOSH_H

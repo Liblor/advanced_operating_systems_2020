@@ -7,6 +7,7 @@
 #include <aos/debug.h>
 #include <aos/string.h>
 #include <collections/list.h>
+#include "linenoise/linenoise.h"
 
 #include "aosh.h"
 #include "builtin/builtin.h"
@@ -194,12 +195,10 @@ static errval_t aosh_tokenize_arg(
             }
         } else if (line[i] == '\\' && !escape) {
             escape = true;
-        }
-        else if (!escape && line[i] == '"') {
+        } else if (!escape && line[i] == '"') {
             // dont tokenize within quotes
             quote_double = !quote_double;
-        }
-        else {
+        } else {
             buf[bufi] = line[i];
             bufi++;
             escape = false;
@@ -254,16 +253,17 @@ static errval_t aosh_read_eval_execute(void)
     int argc = 0;
     size_t line_size = 0;
 
-    printf(AOSH_CLI_HEAD);
-    fflush(stdout);
+//    printf(AOSH_CLI_HEAD);
+//    fflush(stdout);
 
-    err = aosh_readline((void **) &line, &line_size);
+    err = aosh_linenoise_readline(&aosh, &line, &line_size);
+    // err = aosh_readline((void **) &line, &line_size);
     printf(ENDL);
     fflush(stdout);
 
     if (err == AOSH_ERR_EXIT_SHELL) {
         goto err_free_line;
-    }else if (err == AOSH_ERR_READLINE_MAX_EXCEEDED) {
+    } else if (err == AOSH_ERR_READLINE_MAX_EXCEEDED || line_size >= AOSH_READLINE_MAX_LEN) {
         printf("AOSH_READLINE_MAX_LEN reached. Skipping command\n");
         goto success_free;
     } else if (err_is_fail(err)) {
@@ -305,6 +305,8 @@ static errval_t aosh_read_eval_execute(void)
     return err;
 }
 
+
+
 int main(
         int argc,
         char *argv[])
@@ -317,9 +319,11 @@ int main(
         debug_printf("failed to init aosh. %s", err_getstring(err));
         return EXIT_FAILURE;
     }
-    // clear_screen();
-    printf("Welcome to aosh! "ENDL);
 
+    err = aosh_linenoise_init(&aosh);
+    assert(err_is_ok(err));
+
+    printf("Welcome to aosh! "ENDL);
     do {
         err = aosh_read_eval_execute();
         thread_yield();

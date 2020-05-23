@@ -7,8 +7,10 @@
   		               "builtin/nslookup.c",
   		               "builtin/nslist.c",
   		               "builtin/echo.c",
-  		               "builtin/ps.c"
+  		               "builtin/ps.c",
+  		               "linenoise/linenoise.c",
   		                ],
-                      architectures = allArchitectures
+                      architectures = allArchitectures,
+                      addCFlags = ["-Wno-redundant-decls", "-Wno-missing-declarations", "-Wno-missing-prototypes", "-Wno-error=type-limits", "-Wno-unused-function", "-Wno-unused-label", "-Wno-unused-variable"]
                     }
 ]
