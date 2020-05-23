@@ -75,7 +75,8 @@ errval_t aosh_linenoise_readline(
     if (*ret_line == NULL) {
         return AOSH_ERR_EXIT_SHELL;
     }
-    *ret_size = strlen(*ret_line) + 1;
+    *ret_size = MIN(strnlen(*ret_line, AOSH_READLINE_MAX_LEN) + 1,
+                    AOSH_READLINE_MAX_LEN);
     linenoiseHistoryAdd(*ret_line);
     return SYS_ERR_OK;
 }
