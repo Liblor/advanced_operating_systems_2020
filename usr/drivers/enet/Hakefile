@@ -23,6 +23,7 @@
     target = "enet",
     cFiles = [
                 "enet_module.c",
+                "router.c",
                 "ethernet.c",
                 "queues.c",
                 "arp.c",
