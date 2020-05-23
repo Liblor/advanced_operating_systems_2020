@@ -42,7 +42,7 @@ errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt)
     mnt->sectors_per_cluster = *(uint8_t *)(block + BPB_SecPerClus);
     mnt->root_dir_first_cluster = *(uint32_t *)(block + BPB_RootClus);
     mnt->number_of_fats = *(uint8_t *)(block + BPB_NumFATs);
-    // XXX: No partition support, i.e. 0 stands for partition index
+    // XXX: No partition support, i.e. 0 stands for partition offset
     mnt->fat_lba = 0 + mnt->reserved_sector_count;
     mnt->cluster_begin_lba = mnt->fat_lba + (mnt->number_of_fats * mnt->sector_per_fat);
     memset(&mnt->root, 0, sizeof(struct fat32_dirent));
