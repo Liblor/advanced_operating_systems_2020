@@ -15,6 +15,8 @@ struct aosh_builtin_descr {
 
 extern struct aosh_builtin_descr aosh_builtins[];
 
+extern size_t aosh_builtins_len;
+
 errval_t aosh_dispatch_builtin(int argc, char **argv);
 
 #endif //BFOS_AOSH_BUILTIN_H
