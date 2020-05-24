@@ -13,10 +13,8 @@ static const char *status_to_str(enum process_status status)
         case ProcessStatus_Active: {
             return "active";
         }
-        case ProcessStatus_Init:
-            return "init";
-        case ProcessStatus_InActive:
-            return "inactive";
+        case ProcessStatus_Exit:
+            return "exit";
         default:
             return "unknown";
     }
@@ -71,30 +69,26 @@ errval_t builtin_ps(
 
     int w_pid = 6;
     int w_status = 10;
-    int w_ping = 20;
-    printf("%*s%*s%*s\t%s\n", w_pid, "PID", w_status, "STATUS", w_ping, "LAST_PING_MS_AGO", "NAME");
-    uint64_t now = systime_to_ns(systime_now()) / 1000 / 1000;
+    printf("%*s%*s\t%s\n", w_pid, "PID", w_status, "STATUS",  "NAME");
     for (int i = 0; i < pid_count; i++) {
         struct aos_rpc_process_info_reply *reply
                 = collections_list_get_ith_item(pid_list_info, i);
-        if (reply->status != ProcessStatus_InActive) {
+        if (reply->status != ProcessStatus_Exit) {
             char *name = collections_list_get_ith_item(pid_list, i);
-            printf("%*d%*s%*zu\t%s\n",
+            printf("%*d%*s\t%s\n",
                    w_pid, pids[i],
                    w_status, status_to_str(reply->status),
-                   w_ping, now - systime_to_ns(reply->last_ping) / 1000 / 1000,
                    name);
         }
     }
     for (int i = 0; i < pid_count; i++) {
         struct aos_rpc_process_info_reply *reply
                 = collections_list_get_ith_item(pid_list_info, i);
-        if (reply->status == ProcessStatus_InActive) {
+        if (reply->status == ProcessStatus_Exit) {
             char *name = collections_list_get_ith_item(pid_list, i);
-            printf("%*d%*s%*zu\t%s\n",
+            printf("%*d%*s\t%s\n",
                    w_pid, pids[i],
                    w_status, status_to_str(reply->status),
-                   w_ping, now - systime_to_ns(reply->last_ping) / 1000 / 1000,
                    name);
         }
     }

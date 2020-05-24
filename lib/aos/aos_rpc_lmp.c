@@ -663,7 +663,7 @@ errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *rpc, domainid_t pid,
 }
 
 errval_t
-aos_rpc_lmp_process_ping(struct aos_rpc *rpc)
+aos_rpc_lmp_process_signalize_exit(struct aos_rpc *rpc)
 {
     errval_t err;
 
@@ -674,7 +674,7 @@ aos_rpc_lmp_process_ping(struct aos_rpc *rpc)
     domainid_t pid = disp->domain_id;
 
     msg->cap = NULL_CAP;
-    msg->msg.method = Method_Process_Ping;
+    msg->msg.method = Method_Process_Signalize_Exit;
     msg->msg.payload_length = sizeof(domainid_t);
     msg->msg.status = Status_Ok;
     memcpy(msg->msg.payload, &pid, sizeof(domainid_t));
