@@ -16,7 +16,7 @@
 #define NAMESERVICE_MONITOR "servermonitor"
 #define NAMESERVICE_SERIAL "serverserial"
 
-#define NAMESERVICE_PERIODIC_SERVE_EVENT_US 1000
+#define NAMESERVICE_PERIODIC_SERVE_EVENT_US 10
 
 typedef struct nameservice_chan* nameservice_chan_t;
 
