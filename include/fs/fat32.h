@@ -116,5 +116,9 @@ errval_t fat32_create(
     const char *path,
     fat32_handle_t *rethandle
 );
+errval_t fat32_mkdir(
+    void *st,
+    const char *path
+);
 
 #endif //BF_AOS_FAT32_H

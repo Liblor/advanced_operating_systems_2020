@@ -93,7 +93,7 @@ static void fdtab_free(int fd)
 //XXX: flags are ignored...
 static int fs_libc_open(char *path, int flags)
 {
-    ramfs_handle_t vh;
+    fat32_handle_t vh;
     errval_t err;
 
     // If O_CREAT was given, we use fat32_create()
@@ -266,7 +266,7 @@ static off_t fs_libc_lseek(int fd, off_t offset, int whence)
     }
 }
 
-static errval_t fs_mkdir(const char *path){ return ramfs_mkdir(mount, path);}
+static errval_t fs_mkdir(const char *path){ return fat32_mkdir(mount, path);}
 static errval_t fs_rmdir(const char *path){ return fat32_rmdir(mount, path); }
 static errval_t fs_rm(const char *path){ return fat32_remove(mount, path); }
 static errval_t fs_opendir(const char *path, fs_dirhandle_t *h){ return fat32_opendir(mount, path, h); }

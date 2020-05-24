@@ -986,7 +986,6 @@ static errval_t allocate_clusters(
 
 static errval_t extend_cluster_chain(
     struct fat32_mnt *mnt,
-    struct fat32_handle *parent_handler,
     uint32_t cluster_nr,
     uint32_t n,
     bool zero_out,
@@ -1034,7 +1033,7 @@ static errval_t get_free_dir_entry(
     if (dirent->index + 1 >= FAT32_DirEntriesPerBlock * mnt->sectors_per_cluster) {
         // new cluster
         uint32_t n;
-        err = extend_cluster_chain(mnt, parent_handler, dirent->cluster, 1, true, &n);
+        err = extend_cluster_chain(mnt, dirent->cluster, 1, true, &n);
         if (err_is_fail(err)) {
             return err;
         }
@@ -1070,14 +1069,71 @@ static errval_t get_free_dir_entry(
     return SYS_ERR_OK;
 }
 
-errval_t fat32_create(
-    void *st,
+/**
+ * Initialize a new directory with "." and ".." entries
+ * @param mnt
+ * @param dirent
+ * @return
+ */
+static errval_t init_new_directory(
+    struct fat32_mnt *mnt,
+    struct fat32_dirent *dirent
+) {
+    errval_t err;
+    struct dir_entry d[FAT32_DirEntriesPerBlock];
+    const uint32_t cluster_nr_dir = get_first_cluster_nr(&dirent->dir_entry);
+    err = aos_rpc_block_driver_read_block(
+        aos_rpc_get_block_driver_channel(),
+        cluster_to_lba(mnt, cluster_nr_dir),
+        d,
+        BLOCK_SIZE
+    );
+    if (err_is_fail(err)) {
+        return err;
+    }
+    memset(d, 0, sizeof(d));
+
+    set_dir(&d[0]);
+    memset(d[0].shortname, ' ', 11);
+    d[0].shortname[0] = '.';
+    set_first_cluster_nr(&d[0], cluster_nr_dir);
+
+    set_dir(&d[1]);
+    memset(d[1].shortname, ' ', 11);
+    d[1].shortname[0] = '.';
+    d[1].shortname[1] = '.';
+    bool parent_is_root = mnt->root.cluster == dirent->cluster;
+    const uint32_t cluster_nr_parent = parent_is_root ? 0 : dirent->cluster;
+    set_first_cluster_nr(&d[1], cluster_nr_parent);
+
+    err = aos_rpc_block_driver_write_block(
+        aos_rpc_get_block_driver_channel(),
+        cluster_to_lba(mnt, cluster_nr_dir),
+        d,
+        BLOCK_SIZE
+    );
+    if (err_is_fail(err)) {
+        return err;
+    }
+    return SYS_ERR_OK;
+}
+
+/**
+ * Create a new file or directory
+ * @param mnt Fat32 mount
+ * @param path Path to new file/directory
+ * @param directory If a directory or a file should be created
+ * @param rethandle
+ * @return
+ */
+static errval_t create_data_entry(
+    struct fat32_mnt *mnt,
     const char *path,
+    bool directory,
     fat32_handle_t *rethandle)
 {
     // TODO: Clean up function
     errval_t err;
-    struct fat32_mnt *mnt = st;
     err = resolve_path(mnt, &mnt->root, path, NULL);
     if (err_is_ok(err)) {
         return FS_ERR_EXISTS;
@@ -1115,7 +1171,7 @@ errval_t fat32_create(
     name_to_shortname(childname, dirent.dir_entry.shortname);
     uint32_t n;
     uint32_t cluster_nr;
-    err = allocate_clusters(mnt, 1, 1, &n, &cluster_nr);
+    err = allocate_clusters(mnt, 1, !directory, &n, &cluster_nr);
     if (err_is_fail(err)) {
         goto cleanup;
     }
@@ -1124,6 +1180,10 @@ errval_t fat32_create(
         goto cleanup;
     }
     set_first_cluster_nr(&dirent.dir_entry, cluster_nr);
+    if (directory) {
+        set_dir(&dirent.dir_entry);
+        init_new_directory(mnt, &dirent);
+    }
 
     err = update_dir_entry_on_disk(mnt, &dirent);
     if (err_is_fail(err)) {
@@ -1138,21 +1198,35 @@ errval_t fat32_create(
         *rethandle = fh;
     }
     err = SYS_ERR_OK;
-cleanup:
+    cleanup:
     if (parent) {
         handle_close(parent);
     }
     return err;
 }
 
+errval_t fat32_create(
+    void *st,
+    const char *path,
+    fat32_handle_t *rethandle)
+{
+    return create_data_entry(
+        (struct fat32_mnt *)st,
+        path,
+        false,
+        rethandle
+    );
+}
+
 
 errval_t fat32_mkdir(void *st, const char *path)
 {
-    errval_t err;
-
-    // TODO
-
-    return SYS_ERR_OK;
+    return create_data_entry(
+        (struct fat32_mnt *)st,
+        path,
+        true,
+        NULL
+    );
 }
 
 #pragma GCC diagnostic pop
