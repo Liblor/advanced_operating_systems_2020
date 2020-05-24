@@ -134,15 +134,13 @@ errval_t arp_query(
     struct arp_entry *entry = collections_hash_find(state->entries, ip);
 
     if (entry == NULL) {
-        debug_printf("MAC address is not cached. Sending request...\n");
+        ENET_ARP_DEBUG("MAC address is not cached. Sending request...\n");
 
         arp_request(state, ip);
 
-        /* TODO: Wait for the response, or store the request? */
-
         return SYS_ERR_NOT_IMPLEMENTED;
     } else {
-        debug_printf("MAC address is cached.\n");
+        ENET_ARP_DEBUG("MAC address is cached.\n");
     }
 
     *mac = entry->mac;
@@ -167,7 +165,7 @@ static errval_t arp_register(
             return LIB_ERR_MALLOC_FAIL;
         }
 
-        debug_printf("Adding new ARP entry.\n");
+        ENET_ARP_DEBUG("Adding new ARP entry.\n");
         collections_hash_insert(state->entries, ip, entry);
     }
 
@@ -255,7 +253,7 @@ errval_t arp_process(
 
     switch (type) {
     case ARP_TYPE_REQUEST:
-        debug_printf("Received an ARP request.\n");
+        ENET_ARP_DEBUG("Received an ARP request.\n");
 
         if (packet->ip_dst == state->ip) {
             err = arp_reply(
@@ -273,7 +271,7 @@ errval_t arp_process(
 
         break;
     case ARP_TYPE_REPLY:
-        debug_printf("Received an ARP reply.\n");
+        ENET_ARP_DEBUG("Received an ARP reply.\n");
         break;
     default:
         debug_printf("Received unknown ARP operation.\n");

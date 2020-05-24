@@ -140,7 +140,7 @@ errval_t icmp_process(
 
     switch (type) {
     case ICMP_TYPE_ECHO_REQUEST:
-        debug_printf("Packet is of type ECHO REQUEST.\n");
+        ENET_ICMP_DEBUG("Packet is of type ECHO REQUEST.\n");
 
         const lvaddr_t payload = base + sizeof(struct icmp_echo_hdr);
         const gensize_t payload_size = size - sizeof(struct icmp_echo_hdr);

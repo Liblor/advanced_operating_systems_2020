@@ -23,14 +23,14 @@ errval_t ip_initialize(
     state->eth_state = eth_state;
     state->ip = ip;
 
-    debug_printf("Initializing ICMP state...\n");
+    ENET_IP_DEBUG("Initializing ICMP state...\n");
     err = icmp_initialize(&state->icmp_state, state);
     if (err_is_fail(err)) {
         debug_printf("ICMP initialization failed.\n");
         return err;
     }
 
-    debug_printf("Initializing UDP state...\n");
+    ENET_IP_DEBUG("Initializing UDP state...\n");
     err = udp_initialize(&state->udp_state, state, udp_receive_cb);
     if (err_is_fail(err)) {
         debug_printf("UDP initialization failed.\n");
@@ -234,11 +234,11 @@ errval_t ip_process(
     const lvaddr_t newbase = base + sizeof(struct ip_hdr);
     const gensize_t newsize = size - sizeof(struct ip_hdr);
 
-    debug_printf("IP packet payload has size %d.\n", newsize);
+    ENET_IP_DEBUG("IP packet payload has size %d.\n", newsize);
 
     switch (type) {
     case IP_TYPE_ICMP:
-        debug_printf("Packet is of type ICMP.\n");
+        ENET_IP_DEBUG("Packet is of type ICMP.\n");
 
         err = icmp_process(&state->icmp_state, newbase, newsize, &context);
         if (err_is_fail(err)) {
@@ -248,7 +248,7 @@ errval_t ip_process(
 
         break;
     case IP_TYPE_UDP:
-        debug_printf("Packet is of type UDP.\n");
+        ENET_IP_DEBUG("Packet is of type UDP.\n");
 
         err = udp_process(&state->udp_state, newbase, newsize, &context);
         if (err_is_fail(err)) {
