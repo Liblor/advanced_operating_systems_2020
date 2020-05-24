@@ -4,6 +4,14 @@
 #include <aos/aos.h>
 #include <netutil/ip.h>
 
+#define ENET_ARP_DEBUG_OPTION 1
+
+#if ENET_ARP_DEBUG_OPTION
+#define ENET_ARP_DEBUG(x...) debug_printf("[enet/arp] " x);
+#else
+#define ENET_ARP_DEBUG(fmt, ...) ((void)0)
+#endif
+
 #define ARP_HASHTABLE_BUCKETS (256)
 #define ARP_CACHE_STRING_LINE_LENGTH (IP_DIGEST_LENGTH + ETHERNET_DIGEST_LENGTH + 4)
 #define ARP_CACHE_STRING_LENGTH(x) (ARP_CACHE_STRING_LINE_LENGTH * x + 1)

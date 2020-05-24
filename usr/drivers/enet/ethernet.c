@@ -34,14 +34,14 @@ errval_t ethernet_initialize(
         state->tx_free[i] = true;
     }
 
-    debug_printf("Initializing ARP state...\n");
+    ENET_ETHERNET_DEBUG("Initializing ARP state...\n");
     err = arp_initialize(&state->arp_state, state, mac, OWN_IP_ADDRESS);
     if (err_is_fail(err)) {
         debug_printf("ARP initialization failed.\n");
         return err;
     }
 
-    debug_printf("Initializing IP state...\n");
+    ENET_ETHERNET_DEBUG("Initializing IP state...\n");
     err = ip_initialize(&state->ip_state, state, OWN_IP_ADDRESS, udp_receive_cb);
     if (err_is_fail(err)) {
         debug_printf("IP initialization failed.\n");
@@ -80,7 +80,7 @@ errval_t ethernet_create(
 
     state->tx_free[index] = false;
 
-    debug_printf("Found free buffer at index %d.\n", index);
+    ENET_ETHERNET_DEBUG("Found free buffer at index %d.\n", index);
 
     struct eth_hdr *eth_packet = (struct eth_hdr *) ((uint8_t *) state->tx_base + index * ENET_MAX_BUF_SIZE);
 
@@ -104,7 +104,7 @@ errval_t ethernet_send(
     assert(state != NULL);
     assert((void *) base != NULL);
 
-    debug_printf("Sending buffer of size 0x%zx.\n", size + sizeof(struct eth_hdr));
+    ENET_ETHERNET_DEBUG("Sending buffer of size 0x%zx.\n", size + sizeof(struct eth_hdr));
 
     /* TODO: Check if offset is in bounds. */
     const genoffset_t offset = base - state->tx_base - sizeof(struct eth_hdr);
@@ -222,11 +222,11 @@ errval_t ethernet_process(
     const lvaddr_t newbase = base + sizeof(struct eth_hdr);
     const gensize_t newsize = size - sizeof(struct eth_hdr) - ETH_CRC_LEN;
 
-    debug_printf("Ethernet packet payload has size %d.\n", newsize);
+    ENET_ETHERNET_DEBUG("Ethernet packet payload has size %d.\n", newsize);
 
     switch (type) {
     case ETHERNET_TYPE_ARP:
-        debug_printf("Packet is of type ARP.\n");
+        ENET_ETHERNET_DEBUG("Packet is of type ARP.\n");
 
         err = arp_process(&state->arp_state, newbase);
         if (err_is_fail(err)) {
@@ -236,7 +236,7 @@ errval_t ethernet_process(
 
         break;
     case ETHERNET_TYPE_IPV4:
-        debug_printf("Packet is of type IPv4.\n");
+        ENET_ETHERNET_DEBUG("Packet is of type IPv4.\n");
 
         err = ip_process(&state->ip_state, newbase, newsize);
         if (err_is_fail(err)) {

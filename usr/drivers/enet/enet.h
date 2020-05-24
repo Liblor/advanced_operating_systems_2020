@@ -16,9 +16,9 @@
 
 #include "ethernet.h"
 
-#define ENET_DEBUG_OPTION 1
+#define ENET_DEBUG_OPTION 0
 
-#if defined(ENET_DEBUG_OPTION)
+#if ENET_DEBUG_OPTION
 #define ENET_DEBUG(x...) debug_printf("[enet] " x);
 #else
 #define ENET_DEBUG(fmt, ...) ((void)0)

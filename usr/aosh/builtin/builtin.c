@@ -29,6 +29,7 @@ struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_exit,     "exit",     "exit shell (ctrl-d)"},
 };
 
+size_t aosh_builtins_len = ARRAY_LENGTH(aosh_builtins);
 
 errval_t builtin_exit(int argc, char **argv)
 {
