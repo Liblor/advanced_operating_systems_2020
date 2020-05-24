@@ -23,8 +23,6 @@
 // How often a transient error can occur before it's regarded critical.
 #define TRANSIENT_ERR_RETRIES (1000)
 
-#define PROCESS_SERVER_RECOMMEND_PING_INTERVAL_US (3 * 1000 * 1000)
-
 // how long to sleep thread and give away execution time until resume on transient error
 #define TRANSIENT_ERR_SLEEP_US (1000)
 
