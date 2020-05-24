@@ -956,6 +956,8 @@ errors fs FS_ERR_ {
     failure EXISTS              "The given name already exists",
     failure NOTEMPTY            "The given directory is not empty",
 
+    failure OUT_OF_MEM          "Out of memory",
+
     failure READ                "Failure during file read",
     failure WRITE               "Failure during writing the file",
     failure OPEN                "Failure during open",

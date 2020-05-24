@@ -1,9 +1,11 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-function"
 #include <errors/errno.h>
 #include <aos/aos_rpc.h>
 #include <fs/fat32.h>
 #include <fs/fs.h>
 #include <ctype.h>
-
 
 static inline uint32_t cluster_to_lba(struct fat32_mnt *mnt, uint32_t cluster_num)
 {
@@ -142,6 +144,13 @@ __unused static bool entry_is_used(
     return (! shortname_marked_unused(dir_entry));
 }
 
+static bool entry_is_unused(
+        struct dir_entry *dir_entry,
+        void *ign
+) {
+    return shortname_marked_unused(dir_entry);
+}
+
 static bool entry_is_used_not_dot(
         struct dir_entry *dir_entry,
         void *ign
@@ -253,19 +262,23 @@ static errval_t find_dirent(
         if (err_is_fail(err)) {
             return err;
         }
-        assert(FAT32_ENTRIES_PER_BLOCK == 16);
+        assert(FAT32_DirEntriesPerBlock == 16);
         for (uint8_t i = 0; i < mnt->sectors_per_cluster; i++) {
-            for (int j = 0; j < FAT32_ENTRIES_PER_BLOCK; j++) {
+            for (int j = 0; j < FAT32_DirEntriesPerBlock; j++) {
                 if (end_of_directory(d + j)) {
-                    dirent->dir_entry = d[j];
-                    dirent->cluster = cluster_nr;
-                    dirent->index = i * FAT32_ENTRIES_PER_BLOCK + j;
+                    if (dirent) {
+                        dirent->dir_entry = d[j];
+                        dirent->cluster = cluster_nr;
+                        dirent->index = i * FAT32_DirEntriesPerBlock + j;
+                    }
                     return FS_ERR_NOTFOUND;
                 }
                 if (comparator(d + j, comparator_arg1)) {
-                    dirent->dir_entry = d[j];
-                    dirent->cluster = cluster_nr;
-                    dirent->index = i * FAT32_ENTRIES_PER_BLOCK + j;
+                    if (dirent) {
+                        dirent->dir_entry = d[j];
+                        dirent->cluster = cluster_nr;
+                        dirent->index = i * FAT32_DirEntriesPerBlock + j;
+                    }
                     return SYS_ERR_OK;
                 }
             }
@@ -301,7 +314,7 @@ static void next_name_of_path(
     }
 }
 
-__unused static errval_t resolve_path(
+static errval_t resolve_path(
     struct fat32_mnt *mnt,
     struct fat32_dirent *root,
     const char *path,
@@ -368,7 +381,7 @@ __unused static errval_t resolve_path(
     return SYS_ERR_OK;
 }
 
-__unused errval_t fat32_opendir(
+errval_t fat32_opendir(
     void *st,
     const char *path,
     fat32_handle_t *rethandle)
@@ -393,7 +406,7 @@ static errval_t next_dir_entry(
     struct fat32_handle *h
 ) {
     h->dir_offset++;
-    if (h->dir_offset < FAT32_ENTRIES_PER_BLOCK) {
+    if (h->dir_offset < FAT32_DirEntriesPerBlock) {
         return SYS_ERR_OK;
     }
     // new sector
@@ -409,7 +422,7 @@ static errval_t next_dir_entry(
     return err;
 }
 
-__unused errval_t fat32_dir_read_next(
+errval_t fat32_dir_read_next(
     void *st,
     fat32_handle_t inhandle,
     char **retname,
@@ -470,7 +483,7 @@ __unused errval_t fat32_dir_read_next(
     return next_dir_entry(mnt, h);
 }
 
-__unused errval_t fat32_closedir(
+errval_t fat32_closedir(
     void *st,
     fat32_handle_t dhandle
 ) {
@@ -483,7 +496,7 @@ __unused errval_t fat32_closedir(
     return SYS_ERR_OK;
 }
 
-__unused errval_t fat32_open(void *st, const char *path, fat32_handle_t *rethandle)
+errval_t fat32_open(void *st, const char *path, fat32_handle_t *rethandle)
 {
     errval_t err;
     struct fat32_mnt *mnt = st;
@@ -503,7 +516,7 @@ __unused errval_t fat32_open(void *st, const char *path, fat32_handle_t *rethand
     return SYS_ERR_OK;
 }
 
-__unused errval_t fat32_close(void *st, fat32_handle_t inhandle)
+errval_t fat32_close(void *st, fat32_handle_t inhandle)
 {
     struct fat32_handle *handle = inhandle;
     if (handle->isdir) {
@@ -513,7 +526,7 @@ __unused errval_t fat32_close(void *st, fat32_handle_t inhandle)
     return SYS_ERR_OK;
 }
 
-__unused errval_t fat32_tell(void *st, fat32_handle_t handle, size_t *pos)
+errval_t fat32_tell(void *st, fat32_handle_t handle, size_t *pos)
 {
     struct fat32_handle *h = handle;
     if (h->isdir) {
@@ -524,7 +537,7 @@ __unused errval_t fat32_tell(void *st, fat32_handle_t handle, size_t *pos)
     return SYS_ERR_OK;
 }
 
-__unused errval_t fat32_stat(void *st, fat32_handle_t inhandle, struct fs_fileinfo *info)
+errval_t fat32_stat(void *st, fat32_handle_t inhandle, struct fs_fileinfo *info)
 {
     struct fat32_handle *h = inhandle;
     assert(info != NULL);
@@ -684,8 +697,30 @@ static errval_t is_dir_empty(
     }
 }
 
-__unused static errval_t clean_fat_chain(
-    struct fat32_mnt *mnt,
+static errval_t write_fatcutout(
+        struct fat32_mnt *mnt,
+        void *fat_cutout,
+        uint32_t index
+) {
+    errval_t err;
+    for (int i = 0; i < mnt->number_of_fats; i++) {
+        err = aos_rpc_block_driver_write_block(
+                aos_rpc_get_block_driver_channel(),
+                index + i * mnt->sectors_per_fat,
+                fat_cutout,
+                BLOCK_SIZE
+        );
+        if (err_is_fail(err)) {
+            return err;
+        }
+    }
+    return SYS_ERR_OK;
+}
+
+
+// TODO: update mnt->nxt_free
+static errval_t clean_fat_chain(
+        struct fat32_mnt *mnt,
     uint32_t cluster_start
 ) {
     errval_t err;
@@ -713,16 +748,9 @@ __unused static errval_t clean_fat_chain(
         prev_index = index;
         index = mnt->fat_lba + cluster_nr / FAT32_FatEntriesPerSector;
         if (prev_index != index || cluster_nr >= FAT32_EndCluster) {
-            for (int i = 0; i < mnt->number_of_fats; i++) {
-                err = aos_rpc_block_driver_write_block(
-                        aos_rpc_get_block_driver_channel(),
-                        prev_index + i * mnt->sectors_per_fat,
-                        (uint8_t *)fat_cutout,
-                        BLOCK_SIZE
-                );
-                if (err_is_fail(err)) {
-                    return err;
-                }
+            err = write_fatcutout(mnt, fat_cutout, prev_index);
+            if (err_is_fail(err)) {
+                return err;
             }
         }
     }
@@ -739,8 +767,8 @@ static errval_t update_dir_entry_on_disk(
     errval_t err;
     uint8_t *buf[BLOCK_SIZE];
     uint32_t index = cluster_to_lba(mnt, h->dirent.cluster);
-    index += h->dirent.index / FAT32_ENTRIES_PER_BLOCK;     // get section
-    uint32_t offset = h->dirent.index % FAT32_ENTRIES_PER_BLOCK;
+    index += h->dirent.index / FAT32_DirEntriesPerBlock;     // get section
+    uint32_t offset = h->dirent.index % FAT32_DirEntriesPerBlock;
     err = aos_rpc_block_driver_read_block(
         aos_rpc_get_block_driver_channel(),
         index,
@@ -760,7 +788,7 @@ static errval_t update_dir_entry_on_disk(
     );
 }
 
-__unused errval_t fat32_rmdir(
+errval_t fat32_rmdir(
         void *st,
         const char *path
 ) {
@@ -828,15 +856,26 @@ static bool fat_is_free_cluster(uint32_t fat_entry)
     return !(fat_entry & 0x0fffffff);
 }
 
+static errval_t zero_first_block_of_cluster(struct fat32_mnt *mnt, uint32_t cluster_nr) {
+    uint8_t buf[BLOCK_SIZE];
+    memset(buf, 0, BLOCK_SIZE);
+    return aos_rpc_block_driver_write_block(
+        aos_rpc_get_block_driver_channel(),
+        cluster_to_lba(mnt, cluster_nr),
+        buf,
+        BLOCK_SIZE
+    );
+}
+
 /**
  * Allocate `number_of_cluster` many clusters in the FAT
  * @param mnt
  * @param number_of_clusters How many clusters should be allocated
- * @param ret_nr_allocated How many clusters could be allocated
+ * @param ret_nr_allocated How many clusters could be allocated (!= NULL)
  * @param ret_first_cluster_nr Cluster nr to first cluster of cluster chain
  * @return Error
  */
-__unused static errval_t allocate_clusters(
+static errval_t allocate_clusters(
     struct fat32_mnt *mnt,
     uint32_t number_of_clusters,
     uint32_t *ret_nr_allocated,
@@ -869,24 +908,144 @@ __unused static errval_t allocate_clusters(
             last_allocated_cluster_nr = i + FAT32_FatEntriesPerSector * current_sector;
             (*ret_nr_allocated)++;
         }
-        for (int i = 0; i < mnt->number_of_fats; i++) {
-            err = aos_rpc_block_driver_write_block(
-                aos_rpc_get_block_driver_channel(),
-                mnt->fat_lba + current_sector + i * mnt->sectors_per_fat,
-                fat_cutout,
-                BLOCK_SIZE
-            );
-            if (err_is_fail(err)) {
-                return err;
-            }
+        err = write_fatcutout(mnt, fat_cutout, mnt->fat_lba + current_sector);
+        if (err_is_fail(err)) {
+            return err;
         }
         current_sector++;
         if (current_sector >= mnt->sectors_per_fat) {
             current_sector = 0;
         }
     } while(current_sector != start_sector && *ret_nr_allocated < number_of_clusters);
-
+    // It should be enough to zero the first new cluster -> end of dir
+    err = zero_first_block_of_cluster(mnt, last_allocated_cluster_nr);
+    if (err_is_fail(err)) {
+        return err;
+    }
     *ret_first_cluster_nr = last_allocated_cluster_nr;
     mnt->next_free = last_allocated_cluster_nr + 1;
     return SYS_ERR_OK;
 }
+
+static errval_t extend_cluster_chain(
+    struct fat32_mnt *mnt,
+    struct fat32_handle *parent_handler,
+    uint32_t cluster_nr,
+    uint32_t n,
+    uint32_t *ret_n
+) {
+    errval_t err;
+    uint32_t free_cluster_start_nr;
+    err = allocate_clusters(mnt, n, ret_n, &free_cluster_start_nr);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    uint32_t sector_rel_to_fat = cluster_nr / FAT32_FatEntriesPerSector;
+    uint32_t fat_cutout[FAT32_FatEntriesPerSector];
+    err = aos_rpc_block_driver_read_block(
+        aos_rpc_get_block_driver_channel(),
+        mnt->fat_lba + sector_rel_to_fat,
+        fat_cutout,
+        BLOCK_SIZE
+    );
+    if (err_is_fail(err)) {
+        return err;
+    }
+    uint32_t offset = cluster_nr % FAT32_FatEntriesPerSector;
+    assert(fat_cutout[offset] >= FAT32_EndCluster);
+    fat_cutout[offset] = free_cluster_start_nr;
+    err = write_fatcutout(mnt, fat_cutout, mnt->fat_lba + sector_rel_to_fat);
+    if (err_is_fail(err)) {
+        return err;
+    }
+    return SYS_ERR_OK;
+}
+
+static errval_t create_dir_entry(
+    struct fat32_mnt *mnt,
+    struct fat32_handle *parent_handler,
+    struct fat32_dirent *dirent
+) {
+    errval_t err;
+    // TODO: Change for long name support
+    err = find_dirent(mnt, &parent_handler->dirent, entry_is_unused, NULL, dirent);
+    if (err != FS_ERR_NOTFOUND) {
+        return err;
+    }
+    if (dirent->index + 1 >= FAT32_DirEntriesPerBlock * mnt->sectors_per_cluster) {
+        // TODO
+        uint32_t n;
+        err = extend_cluster_chain(mnt, parent_handler, dirent->cluster, 1, &n);
+        if (n == 0) {
+            return FS_ERR_OUT_OF_MEM;
+        }
+    }
+    // TODO
+}
+
+errval_t fat32_create(
+    void *st,
+    const char *path,
+    fat32_handle_t *rethandle)
+{
+    errval_t err;
+    struct fat32_mnt *mnt = st;
+
+    err = resolve_path(mnt, &mnt->root, path, NULL);
+    if (err_is_ok(err)) {
+        return FS_ERR_EXISTS;
+    }
+
+    struct fat32_handle *parent = NULL;
+    const char *childname;
+
+    // find parent directory
+    char *lastsep = strrchr(path, FS_PATH_SEP);
+    if (lastsep != NULL) {
+        childname = lastsep + 1;
+
+        size_t pathlen = lastsep - path;
+        char pathbuf[pathlen + 1];
+        memcpy(pathbuf, path, pathlen);
+        pathbuf[pathlen] = '\0';
+
+        // resolve parent directory
+        err = resolve_path(mnt, &mnt->root, pathbuf, &parent);
+        if (err_is_fail(err)) {
+            return err;
+        } else if (!parent->isdir) {
+            handle_close(parent);
+            return FS_ERR_NOTDIR; // parent is not a directory
+        }
+    } else {
+        childname = path;
+    }
+
+    // TODO Validate name
+
+    /*
+    struct ramfs_dirent *dirent = dirent_create(childname, false);
+    if (dirent == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+
+    if (parent) {
+        dirent_insert(parent->dirent, dirent);
+        handle_close(parent);
+    } else {
+        dirent_insert(mount->root, dirent);
+    }
+
+    if (rethandle) {
+        struct ramfs_handle *fh = handle_open(dirent);
+        if (fh  == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        fh->path = strdup(path);
+        *rethandle = fh;
+    }
+     */
+
+    return SYS_ERR_OK;
+}
+#pragma GCC diagnostic pop

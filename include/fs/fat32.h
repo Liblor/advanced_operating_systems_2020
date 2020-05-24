@@ -17,8 +17,6 @@ typedef void *fat32_handle_t;
 #define BPB_RsvdSecCnt 0x0e
 #define BPB_FATSz32    0x24
 #define BPB_RootClus   0x2c
-#define FAT32_EndCluster 0xffffff8
-#define FAT32_FatEntriesPerSector (BLOCK_SIZE / sizeof(uint32_t))
 
 struct dir_entry {
     char shortname[11];
@@ -41,7 +39,9 @@ struct fat32_dirent {
     uint32_t index;                ///< The index from the beginning of the cluster to this entry
 };
 
-#define FAT32_ENTRIES_PER_BLOCK (BLOCK_SIZE / sizeof(struct dir_entry))
+#define FAT32_EndCluster 0xffffff8
+#define FAT32_FatEntriesPerSector (BLOCK_SIZE / sizeof(uint32_t))
+#define FAT32_DirEntriesPerBlock (BLOCK_SIZE / sizeof(struct dir_entry))
 
 struct fat32_mnt {
     struct fat32_dirent root;
@@ -110,6 +110,11 @@ errval_t fat32_rmdir(
 errval_t fat32_remove(
     void *st,
     const char *path
+);
+errval_t fat32_create(
+    void *st,
+    const char *path,
+    fat32_handle_t *rethandle
 );
 
 #endif //BF_AOS_FAT32_H
