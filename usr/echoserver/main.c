@@ -63,7 +63,14 @@ int main(int argc, char *argv[])
     );
     assert(err_is_ok(err));
 
-    thread_exit(0);
+    struct waitset *default_ws = get_default_waitset();
+
+    while (true) {
+        err = event_dispatch(default_ws);
+        if (err_is_fail(err)) {
+            debug_printf("Error while serving. Continuing...\n");
+        }
+    }
 
     return EXIT_SUCCESS;
 }

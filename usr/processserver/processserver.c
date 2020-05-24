@@ -358,5 +358,14 @@ int main(int argc, char *argv[])
 
     debug_printf("Processserver registered at nameserver.\n");
 
-    thread_exit(0);
+    debug_printf("Entering message handler loop...\n");
+    // Hang around
+    struct waitset *default_ws = get_default_waitset();
+    while (true) {
+        err = event_dispatch(default_ws);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in event_dispatch");
+            abort();
+        }
+    }
 }

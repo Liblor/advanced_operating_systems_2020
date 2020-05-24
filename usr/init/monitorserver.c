@@ -8,8 +8,8 @@
 #include <spawn/spawn.h>
 
 #include "monitorserver.h"
+#include "nameserver.h"
 
-static struct rpc_lmp_server server;
 static struct monitorserver_state monitorserver_state;
 
 #define MONITORSERVER_LOCK thread_mutex_lock(&monitorserver_state.mutex)
@@ -39,30 +39,76 @@ static errval_t reply_error(
     return SYS_ERR_OK;
 }
 
-static inline errval_t monitor_forward_receive(
+static inline errval_t monitor_forward_request(
+        struct monitorserver_state *mss,
         struct rpc_message *msg,
         struct aos_rpc *rpc_reply,
         struct aos_rpc *forward_to
 )
 {
     errval_t err;
-    struct rpc_message *recv = NULL;
 
-    err = aos_rpc_ump_send_and_wait_recv(
-            forward_to,
-            msg,
-            &recv
-    );
+    assert(rpc_reply != NULL);
+
+    err = aos_rpc_ump_send_message(forward_to, msg);
     if (err_is_fail(err)) {
         err = reply_error(rpc_reply, msg->msg.method);
-        goto cleanup;
     }
-    err = aos_rpc_lmp_send_message(rpc_reply, recv, LMP_SEND_FLAGS_DEFAULT);
+
+    rpc_lmp_server_pause_processing(&mss->lmp_server);
+    mss->rpc_forward_request_pending = forward_to;
+    mss->rpc_forward_response_pending = rpc_reply;
+    mss->method_forward_request_pending = msg->msg.method;
+
+    return err;
+}
+
+static inline errval_t monitor_try_forward_response(
+        struct monitorserver_state *mss
+)
+{
+    errval_t err = SYS_ERR_OK;
+
+    struct rpc_message *recv = NULL;
+
+    // Check if we are waiting for a response to forward
+    if (mss->rpc_forward_request_pending != NULL) {
+        // Try to receive response of the forwarded request
+        err = aos_rpc_ump_receive_non_block(mss->rpc_forward_request_pending, &recv);
+        if (err_is_fail(err)) {
+            err = reply_error(mss->rpc_forward_response_pending, mss->method_forward_request_pending);
+            goto cleanup;
+        }
+
+        if (recv != NULL) {
+            // Response received
+            err = aos_rpc_lmp_send_message(mss->rpc_forward_response_pending, recv, LMP_SEND_FLAGS_DEFAULT);
+
+            mss->rpc_forward_request_pending = NULL;
+            mss->rpc_forward_response_pending = NULL;
+            rpc_lmp_server_start_processing(&mss->lmp_server);
+        }
+    }
+
 cleanup:
     if (recv != NULL) {
         free(recv);
     }
     return err;
+}
+
+static void forward_response_periodic_event_func(void *arg)
+{
+    errval_t err;
+
+    assert(arg != NULL);
+
+    struct monitorserver_state *mss = arg;
+
+    err = monitor_try_forward_response(mss);
+	if (err_is_fail(err)) {
+	    debug_printf("Unhandled error in monitorserver forward_response_periodic_event_func()\n");
+	}
 }
 
 static inline errval_t monitor_forward(
@@ -103,7 +149,7 @@ static void service_recv_cb(
         if (! is_registered(&mss->memoryserver_rpc)) {
             goto unregistered_service;
         }
-        err = monitor_forward_receive(msg, rpc, &mss->memoryserver_rpc.ump_rpc);
+        err = monitor_forward_request(mss, msg, rpc, &mss->memoryserver_rpc.ump_rpc);
         break;
     case Method_Nameserver_Register:
     case Method_Nameserver_Deregister:
@@ -112,7 +158,7 @@ static void service_recv_cb(
         if (! is_registered(&mss->nameserver_rpc)) {
             goto unregistered_service;
         }
-        err = monitor_forward_receive(msg, rpc, &mss->nameserver_rpc.ump_rpc);
+        err = monitor_forward_request(mss, msg, rpc, &mss->nameserver_rpc.ump_rpc);
         break;
 
 	default:
@@ -258,18 +304,35 @@ errval_t monitorserver_register_service(
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
-    // Once the nameserver is registered at the monitor the monitor can register itself at the nameserver
     if (type == NameserverUrpc) {
+        // Once the nameserver is registered at the monitor the monitor can register itself at the nameserver
         debug_printf("Nameserver registered at monitor, registering monitor at nameserver...\n");
 
         coreid_t cid = disp_get_core_id();
         char service_name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
         snprintf(service_name, sizeof(service_name), NAMESERVICE_MONITOR "%llu", cid);
 
-        err = nameservice_register(service_name, service_localtask_handler, &monitorserver_state);
-        if (err_is_fail(err)) {
-            debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
-            return err;
+        if (monitorserver_state.ns_state == NULL) {
+            err = nameservice_register(service_name, service_localtask_handler, &monitorserver_state);
+            if (err_is_fail(err)) {
+                debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
+                return err;
+            }
+        } else {
+            err = nameservice_register_no_send(service_name, service_localtask_handler, &monitorserver_state);
+            if (err_is_fail(err)) {
+                debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
+                return err;
+            }
+
+            struct srv_entry *monservice = nameservice_get_entry(service_name);
+            assert(monservice != NULL);
+
+            err = nameserver_add_service(monitorserver_state.ns_state, service_name, monservice->add_client_chan.ump.frame_cap, 0);
+            if (err_is_fail(err)) {
+                debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
+                abort();
+            }
         }
     }
 
@@ -300,7 +363,7 @@ errval_t monitorserver_serve_lmp_in_thread(void) {
     return SYS_ERR_OK;
 }
 
-errval_t monitorserver_init(void)
+errval_t monitorserver_init(struct nameserver_state *ns_state)
 {
     errval_t err;
 
@@ -308,16 +371,23 @@ errval_t monitorserver_init(void)
     debug_printf("Initializing Monitor on core %llu.\n", cid);
 
     memset(&monitorserver_state, 0, sizeof(struct monitorserver_state));
+    monitorserver_state.ns_state = ns_state;
     thread_mutex_init(&monitorserver_state.mutex);
     waitset_init(&monitorserver_state.ws);
 
+    memset(&monitorserver_state.forward_response_periodic_ev, 0, sizeof(struct periodic_event));
+    err = periodic_event_create(&monitorserver_state.forward_response_periodic_ev,
+                                get_default_waitset(),
+                                MONITORSERVER_PERIODIC_FORWARD_RESPONSE_EVENT_US,
+                                MKCLOSURE(forward_response_periodic_event_func, &monitorserver_state));
+
     err = rpc_lmp_server_init(
-            &server, cap_chan_monitor,
+            &monitorserver_state.lmp_server, cap_chan_monitor,
             service_recv_cb,
             state_init_cb,
             state_free_cb,
             &monitorserver_state,
-            &monitorserver_state.ws);
+            get_default_waitset());
 
     if (err_is_fail(err)) {
         debug_printf("rpc_lmp_server_init() failed: %s\n", err_getstring(err));

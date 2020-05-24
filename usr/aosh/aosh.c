@@ -6,6 +6,7 @@
 #include <aos/aos.h>
 #include <aos/debug.h>
 #include <aos/string.h>
+#include <aos/nameserver.h>
 #include <collections/list.h>
 #include "linenoise/linenoise.h"
 
@@ -331,6 +332,8 @@ int main(
         char *argv[])
 {
     errval_t err;
+    nameservice_wait_for(NAMESERVICE_SERIAL);
+
     printf("spawning aosh..." ENDL);
 
     err = aosh_init();
