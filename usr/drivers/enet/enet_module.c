@@ -346,9 +346,9 @@ static void enet_parse_link(
             lpa &= lpa2;
             if (lpa & (PHY_LPA_100FULL | PHY_LPA_100HALF)) {
                 if (lpa & PHY_LPA_100FULL) {
-                    debug_printf("LINK 100 Mbit/s FULL duplex\n");
+                    ENET_DEBUG("LINK 100 Mbit/s FULL duplex\n");
                 } else {
-                    debug_printf("LINK 100 Mbit/s half\n");
+                    ENET_DEBUG("LINK 100 Mbit/s half\n");
                 }
             }
         }

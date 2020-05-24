@@ -9,6 +9,14 @@
 
 #include "udp.h"
 
+#define ENET_UDP_DEBUG_OPTION 1
+
+#if ENET_UDP_DEBUG_OPTION
+#define ENET_UDP_DEBUG(x...) debug_printf("[enet/udp] " x);
+#else
+#define ENET_UDP_DEBUG(fmt, ...) ((void)0)
+#endif
+
 #define UDP_HASHTABLE_BUCKETS (256)
 
 struct udp_binding {

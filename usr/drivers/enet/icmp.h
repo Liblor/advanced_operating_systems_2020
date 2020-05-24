@@ -5,6 +5,14 @@
 
 #include "icmp.h"
 
+#define ENET_ICMP_DEBUG_OPTION 1
+
+#if ENET_ICMP_DEBUG_OPTION
+#define ENET_ICMP_DEBUG(x...) debug_printf("[enet/icmp] " x);
+#else
+#define ENET_ICMP_DEBUG(fmt, ...) ((void)0)
+#endif
+
 struct ip_state;
 struct ip_context;
 

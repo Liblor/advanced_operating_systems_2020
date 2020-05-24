@@ -7,6 +7,7 @@
 #include <aos/debug.h>
 #include <aos/string.h>
 #include <collections/list.h>
+#include "linenoise/linenoise.h"
 
 #include "aosh.h"
 #include "builtin/builtin.h"
@@ -62,6 +63,22 @@ static void free_argv(
         free(argv[i]);
     }
     free(argv);
+}
+
+static
+errval_t aosh_linenoise_readline(
+        struct aosh_state *state,
+        char **ret_line,
+        size_t *ret_size)
+{
+    *ret_line = linenoise("aosh >>> ");
+    if (*ret_line == NULL) {
+        return AOSH_ERR_EXIT_SHELL;
+    }
+    *ret_size = MIN(strnlen(*ret_line, AOSH_READLINE_MAX_LEN) + 1,
+                    AOSH_READLINE_MAX_LEN);
+    linenoiseHistoryAdd(*ret_line);
+    return SYS_ERR_OK;
 }
 
 /** Read a line from serial port,
@@ -194,12 +211,10 @@ static errval_t aosh_tokenize_arg(
             }
         } else if (line[i] == '\\' && !escape) {
             escape = true;
-        }
-        else if (!escape && line[i] == '"') {
+        } else if (!escape && line[i] == '"') {
             // dont tokenize within quotes
             quote_double = !quote_double;
-        }
-        else {
+        } else {
             buf[bufi] = line[i];
             bufi++;
             escape = false;
@@ -254,16 +269,21 @@ static errval_t aosh_read_eval_execute(void)
     int argc = 0;
     size_t line_size = 0;
 
+#if 0
     printf(AOSH_CLI_HEAD);
     fflush(stdout);
-
     err = aosh_readline((void **) &line, &line_size);
     printf(ENDL);
+    fflush(stdout);
+#endif
+
+    err = aosh_linenoise_readline(&aosh, &line, &line_size);
+    printf("\r");
     fflush(stdout);
 
     if (err == AOSH_ERR_EXIT_SHELL) {
         goto err_free_line;
-    }else if (err == AOSH_ERR_READLINE_MAX_EXCEEDED) {
+    } else if (err == AOSH_ERR_READLINE_MAX_EXCEEDED || line_size >= AOSH_READLINE_MAX_LEN) {
         printf("AOSH_READLINE_MAX_LEN reached. Skipping command\n");
         goto success_free;
     } else if (err_is_fail(err)) {
@@ -305,6 +325,7 @@ static errval_t aosh_read_eval_execute(void)
     return err;
 }
 
+
 int main(
         int argc,
         char *argv[])
@@ -317,9 +338,10 @@ int main(
         debug_printf("failed to init aosh. %s", err_getstring(err));
         return EXIT_FAILURE;
     }
-    // clear_screen();
-    printf("Welcome to aosh! "ENDL);
 
+    assert(err_is_ok(err));
+
+    printf("Welcome to aosh! "ENDL);
     do {
         err = aosh_read_eval_execute();
         thread_yield();

@@ -126,14 +126,14 @@ errval_t queues_initialize(
 
     assert(st != NULL);
 
-    debug_printf("Initializing RX queue...\n");
+    ENET_DEBUG("Initializing RX queue...\n");
     err = queues_initialize_rx(st, rx_rid);
     if (err_is_fail(err)) {
         debug_printf("RX Queue initialization failed.\n");
         return err_push(err, SYS_ERR_NOT_IMPLEMENTED);
     }
 
-    debug_printf("Initializing TX queue...\n");
+    ENET_DEBUG("Initializing TX queue...\n");
     err = queues_initialize_tx(st, tx_rid);
     if (err_is_fail(err)) {
         debug_printf("TX Queue initialization failed.\n");

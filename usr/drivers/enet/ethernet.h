@@ -11,6 +11,14 @@
 #include "arp.h"
 #include "ip.h"
 
+#define ENET_ETHERNET_DEBUG_OPTION 0
+
+#if ENET_ETHERNET_DEBUG_OPTION
+#define ENET_ETHERNET_DEBUG(x...) debug_printf("[enet/ethernet] " x);
+#else
+#define ENET_ETHERNET_DEBUG(fmt, ...) ((void)0)
+#endif
+
 #define OWN_IP_ADDRESS (MK_IP(2, 0, 0, 10))
 #define ETHERNET_MAX_PAYLOAD (1500)
 #define ETHERNET_DIGEST_LENGTH (17)
