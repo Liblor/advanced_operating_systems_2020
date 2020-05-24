@@ -720,7 +720,6 @@ static errval_t enet_serve(
     const lvaddr_t base = st->rx_base + buf.offset + buf.valid_data;
 
     ENET_DEBUG("Received packet of size %lu.\n", buf.valid_length);
-    //debug_dump_mem(base, base + buf.valid_length, st->rx_base);
 
     err = ethernet_process(&st->eth_state, base, buf.valid_length);
     if (err_is_fail(err)) {
