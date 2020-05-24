@@ -2,10 +2,21 @@
 #include <aos/aos_rpc.h>
 #include <aos/nameserver.h>
 #include <grading.h>
+#include <aos/systime.h>
 
+
+#define PROCESS_SERVER_THRESHOLD_INACTIVE_MS (10 * 1000)
+
+enum process_status {
+    ProcessStatus_Active = 1,
+    ProcessStatus_Init = 5,
+    ProcessStatus_InActive = 10
+};
 struct process_info {
     char *name;
     domainid_t pid;
+    systime_t last_ping;
+    enum process_status status;
     struct process_info *next;
     struct process_info *prev;
 };
@@ -89,6 +100,8 @@ static void add_process_info(struct processserver_state *server_state, struct pr
     process_info->prev = server_state->process_tail.prev;
     process_info->next = &server_state->process_tail;
     process_info->pid = server_state->num_proc;
+    process_info->status = ProcessStatus_Init;
+    process_info->last_ping = systime_now();
     server_state->process_tail.prev = process_info;
     server_state->num_proc++;
 }
@@ -306,6 +319,57 @@ static errval_t handle_process_get_all_pids(struct processserver_state *server_s
     return SYS_ERR_OK;
 }
 
+inline
+static errval_t handle_process_ping(
+        struct processserver_state *server_state,
+        struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
+
+    if (rpc_msg_part->payload_length < sizeof(domainid_t)) {
+        debug_printf("err invalid method size for ping\n");
+        return LIB_ERR_LMP_BUFLEN_INVALID; // TODO
+    }
+    domainid_t pid = -1;
+    memcpy(&pid, rpc_msg_part->payload, sizeof(domainid_t));
+    *ret_msg = NULL;
+
+    struct process_info *found = NULL;
+    struct process_info *curr = server_state->process_head.next;
+    while (curr != &(server_state->process_tail)) {
+        if (curr->pid == pid) {
+            found = curr;
+            break;
+        }
+        curr = curr->next;
+    }
+    if (found == NULL) {
+        debug_printf("pid %d not registered\n", pid);
+    }
+    else {
+        found->last_ping = systime_now();
+        found->status = ProcessStatus_Active;
+        // debug_printf("receiving ping from %d\n", pid);
+    }
+    return SYS_ERR_OK;
+}
+
+static void update_process_status(struct processserver_state *server_state) {
+    struct process_info *curr = server_state->process_head.next;
+    uint64_t now_ms = systime_to_ns(systime_now()) / 1000000;
+    while (curr != &(server_state->process_tail)) {
+        size_t last_seen_ms = now_ms - systime_to_ns(curr->last_ping) / 1000000;
+        if (curr->status != ProcessStatus_InActive
+            && last_seen_ms > PROCESS_SERVER_THRESHOLD_INACTIVE_MS) {
+            debug_printf("pid %d is turning inactive. Last seen: %zu seconds ago\n",
+                    curr->pid, last_seen_ms / 1000);
+            curr->status = ProcessStatus_InActive;
+        }
+        curr = curr->next;
+    }
+}
+
+
 static errval_t handle_complete_msg(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     switch (rpc_msg_part->method) {
         case Method_Spawn_Process: {
@@ -316,6 +380,9 @@ static errval_t handle_complete_msg(struct processserver_state *server_state, st
         }
         case Method_Process_Get_All_Pids: {
             return handle_process_get_all_pids(server_state, rpc_msg_part, ret_msg);
+        }
+        case Method_Process_Ping: {
+            return handle_process_ping(server_state, rpc_msg_part, ret_msg);
         }
         // TODO: error on unknown message, introduce new errcode
         default: break;
@@ -330,6 +397,7 @@ static void service_handler(void *st, void *message, size_t bytes, void **respon
     struct rpc_message *resp_msg = NULL;
 
     errval_t err;
+    update_process_status(ps);
 
     err = handle_complete_msg(ps, &msg->msg, &resp_msg);
     if (err_is_fail(err)) {
@@ -337,8 +405,13 @@ static void service_handler(void *st, void *message, size_t bytes, void **respon
         return;
     }
 
-    *response = resp_msg;
-    *response_bytes = sizeof(struct rpc_message) + resp_msg->msg.payload_length;
+    if (resp_msg != NULL){
+        *response = resp_msg;
+        *response_bytes = sizeof(struct rpc_message) + resp_msg->msg.payload_length;
+    } else {
+        *response = NULL;
+        *response_bytes = 0;
+    }
 }
 
 int main(int argc, char *argv[])

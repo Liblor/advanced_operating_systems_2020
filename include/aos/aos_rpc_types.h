@@ -16,6 +16,7 @@ enum rpc_message_method {
     Method_Process_Get_Name,
     Method_Process_Get_All_Pids,
     Method_Spawn_Process,
+    Method_Process_Ping,
     Method_Localtask_Spawn_Process,
     Method_Nameserver_Register,
     Method_Nameserver_Deregister,

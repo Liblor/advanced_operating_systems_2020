@@ -123,6 +123,13 @@ errval_t aos_rpc_lmp_get_device_cap(struct aos_rpc *chan,
                                 lpaddr_t paddr, size_t bytes,
                                 struct capref *frame);
 
+
+/** ping process server to signalize that we are still alive
+ *  does not return something
+ */
+errval_t
+aos_rpc_lmp_process_ping(struct aos_rpc *rpc);
+
 // Nameserver calls
 errval_t aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid);
 errval_t aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name);

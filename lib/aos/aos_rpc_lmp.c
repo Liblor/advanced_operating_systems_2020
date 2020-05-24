@@ -5,6 +5,7 @@
 #include <aos/aos_rpc_lmp_marshal.h>
 #include <aos/nameserver.h>
 #include <aos/deferred.h>
+#include <arch/aarch64/aos/dispatcher_arch.h>
 
 __unused static struct aos_rpc *memory_channel = NULL;
 
@@ -606,6 +607,45 @@ clean_up:
         free(recv);
     }
     return err;
+}
+
+errval_t
+aos_rpc_lmp_process_ping(struct aos_rpc *rpc)
+{
+    errval_t err;
+
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(domainid_t)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
+    domainid_t pid = disp->domain_id;
+
+    msg->cap = NULL_CAP;
+    msg->msg.method = Method_Process_Ping;
+    msg->msg.payload_length = sizeof(domainid_t);
+    msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, &pid, sizeof(domainid_t));
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
+            return err;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        struct nameservice_chan chan = {
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
+        };
+        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "nameservice_rpc()\n");
+            return err;
+        }
+    }
+    return SYS_ERR_OK;
 }
 
 errval_t

@@ -23,6 +23,8 @@
 // How often a transient error can occur before it's regarded critical.
 #define TRANSIENT_ERR_RETRIES (1000)
 
+#define PROCESS_SERVER_RECOMMEND_PING_INTERVAL_US (1000 * 1000 * 5)
+
 // how long to sleep thread and give away execution time until resume on transient error
 #define TRANSIENT_ERR_SLEEP_US (1000)
 
@@ -130,6 +132,11 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
  */
 errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
                                       domainid_t **pids, size_t *pid_count);
+
+
+/** ping process server to show we are still alive **/
+errval_t
+aos_rpc_process_ping(struct aos_rpc *rpc);
 
 /**
  * \brief Request a device cap for the given region.
