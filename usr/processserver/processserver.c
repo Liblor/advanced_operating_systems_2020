@@ -7,11 +7,7 @@
 
 #define PROCESS_SERVER_THRESHOLD_INACTIVE_MS (10 * 1000)
 
-enum process_status {
-    ProcessStatus_Active = 1,
-    ProcessStatus_Init = 5,
-    ProcessStatus_InActive = 10
-};
+
 struct process_info {
     char *name;
     domainid_t pid;
@@ -289,6 +285,63 @@ static errval_t handle_process_get_name(struct processserver_state *server_state
     return SYS_ERR_OK;
 }
 
+
+
+inline
+static errval_t handle_process_info(
+        struct processserver_state *server_state,
+        struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
+    errval_t err;
+    domainid_t pid = (domainid_t) rpc_msg_part->payload[0];
+    enum rpc_message_status status = Status_Ok;
+    char *name = NULL;
+
+    struct process_info *curr = server_state->process_head.next;
+    struct process_info *found = NULL;
+    while (curr != &(server_state->process_tail)) {
+        if (curr->pid == pid) {
+            found = curr;
+            break;
+        }
+        curr = curr->next;
+    }
+    if (found == NULL) {
+        debug_printf("pid not found\n");
+        status = Status_Error;
+    } else {
+        *ret_msg = calloc(1, sizeof(struct rpc_message) + sizeof());
+        const size_t name_size = strlen(found_name) + 1;
+        *ret_name = malloc(name_size);
+        strncpy(*ret_name, found_name, name_size);
+
+
+
+    }
+
+
+    err = get_name_cb(server_state, pid, &name);
+    if (err_is_fail(err)) {
+        status = Status_Error;
+    }
+    const size_t payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1; // strnlen no \0
+    *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_length);
+    if (*ret_msg == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    char *result_name = (char *) &(*ret_msg)->msg.payload;
+    strncpy(result_name, name, payload_length);
+    free(name);
+    (*ret_msg)->cap = NULL_CAP;
+    (*ret_msg)->msg.payload_length = payload_length;
+    (*ret_msg)->msg.method = Method_Process_Get_Name;
+    (*ret_msg)->msg.status = status;
+
+    return SYS_ERR_OK;
+}
+
+
 inline
 static errval_t handle_process_get_all_pids(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t  err;
@@ -377,6 +430,9 @@ static errval_t handle_complete_msg(struct processserver_state *server_state, st
         }
         case Method_Process_Get_Name: {
             return handle_process_get_name(server_state, rpc_msg_part, ret_msg);
+        }
+        case Method_Process_Info: {
+            return handle_process_info(server_state, rpc_msg_part, ret_msg);
         }
         case Method_Process_Get_All_Pids: {
             return handle_process_get_all_pids(server_state, rpc_msg_part, ret_msg);

@@ -609,6 +609,59 @@ clean_up:
     return err;
 }
 
+errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *rpc, domainid_t pid,
+                                      struct aos_rpc_process_info_reply **ret_info) {
+    errval_t err;
+    const size_t payload_len = sizeof(pid);
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_len];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->cap = NULL_CAP;
+    msg->msg.method = Method_Process_Info;
+    msg->msg.payload_length = payload_len;
+    msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, &pid, sizeof(pid));
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+
+    if (rpc->type == RpcTypeLmp) {
+        debug_printf("lmp support no longer available. Use nameserver\n");
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+    };
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        return err;
+    }
+    struct aos_rpc_process_info_reply *reply = malloc(recv->msg.payload_length);
+    if (reply == NULL) {
+        err = LIB_ERR_MALLOC_FAIL;
+        goto clean_up_recv;
+    }
+
+    // XXX: server must ensure that string is null terminated!
+    memcpy(reply, recv->msg.payload, recv->msg.payload_length);
+
+    err = SYS_ERR_OK;
+    *ret_info = reply;
+
+    goto clean_up_recv;
+
+    clean_up_recv:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
 errval_t
 aos_rpc_lmp_process_ping(struct aos_rpc *rpc)
 {

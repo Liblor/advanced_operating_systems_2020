@@ -45,8 +45,6 @@ struct aos_rpc {
     void *priv_data;
 };
 
-
-
 /**
  * \brief Call this handler on the receive side for grading
  */
@@ -122,6 +120,11 @@ errval_t aos_rpc_process_spawn(struct aos_rpc *chan, char *name,
  */
 errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
                                   char **name);
+
+/** get info about a process **/
+errval_t aos_rpc_process_get_info(struct aos_rpc *chan, domainid_t pid,
+                                  struct aos_rpc_process_info_reply **ret_info);
+
 
 /**
  * \brief Get PIDs of all running processes.

@@ -17,6 +17,7 @@ enum rpc_message_method {
     Method_Process_Get_All_Pids,
     Method_Spawn_Process,
     Method_Process_Ping,
+    Method_Process_Info,
     Method_Localtask_Spawn_Process,
     Method_Nameserver_Register,
     Method_Nameserver_Deregister,
@@ -62,6 +63,19 @@ struct serial_getchar_reply {
 
 struct serial_getchar_req {
     serial_session_t session;    ///< read session
+};
+
+enum process_status {
+    ProcessStatus_Active = 1,
+    ProcessStatus_Init = 5,
+    ProcessStatus_InActive = 10
+};
+
+struct aos_rpc_process_info_reply {
+    enum process_status status;
+    domainid_t pid;
+    systime_t last_ping;
+    char *name;
 };
 
 #endif
