@@ -43,7 +43,7 @@ void libc_exit(int);
 __weak_reference(libc_exit, _exit);
 void libc_exit(int status)
 {
-    debug_printf("libc exit NYI!\n");
+    // debug_printf("libc exit NYI!\n");
     thread_exit(status);
     // If we're not dead by now, we wait
     while (1) {}
