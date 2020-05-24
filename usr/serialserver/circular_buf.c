@@ -1,10 +1,9 @@
-//
-// Created by b on 5/16/20.
-//
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 #include "circular_buf.h"
 
-__unused
 static void cbuf_advance(struct cbuf *buf)
 {
     if (buf->full) {
@@ -15,7 +14,6 @@ static void cbuf_advance(struct cbuf *buf)
     buf->full = buf->head == buf->tail;
 }
 
-__unused
 static void cbuf_retreat(struct cbuf *buf)
 {
     buf->tail = (buf->tail + 1) % buf->max;
@@ -71,12 +69,10 @@ cbuf_init(struct cbuf *buf, void *data, size_t entry_size, size_t max_entries)
 
     memset(buf, 0, sizeof(struct cbuf));
     memset(data, 0, max_entries * entry_size);
-
     buf->data = data;
     buf->full = false;
     buf->head = buf->tail = 0;
     buf->max = max_entries;
     buf->entry_size = entry_size;
-
     return SYS_ERR_OK;
 };
