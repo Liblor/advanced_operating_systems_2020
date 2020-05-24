@@ -124,8 +124,8 @@ errval_t aos_rpc_lmp_get_device_cap(struct aos_rpc *chan,
                                 struct capref *frame);
 
 
-/** ping process server to signalize that we are still alive
- *  does not return something
+/** fire and forget ping to  process server
+ * to signalize that we are still alive.
  */
 errval_t
 aos_rpc_lmp_process_ping(struct aos_rpc *rpc);
