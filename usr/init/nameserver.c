@@ -350,23 +350,18 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
 
 	switch (msg->msg.method) {
     case Method_Nameserver_Register:
-        debug_printf("Method_Nameserver_Register\n");
-
         resp = malloc(NAMESERVER_REGISTER_RESPONSE_SIZE);
         reply_init(msg, resp);
 
         handle_register(msg, ns_state, resp);
         break;
     case Method_Nameserver_Deregister:
-        debug_printf("Method_Nameserver_Deregister\n");
         resp = malloc(NAMESERVER_DEREGISTER_RESPONSE_SIZE);
         reply_init(msg, resp);
 
         handle_deregister(msg, ns_state, resp);
         break;
     case Method_Nameserver_Lookup:
-        debug_printf("Method_Nameserver_Lookup\n");
-
         err = handle_lookup(msg, ns_state, rpc);
         if (err_is_ok(err)) {
             // Do nothing since we are waiting for the add_client response
@@ -379,8 +374,6 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
         }
         break;
     case Method_Nameserver_Enumerate:
-        debug_printf("Method_Nameserver_Enumerate\n");
-
         handle_enumerate(msg, ns_state, &resp);
         break;
     default:

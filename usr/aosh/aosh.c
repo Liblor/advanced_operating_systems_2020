@@ -105,9 +105,6 @@ static errval_t aosh_readline(
             fflush(stdout);
         }
     }
-    if (i == AOSH_READLINE_MAX_LEN) {
-        debug_printf("AOSH_READLINE_MAX_LEN reached. truncating line\n");
-    }
     if (c == CHAR_CODE_EOT) {
         // ctrl d  pressed
         err = AOSH_ERR_EXIT_SHELL;
@@ -125,23 +122,15 @@ static errval_t aosh_readline(
     if (ret_size != NULL) {
         *ret_size = i;
     }
-    err = SYS_ERR_OK;
+    if (i >= AOSH_READLINE_MAX_LEN) {
+        err = AOSH_ERR_READLINE_MAX_EXCEEDED;
+    } else {
+        err = SYS_ERR_OK;
+    }
 
     free_buf:
     free(buf);
     return err;
-}
-
-static __inline bool is_quote_start(
-        int arg_start,
-        const char *line)
-{
-    const bool quote_first_char =
-            line[arg_start] == '"' && arg_start == 0;
-    const bool quote_not_escaped =
-            line[arg_start] == '"' && arg_start > 0 && line[arg_start - 1] != '\\';
-
-    return quote_first_char || quote_not_escaped;
 }
 
 /**
@@ -163,9 +152,14 @@ static errval_t aosh_tokenize_arg(
     if (argv_list == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
+    char *buf = malloc(AOSH_READLINE_MAX_LEN);
+    if (buf == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
 
-    int arg_start = 0;
+    int bufi = 0;
     bool quote_double = false;
+    bool escape = false;
     for (int i = 0; i < AOSH_READLINE_MAX_LEN; i++) {
         AOSH_TRACE("parsing line[%d]='%d' \n", i, line[i]);
 
@@ -173,48 +167,48 @@ static errval_t aosh_tokenize_arg(
             || line[i] == '\0'
             || IS_CHAR_LINEBREAK(line[i])) {
 
-            // XXX dont include quotes in argument
-            if (is_quote_start(arg_start, line)) {
-                arg_start++;
-            }
-            int arg_end = i;
-            if (i > 1 && line[i - 1] == '"') {
-                arg_end--;
-            }
-
-            const size_t arg_len  = arg_end - arg_start + 1; // +1 for \0
+            const size_t arg_size = bufi + 1; // +1 for \0
+            AOSH_TRACE("arg_len: %d\n", arg_size);
 
             // XXX empty spaces should not cause empty
             // args so we skip empty spaces here
-            if (arg_len == 1 &&
+            if (arg_size == 1 &&
                 line[i] == ' ') {
-                arg_start = i + 1;
+                bufi = 0;
                 continue;
             }
 
-            void *arg = calloc(1, arg_len);
+            void *arg = calloc(1, arg_size);
             if (arg == NULL) {
                 return LIB_ERR_MALLOC_FAIL;
             }
 
-            strlcpy(arg, &line[arg_start], arg_len);
+            strlcpy(arg, buf, arg_size);
             if (collections_list_insert_tail(argv_list, arg) != 0) {
                 // XXX: if this fails something bad happened with malloc
                 // no need to proper free
                 return LIB_ERR_MALLOC_FAIL;
             }
-            arg_start = i + 1;
-
+            bufi = 0;
             if (line[i] == '\0' || IS_CHAR_LINEBREAK(line[i])) {
                 break;
             }
-        } else if ((line[i] == '"' && i > 1 && line[i - 1] != '\\')
-                   || (line[i] == '"' && i == 0)) {
+        } else if (line[i] == '\\' && !escape) {
+            escape = true;
+        }
+        else if (!escape && line[i] == '"') {
             // dont tokenize within quotes
             quote_double = !quote_double;
         }
+        else {
+            buf[bufi] = line[i];
+            bufi++;
+            escape = false;
+        }
         AOSH_TRACE("line[%d]='%c'\n", i, line[i]);
     }
+    free(buf);
+    buf = NULL;
 
     const int argc = collections_list_size(argv_list);
     *ret_argv = calloc(1, argc * sizeof(char **));
@@ -266,9 +260,13 @@ static errval_t aosh_read_eval_execute(void)
 
     err = aosh_readline((void **) &line, &line_size);
     printf(ENDL);
+    fflush(stdout);
 
     if (err == AOSH_ERR_EXIT_SHELL) {
         goto err_free_line;
+    }else if (err == AOSH_ERR_READLINE_MAX_EXCEEDED) {
+        printf("AOSH_READLINE_MAX_LEN reached. Skipping command\n");
+        goto success_free;
     } else if (err_is_fail(err)) {
         debug_printf("failed to aosh_readline. %s\n", err_getstring(err));
         goto err_free_line;

@@ -13,6 +13,7 @@
 
 #define OWN_IP_ADDRESS (MK_IP(2, 0, 0, 10))
 #define ETHERNET_MAX_PAYLOAD (1500)
+#define ETHERNET_DIGEST_LENGTH (17)
 
 #define ARP_QUERY(eth_state, ip, mac) arp_query(&((eth_state)->arp_state), ip, mac)
 
