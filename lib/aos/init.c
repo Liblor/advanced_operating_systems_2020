@@ -43,8 +43,11 @@ void libc_exit(int);
 __weak_reference(libc_exit, _exit);
 void libc_exit(int status)
 {
-    // debug_printf("libc exit NYI!\n");
+    struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
+    domainid_t pid = disp->domain_id;
+    debug_printf("libc_exit pid %d\n", pid);
     thread_exit(status);
+
     // If we're not dead by now, we wait
     while (1) {}
 }
