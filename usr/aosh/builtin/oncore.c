@@ -13,7 +13,9 @@ static void help(void)
     printf("oncore runs a dispatcher on a given core" ENDL);
     printf("usage: oncore [-c coreId] [-t times] [-f] name" ENDL);
     printf("flags:\n");
-    printf("-f: run dispatcher in forderground and block shell (experimental)" ENDL);
+    printf("-f: run dispatcher in foreground and block shell" ENDL);
+    printf("-c: set core id\n");
+    printf("-t: number of domains to spawn\n");
 }
 
 static errval_t parse_args(
@@ -131,7 +133,7 @@ errval_t builtin_oncore(
         }
 
         bool dead = false;
-        printf("Shell is waiting until pid %d is inactive\n", pid);
+        printf("Shell is waiting until pid %d has exit\n", pid);
         do {
             struct aos_rpc_process_info_reply *reply = NULL;
             err = aos_rpc_lmp_process_get_info(rpc, pid, &reply);
@@ -139,13 +141,14 @@ errval_t builtin_oncore(
                 free(reply);
                 goto free_cmd_args;
             }
-            if (reply->status == ProcessStatus_InActive) {
+            if (reply->status == ProcessStatus_Exit) {
                 dead = true;
             }
+            free(reply);
             barrelfish_usleep(500);
             event_dispatch_non_block(get_default_waitset());
         } while(!dead);
-        printf("Resuming shell, pid %d is inactive\n", pid);
+        printf("Resuming shell, pid %d has exited\n", pid);
 
     } else {
         printf("spawning '%s' on core '%d' %d time(s)" ENDL, cmd_args, core_id, spawn_count);
