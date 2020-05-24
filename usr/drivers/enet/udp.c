@@ -11,7 +11,7 @@ static void udp_release_binding(
 )
 {
     struct udp_binding *b = binding;
-    debug_printf("Freeing binding for port %d\n", b->port);
+    ENET_UDP_DEBUG("Freeing binding for port %d\n", b->port);
 
     free(binding);
 }
@@ -120,7 +120,7 @@ errval_t udp_process(
         return SYS_ERR_OK;
     }
 
-    debug_printf("A valid UDP packet was received.\n");
+    ENET_UDP_DEBUG("A valid UDP packet was received.\n");
 
     const lvaddr_t payload = base + sizeof(struct udp_hdr);
     const gensize_t payload_size = ntohs(packet->len) - sizeof(struct udp_hdr);
@@ -161,7 +161,7 @@ errval_t udp_register(
         return SYS_ERR_NOT_IMPLEMENTED;
     }
 
-    debug_printf("Adding UDP binding for port %d.\n", port);
+    ENET_UDP_DEBUG("Adding UDP binding for port %d.\n", port);
 
     binding = calloc(1, sizeof(struct udp_binding));
     if (binding == NULL) {
@@ -192,7 +192,7 @@ errval_t udp_deregister(
         return SYS_ERR_NOT_IMPLEMENTED;
     }
 
-    debug_printf("Removing UDP binding for port %d.\n", port);
+    ENET_UDP_DEBUG("Removing UDP binding for port %d.\n", port);
 
     collections_hash_delete(state->bindings, port);
 

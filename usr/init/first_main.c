@@ -64,15 +64,10 @@ static void setup_servers(
         abort();
     }
 
-    err = monitorserver_init();
+    err = monitorserver_init(&ns_state);
     if (err_is_fail(err)) {
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
         abort();
-    }
-
-    err = monitorserver_serve_lmp_in_thread();
-    if (err_is_fail(err)) {
-        debug_printf("monitorserver_serve_lmp_in_thread() failed: %s\n", err_getstring(err));
     }
 }
 

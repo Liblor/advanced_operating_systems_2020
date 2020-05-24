@@ -7,6 +7,14 @@
 #include "icmp.h"
 #include "udp.h"
 
+#define ENET_IP_DEBUG_OPTION 1
+
+#if ENET_IP_DEBUG_OPTION
+#define ENET_IP_DEBUG(x...) debug_printf("[enet/ip] " x);
+#else
+#define ENET_IP_DEBUG(fmt, ...) ((void)0)
+#endif
+
 #define IP_DIGEST_LENGTH (15)
 
 struct ethernet_state;
