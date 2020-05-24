@@ -120,9 +120,9 @@ errval_t aos_rpc_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids, si
     return aos_rpc_lmp_process_get_all_pids(rpc, pids, pid_count);
 }
 
-errval_t aos_rpc_process_ping(struct aos_rpc *rpc)
+errval_t aos_rpc_process_signalize_exit(struct aos_rpc *rpc)
 {
-    return aos_rpc_lmp_process_ping(rpc);
+    return aos_rpc_lmp_process_signalize_exit(rpc);
 }
 
 errval_t aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes, struct capref *ret_cap)

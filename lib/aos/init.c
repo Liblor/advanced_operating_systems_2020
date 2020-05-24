@@ -26,17 +26,12 @@
 #include <aos/paging.h>
 #include <aos/systime.h>
 #include <barrelfish_kpi/domain_params.h>
-#include <aos/nameserver.h>
-#include <aos/deferred.h>
 
 #include "threads_priv.h"
 #include "init.h"
 
 /// Are we the init domain (and thus need to take some special paths)?
 static bool init_domain;
-
-// event to ping process server
-static struct periodic_event p_ev_process_ping;
 
 extern size_t (*_libc_terminal_read_func)(char *, size_t);
 extern size_t (*_libc_terminal_write_func)(const char *, size_t);
@@ -152,22 +147,6 @@ void barrelfish_libc_glue_init(void)
     setvbuf(stdout, buf, _IOLBF, sizeof(buf));
 }
 
-static void ping_process_server(void *args)
-{
-    errval_t err;
-    nameservice_chan_t nschan;
-    err = nameservice_lookup(NAMESERVICE_PROCESS, &nschan);
-    if (err_is_fail(err)) {
-        debug_printf("cannot ping process server, is it running?\n");
-    } else {
-        struct aos_rpc *rpc = aos_rpc_get_process_channel();
-        err = aos_rpc_process_ping(rpc);
-        if (err_is_fail(err)) {
-            debug_printf("failed to ping process sever\n");
-        }
-    }
-}
-
 /** \brief Initialise libbarrelfish.
  *
  * This runs on a thread in every domain, after the dispatcher is setup but
@@ -244,14 +223,6 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         err = ram_alloc_set(NULL);
         if (err_is_fail(err)) {
             return err_push(err, LIB_ERR_RAM_ALLOC_SET);
-        }
-
-        err = periodic_event_create(&p_ev_process_ping,
-                                    get_default_waitset(),
-                                    PROCESS_SERVER_RECOMMEND_PING_INTERVAL_US,
-                                    MKCLOSURE(ping_process_server, NULL));
-        if (err_is_fail(err)) {
-            debug_printf("failed to create periodic event to ping process server");
         }
     }
 

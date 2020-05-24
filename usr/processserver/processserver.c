@@ -4,8 +4,6 @@
 #include <grading.h>
 #include <aos/systime.h>
 
-#define PROCESS_SERVER_THRESHOLD_INACTIVE_MS (10 * 1000)
-
 //#define PROCESS_SERVER_DEBUG_ON
 
 #if defined(PROCESS_SERVER_DEBUG_ON)
@@ -17,7 +15,6 @@
 struct process_info {
     char *name;
     domainid_t pid;
-    systime_t last_ping;
     enum process_status status;
     struct process_info *next;
     struct process_info *prev;
@@ -102,8 +99,7 @@ static void add_process_info(struct processserver_state *server_state, struct pr
     process_info->prev = server_state->process_tail.prev;
     process_info->next = &server_state->process_tail;
     process_info->pid = server_state->num_proc;
-    process_info->status = ProcessStatus_Init;
-    process_info->last_ping = systime_now();
+    process_info->status = ProcessStatus_Active;
     server_state->process_tail.prev = process_info;
     server_state->num_proc++;
 }
@@ -291,8 +287,6 @@ static errval_t handle_process_get_name(struct processserver_state *server_state
     return SYS_ERR_OK;
 }
 
-
-
 inline
 static errval_t handle_process_info(
         struct processserver_state *server_state,
@@ -311,7 +305,7 @@ static errval_t handle_process_info(
         curr = curr->next;
     }
     if (found == NULL) {
-        PS_DEBUG("pid not found\n");
+        PS_DEBUG("pid %d not found\n", pid);
 
         *ret_msg = calloc(1, sizeof(struct rpc_message));
         if (*ret_msg == NULL) {
@@ -320,13 +314,12 @@ static errval_t handle_process_info(
         (*ret_msg)->cap = NULL_CAP;
         (*ret_msg)->msg.payload_length = 0;
         (*ret_msg)->msg.method = Method_Process_Info;
-        (*ret_msg)->msg.status = Status_Error;
+        (*ret_msg)->msg.status = Status_Error_Process_Pid_Unknown;
 
     } else {
         // We dont transmit name, use rpc call get_name for it
         struct aos_rpc_process_info_reply reply;
         const size_t payload_len = sizeof(struct aos_rpc_process_info_reply);
-        reply.last_ping = found->last_ping;
         reply.pid = found->pid;
         reply.status = found->status;
 
@@ -343,7 +336,6 @@ static errval_t handle_process_info(
     }
     return SYS_ERR_OK;
 }
-
 
 inline
 static errval_t handle_process_get_all_pids(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
@@ -376,7 +368,7 @@ static errval_t handle_process_get_all_pids(struct processserver_state *server_s
 }
 
 inline
-static errval_t handle_process_ping(
+static errval_t handle_process_sign_exit(
         struct processserver_state *server_state,
         struct rpc_message_part *rpc_msg_part,
         struct rpc_message **ret_msg)
@@ -384,7 +376,7 @@ static errval_t handle_process_ping(
 
     if (rpc_msg_part->payload_length < sizeof(domainid_t)) {
         debug_printf("err invalid method size for ping\n");
-        return LIB_ERR_LMP_BUFLEN_INVALID; // TODO
+        return LIB_ERR_LMP_BUFLEN_INVALID;
     }
     domainid_t pid = -1;
     memcpy(&pid, rpc_msg_part->payload, sizeof(domainid_t));
@@ -403,30 +395,17 @@ static errval_t handle_process_ping(
         debug_printf("pid %d not registered\n", pid);
     }
     else {
-        found->last_ping = systime_now();
-        found->status = ProcessStatus_Active;
-        // debug_printf("receiving ping from %d\n", pid);
+        // XXX: we keep pid in the list of processes
+        found->status = ProcessStatus_Exit;
     }
     return SYS_ERR_OK;
 }
 
-static void update_process_status(struct processserver_state *server_state) {
-    struct process_info *curr = server_state->process_head.next;
-    uint64_t now_ms = systime_to_ns(systime_now()) / 1000000;
-    while (curr != &(server_state->process_tail)) {
-        size_t last_seen_ms = now_ms - systime_to_ns(curr->last_ping) / 1000000;
-        if (curr->status != ProcessStatus_InActive
-            && last_seen_ms > PROCESS_SERVER_THRESHOLD_INACTIVE_MS) {
-            PS_DEBUG("pid %d is turning inactive. Last seen: %zu seconds ago\n",
-                    curr->pid, last_seen_ms / 1000);
-            curr->status = ProcessStatus_InActive;
-        }
-        curr = curr->next;
-    }
-}
-
-
-static errval_t handle_complete_msg(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_complete_msg(
+        struct processserver_state *server_state,
+        struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
     switch (rpc_msg_part->method) {
         case Method_Spawn_Process: {
             return handle_spawn_process(server_state, rpc_msg_part, ret_msg);
@@ -440,11 +419,13 @@ static errval_t handle_complete_msg(struct processserver_state *server_state, st
         case Method_Process_Get_All_Pids: {
             return handle_process_get_all_pids(server_state, rpc_msg_part, ret_msg);
         }
-        case Method_Process_Ping: {
-            return handle_process_ping(server_state, rpc_msg_part, ret_msg);
+        case Method_Process_Signalize_Exit: {
+            return handle_process_sign_exit(server_state, rpc_msg_part, ret_msg);
         }
-        // TODO: error on unknown message, introduce new errcode
-        default: break;
+        default:
+            // TODO: error on unknown message, introduce new errcode
+            debug_printf("Unknown method: %d\n", rpc_msg_part->method);
+            break;
     }
     return SYS_ERR_OK;
 }
@@ -456,7 +437,6 @@ static void service_handler(void *st, void *message, size_t bytes, void **respon
     struct rpc_message *resp_msg = NULL;
 
     errval_t err;
-    update_process_status(ps);
 
     err = handle_complete_msg(ps, &msg->msg, &resp_msg);
     if (err_is_fail(err)) {

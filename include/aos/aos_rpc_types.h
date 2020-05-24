@@ -16,7 +16,7 @@ enum rpc_message_method {
     Method_Process_Get_Name,
     Method_Process_Get_All_Pids,
     Method_Spawn_Process,
-    Method_Process_Ping,
+    Method_Process_Signalize_Exit,
     Method_Process_Info,
     Method_Localtask_Spawn_Process,
     Method_Nameserver_Register,
@@ -37,7 +37,8 @@ enum rpc_message_status {
     Process_Get_All_Pids_Failed = 3,
     Status_Error = 4,
     Serial_Getchar_Occupied = 5,     // serial read occupied. try again
-    Serial_Getchar_Nodata = 6
+    Serial_Getchar_Nodata = 6,
+    Status_Error_Process_Pid_Unknown = 7,
 };
 
 struct rpc_message_part {
@@ -66,15 +67,13 @@ struct serial_getchar_req {
 };
 
 enum process_status {
-    ProcessStatus_Active = 1,
-    ProcessStatus_Init = 5,
-    ProcessStatus_InActive = 10
+    ProcessStatus_Active = 0,
+    ProcessStatus_Exit = 1
 };
 
 struct aos_rpc_process_info_reply {
     enum process_status status;
     domainid_t pid;
-    systime_t last_ping;
 };
 
 #endif

@@ -139,7 +139,7 @@ errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
 
 /** ping process server to show we are still alive **/
 errval_t
-aos_rpc_process_ping(struct aos_rpc *rpc);
+aos_rpc_process_signalize_exit(struct aos_rpc *rpc);
 
 /**
  * \brief Request a device cap for the given region.
