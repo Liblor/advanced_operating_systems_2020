@@ -7,6 +7,13 @@
 
 #define PROCESS_SERVER_THRESHOLD_INACTIVE_MS (10 * 1000)
 
+//#define PROCESS_SERVER_DEBUG_ON
+
+#if defined(PROCESS_SERVER_DEBUG_ON)
+#define PS_DEBUG(x...) debug_printf("[ps]:" x)
+#else
+#define PS_DEBUG(x...) ((void)0)
+#endif
 
 struct process_info {
     char *name;
@@ -293,10 +300,7 @@ static errval_t handle_process_info(
         struct rpc_message_part *rpc_msg_part,
         struct rpc_message **ret_msg)
 {
-    errval_t err;
     domainid_t pid = (domainid_t) rpc_msg_part->payload[0];
-    enum rpc_message_status status = Status_Ok;
-    char *name = NULL;
 
     struct process_info *curr = server_state->process_head.next;
     struct process_info *found = NULL;
@@ -308,36 +312,36 @@ static errval_t handle_process_info(
         curr = curr->next;
     }
     if (found == NULL) {
-        debug_printf("pid not found\n");
-        status = Status_Error;
+        PS_DEBUG("pid not found\n");
+
+        *ret_msg = calloc(1, sizeof(struct rpc_message));
+        if (*ret_msg == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        (*ret_msg)->cap = NULL_CAP;
+        (*ret_msg)->msg.payload_length = 0;
+        (*ret_msg)->msg.method = Method_Process_Info;
+        (*ret_msg)->msg.status = Status_Error;
+
     } else {
-        *ret_msg = calloc(1, sizeof(struct rpc_message) + sizeof());
-        const size_t name_size = strlen(found_name) + 1;
-        *ret_name = malloc(name_size);
-        strncpy(*ret_name, found_name, name_size);
+        // We dont transmit name, use rpc call get_name for it
+        struct aos_rpc_process_info_reply reply;
+        const size_t payload_len = sizeof(struct aos_rpc_process_info_reply);
+        reply.last_ping = found->last_ping;
+        reply.pid = found->pid;
+        reply.status = found->status;
 
-
+        *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_len);
+        if (*ret_msg == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        (*ret_msg)->cap = NULL_CAP;
+        (*ret_msg)->msg.payload_length = payload_len;
+        (*ret_msg)->msg.method = Method_Process_Info;
+        (*ret_msg)->msg.status = Status_Ok;
+        memcpy(&(*ret_msg)->msg.payload, &reply, payload_len);
 
     }
-
-
-    err = get_name_cb(server_state, pid, &name);
-    if (err_is_fail(err)) {
-        status = Status_Error;
-    }
-    const size_t payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1; // strnlen no \0
-    *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_length);
-    if (*ret_msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    char *result_name = (char *) &(*ret_msg)->msg.payload;
-    strncpy(result_name, name, payload_length);
-    free(name);
-    (*ret_msg)->cap = NULL_CAP;
-    (*ret_msg)->msg.payload_length = payload_length;
-    (*ret_msg)->msg.method = Method_Process_Get_Name;
-    (*ret_msg)->msg.status = status;
-
     return SYS_ERR_OK;
 }
 
@@ -414,7 +418,7 @@ static void update_process_status(struct processserver_state *server_state) {
         size_t last_seen_ms = now_ms - systime_to_ns(curr->last_ping) / 1000000;
         if (curr->status != ProcessStatus_InActive
             && last_seen_ms > PROCESS_SERVER_THRESHOLD_INACTIVE_MS) {
-            debug_printf("pid %d is turning inactive. Last seen: %zu seconds ago\n",
+            PS_DEBUG("pid %d is turning inactive. Last seen: %zu seconds ago\n",
                     curr->pid, last_seen_ms / 1000);
             curr->status = ProcessStatus_InActive;
         }

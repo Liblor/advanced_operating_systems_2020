@@ -75,7 +75,6 @@ struct aos_rpc_process_info_reply {
     enum process_status status;
     domainid_t pid;
     systime_t last_ping;
-    char *name;
 };
 
 #endif
