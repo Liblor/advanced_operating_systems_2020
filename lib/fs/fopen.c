@@ -19,7 +19,6 @@
 
 #include <fs/fs.h>
 #include <fs/dirent.h>
-#include <fs/ramfs.h>
 #include <fs/fat32.h>
 #include "fs_internal.h"
 
@@ -181,8 +180,8 @@ static int fs_libc_write(int fd, void *buf, size_t len)
     switch(e->type) {
     case FDTAB_TYPE_FILE:
     {
-        ramfs_handle_t fh = e->handle;
-        errval_t err = ramfs_write(mount, fh, buf, len, &retlen);
+        fat32_handle_t fh = e->handle;
+        errval_t err = fat32_write(mount, fh, buf, len, &retlen);
         if (err_is_fail(err)) {
             return -1;
         }

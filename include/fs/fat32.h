@@ -120,5 +120,12 @@ errval_t fat32_mkdir(
     void *st,
     const char *path
 );
+errval_t fat32_write(
+    void *st,
+    fat32_handle_t handle,
+    const void *buffer,
+    size_t bytes,
+    size_t *bytes_written
+);
 
 #endif //BF_AOS_FAT32_H
