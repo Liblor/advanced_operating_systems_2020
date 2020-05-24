@@ -96,7 +96,7 @@ static int fs_libc_open(char *path, int flags)
     ramfs_handle_t vh;
     errval_t err;
 
-    // If O_CREAT was given, we use ramfsfs_create()
+    // If O_CREAT was given, we use fat32_create()
     if(flags & O_CREAT) {
         // If O_EXCL was also given, we check whether we can open() first
         if(flags & O_EXCL) {
@@ -109,9 +109,9 @@ static int fs_libc_open(char *path, int flags)
             assert(err_no(err) == FS_ERR_NOTFOUND);
         }
 
-        err = ramfs_create(mount, path, &vh);
+        err = fat32_create(mount, path, &vh);
         if (err_is_fail(err) && err == FS_ERR_EXISTS) {
-            err = ramfs_open(mount, path, &vh);
+            err = fat32_open(mount, path, &vh);
         }
     } else {
         // Regular open()
@@ -138,7 +138,7 @@ static int fs_libc_open(char *path, int flags)
     };
     int fd = fdtab_alloc(&e);
     if (fd < 0) {
-        ramfs_close(mount, vh);
+        fat32_close(mount, vh);
         return -1;
     } else {
         return fd;
