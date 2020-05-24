@@ -16,22 +16,13 @@
 #include <string.h>
 #include <assert.h>
 
-#include <devif/queue_interface_backend.h>
-#include <devif/backends/net/enet_devif.h>
 #include <aos/aos.h>
-#include <aos/networking.h>
+#include <devif/backends/net/enet_devif.h>
 #include <aos/debug.h>
 #include <aos/deferred.h>
 #include <driverkit/driverkit.h>
-#include <dev/imx8x/enet_dev.h>
-#include <aos/nameserver.h>
 
 #include "enet.h"
-#include "queues.h"
-#include "ethernet.h"
-#include "udp.h"
-#include "router.h"
-
 #include "device.h"
 
 #define PHY_ID 0x2

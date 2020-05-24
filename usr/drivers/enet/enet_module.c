@@ -3,13 +3,11 @@
 #include <string.h>
 #include <assert.h>
 
-#include <devif/queue_interface_backend.h>
-#include <devif/backends/net/enet_devif.h>
 #include <aos/aos.h>
+#include <devif/queue_interface_backend.h>
 #include <aos/networking.h>
 #include <aos/debug.h>
 #include <aos/deferred.h>
-#include <driverkit/driverkit.h>
 #include <dev/imx8x/enet_dev.h>
 #include <aos/nameserver.h>
 
@@ -21,9 +19,6 @@
 #include "ethernet.h"
 #include "udp.h"
 #include "router.h"
-
-#include <aos/aos_rpc.h>
-#include <spawn/spawn.h>
 
 static errval_t enet_initialize_device(
     struct enet_driver_state *state
