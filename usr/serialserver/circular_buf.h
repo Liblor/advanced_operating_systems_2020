@@ -1,7 +1,3 @@
-//
-// Created by b on 5/16/20.
-//
-
 #ifndef BFOS_CIRCULAR_BUF_H
 #define BFOS_CIRCULAR_BUF_H
 
@@ -14,7 +10,6 @@
 #else
 #define CBUF_DEBUG(x...) ((void)0)
 #endif
-
 
 struct cbuf {
     bool full;

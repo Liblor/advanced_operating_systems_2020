@@ -1,5 +1,8 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 #include <aos/aos.h>
-#include <aos/aos_rpc.h>
 #include <aos/aos_rpc_ump.h>
 
 #include "serialserver.h"
@@ -20,8 +23,8 @@ static void release_session(void)
 // TODO: replace this with random id to prevent hijacking
 static uint64_t new_session(void)
 {
-    uint64_t s = serial_server.read_session_ctr;
     SERIAL_SERVER_DEBUG("new serial session: %d\n", s);
+    uint64_t s = serial_server.read_session_ctr;
     serial_server.read_session_ctr++;
     return s;
 }
@@ -34,8 +37,7 @@ static errval_t reply_char(
         char c,
         enum rpc_message_status status)
 {
-    const size_t size = sizeof(struct rpc_message)
-                        + sizeof(struct serial_getchar_reply);
+    const size_t size = sizeof(struct rpc_message) + sizeof(struct serial_getchar_reply);
     struct rpc_message *msg = calloc(1, size);
     if (msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -53,22 +55,17 @@ static errval_t reply_char(
     return SYS_ERR_OK;
 }
 
-static void send_getchar_reply(
-        struct rpc_message **resp)
+static void send_getchar_reply(struct rpc_message **resp)
 {
     errval_t err;
-
     struct serial_buf_entry *entry = NULL;
     err = cbuf_get(&serial_server.serial_buf, (void **) &entry);
     assert(err_is_ok(err));
-
     char res_char = entry->val;
     serial_session_t session = serial_server.curr_read_session;
-
     if (IS_CHAR_LINEBREAK(res_char)) {
         release_session();
     }
-
     err = reply_char(resp, session, res_char, Status_Ok);
     if (err_is_fail(err)) {
         debug_printf("reply_char() failed: %s\n", err_getstring(err));
@@ -76,10 +73,7 @@ static void send_getchar_reply(
 }
 
 // --------- serial handling --------------
-
-__unused
-static void
-do_getchar_usr(
+static void do_getchar_usr(
         struct serial_getchar_req *req_getchar,
         struct rpc_message **resp)
 {
@@ -87,11 +81,9 @@ do_getchar_usr(
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
     }
-
     if (serial_server.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF &&
         serial_server.curr_read_session != req_getchar->session) {
         SERIAL_SERVER_DEBUG("session is occupied: \n");
-
         err = reply_char(resp,
                          req_getchar->session,
                          0,
@@ -101,17 +93,14 @@ do_getchar_usr(
         }
         return;
     }
-
     if (serial_server.curr_read_session == SERIAL_GETCHAR_SESSION_UNDEF) {
         serial_server.curr_read_session = req_getchar->session;
         SERIAL_SERVER_DEBUG("session %d acquired serial port\n",
                             req_getchar->session);
-
         // XXX: disable read iqr to prevent race conditions
         dispatcher_handle_t d = disp_disable();
         cbuf_reset(&serial_server.serial_buf);
         disp_enable(d);
-
     }
     if (cbuf_empty(&serial_server.serial_buf)) {
         err = reply_char(resp,
@@ -119,8 +108,7 @@ do_getchar_usr(
                          0,
                          Serial_Getchar_Nodata);
         if (err_is_fail(err)) {
-            debug_printf("failed to send reply in serialserver: %s",
-                         err_getstring(err));
+            debug_printf("failed to send reply in serialserver: %s", err_getstring(err));
         }
         return;
     } else {
@@ -128,10 +116,7 @@ do_getchar_usr(
     }
 }
 
-
-__unused __inline
-static void putchar_kernel(
-        char c)
+inline static void putchar_kernel(char c)
 {
     errval_t err;
     err = sys_print((const char *) &c, 1);
@@ -140,9 +125,7 @@ static void putchar_kernel(
     }
 }
 
-__unused __inline
-static void putchar_usr(
-        char c)
+inline static void putchar_usr(char c)
 {
     errval_t err;
     err = serial_facade_write(&serial_server.serial_facade, c);
@@ -151,13 +134,9 @@ static void putchar_usr(
     }
 }
 
-__unused
-static void putstr_usr(
-        const char *str,
-        size_t len)
+inline static void putstr_usr(const char *str, size_t len)
 {
     errval_t err = SYS_ERR_OK;
-
     for (int i = 0; i < len && err_is_ok(err); i++) {
         // XXX: lpuart requires carriage return and line feed
         // In order to be compatible with linux line feed
@@ -177,27 +156,21 @@ static void putstr_usr(
     }
 }
 
-__unused
-static void getchar_iqr_handler(
-        char c,
-        void *args)
+
+static void getchar_iqr_handler(char c, void *args)
 {
     struct serial_buf_entry data = {.val = c};
     cbuf_put(&serial_server.serial_buf, &data);
-
 #if 0
     serial_facade_write(&serial_server.serial_facade, c);
 #endif
-
-    // TODO: in case monitor is not a serializer for rpc requests
+    // Optimization: in case monitor is not a serializer for rpc requests
     // reply only on new data such that client does not need to poll
 }
 
 // --------- urpc server --------------
 
-__inline
-static void service_recv_handle_putstr(
-        struct rpc_message *msg)
+inline static void service_recv_handle_putstr(struct rpc_message *msg)
 {
     char *cptr = (char *) msg->msg.payload;
     for (size_t i = 0; i < msg->msg.payload_length; i++) {
@@ -206,21 +179,15 @@ static void service_recv_handle_putstr(
     putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
 }
 
-__inline
-static void service_recv_handle_putchar(
-        struct rpc_message *msg)
+inline static void service_recv_handle_putchar( struct rpc_message *msg)
 {
     char c;
     memcpy(&c, msg->msg.payload, sizeof(char));
     grading_rpc_handler_serial_putchar(c);
-
     putchar_usr(c);
 }
 
-__inline
-static void service_recv_handle_getchar(
-        struct rpc_message *msg,
-        struct rpc_message **resp)
+inline static void service_recv_handle_getchar(struct rpc_message *msg, struct rpc_message **resp)
 {
     grading_rpc_handler_serial_getchar();
 
@@ -228,10 +195,8 @@ static void service_recv_handle_getchar(
         debug_printf("invalid req. for Method_Serial_Getchar");
         return;
     }
-
     struct serial_getchar_req req_getchar;
     memcpy(&req_getchar, msg->msg.payload, sizeof(struct serial_getchar_req));
-
     do_getchar_usr(&req_getchar, resp);
 }
 
@@ -244,7 +209,6 @@ static void ns_service_handler(
         struct capref tx_cap,
         struct capref *rx_cap)
 {
-
     struct rpc_message *msg = message;
     struct rpc_message *resp_msg = NULL;
     switch (msg->msg.method) {
@@ -261,7 +225,6 @@ static void ns_service_handler(
             debug_printf("unknown method given: %d\n", msg->msg.method);
             break;
     }
-
     if (resp_msg == NULL) {
         *response = NULL;
         *response_bytes = 0;
@@ -274,46 +237,35 @@ static void ns_service_handler(
 static errval_t serialserver_init(void)
 {
     errval_t err;
-
     memset(&serial_server, 0, sizeof(struct serialserver_state));
     serial_server.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
     serial_server.read_session_ctr = 0;
-
     err = cbuf_init(&serial_server.serial_buf,
                     &serial_server.serial_buf_data,
                     sizeof(struct serial_buf_entry),
                     SERIAL_BUF_SLOTS);
-
     if (err_is_fail(err)) {
-        debug_printf("failed to init cbuf_init(): %s\n",
-                     err_getstring(err));
+        debug_printf("failed to init cbuf_init(): %s\n", err_getstring(err));
         return err;
     }
-
-    err = serial_facade_init(&serial_server.serial_facade,
-                             SERIAL_FACADE_TARGET_CPU_0);
+    err = serial_facade_init(&serial_server.serial_facade, SERIAL_FACADE_TARGET_CPU_0);
     if (err_is_fail(err)) {
-        debug_printf("error in shell_init(): %s\n",
-                     err_getstring(err));
+        debug_printf("error in shell_init(): %s\n", err_getstring(err));
         return err;
     }
-
     err = serial_facade_set_read_cb(&serial_server.serial_facade,
                                     getchar_iqr_handler,
                                     NULL);
     if (err_is_fail(err)) {
-        debug_printf("failed to call serial_facade_set_read_cb() %s\n",
-                     err_getstring(err));
+        debug_printf("failed to call serial_facade_set_read_cb() %s\n", err_getstring(err));
         return err;
     }
-
     return SYS_ERR_OK;
 }
 
 int main(int argc, char *argv[])
 {
     errval_t err = SYS_ERR_OK;
-
     err = serialserver_init();
     if (err_is_fail(err)) {
         debug_printf("failed to init features of serial server: %s\n", err_getstring(err));
@@ -327,7 +279,6 @@ int main(int argc, char *argv[])
         abort();
     }
     debug_printf("Serialserver registered at nameserver.\n");
-
     while (1) {
         // XXX: we need to call event_dispatch otherwise
         // iqr are not delivered
