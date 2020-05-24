@@ -23,6 +23,8 @@ struct rpc_lmp_server {
     state_init_handler_t state_init_handler;
     state_free_handler_t state_free_handler;
 
+    bool processing_paused;
+
     void *shared; ///< The specific implementation can maintain a server state here.
 };
 
@@ -41,6 +43,10 @@ struct rpc_lmp_handler_state {
 
     void *shared; ///< The specific implementation can maintain a callback state here.
 };
+
+void rpc_lmp_server_pause_processing(struct rpc_lmp_server *server);
+
+void rpc_lmp_server_start_processing(struct rpc_lmp_server *server);
 
 errval_t rpc_lmp_server_init(
     struct rpc_lmp_server *server,

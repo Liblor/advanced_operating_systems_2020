@@ -9,7 +9,7 @@ errval_t rpc_ump_server_serve_next(struct rpc_ump_server *server)
 {
     errval_t err;
 
-    if (server->client_count != 0) {
+    if (server->client_count != 0 && !server->processing_paused) {
         struct aos_rpc *rpc = collections_list_get_ith_item(server->client_list, server->client_next);
 
         // Try to receive a new message
@@ -49,6 +49,16 @@ errval_t rpc_ump_server_add_client(struct rpc_ump_server *server, struct aos_rpc
     return SYS_ERR_OK;
 }
 
+void rpc_ump_server_pause_processing(struct rpc_ump_server *server)
+{
+    server->processing_paused = true;
+}
+
+void rpc_ump_server_start_processing(struct rpc_ump_server *server)
+{
+    server->processing_paused = false;
+}
+
 // Initialize the server.
 errval_t rpc_ump_server_init(
     struct rpc_ump_server *server,
@@ -62,6 +72,7 @@ errval_t rpc_ump_server_init(
     // TODO Remove those handlers if we don't need a state per client
     server->state_init_handler = new_state_init_handler;
     server->state_free_handler = new_state_free_handler;
+    server->processing_paused = false;
     server->shared = server_state;
 
     collections_list_create(&server->client_list, NULL);

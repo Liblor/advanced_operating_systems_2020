@@ -8,11 +8,15 @@
 
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
+#include <aos/deferred.h>
+#include <rpc/server/ump.h>
 
 #define NAMESERVICE_INIT "serverinit"
 #define NAMESERVICE_PROCESS "serverprocess"
 #define NAMESERVICE_MONITOR "servermonitor"
 #define NAMESERVICE_SERIAL "serverserial"
+
+#define NAMESERVICE_PERIODIC_SERVE_EVENT_US 1000
 
 typedef struct nameservice_chan* nameservice_chan_t;
 
@@ -27,6 +31,15 @@ typedef void(nameservice_receive_handler_t)(void *st,
 										    void *message, size_t bytes,
 										    void **response, size_t *response_bytes,
                                             struct capref tx_cap, struct capref *rx_cap);
+
+struct srv_entry {
+    char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
+	nameservice_receive_handler_t *recv_handler;
+	void *st;
+    struct aos_rpc add_client_chan;
+    struct rpc_ump_server ump_server;
+    struct periodic_event periodic_urpc_ev;
+};
 
 /**
  * @brief sends a message back to the client who sent us a message
@@ -58,6 +71,9 @@ errval_t nameservice_register(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st);
 
+errval_t nameservice_register_no_send(const char *name,
+	                              nameservice_receive_handler_t recv_handler,
+	                              void *st);
 
 /**
  * @brief deregisters the service 'name'
@@ -91,5 +107,7 @@ errval_t nameservice_enumerate(char *query, size_t *num, char **result);
 
 
 void nameservice_wait_for(char *name);
+
+struct srv_entry *nameservice_get_entry(char *name);
 
 #endif /* INCLUDE_AOS_AOS_NAMESERVICE_H_ */

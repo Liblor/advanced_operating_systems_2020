@@ -9,20 +9,12 @@
 #include <aos/waitset.h>
 #include <aos/nameserver.h>
 #include <aos/aos_rpc.h>
+#include <aos/deferred.h>
 
 #include <rpc/server/ump.h>
 
 #include <hashtable/hashtable.h>
 
-
-struct srv_entry {
-	const char *name;
-	nameservice_receive_handler_t *recv_handler;
-	void *st;
-    struct aos_rpc add_client_chan;
-    struct thread *service_thread;
-    struct rpc_ump_server ump_server;
-};
 
 collections_listnode *service_list_head = NULL;
 
@@ -93,31 +85,47 @@ static errval_t serve_add_client(struct srv_entry *service) {
     return SYS_ERR_OK;
 }
 
-static int service_thread_func(void *arg)
+static int nameservice_serve(void *arg)
 {
     errval_t err;
 
     struct srv_entry *service = arg;
 
-    while (true) {
-        // Serve regular client requests
-        err = rpc_ump_server_serve_next(&service->ump_server);
-        if (err_is_fail(err)) {
-            debug_printf("Error when calling rpc_ump_server_serve_next() for service '%s': %s\n", service->name, err_getstring(err));
-            return 1;
-        }
+    // Serve regular client requests
+    err = rpc_ump_server_serve_next(&service->ump_server);
+    if (err_is_fail(err)) {
+        debug_printf("Error when calling rpc_ump_server_serve_next() for service '%s': %s\n", service->name, err_getstring(err));
+        return 1;
+    }
 
-        // Serve client add request from the nameserver
-        err = serve_add_client(service);
-        if (err_is_fail(err)) {
-            debug_printf("serve_add_client() failed: %s\n", err_getstring(err));
-            return 1;
+    // Serve client add request from the nameserver
+    err = serve_add_client(service);
+    if (err_is_fail(err)) {
+        debug_printf("serve_add_client() failed: %s\n", err_getstring(err));
+        return 1;
+    }
+
+    return 0;
+}
+
+static void service_periodic_event_func(void *arg)
+{
+    nameservice_serve(arg);
+}
+
+__unused
+static int service_thread_func(void *arg)
+{
+    while (true) {
+        int ret =  nameservice_serve(arg);
+        if (ret != 0) {
+            return ret;
         }
 
         thread_yield();
     }
 
-    return 0;
+    return 1;
 }
 
 static void service_recv_cb(struct rpc_message *msg, void *callback_state, struct aos_rpc *rpc, void *server_state)
@@ -212,8 +220,6 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
 }
 
 
-
-
 /**
  * @brief registers our selves as 'name'
  *
@@ -263,7 +269,8 @@ errval_t nameservice_register(const char *name,
         return err;
     }
 
-    service->name = name;
+    memset(service->name, 0, sizeof(service->name));
+    strncpy(service->name, name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
     service->recv_handler = recv_handler;
     service->st = st;
 
@@ -273,8 +280,12 @@ errval_t nameservice_register(const char *name,
         return err_push(err, RPC_ERR_INITIALIZATION);
     }
 
-    service->service_thread = thread_create(service_thread_func, service);
-    assert(service->service_thread != NULL);
+    memset(&service->periodic_urpc_ev, 0, sizeof(struct periodic_event));
+
+    err = periodic_event_create(&service->periodic_urpc_ev,
+                                get_default_waitset(),
+                                NAMESERVICE_PERIODIC_SERVE_EVENT_US,
+                                MKCLOSURE(service_periodic_event_func, service));
 
     int32_t ret = collections_list_insert(service_list_head, service);
     assert(ret == 0);
@@ -282,6 +293,59 @@ errval_t nameservice_register(const char *name,
 	return SYS_ERR_OK;
 }
 
+errval_t nameservice_register_no_send(const char *name,
+	                              nameservice_receive_handler_t recv_handler,
+	                              void *st)
+{
+    errval_t err;
+    debug_printf("nameservice_register_no_send(%s)\n", name);
+
+    if (service_list_head == NULL) {
+        collections_list_create(&service_list_head, NULL);
+    }
+
+    struct srv_entry *service = malloc(sizeof(struct srv_entry));
+    if (service == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+
+    struct capref frame;
+
+    err = frame_alloc(&frame, UMP_SHARED_FRAME_SIZE, NULL);
+    if (err_is_fail(err)) {
+        debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    err = aos_rpc_ump_init(&service->add_client_chan, frame, true);
+    if (err_is_fail(err)) {
+        debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
+    memset(service->name, 0, sizeof(service->name));
+    strncpy(service->name, name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
+    service->recv_handler = recv_handler;
+    service->st = st;
+
+    err = rpc_ump_server_init(&service->ump_server, service_recv_cb, NULL, NULL, service);
+    if (err_is_fail(err)) {
+        debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
+        return err_push(err, RPC_ERR_INITIALIZATION);
+    }
+
+    memset(&service->periodic_urpc_ev, 0, sizeof(struct periodic_event));
+
+    err = periodic_event_create(&service->periodic_urpc_ev,
+                                get_default_waitset(),
+                                NAMESERVICE_PERIODIC_SERVE_EVENT_US,
+                                MKCLOSURE(service_periodic_event_func, service));
+
+    int32_t ret = collections_list_insert(service_list_head, service);
+    assert(ret == 0);
+
+	return SYS_ERR_OK;
+}
 
 static int32_t service_has_name(void *data, void *arg)
 {
@@ -289,6 +353,13 @@ static int32_t service_has_name(void *data, void *arg)
     const char *name = arg;
 
     return strcmp(service->name, name) == 0;
+}
+
+struct srv_entry *nameservice_get_entry(char *name) {
+    assert(name != NULL);
+    assert(service_list_head != NULL);
+
+    return (struct srv_entry *) collections_list_find_if(service_list_head, service_has_name, (void *) name);
 }
 
 

@@ -38,6 +38,11 @@ static void service_recv_cb(void *arg)
     struct rpc_lmp_server *server = state->server;
     struct lmp_chan *lc = &state->rpc.lmp.chan;
 
+    // Check if server processing is paused
+    if (server->processing_paused) {
+        goto reregister;
+    }
+
     // Accumulate message until full message is received
     struct capref cap;
     struct lmp_recv_msg segment = LMP_RECV_MSG_INIT;
@@ -254,6 +259,16 @@ static errval_t rpc_lmp_server_setup_open_channel(struct rpc_lmp_server *server,
     return SYS_ERR_OK;
 }
 
+void rpc_lmp_server_pause_processing(struct rpc_lmp_server *server)
+{
+    server->processing_paused = true;
+}
+
+void rpc_lmp_server_start_processing(struct rpc_lmp_server *server)
+{
+    server->processing_paused = false;
+}
+
 // Initialize the server.
 errval_t rpc_lmp_server_init(
     struct rpc_lmp_server *server,
@@ -270,6 +285,7 @@ errval_t rpc_lmp_server_init(
     server->service_recv_handler = new_service_recv_handler;
     server->state_init_handler = new_state_init_handler;
     server->state_free_handler = new_state_free_handler;
+    server->processing_paused = false;
     server->shared = server_state;
 
     if (ws == NULL) {

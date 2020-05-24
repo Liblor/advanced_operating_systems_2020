@@ -125,7 +125,7 @@ int other_main(int argc, char *argv[])
         abort();
     }
 
-    err = monitorserver_init();
+    err = monitorserver_init(NULL);
     if (err_is_fail(err)) {
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
         abort();
