@@ -626,7 +626,7 @@ errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *rpc, domainid_t pid,
     size_t recv_bytes;
 
     if (rpc->type == RpcTypeLmp) {
-        debug_printf("lmp support no longer available. Use nameserver\n");
+        debug_printf("RpcTypeLmp support no longer available. Use nameserver\n");
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
@@ -681,24 +681,22 @@ aos_rpc_lmp_process_signalize_exit(struct aos_rpc *rpc)
     memcpy(msg->msg.payload, &pid, sizeof(domainid_t));
 
     if (rpc->type == RpcTypeLmp) {
-        err = aos_rpc_lmp_send_message(rpc, msg, LMP_SEND_FLAGS_DEFAULT);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "aos_rpc_lmp_send_message()\n");
-            return err;
-        }
-    } else {
-        assert(rpc->type == RpcTypeUmp);
-        struct nameservice_chan chan = {
-                .name = "",
-                .rpc = rpc,
-                .pid = 0,
-        };
-        err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "nameservice_rpc()\n");
-            return err;
-        }
+        debug_printf("RpcTypeLmp support no longer available. Use nameserver\n");
+        return LIB_ERR_NOT_IMPLEMENTED;
     }
+
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+    };
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        return err;
+    }
+
     return SYS_ERR_OK;
 }
 
