@@ -665,8 +665,9 @@ errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *rpc, domainid_t pid,
 errval_t
 aos_rpc_lmp_process_signalize_exit(struct aos_rpc *rpc)
 {
-    errval_t err;
+    // TODO/enhancement: enforce authorization with more than pid
 
+    errval_t err;
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(domainid_t)];
     struct rpc_message *msg = (struct rpc_message *) &send_buf;
 

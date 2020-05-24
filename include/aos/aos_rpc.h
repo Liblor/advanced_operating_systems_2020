@@ -135,7 +135,7 @@ errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
                                       domainid_t **pids, size_t *pid_count);
 
 
-/** ping process server to show we are still alive **/
+/** signalize death of domain */
 errval_t
 aos_rpc_process_signalize_exit(struct aos_rpc *rpc);
 
