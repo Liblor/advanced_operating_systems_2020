@@ -278,7 +278,7 @@ static errval_t aosh_read_eval_execute(void)
 #endif
 
     err = aosh_linenoise_readline(&aosh, &line, &line_size);
-    printf(ENDL);
+    printf("\r");
     fflush(stdout);
 
     if (err == AOSH_ERR_EXIT_SHELL) {
