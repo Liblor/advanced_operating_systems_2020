@@ -11,8 +11,8 @@
 #include "monitorserver.h"
 #include "nameserver.h"
 
-static bool fs_not_yet_init = true;
 static struct monitorserver_state monitorserver_state;
+static bool fs_is_init = false;
 
 #define MONITORSERVER_LOCK thread_mutex_lock(&monitorserver_state.mutex)
 #define MONITORSERVER_UNLOCK thread_mutex_unlock(&monitorserver_state.mutex)
@@ -194,8 +194,8 @@ static void *state_init_cb(
 
 // Free channel-specific data.
 static void state_free_cb(
-        void *server_state,
-        void *callback_state
+    void *server_state,
+    void *callback_state
 ){
     struct monitorserver_cb_state *state = callback_state;
     free(state);
@@ -203,25 +203,11 @@ static void state_free_cb(
 
 // local task action to spawn a process on core
 static errval_t serve_localtask_spawn(
-        struct rpc_message* recv_msg,
-        struct rpc_message** answer
+    struct rpc_message* recv_msg,
+    struct rpc_message** answer
 ){
-
     assert(recv_msg != NULL);
     errval_t err;
-    if (fs_not_yet_init) {
-        fs_not_yet_init = false;
-        if (monitorserver_state.ns_state == NULL) {
-            // Shouldn't happen according to Christian
-            return SYS_ERR_NOT_IMPLEMENTED;
-        }
-        err = nameserver_lookup_channel(NAMESERVICE_BLOCKDRIVER, monitorserver_state.ns_state);
-        if (err_is_fail(err)) {
-            return err;
-        }
-        filesystem_init_with_chan(monitorserver_state.ns_state->rpc_add_client_request_pending);
-    }
-
     switch(recv_msg->msg.method) {
         case Method_Localtask_Spawn_Process: {
             domainid_t pid = *((domainid_t *) recv_msg->msg.payload);
@@ -279,9 +265,18 @@ static void service_localtask_handler(void *st, void *message, size_t bytes, voi
 {
     errval_t err;
 
+    assert(!capref_is_null(tx_cap));
     //struct monitorserver_state server_state = st;
     struct rpc_message *msg = message;
     struct rpc_message *resp = NULL;
+
+    if (! fs_is_init) {
+        struct aos_rpc *blockserver_rpc = malloc(sizeof(struct aos_rpc));
+        assert(!capref_is_null(tx_cap));
+        aos_rpc_ump_init(blockserver_rpc, tx_cap, false);
+        //filesystem_init_with_chan(blockserver_rpc);
+        fs_is_init = true;
+    }
 
     err = serve_localtask_spawn(msg, &resp);
     if (err_is_fail(err)) {

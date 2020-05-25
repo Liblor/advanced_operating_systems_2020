@@ -46,7 +46,8 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
 {
     errval_t err;
 
-    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN - sizeof(domainid_t)); // no \0 in strlen
+    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1,
+        RPC_LMP_MAX_STR_LEN - sizeof(domainid_t)); // no \0 in strlen
 
     uint8_t send_buf[sizeof(struct rpc_message) + str_len + sizeof(domainid_t)];
     struct rpc_message *req = (struct rpc_message *) &send_buf;
@@ -68,8 +69,17 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
     struct rpc_message *resp = NULL;
     size_t resp_len;
 
+    struct aos_rpc *blockdriver = aos_rpc_get_block_driver_channel();
     // Send local task request to monitor on the core where the process should start.
-    err = nameservice_rpc(monitor_chan, req, sizeof(send_buf), (void **) &resp, &resp_len, NULL_CAP, NULL_CAP);
+    err = nameservice_rpc(
+        monitor_chan,
+        req,
+        sizeof(send_buf),
+        (void **) &resp,
+        &resp_len,
+        blockdriver->ump.frame_cap,
+        NULL_CAP
+    );
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "nameservice_rpc() failed");
         return err;
