@@ -25,7 +25,6 @@
 #include "memoryserver.h"
 #include "monitorserver.h"
 #include "nameserver.h"
-#include "block_driver.h"
 
 extern coreid_t my_core_id;
 
@@ -71,14 +70,6 @@ static void setup_servers(
         debug_printf("monitorserver_init() failed: %s\n", err_getstring(err));
         abort();
     }
-
-    /*
-    err = block_driver_init();
-    if (err_is_fail(err)) {
-        debug_printf("block_driver_init() failed: %s\n", err_getstring(err));
-        abort();
-    }
-     */
 }
 
 static void register_service_channel(
@@ -158,7 +149,6 @@ static void register_service_channels(
 {
     register_service_channel(MemoryserverUrpc, rpc, mpid, memoryserver_ump_add_client);
     register_service_channel(NameserverUrpc, rpc, mpid, nameserver_add_client);
-    //register_service_channel(BlockDriverServerUrpc, rpc, mpid, block_driver_add_client);
 
     debug_printf("all service channels for core %d registered\n", mpid);
 }
@@ -237,13 +227,6 @@ static void serve_periodic_urpc_event(void *args) {
         DEBUG_ERR(err, "in memoryserver_ump_serve_next");
         abort();
     }
-    /*
-    err = block_driver_serve_next();
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "in block_dirver_serve_next");
-        abort();
-    }
-     */
 }
 
 static errval_t setup_periodic_urpc_events(

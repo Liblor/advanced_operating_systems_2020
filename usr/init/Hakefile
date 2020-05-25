@@ -23,8 +23,6 @@
                         "memoryserver.c",
                         "monitorserver.c",
                         "nameserver.c",
-                        "block_driver.c",
-                        "block_driver_bench.c",
                         "test.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init
