@@ -813,6 +813,7 @@ static int cleanup_thread(void *arg)
 }
 
 // signalize process server that all threads of domain exited
+__unused
 static void process_server_signalize_exit(void) {
     errval_t err;
     nameservice_chan_t nschan;
@@ -836,7 +837,8 @@ void thread_exit(int status)
     // if we are last thread we signalize process server
     // that our domain has exited
     if (me->next == me) {
-        process_server_signalize_exit();
+        // TODO: signalize exists on each domain causes process sever to get terrible slow
+        // process_server_signalize_exit();
     }
 
     thread_mutex_lock(&me->exit_lock);
