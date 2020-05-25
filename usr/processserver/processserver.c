@@ -52,9 +52,10 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
     uint8_t send_buf[sizeof(struct rpc_message) + str_len + sizeof(domainid_t)];
     struct rpc_message *req = (struct rpc_message *) &send_buf;
 
+    struct aos_rpc *blockdriver = aos_rpc_get_block_driver_channel();
     req->msg.method = Method_Localtask_Spawn_Process;
     req->msg.status = Status_Ok;
-    req->cap = NULL_CAP;
+    req->cap = blockdriver->ump.frame_cap;
     req->msg.payload_length = str_len + sizeof(domainid_t);
 
     memcpy(req->msg.payload, &pid, sizeof(domainid_t));
@@ -69,7 +70,6 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
     struct rpc_message *resp = NULL;
     size_t resp_len;
 
-    struct aos_rpc *blockdriver = aos_rpc_get_block_driver_channel();
     // Send local task request to monitor on the core where the process should start.
     err = nameservice_rpc(
         monitor_chan,
@@ -77,7 +77,7 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
         sizeof(send_buf),
         (void **) &resp,
         &resp_len,
-        blockdriver->ump.frame_cap,
+        NULL_CAP,
         NULL_CAP
     );
     if (err_is_fail(err)) {

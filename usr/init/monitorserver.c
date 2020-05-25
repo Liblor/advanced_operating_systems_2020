@@ -265,16 +265,16 @@ static void service_localtask_handler(void *st, void *message, size_t bytes, voi
 {
     errval_t err;
 
-    assert(!capref_is_null(tx_cap));
     //struct monitorserver_state server_state = st;
     struct rpc_message *msg = message;
     struct rpc_message *resp = NULL;
 
     if (! fs_is_init) {
         struct aos_rpc *blockserver_rpc = malloc(sizeof(struct aos_rpc));
-        assert(!capref_is_null(tx_cap));
-        aos_rpc_ump_init(blockserver_rpc, tx_cap, false);
-        //filesystem_init_with_chan(blockserver_rpc);
+        aos_rpc_ump_init(blockserver_rpc, msg->cap, false);
+        HERE;
+        filesystem_init_with_chan(blockserver_rpc);
+        HERE;
         fs_is_init = true;
     }
 
