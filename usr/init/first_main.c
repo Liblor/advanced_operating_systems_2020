@@ -16,6 +16,7 @@
 #include <aos/aos_rpc_ump.h>
 #include <aos/nameserver.h>
 #include <aos/deferred.h>
+#include <maps/imx8x_map.h>
 
 #include "first_main.h"
 
@@ -271,6 +272,7 @@ int first_main(int argc, char *argv[])
     start_server(NAMESERVICE_INIT, "initserver");
     start_server(NAMESERVICE_PROCESS, "processserver");
     start_server(NAMESERVICE_SERIAL, "serialserver");
+    start_server(NAMESERVICE_BLOCKDRIVER, "blockdriverserver");
 
 
 #if 0

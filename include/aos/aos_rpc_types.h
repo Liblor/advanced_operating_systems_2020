@@ -24,6 +24,8 @@ enum rpc_message_method {
     Method_Ump_Add_Client,
     Method_Nameserver_Service_Request,
     Method_Nameserver_Service_Response,
+    Method_Block_Driver_Read_Block,
+    Method_Block_Driver_Write_Block,
 };
 
 #define AOS_RPC_NAMESERVER_MAX_NAME_LENGTH 32

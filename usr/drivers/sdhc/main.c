@@ -467,7 +467,7 @@ static errval_t sdhc_card_init(struct sdhc_s* sd){
     return SYS_ERR_OK;
 }
 
-errval_t sdhc_read_block(struct sdhc_s* sd, int index, lpaddr_t dest)
+errval_t sdhc_read_block(struct sdhc_s* sd, uint32_t index, lpaddr_t dest)
 {
     errval_t err;
 
@@ -498,7 +498,7 @@ errval_t sdhc_read_block(struct sdhc_s* sd, int index, lpaddr_t dest)
     return SYS_ERR_OK;
 }
 
-errval_t sdhc_write_block(struct sdhc_s* sd, int index, lpaddr_t source){
+errval_t sdhc_write_block(struct sdhc_s* sd, uint32_t index, lpaddr_t source){
     errval_t err;
 
     struct cmd set_blocklen = {
