@@ -25,6 +25,7 @@ struct processserver_state {
     struct process_info process_tail;
     struct process_info *processlist;
     uint64_t num_proc;
+    uint64_t new_pid;
 
     nameservice_chan_t monitor_chan_list[AOS_CORE_COUNT];
 };
@@ -93,18 +94,22 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
     return SYS_ERR_OK;
 }
 
-static void add_process_info(struct processserver_state *server_state, struct process_info *process_info)
+static void add_process_info(struct processserver_state *server_state, struct process_info *process_info, u_int32_t pid)
 {
     server_state->process_tail.prev->next = process_info;
     process_info->prev = server_state->process_tail.prev;
     process_info->next = &server_state->process_tail;
-    process_info->pid = server_state->num_proc;
+    process_info->pid = pid;
     process_info->status = ProcessStatus_Active;
     server_state->process_tail.prev = process_info;
     server_state->num_proc++;
 }
 
-static errval_t add_to_proc_list(struct processserver_state *server_state, char *name, domainid_t *pid)
+__inline static domainid_t get_new_pid(struct processserver_state *server_state) {
+    return server_state->new_pid++;
+}
+
+static errval_t add_to_proc_list(struct processserver_state *server_state, char *name, domainid_t pid)
 {
     struct process_info *new_process = calloc(1, sizeof(struct process_info));
     if (new_process == NULL) {
@@ -118,10 +123,7 @@ static errval_t add_to_proc_list(struct processserver_state *server_state, char 
     }
     strncpy(new_process->name, name, name_size);
 
-    add_process_info(server_state, new_process);
-
-    *pid = new_process->pid;
-
+    add_process_info(server_state, new_process, pid);
     return SYS_ERR_OK;
 }
 
@@ -135,9 +137,13 @@ static inline void init_server_state(struct processserver_state *server_state)
     server_state->process_head.name = NULL;
     server_state->process_tail.name = NULL;
     server_state->num_proc = 0;
+    server_state->new_pid = 100;
 
-    domainid_t pid;
-    add_to_proc_list(server_state, "init", &pid);
+    add_to_proc_list(server_state, "init0", PID_INIT_CORE0);
+    add_to_proc_list(server_state, NAMESERVICE_SERIAL, PID_SERIAL_SERVER);
+    add_to_proc_list(server_state, NAMESERVICE_INIT, PID_INIT_SERVER);
+    add_to_proc_list(server_state, NAMESERVICE_PROCESS, PID_PROCESS_SERVER);
+    add_to_proc_list(server_state, NAMESERVICE_BLOCKDRIVER, PID_BLOCKDRIVER_SERVER);
 }
 
 /**
@@ -191,7 +197,8 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
     grading_rpc_handler_process_spawn(name, coreid);
 
     // TODO: Also store coreid
-    err = add_to_proc_list(processserver_state, name, ret_pid);
+    domainid_t new_pid = get_new_pid(processserver_state);
+    err = add_to_proc_list(processserver_state, name, new_pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "add_to_proc_list()");
         return err;
@@ -202,12 +209,14 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
     // reason: legacy, spawn_load_by_name does not set pid itself, so
     // add_to_proc_list implemented the behavior
 
-    err = processserver_send_spawn_local(processserver_state, name, coreid, *ret_pid);
+    err = processserver_send_spawn_local(processserver_state, name, coreid, new_pid);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "spawn_load_by_name()");
         // TODO: If spawn failed, remove the process from the processserver state list.
         return err;
     }
+
+    *ret_pid = new_pid;
 
     return SYS_ERR_OK;
 }
@@ -237,7 +246,7 @@ static errval_t handle_spawn_process(struct processserver_state *server_state, s
     errval_t err;
     char *name = rpc_msg_part->payload + sizeof(coreid_t);
     coreid_t core = *((coreid_t *)rpc_msg_part->payload);
-    domainid_t pid;
+    domainid_t pid = 0;
     enum rpc_message_status status = Status_Ok;
     // PAGEFAULT
     err = spawn_cb(server_state, name, core, &pid);

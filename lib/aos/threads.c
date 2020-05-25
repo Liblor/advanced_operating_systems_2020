@@ -838,7 +838,7 @@ void thread_exit(int status)
     // that our domain has exited
     if (me->next == me) {
         // TODO: signalize exists on each domain causes process sever to get terrible slow
-        // process_server_signalize_exit();
+         process_server_signalize_exit();
     }
 
     thread_mutex_lock(&me->exit_lock);

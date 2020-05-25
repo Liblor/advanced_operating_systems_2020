@@ -30,11 +30,9 @@ extern coreid_t my_core_id;
 
 struct nameserver_state ns_state;
 
-static inline void start_server(char *service_name, char *cmd)
+static inline void start_server(char *service_name, char *cmd, domainid_t pid)
 {
     errval_t err;
-
-    domainid_t pid;
     struct spawninfo si;
 
     debug_printf("Spawning service '%s'.\n", service_name);
@@ -269,11 +267,10 @@ int first_main(int argc, char *argv[])
 
     register_service_channels(NULL, my_core_id);
 
-    start_server(NAMESERVICE_INIT, "initserver");
-    start_server(NAMESERVICE_PROCESS, "processserver");
-    start_server(NAMESERVICE_SERIAL, "serialserver");
-    start_server(NAMESERVICE_BLOCKDRIVER, "blockdriverserver");
-
+    start_server(NAMESERVICE_INIT, "initserver", PID_INIT_SERVER);
+    start_server(NAMESERVICE_PROCESS, "processserver", PID_PROCESS_SERVER);
+    start_server(NAMESERVICE_SERIAL, "serialserver", PID_SERIAL_SERVER);
+    start_server(NAMESERVICE_BLOCKDRIVER, "blockdriverserver", PID_BLOCKDRIVER_SERVER);
 
 #if 0
     struct aos_rpc rpc_core1;

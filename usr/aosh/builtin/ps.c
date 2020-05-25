@@ -38,12 +38,9 @@ errval_t builtin_ps(
     if (err_is_fail(err)) {
         return err;
     }
-
-    collections_listnode *pid_list = NULL;
-    collections_list_create(&pid_list, free);
-
-    collections_listnode *pid_list_info = NULL;
-    collections_list_create(&pid_list_info, free);
+    int w_pid = 6;
+    int w_status = 10;
+    printf("%*s%*s\t%s\n", w_pid, "PID", w_status, "STATUS",  "NAME");
 
     for (int i = 0; i < pid_count; i++) {
         char *name = NULL;
@@ -51,56 +48,26 @@ errval_t builtin_ps(
         if (err_is_fail(err)) {
             goto free_pid_list;
         }
-        if (collections_list_insert_tail(pid_list, name) != 0) {
-            // something terrible happened with malloc
-            err = COLLECTIONS_LIST_INSERT_TAIL_FAILED;
-            goto free_pid_list;
-        }
+
         struct aos_rpc_process_info_reply *reply = NULL;
         err = aos_rpc_lmp_process_get_info(rpc, pids[i], &reply);
         if (err_is_fail(err)) {
-            goto free_pid_list_info;
+            free(name);
+            goto free_pid_list;
         }
-        if (collections_list_insert_tail(pid_list_info, reply) != 0) {
-            err = COLLECTIONS_LIST_INSERT_TAIL_FAILED;
-            goto free_pid_list_info;
-        }
-    }
 
-    int w_pid = 6;
-    int w_status = 10;
-    printf("%*s%*s\t%s\n", w_pid, "PID", w_status, "STATUS",  "NAME");
-    for (int i = 0; i < pid_count; i++) {
-        struct aos_rpc_process_info_reply *reply
-                = collections_list_get_ith_item(pid_list_info, i);
-        if (reply->status != ProcessStatus_Exit) {
-            char *name = collections_list_get_ith_item(pid_list, i);
-            printf("%*d%*s\t%s\n",
-                   w_pid, pids[i],
-                   w_status, status_to_str(reply->status),
-                   name);
-        }
-    }
-    for (int i = 0; i < pid_count; i++) {
-        struct aos_rpc_process_info_reply *reply
-                = collections_list_get_ith_item(pid_list_info, i);
-        if (reply->status == ProcessStatus_Exit) {
-            char *name = collections_list_get_ith_item(pid_list, i);
-            printf("%*d%*s\t%s\n",
-                   w_pid, pids[i],
-                   w_status, status_to_str(reply->status),
-                   name);
-        }
+        printf("%*d%*s\t%s\n",
+               w_pid, pids[i],
+               w_status, status_to_str(reply->status),
+               name);
+
+        free(name);
+        free(reply);
     }
 
     err = SYS_ERR_OK;
-
-    free_pid_list_info:
-    collections_list_release(pid_list_info);
-
     free_pid_list:
     free(pids);
-    collections_list_release(pid_list);
 
     return err;
 }
