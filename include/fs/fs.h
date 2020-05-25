@@ -55,7 +55,7 @@ errval_t filesystem_init(void);
  *
  * NOTE: This has to be called before any access to the files in init (due to nameserver deadlock)
  */
-errval_t filesystem_init_with_chan(struct aos_rpc_channel *blockdriver);
+errval_t filesystem_init_with_chan(struct aos_rpc *blockdriver);
 
 /**
  * @brief mounts the URI at a give path

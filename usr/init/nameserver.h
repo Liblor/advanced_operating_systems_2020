@@ -25,4 +25,9 @@ errval_t nameserver_add_service(struct nameserver_state *ns_state, char *name, s
 
 void nameserver_serve_in_thread(struct nameserver_state *server_state);
 
+errval_t nameserver_lookup_channel(
+    const char *name,
+    struct nameserver_state *ns_state
+);
+
 #endif

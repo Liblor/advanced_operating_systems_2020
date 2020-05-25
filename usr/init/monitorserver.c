@@ -215,10 +215,11 @@ static errval_t serve_localtask_spawn(
             // Shouldn't happen according to Christian
             return SYS_ERR_NOT_IMPLEMENTED;
         }
-        /*
-         * GET CHANNEL
-         */
-        filesystem_init_with_chan(channel);
+        err = nameserver_lookup_channel(NAMESERVICE_BLOCKDRIVER, monitorserver_state.ns_state);
+        if (err_is_fail(err)) {
+            return err;
+        }
+        filesystem_init_with_chan(monitorserver_state.ns_state->rpc_add_client_request_pending);
     }
 
     switch(recv_msg->msg.method) {

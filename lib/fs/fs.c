@@ -64,7 +64,7 @@ errval_t filesystem_init(void)
  *
  * NOTE: This has to be called before any access to the files in init
  */
-errval_t filesystem_init_with_chan(struct aos_rpc_channel *blockdriver)
+errval_t filesystem_init_with_chan(struct aos_rpc *blockdriver)
 {
     errval_t err;
 

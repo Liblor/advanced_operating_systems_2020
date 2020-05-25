@@ -24,7 +24,7 @@ struct nameserver_entry {
 };
 
 // Source: http://www.cse.yorku.ca/~oz/hash.html
-static uint64_t hash_string(char *str)
+static uint64_t hash_string(const char *str)
 {
     assert(str != NULL);
 
@@ -178,16 +178,11 @@ static errval_t send_add_client(struct aos_rpc *add_client_chan)
     return SYS_ERR_OK;
 }
 
-static errval_t handle_lookup(struct rpc_message *msg, struct nameserver_state *ns_state, struct aos_rpc *rpc_resp)
-{
+errval_t nameserver_lookup_channel(
+    const char *name,
+    struct nameserver_state *ns_state
+) {
     errval_t err;
-
-    assert(msg != NULL);
-    assert(ns_state != NULL);
-
-    char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
-    read_name(name, msg);
-
     collections_hash_table *service_table = ns_state->service_table;
     assert(service_table != NULL);
 
@@ -207,6 +202,24 @@ static errval_t handle_lookup(struct rpc_message *msg, struct nameserver_state *
 
     ns_state->add_client_pid_pending = entry->pid;
     ns_state->rpc_add_client_request_pending = &entry->add_client_chan;
+    return SYS_ERR_OK;
+}
+
+static errval_t handle_lookup(struct rpc_message *msg, struct nameserver_state *ns_state, struct aos_rpc *rpc_resp)
+{
+    errval_t err;
+
+    assert(msg != NULL);
+    assert(ns_state != NULL);
+
+    char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
+    read_name(name, msg);
+
+    err = nameserver_lookup_channel(name, ns_state);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
     ns_state->rpc_add_client_response_pending = rpc_resp;
     rpc_ump_server_pause_processing(&server);
 
