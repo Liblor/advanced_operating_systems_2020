@@ -39,6 +39,11 @@ static void read_newline(void)
             // clearScreen();
             printf("\r\n");
             printf("[%d] You typed: '%s'\r\n", id, &buf);
+            buf[i] = '\0';
+            i++;
+            if (strcmp(buf, "exit") == 0) {
+                break;
+            }
             fflush(stdout);
             memset(&buf, 0, 2048);
             i = 0;

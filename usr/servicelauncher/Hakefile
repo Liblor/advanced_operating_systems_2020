@@ -1,0 +1,6 @@
+[ build application { target = "servicelauncher",
+  		              cFiles = [ "servicelauncher.c" ],
+                      architectures = allArchitectures,
+                      addLibraries = [ "fs" ]
+                    }
+]

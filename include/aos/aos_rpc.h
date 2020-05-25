@@ -43,8 +43,6 @@ struct aos_rpc {
     void *priv_data;
 };
 
-
-
 /**
  * \brief Call this handler on the receive side for grading
  */
@@ -122,6 +120,14 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
                                   char **name);
 
 /**
+ * \brief Get detailed info about a running processes.
+ * \arg pid query process with given pid
+ */
+errval_t aos_rpc_process_get_info(struct aos_rpc *chan, domainid_t pid,
+                                  struct aos_rpc_process_info_reply **ret_info);
+
+
+/**
  * \brief Get PIDs of all running processes.
  * \arg pids An array containing the process ids of all currently active
  * processes. Will be allocated by the rpc implementation. Freeing is the
@@ -130,6 +136,13 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
  */
 errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
                                       domainid_t **pids, size_t *pid_count);
+
+
+/**
+ * \brief Signalize end of live for domain
+ */
+errval_t
+aos_rpc_process_signalize_exit(struct aos_rpc *rpc);
 
 
 /**

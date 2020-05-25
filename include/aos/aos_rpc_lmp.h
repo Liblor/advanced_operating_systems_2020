@@ -143,6 +143,18 @@ errval_t aos_rpc_lmp_get_device_cap(struct aos_rpc *chan,
                                 lpaddr_t paddr, size_t bytes,
                                 struct capref *frame);
 
+
+/** fire and forget ping to process server
+ * to signalize that we are inactive/exited
+ */
+errval_t
+aos_rpc_lmp_process_signalize_exit(struct aos_rpc *rpc);
+
+/** get info about a process */
+errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *chan, domainid_t pid,
+                                  struct aos_rpc_process_info_reply **ret_info);
+
+
 // Nameserver calls
 errval_t aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid);
 errval_t aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name);

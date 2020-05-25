@@ -332,7 +332,6 @@ int main(
         char *argv[])
 {
     errval_t err;
-    nameservice_wait_for(NAMESERVICE_SERIAL);
 
     printf("spawning aosh..." ENDL);
 
