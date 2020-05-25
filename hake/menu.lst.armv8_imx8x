@@ -28,4 +28,5 @@ module /armv8/sbin/serial-test
 module /armv8/sbin/serial-read-test
 module /armv8/sbin/aosh
 module /armv8/sbin/serialserver
+module /armv8/sbin/blockdriverserver
 module /armv8/sbin/filereader

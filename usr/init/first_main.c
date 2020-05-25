@@ -72,11 +72,13 @@ static void setup_servers(
         abort();
     }
 
+    /*
     err = block_driver_init();
     if (err_is_fail(err)) {
         debug_printf("block_driver_init() failed: %s\n", err_getstring(err));
         abort();
     }
+     */
 }
 
 static void register_service_channel(
@@ -156,7 +158,7 @@ static void register_service_channels(
 {
     register_service_channel(MemoryserverUrpc, rpc, mpid, memoryserver_ump_add_client);
     register_service_channel(NameserverUrpc, rpc, mpid, nameserver_add_client);
-    register_service_channel(BlockDriverServerUrpc, rpc, mpid, block_driver_add_client);
+    //register_service_channel(BlockDriverServerUrpc, rpc, mpid, block_driver_add_client);
 
     debug_printf("all service channels for core %d registered\n", mpid);
 }
@@ -235,11 +237,13 @@ static void serve_periodic_urpc_event(void *args) {
         DEBUG_ERR(err, "in memoryserver_ump_serve_next");
         abort();
     }
+    /*
     err = block_driver_serve_next();
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "in block_dirver_serve_next");
         abort();
     }
+     */
 }
 
 static errval_t setup_periodic_urpc_events(
@@ -285,6 +289,7 @@ int first_main(int argc, char *argv[])
     start_server(NAMESERVICE_INIT, "initserver");
     start_server(NAMESERVICE_PROCESS, "processserver");
     start_server(NAMESERVICE_SERIAL, "serialserver");
+    start_server(NAMESERVICE_BLOCKDRIVER, "blockdriverserver");
 
 
 #if 0
