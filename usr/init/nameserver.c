@@ -81,8 +81,6 @@ errval_t nameserver_add_service(struct nameserver_state *ns_state, char *name, s
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    debug_printf("Adding new service '%s' to service table.\n", name);
-
     entry = calloc(1, sizeof(struct nameserver_entry));
     if (entry == NULL) {
         debug_printf("calloc() failed");
@@ -151,8 +149,6 @@ static void handle_deregister(struct rpc_message *msg, struct nameserver_state *
         resp->msg.status = Status_Error;
         return;
     }
-
-    debug_printf("Removing service '%s' from service table.\n", name);
 
     collections_hash_delete(service_table, hash);
 }

@@ -39,7 +39,6 @@ static nameservice_chan_t get_monitor_chan(struct processserver_state *server_st
     nameservice_chan_t *entry_ptr = &server_state->monitor_chan_list[cid];
 
     if (*entry_ptr == NULL) {
-        debug_printf("Looking up monitor service of core %llu.\n", cid);
         char service_name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
         snprintf(service_name, sizeof(service_name), NAMESERVICE_MONITOR "%llu", cid);
 
