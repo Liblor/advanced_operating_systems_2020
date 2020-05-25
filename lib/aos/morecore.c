@@ -18,17 +18,12 @@
 #include <aos/core_state.h>
 #include <aos/morecore.h>
 #include <stdio.h>
-#include <aos_malloc.h>
 
 typedef void *(*morecore_alloc_func_t)(size_t bytes, size_t *retbytes);
 extern morecore_alloc_func_t sys_morecore_alloc;
 
 typedef void (*morecore_free_func_t)(void *base, size_t bytes);
 extern morecore_free_func_t sys_morecore_free;
-
-extern alt_malloc_t alt_malloc;
-extern alt_free_t alt_free;
-extern alt_free_t alt_free_locked;
 
 // this define makes morecore use an implementation that just has a static
 // 16MB heap.
@@ -182,7 +177,7 @@ static errval_t ensure_static_threshold(struct morecore_state *state, size_t req
 
 }
 
-static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
+void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes)
 {
     errval_t err;
     size_t aligned_bytes = ROUND_UP(bytes, sizeof(Header));
@@ -190,7 +185,9 @@ static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, s
 
     err = ensure_static_threshold(state, aligned_bytes);
     if (err_is_fail(err)) {
-        *retbytes = 0;
+        if (retbytes) {
+            *retbytes = 0;
+        }
         return ret;
     }
 
@@ -202,7 +199,9 @@ static void *morecore_alloc_static(struct morecore_state *state, size_t bytes, s
         ret = (void *)state->static_zone.current_addr;
         state->static_zone.current_addr += aligned_bytes;
     }
-    *retbytes = aligned_bytes;
+    if (retbytes) {
+        *retbytes = aligned_bytes;
+    }
     return ret;
 }
 
@@ -235,11 +234,7 @@ static void *morecore_alloc(size_t bytes, size_t *retbytes)
 {
     struct morecore_state *state = get_morecore_state();
     bytes = MAX(bytes, MORECORE_ALLOC_GRANULARITY);
-    if (state->heap_static) {
-        return morecore_alloc_static(state, bytes, retbytes);
-    } else {
-        return morecore_alloc_dynamic(state, bytes, retbytes);
-    }
+    return morecore_alloc_dynamic(state, bytes, retbytes);
 }
 
 static void morecore_free(void *base, size_t bytes)
@@ -251,7 +246,6 @@ static void morecore_free(void *base, size_t bytes)
 static void morecore_init_dynamic(struct morecore_state *state, size_t alignment)
 {
     errval_t err;
-
     void *buf;
 
     err = paging_region_init_aligned(
@@ -271,36 +265,10 @@ static void morecore_init_dynamic(struct morecore_state *state, size_t alignment
     state->dynamic_zone.region_size = MORECORE_VADDR_ZONE_SIZE;
     state->dynamic_zone.base_addr = (lvaddr_t) buf;
     state->dynamic_zone.current_addr = state->dynamic_zone.base_addr;
-    state->header_freep_dynamic = NULL;
+    state->header_freep = NULL;
 }
 
-void morecore_enable_static(void)
-{
-    struct morecore_state *state = get_morecore_state();
-    if (!state->heap_static) {
-        state->heap_static = true;
 
-        state->header_freep_dynamic = state->header_freep;
-        state->header_base_dynamic = state->header_base;
-
-        state->header_freep = state->header_freep_static;
-        state->header_base = state->header_base_static;
-    }
-}
-
-void morecore_enable_dynamic(void)
-{
-    struct morecore_state *state = get_morecore_state();
-    if (state->heap_static) {
-        state->heap_static = false;
-
-        state->header_freep_static = state->header_freep;
-        state->header_base_static = state->header_base;
-
-        state->header_freep = state->header_freep_dynamic;
-        state->header_base = state->header_base_dynamic;
-    }
-}
 
 errval_t morecore_init(size_t alignment)
 {
@@ -310,24 +278,13 @@ errval_t morecore_init(size_t alignment)
     //thread_mutex_init(state->mutex);
     state->mutex = &get_current_paging_state()->mutex;
 
-    // we start off dynamic and switch to static in pagefault handler
-
-    // XXX: Glue aos_malloc which is static/dynamic heap aware
-    // no malloc before this function is called as we initialize morecore here
-
-    alt_free = aos_free;
-    alt_free_locked = __aos_free_locked;
-    alt_malloc = aos_malloc;
+    thread_mutex_init(&state->static_mutex);
 
     sys_morecore_alloc = morecore_alloc;
     sys_morecore_free = morecore_free;
 
-    state->heap_static = false;
-
     morecore_init_static(state, alignment);
-    morecore_enable_static();
     morecore_init_dynamic(state,alignment);
-    morecore_enable_dynamic();
 
     return SYS_ERR_OK;
 }

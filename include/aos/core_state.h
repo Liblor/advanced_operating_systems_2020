@@ -44,6 +44,8 @@ struct morecore_static_zone {
 
 struct morecore_state {
     struct thread_mutex *mutex;
+    struct thread_mutex static_mutex;
+    struct thread_mutex malloc_mutex;
 
     Header header_base;
     Header *header_freep;
@@ -56,15 +58,9 @@ struct morecore_state {
     // for initial static morecore
     char *freep;
 
-    bool heap_static;
-
     // malloc state for static
     Header header_base_static;
     Header *header_freep_static;
-
-    // malloc state for dynamic
-    Header header_base_dynamic;
-    Header *header_freep_dynamic;
 };
 
 struct ram_alloc_state {

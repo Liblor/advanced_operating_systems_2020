@@ -17,6 +17,8 @@
 #include <stddef.h>
 #include <aos/aos.h>
 #include <aos/core_state.h>
+#include <aos/morecore.h>
+#include <static_malloc.h>
 
 Header *get_malloc_freep(void);
 
@@ -56,6 +58,23 @@ Header *morecore(unsigned nu)
     // Add header to freelist
     __free_locked((void *)(up + 1));
     return get_malloc_freep();
+}
+
+Header *static_morecore(unsigned nu)
+{
+    Header *up;
+    size_t nb = nu * sizeof(Header);
+
+    // Allocate requested number of pages and insert freelist header
+    up = (Header *)morecore_alloc_static(get_morecore_state(), nb, &nb);
+    if (up == NULL) {
+        return NULL;
+    }
+    assert(nb % sizeof(Header) == 0);
+    up->s.size = nb / sizeof(Header);
+    // Add header to freelist
+    __static_free_locked((void *)(up + 1));
+    return get_morecore_state()->header_freep_static;
 }
 
 /**

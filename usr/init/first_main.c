@@ -17,6 +17,7 @@
 #include <aos/nameserver.h>
 #include <aos/deferred.h>
 #include <maps/imx8x_map.h>
+#include <static_malloc.h>
 
 #include "first_main.h"
 

@@ -11,6 +11,8 @@
  * ETH Zurich D-INFK, Universitaetstrasse 6, CH-8092 Zurich. Attn: Systems Group.
  */
 
+#include <static_malloc.h>
+#include <aos/debug.h>
 #include "collections/hash_table.h"
 #include "inttypes.h"
 
@@ -37,13 +39,14 @@ static void collections_hash_create_core(collections_hash_table **t, int num_buc
 {
 	int i;
 
-	*t = (collections_hash_table *) malloc (sizeof(collections_hash_table));
+	*t = (collections_hash_table *) static_malloc (sizeof(collections_hash_table));
+	assert(*t != NULL);
 	memset(*t, 0, sizeof(collections_hash_table));
 
 	(*t)->num_buckets = num_buckets;
 
 	// create a linked list node for each bucket
-	(*t)->buckets = (collections_listnode **) malloc(sizeof(collections_listnode *) * num_buckets);
+	(*t)->buckets = (collections_listnode **) static_malloc(sizeof(collections_listnode *) * num_buckets);
 	for (i = 0; i < num_buckets; i ++) {
 		collections_list_create(&(*t)->buckets[i], NULL);
 	}
@@ -74,7 +77,7 @@ static int collections_hash_release_elem(void* elem, void * arg)
     {
         t->data_free(he->data);
     }
-    free(he);
+    static_free(he);
 
 	t->num_elems--;
 
@@ -102,8 +105,8 @@ void collections_hash_release(collections_hash_table *t)
 	}
     assert(t->num_elems == 0);
 
-	free(t->buckets);
-	free(t);
+	static_free(t->buckets);
+	static_free(t);
 }
 
 static collections_hash_elem* collections_hash_find_elem(collections_hash_table *t, uint64_t key)
@@ -136,7 +139,7 @@ void collections_hash_insert(collections_hash_table *t, uint64_t key, void *data
 
 	bucket_num = key % t->num_buckets;
 	bucket = t->buckets[bucket_num];
-	elem = (collections_hash_elem *) malloc(sizeof(collections_hash_elem));
+	elem = (collections_hash_elem *) static_malloc(sizeof(collections_hash_elem));
 	elem->key = key;
 	elem->data = data;
 	collections_list_insert(bucket, (void *)elem);

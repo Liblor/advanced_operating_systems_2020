@@ -46,7 +46,7 @@ errval_t builtin_ps(
     err = SYS_ERR_OK;
 
     free_pid_list:
-    free(pids);
+    //free(pids);
     collections_list_release(pid_list);
     return err;
 }

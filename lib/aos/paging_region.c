@@ -4,6 +4,7 @@
 #include <aos/domain.h>
 #include <aos/core_state.h>
 #include <aos/morecore.h>
+#include <static_malloc.h>
 
 static inline errval_t paging_region_init_region(
     struct paging_state *st,
@@ -22,7 +23,6 @@ static inline errval_t paging_region_init_region(
     PAGING_CHECK_RANGE(base, size);
 
     bool exit_do_unlock = false;
-    bool is_dynamic = false;
 
     pr->mutex = &st->mutex;
 
@@ -38,9 +38,6 @@ static inline errval_t paging_region_init_region(
     thread_mutex_lock_nested(&st->mutex);
     exit_do_unlock = true;
 
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
-
     err = range_tracker_add(&pr->rt, base, size, (union range_tracker_shared) NULL);
     if (err_is_fail(err)) {
         debug_printf("range_tracker_add() failed\n");
@@ -50,9 +47,6 @@ static inline errval_t paging_region_init_region(
     err = SYS_ERR_OK;
 
 cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     if (exit_do_unlock) {
         thread_mutex_unlock(&st->mutex);
     }
@@ -83,7 +77,6 @@ static errval_t _paging_region_init(
         return LIB_ERR_PAGING_VADDR_NOT_ALIGNED;
     }
 
-    bool is_dynamic = false;
     bool exit_do_unlock = false;
 
     memset(pr, 0x00, sizeof(struct paging_region));
@@ -94,9 +87,6 @@ static errval_t _paging_region_init(
      */
     thread_mutex_lock_nested(&st->mutex);
     exit_do_unlock = true;
-
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
 
     err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
@@ -143,9 +133,6 @@ static errval_t _paging_region_init(
     err = SYS_ERR_OK;
 
 cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     if (exit_do_unlock) {
         thread_mutex_unlock(&st->mutex);
     }
@@ -231,8 +218,6 @@ errval_t paging_region_map(
     uint64_t page_count = size / BASE_PAGE_SIZE;
 
     // run on vmem which does not pagefault
-    const bool is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
 
     struct paging_state *st = get_current_paging_state();
 
@@ -291,7 +276,7 @@ errval_t paging_region_map(
         }
         assert(mapping_node != NULL);
 
-        struct frame_mapping_pair *mapping_pair = calloc(1, sizeof(struct frame_mapping_pair));
+        struct frame_mapping_pair *mapping_pair = static_calloc(1, sizeof(struct frame_mapping_pair));
         if (mapping_pair == NULL) {
             err = LIB_ERR_MALLOC_FAIL;
             goto cleanup;
@@ -311,9 +296,6 @@ errval_t paging_region_map(
     err = SYS_ERR_OK;
 
 cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     thread_mutex_unlock(pr->mutex);
     return err;
 }
@@ -349,7 +331,7 @@ static void range_tracker_free_cb(
         debug_printf("cap_destroy() failed in paging_region_unmap() callback: %s\n", err_getstring(err));
     }
 
-    free(mapping_pair);
+    static_free(mapping_pair);
 }
 
 /**

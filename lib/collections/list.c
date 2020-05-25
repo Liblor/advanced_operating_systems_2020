@@ -13,6 +13,7 @@
  */
 
 #include <collections/list.h>
+#include <static_malloc.h>
 
 /******************************************************
  * a simple linked list implementation.
@@ -48,7 +49,7 @@ static collections_listnode *list_create_node(collections_listnode *start,
                                               void *data)
 {
     collections_listnode *newnode = (collections_listnode *)
-                                    malloc(sizeof(collections_listnode));
+                                    static_malloc(sizeof(collections_listnode));
     newnode->data = data;
 
     list_push(where, newnode);
@@ -60,7 +61,7 @@ static void list_destroy_node(collections_listnode *start,
                               collections_listnode *node)
 {
     list_pop(node);
-    free(node);
+    static_free(node);
     ((collections_header_data*)start->data)->size--;
 }
 
@@ -80,10 +81,10 @@ void collections_list_create(collections_listnode **start,
 	//
 	// this is an empty list containing only the header.
 	//
-    t = (collections_listnode *)malloc(sizeof(collections_listnode));
+    t = (collections_listnode *)static_malloc(sizeof(collections_listnode));
     t->next = t->prev = t;
     collections_header_data *h = (collections_header_data *)
-                                 malloc(sizeof(collections_header_data));
+                                 static_malloc(sizeof(collections_header_data));
     h->size = 0;
 	h->data_free = func;
 	h->cur_item = NULL;
@@ -119,8 +120,8 @@ void collections_list_release(collections_listnode *start)
     //
     // release the header.
     //
-    free(start->data);
-    free(start);
+    static_free(start->data);
+    static_free(start);
 
     return;
 }

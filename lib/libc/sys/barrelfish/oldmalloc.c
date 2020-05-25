@@ -20,8 +20,8 @@ alt_free_t alt_free = NULL;
 
 alt_free_t alt_free_locked = NULL;
 
-#define MALLOC_LOCK thread_mutex_lock(&state->mutex)
-#define MALLOC_UNLOCK thread_mutex_unlock(&state->mutex)
+#define MALLOC_LOCK thread_mutex_lock(&state->malloc_mutex)
+#define MALLOC_UNLOCK thread_mutex_unlock(&state->malloc_mutex)
 
 #ifdef CONFIG_MALLOC_INSTRUMENT
 size_t __malloc_instrumented_allocated;

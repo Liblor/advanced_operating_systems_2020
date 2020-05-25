@@ -29,8 +29,7 @@ errval_t morecore_init(size_t alignment);
 void morecore_use_optimal(void);
 errval_t morecore_reinit(void);
 
-void morecore_enable_static(void);
-void morecore_enable_dynamic(void);
+void *morecore_alloc_static(struct morecore_state *state, size_t bytes, size_t *retbytes);
 
 __END_DECLS
 

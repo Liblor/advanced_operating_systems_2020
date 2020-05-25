@@ -19,6 +19,7 @@
 #include <aos/morecore.h>
 
 #include <stdio.h>
+#include <static_malloc.h>
 
 #include "threads_priv.h"
 
@@ -112,7 +113,7 @@ static inline errval_t get_or_create_pt_entry(
 
         entry = collections_hash_find(parent->entries, index);
         if (entry == NULL) {
-            entry = malloc(sizeof(struct page_table));
+            entry = static_malloc(sizeof(struct page_table));
             if (entry == NULL) {
                 // TODO: Do we recover from alloc errors with free of resources?
                 return LIB_ERR_MALLOC_FAIL;
@@ -533,9 +534,6 @@ static void exception_handler(
 {
     errval_t err = SYS_ERR_OK;
 
-    const bool is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
-
     switch (type) {
     case EXCEPT_PAGEFAULT:
         err = paging_handler(type, subtype, addr, regs);
@@ -543,10 +541,6 @@ static void exception_handler(
     default:
         err = AOS_ERR_PAGING_INVALID_UNHANDLED_EXCEPTION;
         debug_printf("Unknown exception type\n");
-    }
-
-    if (is_dynamic) {
-        morecore_enable_dynamic();
     }
 
     if (err_is_fail(err)) {
@@ -695,12 +689,7 @@ void paging_init_onthread(
 {
     DEBUG_BEGIN;
 
-    const bool is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
-    void *stack = malloc(PAGING_EXCEPTION_STACK_SIZE);
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
+    void *stack = static_malloc(PAGING_EXCEPTION_STACK_SIZE);
 
     if (stack == NULL) {
         debug_printf("Allocating exception stack failed\n");
@@ -742,15 +731,14 @@ errval_t paging_alloc(
     assert(alignment % BASE_PAGE_SIZE == 0);
     PAGING_CHECK_SIZE(bytes)
 
-    bool is_dynamic = false;
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
 
     struct paging_region *pr = NULL;
     *buf = NULL;
 
-    pr = calloc(1, sizeof(struct paging_region));
+    pr = static_calloc(1, sizeof(struct paging_region));
     if (pr == NULL) {
-        debug_printf("calloc() failed\n");
+        debug_printf("static_calloc() failed\n");
         err = LIB_ERR_MALLOC_FAIL;
         goto error_cleanup;
     }
@@ -760,8 +748,6 @@ errval_t paging_alloc(
      * order to ensure the threshold directly before acquiring the page.
      */
     thread_mutex_lock_nested(&st->mutex);
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
 
     err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
@@ -785,9 +771,6 @@ errval_t paging_alloc(
     err = SYS_ERR_OK;
 
 exit_cleanup:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     thread_mutex_unlock(&st->mutex);
     return err;
 
@@ -883,7 +866,6 @@ errval_t paging_map_fixed_attr(
     DEBUG_BEGIN;
 
     assert(st != NULL);
-    bool is_dynamic = false;
     bytes = ROUND_UP(bytes, BASE_PAGE_SIZE);
     PAGING_CHECK_RANGE(vaddr, bytes);
 
@@ -891,9 +873,6 @@ errval_t paging_map_fixed_attr(
     if (st != get_current_paging_state()) {
         thread_mutex_lock_nested(&get_current_paging_state()->mutex);
     }
-
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
 
     err = slab_ensure_threshold(&st->slabs, PAGING_SLAB_THRESHOLD);
     if (err_is_fail(err)) {
@@ -952,7 +931,7 @@ errval_t paging_map_fixed_attr(
         assert(node->shared.ptr == NULL);
 
         // TODO: Free this pr if subsequent error occurs.
-        pr = calloc(1, sizeof(struct paging_region));
+        pr = static_calloc(1, sizeof(struct paging_region));
         if (pr == NULL) {
             err = LIB_ERR_MALLOC_FAIL;
             goto clean_up;
@@ -989,7 +968,7 @@ errval_t paging_map_fixed_attr(
         }
         assert(mapping_node != NULL);
 
-        struct frame_mapping_pair *mapping_pair = calloc(1, sizeof(struct frame_mapping_pair));
+        struct frame_mapping_pair *mapping_pair = static_calloc(1, sizeof(struct frame_mapping_pair));
         if (mapping_pair == NULL) {
             err = LIB_ERR_MALLOC_FAIL;
             goto clean_up;
@@ -1017,9 +996,6 @@ errval_t paging_map_fixed_attr(
     err = SYS_ERR_OK;
 
 clean_up:
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     if (st != get_current_paging_state()) {
         thread_mutex_unlock(&get_current_paging_state()->mutex);
     }
@@ -1041,14 +1017,11 @@ errval_t paging_unmap(
 
     assert(st != NULL);
 
-    bool is_dynamic = false;
     const lvaddr_t vaddr = (lvaddr_t) region;
 
     struct rtnode *pr_node = NULL;
 
     thread_mutex_lock_nested(&st->mutex);
-    is_dynamic = !get_morecore_state()->heap_static;
-    morecore_enable_static();
 
     err = range_tracker_get_fixed(&st->rt, vaddr, 1, &pr_node);
     if (err_is_fail(err)) {
@@ -1083,16 +1056,13 @@ errval_t paging_unmap(
         return err;
     }
 
-    if (is_dynamic) {
-        morecore_enable_dynamic();
-    }
     thread_mutex_unlock(&st->mutex);
 
     /*
      * Free the region itself.
      */
 
-    free(pr);
+    static_free(pr);
 
     return SYS_ERR_OK;
 }
