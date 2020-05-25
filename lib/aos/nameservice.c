@@ -206,16 +206,23 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
 
     if (response != NULL && response_bytes != NULL) {
         err = aos_rpc_ump_send_and_wait_recv(rpc, send, &recv);
-        *response = recv->msg.payload;
+        if (err_is_fail(err)) {
+            free(recv);
+            return err;
+        }
         *response_bytes = recv->msg.payload_length;
-
+        *response = calloc(1, recv->msg.payload_length);
+        if (*response == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        memcpy(*response, &recv->msg.payload, *response_bytes);
         if (!capref_is_null(rx_cap)) {
             cap_copy(rx_cap, recv->cap);
         }
+        free(recv);
     } else {
         err = aos_rpc_ump_send_message(rpc, send);
     }
-
 	return SYS_ERR_OK;
 }
 
