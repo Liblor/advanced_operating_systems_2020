@@ -9,6 +9,7 @@
   		               "builtin/echo.c",
   		               "builtin/rpctest.c",
   		               "builtin/domain_info.c",
+  		               "builtin/run_memtest.c",
   		               "builtin/ps.c",
   		               "linenoise/linenoise.c"
   		                ],
