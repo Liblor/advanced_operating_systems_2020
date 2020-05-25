@@ -13,6 +13,7 @@
 #include <barrelfish_kpi/domain_params.h>
 #include <spawn/multiboot.h>
 #include <spawn/argv.h>
+#include <fs/dirent.h>
 
 extern struct bootinfo *bi;
 extern coreid_t my_core_id;
@@ -627,16 +628,6 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     si->next = NULL;
     si->binary_name = argv[0];
 
-    void *module_data;
-    err = load_module(
-        si,
-        &module_data
-    );
-    if (err_is_fail(err)) {
-        debug_printf("load_module() failed: %s\n", err_getstring(err));
-        return err_push(err, SPAWN_ERR_LOAD);
-    }
-
     struct capref cap_cnode_l1;
     struct capref l0_table_child;
     struct cnoderef taskcn_child;
@@ -672,7 +663,7 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
 
     err = parse_elf(
         si->module,
-        module_data,
+        si->module_data,
         &as,
         &entry_point_addr,
         &got_section_addr
@@ -763,14 +754,44 @@ errval_t spawn_load_by_name(char *cmd, struct spawninfo * si, domainid_t *pid)
     binary_name[binary_name_len] = '\0';
 
     // Get the mem_region from the multiboot image.
+    bool multiboot = true;
     si->module = multiboot_find_module(bi, binary_name);
-    if (si->module == NULL) {
-        debug_printf("multiboot_find_module() failed\n");
-        return SPAWN_ERR_FIND_MODULE;
+    if (si->module != NULL) {
+        err = load_module(
+            si,
+            &si->module_data
+        );
+        if (err_is_fail(err)) {
+            debug_printf("load_module() failed: %s\n", err_getstring(err));
+            return err_push(err, SPAWN_ERR_LOAD);
+        }
+    } else {
+        HERE;
+        // TODO: Doesn't work because of nslookup
+        filesystem_init();
+        HERE;
+        multiboot = false;
+        FILE *f = fopen(binary_name, "r");
+        if (f == NULL) { return SPAWN_ERR_FIND_MODULE; }
+        struct fs_fileinfo fileinfo;
+        HERE;
+        err = fstat(f, &fileinfo);
+        if (err_is_fail(err)) {
+            return err;
+        }
+        HERE;
+        si->module_data = malloc(fileinfo.size);
+        if (si->module_data == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        HERE;
+        size_t r = fread(si->module_data, fileinfo.size, 1, f);
+        fclose(f);
+        if (r < fileinfo.size) { return SPAWN_ERR_LOAD; }
     }
 
     char *opts;
-    if (get_static_opts) {
+    if (multiboot && get_static_opts) {
         opts = (char *) multiboot_module_opts(si->module);
         if (opts == NULL) {
             debug_printf("multiboot_module_opts() failed\n");
@@ -794,5 +815,9 @@ errval_t spawn_load_by_name(char *cmd, struct spawninfo * si, domainid_t *pid)
         return err_push(err, SPAWN_ERR_LOAD);
     }
 
+    if (! multiboot) {
+        free(si->module_data);
+        si->module_data = NULL;
+    }
     return SYS_ERR_OK;
 }

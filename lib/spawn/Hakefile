@@ -19,6 +19,6 @@
     build library {
         target = "argv",
         cFiles = [ "argv.c" ],
-        addLibraries = []
+        addLibraries = [ "fs" ]
      }
 ]

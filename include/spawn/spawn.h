@@ -21,13 +21,12 @@
 
 
 struct spawninfo {
-    // the next in the list of spawned domains
-    struct spawninfo *next;
-
+    struct spawninfo *next;         ///< the next in the list of spawned domains
     // Information about the binary
-    char * binary_name;     // Name of the binary
-
+    char *binary_name;              ///< Name of the binary
     struct mem_region *module;
+    void *module_data;              ///< Module data only relevant while spawning
+
 };
 
 struct elf_allocator_state {
