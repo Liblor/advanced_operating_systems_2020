@@ -98,8 +98,6 @@ __aos_free_locked(void *ap) {
 
 void aos_free(void *ap)
 {
-    // FIX: for handin, do not free memory
-    return;
     if (ap == NULL) {
         return;
     }
