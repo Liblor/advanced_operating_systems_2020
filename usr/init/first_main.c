@@ -267,10 +267,7 @@ int first_main(int argc, char *argv[])
 
     register_service_channels(NULL, my_core_id);
 
-    start_server(NAMESERVICE_INIT, "initserver", PID_INIT_SERVER);
     start_server(NAMESERVICE_PROCESS, "processserver", PID_PROCESS_SERVER);
-    start_server(NAMESERVICE_SERIAL, "serialserver", PID_SERIAL_SERVER);
-    start_server(NAMESERVICE_BLOCKDRIVER, "blockdriverserver", PID_BLOCKDRIVER_SERVER);
 
 #if 0
     struct aos_rpc rpc_core1;
@@ -290,7 +287,7 @@ int first_main(int argc, char *argv[])
 #if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("aosh", &si, &pid);
+    err = spawn_load_by_name("servicelauncher", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
