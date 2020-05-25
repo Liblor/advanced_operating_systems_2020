@@ -166,7 +166,6 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
         }
     }
 
-    free(message);
     free(response);
 }
 
