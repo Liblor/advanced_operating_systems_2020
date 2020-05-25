@@ -1400,11 +1400,23 @@ errors aos AOS_ERR_ {
     failure PAGING_ADDR_RESERVED "This address is reserved for an explicit region.",
     failure MONITOR_UNKNOWN_RPC_TYPE   "Unknown RPC type for monitor",
     failure MONITOR_ALREADY_REGISTERED_RPC "Monitor already registered binding for RPC type",
+
+    failure SERIAL_SERVER_READ_OCCUPIED "Read session is currently occupied. Try again. ",
+    failure SERIAL_BUSY "Serial device currently not available. try again",
+};
+
+errors aos AOSH_ERR_ {
+    failure EXIT_SHELL "Exit shell",
+    failure INVALID_ESCAPE_CHAR "Invalid escape sequence.",
+    failure INVALID_ARGS "Invalid command line args",
+    failure BUILTIN_EXIT_SUCCESS "Command finished successfully",
+    failure READLINE_MAX_EXCEEDED "Max input length exceeded ",
 };
 
 // errors for collections
 errors aos COLLECTIONS_ {
     failure RANGETRACKER_ALIGNMENT        "The base or size was not properly aligned",
+    failure LIST_INSERT_TAIL_FAILED "collections_list_insert_tail failed",
 };
 
 // errors NIC driver

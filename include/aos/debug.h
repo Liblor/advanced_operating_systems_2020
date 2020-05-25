@@ -38,6 +38,7 @@ int debug_print_cap(char *buf, size_t len, struct capability *cap);
 int debug_print_cap_at_capref(char *buf, size_t len, struct capref cap);
 int debug_print_capref(char *buf, size_t len, struct capref cap);
 int debug_print_cnoderef(char *buf, size_t len, struct cnoderef cnode);
+void debug_dump_cap_at_capref(struct capref cap);
 
 void debug_print_save_area(arch_registers_state_t *state);
 void debug_print_fpu_state(arch_registers_state_t *state);
@@ -70,7 +71,7 @@ void user_panic_fn(const char *file, const char *func, int line,
 
 // Please do not commit with this enabled define. The amount of time debugging
 // the consequences of this macro summed up to a worrying few hours already.
-#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
+//#define err_is_fail(err) ((err_is_fail(err) ? (DEBUG_ERR(err, err_getstring(err)), true) : false))
 //#define err_is_fail(err) ((err_is_fail(err) ? (HERE, true) : (HERE, false)))
 
 // enable only in hello

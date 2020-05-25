@@ -38,6 +38,11 @@ static void service_recv_cb(void *arg)
     struct rpc_lmp_server *server = state->server;
     struct lmp_chan *lc = &state->rpc.lmp.chan;
 
+    // Check if server processing is paused
+    if (server->processing_paused) {
+        goto reregister;
+    }
+
     // Accumulate message until full message is received
     struct capref cap;
     struct lmp_recv_msg segment = LMP_RECV_MSG_INIT;
@@ -49,11 +54,19 @@ static void service_recv_cb(void *arg)
         goto reregister;
     }
 
-    // TODO Allocate new capability slot when needed
     // TODO Reply with errval_t when an error occurs
 
     // TODO More message sanity checks
     assert(sizeof(struct rpc_message_part) <= segment.buf.buflen * sizeof(uintptr_t));
+
+    // Allocate new receive capability slot if the last one has been used
+    if (!capref_is_null(cap)) {
+        err = lmp_chan_alloc_recv_slot(lc);
+        if (err_is_fail(err)) {
+            debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+            goto reregister;
+        }
+    }
 
     size_t bytes_total;
     struct rpc_message_part *header;
@@ -177,6 +190,12 @@ static void open_recv_cb(void *arg)
         state->shared = server->state_init_handler(server->shared);
     }
 
+    err = lmp_chan_alloc_recv_slot(service_chan);
+    if (err_is_fail(err)) {
+        debug_printf("lmp_chan_alloc_recv_slot() failed: %s\n", err_getstring(err));
+        goto reregister;
+    }
+
     err = lmp_chan_register_recv(service_chan, state->server->ws, MKCLOSURE(service_recv_cb, state));
     if (err_is_fail(err)) {
         debug_printf("lmp_chan_register_recv() failed: %s\n", err_getstring(err));
@@ -240,6 +259,16 @@ static errval_t rpc_lmp_server_setup_open_channel(struct rpc_lmp_server *server,
     return SYS_ERR_OK;
 }
 
+void rpc_lmp_server_pause_processing(struct rpc_lmp_server *server)
+{
+    server->processing_paused = true;
+}
+
+void rpc_lmp_server_start_processing(struct rpc_lmp_server *server)
+{
+    server->processing_paused = false;
+}
+
 // Initialize the server.
 errval_t rpc_lmp_server_init(
     struct rpc_lmp_server *server,
@@ -256,6 +285,7 @@ errval_t rpc_lmp_server_init(
     server->service_recv_handler = new_service_recv_handler;
     server->state_init_handler = new_state_init_handler;
     server->state_free_handler = new_state_free_handler;
+    server->processing_paused = false;
     server->shared = server_state;
 
     if (ws == NULL) {

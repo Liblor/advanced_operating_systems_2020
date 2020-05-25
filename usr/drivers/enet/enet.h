@@ -10,15 +10,19 @@
 #ifndef ENET_H_
 #define ENET_H_
 
+#include <stdint.h>
 
-//#define ENET_DEBUG_OPTION 1
+#include <netutil/ip.h>
 
-#if defined(ENET_DEBUG_OPTION)
+#include "ethernet.h"
+
+#define ENET_DEBUG_OPTION 0
+
+#if ENET_DEBUG_OPTION
 #define ENET_DEBUG(x...) debug_printf("[enet] " x);
 #else
 #define ENET_DEBUG(fmt, ...) ((void)0)
 #endif
-
 
 #define ENET_PROMISC
 
@@ -31,10 +35,9 @@
 
 #define RX_RING_SIZE (BASE_PAGE_SIZE / ENET_RX_FRSIZE) * ENET_RX_PAGES
 
-
 #define ENET_RX_EMPTY 0x8000
-#define ENET_SC_WRAP ((ushort)0x2000)
-#define ENET_RX_intr ((ushort)0x1000)
+#define ENET_SC_WRAP ((ushort) 0x2000)
+#define ENET_RX_intr ((ushort) 0x1000)
 #define ENET_RX_LAST ((ushort) 0x0800)
 #define ENET_RX_FIRST ((ushort) 0x0400)
 #define ENET_RX_MISS ((ushort) 0x0100)
@@ -51,38 +54,36 @@
 #define ENET_TX_LAST 0x0800
 #define ENET_TX_CRC 0x0400
 
+#define ENET_PERIODIC_SERVE_INTERVAL (20)
+
 struct region_entry {
     uint32_t rid;
     struct dmem mem;
-    struct region_entry* next;
+    struct region_entry *next;
 };
 
 struct enet_queue {
     struct devq q;
     size_t size;
 
-    // stop and wake threashold
-    uint16_t stop_th; 
+    uint16_t stop_th;
     uint16_t wake_th;
-    char* tso_hdr;
-
+    char *tso_hdr;
 
     struct capref regs;
     struct dmem desc_mem;
-    enet_t* d;
+    enet_t *d;
 
-    // hd + tail
     size_t head;
     size_t tail;
 
-    // alignment
     size_t align;
 
     // Descriptor + Cleanq
     enet_bufdesc_array_t *ring;
     struct devq_buf *ring_bufs;
 
-    struct region_entry* regions;
+    struct region_entry *regions;
 };
 
 struct enet_driver_state {
@@ -90,18 +91,22 @@ struct enet_driver_state {
     struct capref regs;
     lvaddr_t d_vaddr;
 
-    struct enet_queue* rxq;
-    struct enet_queue* txq;
-    enet_t* d;
+    struct enet_queue *rxq;
+    struct enet_queue *txq;
+    enet_t *d;
     uint64_t mac;
 
     uint32_t phy_id;
 
     struct capref rx_mem;
+    lvaddr_t tx_base;
     struct capref tx_mem;
+    lvaddr_t rx_base;
+
+    struct ethernet_state eth_state;
 };
 
 #define ENET_HASH_BITS 6
 #define ENET_CRC32_POLY 0xEDB88320
 
-#endif // ndef ENET_H_
+#endif

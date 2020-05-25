@@ -1,5 +1,4 @@
 #include <stdio.h>
-
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
 #include <fs/fat32.h>

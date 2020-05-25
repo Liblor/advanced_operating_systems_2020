@@ -1,20 +1,46 @@
 /**
  * \file nameservice.h
- * \brief 
+ * \brief
  */
 
 #ifndef INCLUDE_NAMESERVICE_H_
 #define INCLUDE_NAMESERVICE_H_
 
 #include <aos/aos.h>
+#include <aos/aos_rpc.h>
+#include <aos/deferred.h>
+#include <rpc/server/ump.h>
 
-typedef void* nameservice_chan_t;
+#define NAMESERVICE_INIT "serverinit"
+#define NAMESERVICE_PROCESS "serverprocess"
+#define NAMESERVICE_MONITOR "servermonitor"
+#define NAMESERVICE_SERIAL "serverserial"
+#define NAMESERVICE_BLOCKDRIVER "serverblockdriver"
+
+#define NAMESERVICE_PERIODIC_SERVE_EVENT_US 10
+
+typedef struct nameservice_chan* nameservice_chan_t;
+
+struct nameservice_chan {
+    const char *name;
+    struct aos_rpc *rpc;
+    domainid_t pid;
+};
 
 ///< handler which is called when a message is received over the registered channel
-typedef void(nameservice_receive_handler_t)(void *st, 
+typedef void(nameservice_receive_handler_t)(void *st,
 										    void *message, size_t bytes,
 										    void **response, size_t *response_bytes,
                                             struct capref tx_cap, struct capref *rx_cap);
+
+struct srv_entry {
+    char name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
+	nameservice_receive_handler_t *recv_handler;
+	void *st;
+    struct aos_rpc add_client_chan;
+    struct rpc_ump_server ump_server;
+    struct periodic_event periodic_urpc_ev;
+};
 
 /**
  * @brief sends a message back to the client who sent us a message
@@ -24,10 +50,10 @@ typedef void(nameservice_receive_handler_t)(void *st,
  * @param bytes size of the message in bytes
  * @param response the response message
  * @param response_byts the size of the response
- * 
+ *
  * @return error value
  */
-errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes, 
+errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
                          void **response, size_t *response_bytes,
                          struct capref tx_cap, struct capref rx_cap);
 
@@ -42,16 +68,19 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
  *
  * @return SYS_ERR_OK
  */
-errval_t nameservice_register(const char *name, 
+errval_t nameservice_register(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st);
 
+errval_t nameservice_register_no_send(const char *name,
+	                              nameservice_receive_handler_t recv_handler,
+	                              void *st);
 
 /**
  * @brief deregisters the service 'name'
  *
  * @param the name to deregister
- * 
+ *
  * @return error value
  */
 errval_t nameservice_deregister(const char *name);
@@ -70,12 +99,16 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *chan);
 
 /**
  * @brief enumerates all entries that match an query (prefix match)
- * 
+ *
  * @param query     the query
  * @param num 		number of entries in the result array
  * @param result	an array of entries
  */
-errval_t nameservice_enumerate(char *query, size_t *num, char **result );
+errval_t nameservice_enumerate(char *query, size_t *num, char **result);
 
+
+void nameservice_wait_for(char *name);
+
+struct srv_entry *nameservice_get_entry(char *name);
 
 #endif /* INCLUDE_AOS_AOS_NAMESERVICE_H_ */

@@ -8,9 +8,14 @@
 
 #define MAX_RPC_MSG_PART_PAYLOAD (LMP_MSG_LENGTH * sizeof(uint64_t) - sizeof(struct rpc_message_part))
 
+#define GETCHAR_DEVICE_BUSY_RETRY_COUNT (1000) ///< retry count before handing control back to user
+
 #define LMP_SEGMENT_SIZE (sizeof(uintptr_t) * LMP_MSG_LENGTH)
 
 //#define ENABLE_LMP_MONITOR_CHAN
+
+// how long to give away resources to other threads until we retry
+#define AOS_RPC_LMP_SERIAL_GETCHAR_NODATA_SLEEP_US (1000)
 
 struct aos_rpc_lmp {
     struct lmp_chan chan;
@@ -26,6 +31,12 @@ struct process_pid_array {
     size_t pid_count;
     domainid_t pids[0];
 } __packed ;
+
+
+/** internal state for serial channel **/
+struct serial_channel_priv_data {
+    uint64_t read_session;  ///< represents a session to ensure correct de-multiplexing of chars
+};
 
 /**
  * \brief Call this handler on the receive side for grading
@@ -65,6 +76,12 @@ errval_t aos_rpc_lmp_serial_getchar(struct aos_rpc *chan, char *retc);
  * \brief Send one character to the serial port
  */
 errval_t aos_rpc_lmp_serial_putchar(struct aos_rpc *chan, char c);
+
+
+/**
+ * \brief Send multiple character to the serial port
+ */
+errval_t aos_rpc_lmp_serial_putstr(struct aos_rpc *chan, char *str, size_t len);
 
 /**
  * \brief Request that the process manager start a new process
@@ -126,6 +143,11 @@ errval_t aos_rpc_lmp_get_device_cap(struct aos_rpc *chan,
                                 lpaddr_t paddr, size_t bytes,
                                 struct capref *frame);
 
+// Nameserver calls
+errval_t aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid);
+errval_t aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name);
+errval_t aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid);
+errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result);
 
 /**
  * \brief Returns the RPC channel to monitor.

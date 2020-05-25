@@ -10,7 +10,6 @@
 --
 --------------------------------------------------------------------------
 
-
 [
   build library {
     target = "devif_backend_enet",
@@ -20,11 +19,18 @@
     architectures = ["armv8"]
   },
 
-
   build application {
     target = "enet",
-    cFiles = [ 
-                "enet_module.c"
+    cFiles = [
+                "enet_module.c",
+                "device.c",
+                "router.c",
+                "ethernet.c",
+                "queues.c",
+                "arp.c",
+                "ip.c",
+                "icmp.c",
+                "udp.c"
             ],
     mackerelDevices = ["imx8x/enet"],
     addLibraries = libDeps ["driverkit", "devif_backend_enet", "netutil"],
