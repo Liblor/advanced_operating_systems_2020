@@ -81,8 +81,6 @@ errval_t nameserver_add_service(struct nameserver_state *ns_state, char *name, s
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
-    debug_printf("Adding new service '%s' to service table.\n", name);
-
     entry = calloc(1, sizeof(struct nameserver_entry));
     if (entry == NULL) {
         debug_printf("calloc() failed");
@@ -151,8 +149,6 @@ static void handle_deregister(struct rpc_message *msg, struct nameserver_state *
         resp->msg.status = Status_Error;
         return;
     }
-
-    debug_printf("Removing service '%s' from service table.\n", name);
 
     collections_hash_delete(service_table, hash);
 }
@@ -409,6 +405,17 @@ static void free_nameserver_entry(void *ns_entry)
     free(entry);
 }
 
+static void serve_periodic_event_func(void *arg)
+{
+    errval_t err;
+
+    err = nameserver_serve_next();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "in nameserver_ump_serve_next()");
+        return;
+    }
+}
+
 errval_t nameserver_init(struct nameserver_state *server_state)
 {
     errval_t err;
@@ -417,11 +424,26 @@ errval_t nameserver_init(struct nameserver_state *server_state)
 
     collections_hash_create(&server_state->service_table, free_nameserver_entry);
 
+    memset(&server_state->serve_periodic_ev, 0, sizeof(struct periodic_event));
+    err = periodic_event_create(&server_state->serve_periodic_ev,
+                                get_default_waitset(),
+                                NAMESERVER_PERIODIC_SERVE_EVENT_US,
+                                MKCLOSURE(serve_periodic_event_func, server_state));
+
+    if (err_is_fail(err)) {
+        debug_printf("periodic_event_create() failed: %s\n", err_getstring(err));
+        return err;
+    }
+
     memset(&server_state->add_client_response_periodic_ev, 0, sizeof(struct periodic_event));
     err = periodic_event_create(&server_state->add_client_response_periodic_ev,
                                 get_default_waitset(),
                                 NAMESERVER_PERIODIC_SERVE_EVENT_US,
                                 MKCLOSURE(add_client_response_periodic_event_func, server_state));
+    if (err_is_fail(err)) {
+        debug_printf("periodic_event_create() failed: %s\n", err_getstring(err));
+        return err;
+    }
 
     err = rpc_ump_server_init(&server, service_recv_cb, NULL, NULL, server_state);
     if (err_is_fail(err)) {
@@ -431,30 +453,4 @@ errval_t nameserver_init(struct nameserver_state *server_state)
 
     debug_printf("Namerserver started.\n");
     return SYS_ERR_OK;
-}
-
-static int nameserver_thread_func(void *arg)
-{
-    errval_t err;
-
-    debug_printf("Serving nameserver requests.\n");
-
-    while (true) {
-        err = nameserver_serve_next();
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "in nameserver_ump_serve_next");
-            return 1;
-        }
-
-        thread_yield();
-    }
-
-    return 0;
-}
-
-void nameserver_serve_in_thread(struct nameserver_state *server_state)
-{
-    struct thread *nameserver_thread = thread_create(nameserver_thread_func, server_state);
-
-    assert(nameserver_thread != NULL);
 }

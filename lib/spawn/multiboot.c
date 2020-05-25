@@ -140,7 +140,6 @@ struct mem_region *multiboot_find_module(struct bootinfo *bi, const char *name)
         snprintf(pathname, len, "/armv8/sbin/%s", name);
         name = pathname;
     }
-    DEBUG_PRINTF("name is: %s\n", name);
     for(size_t i = 0; i < bi->regions_length; i++) {
         struct mem_region *region = &bi->regions[i];
         const char *modname = multiboot_module_name(region);

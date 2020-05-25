@@ -39,7 +39,6 @@ static nameservice_chan_t get_monitor_chan(struct processserver_state *server_st
     nameservice_chan_t *entry_ptr = &server_state->monitor_chan_list[cid];
 
     if (*entry_ptr == NULL) {
-        debug_printf("Looking up monitor service of core %llu.\n", cid);
         char service_name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
         snprintf(service_name, sizeof(service_name), NAMESERVICE_MONITOR "%llu", cid);
 
@@ -139,10 +138,7 @@ static inline void init_server_state(struct processserver_state *server_state)
     server_state->new_pid = 100;
 
     add_to_proc_list(server_state, "init0", PID_INIT_CORE0);
-    add_to_proc_list(server_state, NAMESERVICE_SERIAL, PID_SERIAL_SERVER);
-    add_to_proc_list(server_state, NAMESERVICE_INIT, PID_INIT_SERVER);
     add_to_proc_list(server_state, NAMESERVICE_PROCESS, PID_PROCESS_SERVER);
-    add_to_proc_list(server_state, NAMESERVICE_BLOCKDRIVER, PID_BLOCKDRIVER_SERVER);
 }
 
 /**
