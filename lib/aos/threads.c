@@ -26,6 +26,7 @@
 #include <barrelfish_kpi/cpu_arch.h>
 #include <barrelfish_kpi/domain_params.h>
 #include <arch/registers.h>
+#include <aos/nameserver.h>
 
 #include "arch/threads.h"
 #include "threads_priv.h"
@@ -811,12 +812,34 @@ static int cleanup_thread(void *arg)
     return 0;
 }
 
+// signalize process server that all threads of domain exited
+__unused
+static void process_server_signalize_exit(void) {
+    errval_t err;
+    nameservice_chan_t nschan;
+    err = nameservice_lookup(NAMESERVICE_PROCESS, &nschan);
+    if (err_is_ok(err)) {
+        struct aos_rpc *rpc = aos_rpc_get_process_channel();
+        err = aos_rpc_process_signalize_exit(rpc);
+        if (err_is_fail(err)) {
+            debug_printf("failed to signalize exit to process server\n");
+        }
+    }
+}
+
 /**
  * \brief Terminate the calling thread
  */
 void thread_exit(int status)
 {
     struct thread *me = thread_self();
+
+    // if we are last thread we signalize process server
+    // that our domain has exited
+    if (me->next == me) {
+        // TODO: signalize exists on each domain causes process sever to get terrible slow
+         process_server_signalize_exit();
+    }
 
     thread_mutex_lock(&me->exit_lock);
 

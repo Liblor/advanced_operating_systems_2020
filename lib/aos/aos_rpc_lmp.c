@@ -5,6 +5,7 @@
 #include <aos/aos_rpc_lmp_marshal.h>
 #include <aos/nameserver.h>
 #include <aos/deferred.h>
+#include <arch/aarch64/aos/dispatcher_arch.h>
 
 __unused static struct aos_rpc *memory_channel = NULL;
 
@@ -469,7 +470,10 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
             return err;
         }
 
-        // TODO Response is not getting validated here
+        if (recv->msg.status != Status_Ok) {
+             err = AOS_ERR_RPC_INVALID_REPLY;
+             goto clean_up;
+        }
     }
 
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
@@ -609,6 +613,97 @@ clean_up:
     return err;
 }
 
+errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *rpc, domainid_t pid,
+                                      struct aos_rpc_process_info_reply **ret_info) {
+    errval_t err;
+    const size_t payload_len = sizeof(pid);
+    uint8_t send_buf[sizeof(struct rpc_message) + payload_len];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    msg->cap = NULL_CAP;
+    msg->msg.method = Method_Process_Info;
+    msg->msg.payload_length = payload_len;
+    msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, &pid, sizeof(pid));
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+
+    if (rpc->type == RpcTypeLmp) {
+        debug_printf("RpcTypeLmp support no longer available. Use nameserver\n");
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+    };
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        return err;
+    }
+    struct aos_rpc_process_info_reply *reply = malloc(recv->msg.payload_length);
+    if (reply == NULL) {
+        err = LIB_ERR_MALLOC_FAIL;
+        goto clean_up_recv;
+    }
+
+    // XXX: server must ensure that string is null terminated!
+    memcpy(reply, recv->msg.payload, recv->msg.payload_length);
+
+    err = SYS_ERR_OK;
+    *ret_info = reply;
+
+    goto clean_up_recv;
+
+    clean_up_recv:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t
+aos_rpc_lmp_process_signalize_exit(struct aos_rpc *rpc)
+{
+    // TODO/enhancement: enforce authorization with more than pid
+
+    errval_t err;
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(domainid_t)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
+    domainid_t pid = disp->domain_id;
+
+    msg->cap = NULL_CAP;
+    msg->msg.method = Method_Process_Signalize_Exit;
+    msg->msg.payload_length = sizeof(domainid_t);
+    msg->msg.status = Status_Ok;
+    memcpy(msg->msg.payload, &pid, sizeof(domainid_t));
+
+    if (rpc->type == RpcTypeLmp) {
+        debug_printf("RpcTypeLmp support no longer available. Use nameserver\n");
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {
+            .name = "",
+            .rpc = rpc,
+            .pid = 0,
+    };
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
 static errval_t
 validate_block_driver_read_block(struct lmp_recv_msg *msg, enum pending_state state)
 {
@@ -622,10 +717,10 @@ validate_block_driver_write_block(struct lmp_recv_msg *msg, enum pending_state s
 }
 
 errval_t aos_rpc_lmp_block_driver_read_block(
-    struct aos_rpc *rpc,
-    uint32_t index,
-    void *buf,
-    size_t buf_size
+        struct aos_rpc *rpc,
+        uint32_t index,
+        void *buf,
+        size_t buf_size
 ) {
     errval_t err;
     uint8_t send_buf[sizeof(struct rpc_message) + sizeof(index)];
@@ -649,9 +744,9 @@ errval_t aos_rpc_lmp_block_driver_read_block(
     } else {
         assert(rpc->type == RpcTypeUmp);
         struct nameservice_chan chan = {
-            .name = "",
-            .rpc = rpc,
-            .pid = 0,
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
         };
         err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
@@ -667,7 +762,7 @@ errval_t aos_rpc_lmp_block_driver_read_block(
 
     err = SYS_ERR_OK;
     goto clean_up;
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -675,10 +770,10 @@ clean_up:
 }
 
 errval_t aos_rpc_lmp_block_driver_write_block(
-    struct aos_rpc *rpc,
-    uint32_t index,
-    void *buf,
-    size_t block_size
+        struct aos_rpc *rpc,
+        uint32_t index,
+        void *buf,
+        size_t block_size
 ) {
     errval_t err;
     if (block_size != 512) {
@@ -704,9 +799,9 @@ errval_t aos_rpc_lmp_block_driver_write_block(
     } else {
         assert(rpc->type == RpcTypeUmp);
         struct nameservice_chan chan = {
-            .name = "",
-            .rpc = rpc,
-            .pid = 0,
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
         };
         err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
@@ -719,12 +814,13 @@ errval_t aos_rpc_lmp_block_driver_write_block(
 
     err = SYS_ERR_OK;
     goto clean_up;
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
     return err;
 }
+
 
 errval_t
 aos_rpc_lmp_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes,
@@ -745,7 +841,6 @@ aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *c
     errval_t err;
 
     assert(rpc != NULL);
-    assert(rpc->type == RpcTypeLmp);
     assert(name != NULL);
     assert(chan_add_client != NULL);
     assert(chan_add_client->type == RpcTypeUmp);
@@ -772,10 +867,20 @@ aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *c
     memcpy(ptr, &pid, sizeof(domainid_t));
 
     char message[sizeof(struct rpc_message)];
+    memset(message, 0, sizeof(message));
     struct rpc_message *recv = (struct rpc_message *) message;
-    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_register, NULL_CAP);
-    if (err_is_fail(err)) {
-        return err;
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_register, NULL_CAP);
+        if (err_is_fail(err)) {
+            return err;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        err = aos_rpc_ump_send_and_wait_recv(rpc, msg, &recv);
+        if (err_is_fail(err)) {
+            return err;
+        }
     }
 
     assert(capref_is_null(recv->cap));

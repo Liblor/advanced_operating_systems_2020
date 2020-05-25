@@ -227,7 +227,7 @@ static errval_t aosh_tokenize_arg(
 
     const int argc = collections_list_size(argv_list);
     *ret_argv = calloc(1, argc * sizeof(char **));
-    if (ret_argv == NULL) {
+    if (*ret_argv == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
     *ret_argc = argc;
@@ -332,7 +332,6 @@ int main(
         char *argv[])
 {
     errval_t err;
-    nameservice_wait_for(NAMESERVICE_SERIAL);
 
     printf("spawning aosh..." ENDL);
 

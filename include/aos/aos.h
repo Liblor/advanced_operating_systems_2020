@@ -54,6 +54,10 @@
 #include <aos/lmp_endpoints.h>
 #include <aos/solution.h>
 
+#define PID_INIT_CORE0 0
+#define PID_INIT_CORE1 1
+#define PID_PROCESS_SERVER 10
+
 /* XXX: utility macros. not sure where to put these */
 
 /* Duplicate memory */

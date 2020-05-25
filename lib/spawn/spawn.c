@@ -444,19 +444,6 @@ static inline errval_t setup_dispatcher(
         return err_push(err, LIB_ERR_CAP_RETYPE);
     }
 
-    // TODO This shouldn't be needed anymore with a working monitor
-    /*
-    struct capref chan_init_child = {
-        .cnode = taskcn_child,
-        .slot = TASKCN_SLOT_CHAN_INIT,
-    };
-    err = cap_copy(chan_init_child, cap_chan_init);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
-    }
-    */
-
     struct capref chan_memory_child = {
         .cnode = taskcn_child,
         .slot = TASKCN_SLOT_CHAN_MEMORY,
@@ -466,29 +453,6 @@ static inline errval_t setup_dispatcher(
         debug_printf("cap_copy() failed: %s\n", err_getstring(err));
         return err_push(err, LIB_ERR_CAP_COPY);
     }
-
-    // TODO This shouldn't be needed anymore with a working monitor
-    /*
-    struct capref chan_serial_child = {
-        .cnode = taskcn_child,
-        .slot = TASKCN_SLOT_CHAN_SERIAL,
-    };
-    err = cap_copy(chan_serial_child, cap_chan_serial);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
-    }
-
-    struct capref chan_process_child = {
-        .cnode = taskcn_child,
-        .slot = TASKCN_SLOT_CHAN_PROCESS,
-    };
-    err = cap_copy(chan_process_child, cap_chan_process);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
-    }
-    */
 
     struct capref chan_monitor_child = {
             .cnode = taskcn_child,
@@ -501,24 +465,31 @@ static inline errval_t setup_dispatcher(
     }
 
     /* TODO: Only pass the necessary region to the new dispatcher. */
-    struct capref dev_child = {
-        .cnode = taskcn_child,
-        .slot = TASKCN_SLOT_DEV,
-    };
-    err = cap_copy(dev_child, cap_io_dev);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
-    }
-    
-    struct capref iqr_child = {
+    coreid_t core_id = disp_get_core_id();
+    if (core_id == 0) {
+        // These capabilities are not transferred to other cores, but also only needed by processes on core 0.
+
+        struct capref dev_child = {
             .cnode = taskcn_child,
-            .slot = TASKCN_SLOT_IRQ,
-    };
-    err = cap_copy(iqr_child, cap_irq);
-    if (err_is_fail(err)) {
-        debug_printf("cap_copy() failed: %s\n", err_getstring(err));
-        return err_push(err, LIB_ERR_CAP_COPY);
+            .slot = TASKCN_SLOT_DEV,
+        };
+        assert(!capref_is_null(cap_io_dev));
+        err = cap_copy(dev_child, cap_io_dev);
+        if (err_is_fail(err)) {
+            debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+            return err_push(err, LIB_ERR_CAP_COPY);
+        }
+
+        struct capref iqr_child = {
+                .cnode = taskcn_child,
+                .slot = TASKCN_SLOT_IRQ,
+        };
+        assert(!capref_is_null(cap_irq));
+        err = cap_copy(iqr_child, cap_irq);
+        if (err_is_fail(err)) {
+            debug_printf("cap_copy() failed: %s\n", err_getstring(err));
+            return err_push(err, LIB_ERR_CAP_COPY);
+        }
     }
 
     // Dispatcher capability.
