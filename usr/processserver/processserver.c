@@ -484,9 +484,12 @@ int main(int argc, char *argv[])
     struct waitset *default_ws = get_default_waitset();
     while (true) {
         err = event_dispatch(default_ws);
-        if (err_is_fail(err)) {
+//        err = event_dispatch_non_block(default_ws);
+        if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }
+        // XXX: yield leads to much better performance
+        thread_yield();
     }
 }

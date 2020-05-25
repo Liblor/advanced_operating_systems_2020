@@ -470,7 +470,10 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
             return err;
         }
 
-        // TODO Response is not getting validated here
+        if (recv->msg.status != Status_Ok) {
+             err = AOS_ERR_RPC_INVALID_REPLY;
+             goto clean_up;
+        }
     }
 
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;

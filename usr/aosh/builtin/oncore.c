@@ -11,9 +11,9 @@
 static void help(void)
 {
     printf("oncore runs a dispatcher on a given core" ENDL);
-    printf("usage: oncore [-c coreId] [-t times] name" ENDL);
+    printf("usage: oncore [-c coreId] [-t times] [-f]  name" ENDL);
     printf("flags:\n");
-    // printf("-f: run dispatcher in foreground and block shell" ENDL);
+    printf("-f: run dispatcher in foreground and block shell" ENDL);
     printf("-c: set core id\n");
     printf("-t: number of domains to spawn\n");
 }
@@ -95,11 +95,6 @@ errval_t builtin_oncore(
             &name_ind,
             &forderground);
 
-    // TODO: signalizing process server that a domain exited
-    // on each spawn has performance drawbacks
-    // we disable foreground flag for now
-    forderground = false;
-
     if (err == AOSH_ERR_BUILTIN_EXIT_SUCCESS) {
         return SYS_ERR_OK;
     }
@@ -134,6 +129,7 @@ errval_t builtin_oncore(
                 cmd_args,
                 core_id,
                 &pid);
+        debug_printf("%s\n", err_getstring(err));
         if (err_is_fail(err)) {
             goto free_cmd_args;
         }
