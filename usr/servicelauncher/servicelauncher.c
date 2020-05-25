@@ -1,5 +1,6 @@
 #include <aos/aos.h>
 #include <aos/nameserver.h>
+#include <aos/networking.h>
 
 
 static void spawn_service(struct aos_rpc *proc_chan, char *executable_name)
@@ -33,6 +34,7 @@ int main(int argc, char *argv[])
 
     spawn_service(proc_chan, "initserver");
     spawn_service(proc_chan, "serialserver");
+    spawn_service(proc_chan, "enet");
     spawn_service(proc_chan, "blockdriverserver");
 
     debug_printf("Waiting for launched services...\n");
