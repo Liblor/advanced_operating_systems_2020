@@ -40,6 +40,8 @@ struct aosh_builtin_descr aosh_builtins[] = {
 
 size_t aosh_builtins_len = ARRAY_LENGTH(aosh_builtins);
 
+char *aosh_pwd = MOUNTPOINT;
+
 errval_t builtin_exit(int argc, char **argv)
 {
     return AOSH_ERR_EXIT_SHELL;

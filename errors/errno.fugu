@@ -1412,6 +1412,7 @@ errors aos AOSH_ERR_ {
     failure INVALID_ESCAPE_CHAR "Invalid escape sequence.",
     failure INVALID_ARGS "Invalid command line args",
     failure BUILTIN_EXIT_SUCCESS "Command finished successfully",
+    failure BUILTIN_EXIT_FAIL "Command finished not successfully",
     failure READLINE_MAX_EXCEEDED "Max input length exceeded ",
 };
 
