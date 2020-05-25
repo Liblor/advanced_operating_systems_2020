@@ -160,7 +160,13 @@ static void service_recv_cb(
         }
         err = monitor_forward_request(mss, msg, rpc, &mss->nameserver_rpc.ump_rpc);
         break;
-
+    case Method_Block_Driver_Read_Block:
+    case Method_Block_Driver_Write_Block:
+            if (! is_registered(&mss->blockdriverserver_rpc)) {
+                goto unregistered_service;
+            }
+            err = monitor_forward_request(mss, msg, rpc, &mss->blockdriverserver_rpc.ump_rpc);
+            break;
 	default:
         debug_printf("monitorserver unknown method given: type: %d\n", msg->msg.method);
 	}
@@ -286,6 +292,9 @@ errval_t monitorserver_register_service(
             break;
         case MemoryserverUrpc:
             err = initialize_service(&monitorserver_state.memoryserver_rpc, urpc_frame);
+            break;
+        case BlockDriverServerUrpc:
+            err = initialize_service(&monitorserver_state.blockdriverserver_rpc, urpc_frame);
             break;
         case NameserverUrpc:
             debug_printf("Registering nameserver at monitor.\n");

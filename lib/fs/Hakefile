@@ -14,6 +14,7 @@
   build library {
     target = "fs",
     cFiles = [
+        "fat32.c",
         "fs.c",
         "fopen.c",
         "ramfs.c",

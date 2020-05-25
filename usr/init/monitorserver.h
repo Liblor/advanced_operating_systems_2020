@@ -16,6 +16,7 @@ enum monitorserver_binding_type {
     SerialserverUrpc = 15,
     MemoryserverUrpc = 20,
     NameserverUrpc = 25,
+    BlockDriverServerUrpc = 30,
 };
 
 struct monitorserver_rpc {
@@ -31,6 +32,7 @@ struct monitorserver_state {
     struct monitorserver_rpc memoryserver_rpc;
     struct monitorserver_rpc serialserver_rpc;
     struct monitorserver_rpc nameserver_rpc;
+    struct monitorserver_rpc blockdriverserver_rpc;
     struct waitset ws;
     struct periodic_event periodic_localtask;
 

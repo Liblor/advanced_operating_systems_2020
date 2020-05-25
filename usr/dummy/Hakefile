@@ -12,6 +12,7 @@
 
 [ build application { target = "dummy",
   		              cFiles = [ "dummy.c" ],
-                      architectures = allArchitectures
+                      architectures = allArchitectures,
+                      addLibraries = [ "fs" ]
                     }
 ]
