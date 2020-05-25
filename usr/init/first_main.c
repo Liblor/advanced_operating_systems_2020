@@ -267,7 +267,7 @@ int first_main(int argc, char *argv[])
 
     start_server(NAMESERVICE_PROCESS, "processserver", PID_PROCESS_SERVER);
 
-#if 0
+#if 1
     struct aos_rpc rpc_core1;
     setup_core(bi, 1, &rpc_core1);
 #endif

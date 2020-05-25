@@ -72,6 +72,10 @@ errval_t nameservice_register(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st);
 
+errval_t nameservice_register_at_chan(struct aos_rpc *rpc_chan, const char *name,
+	                              nameservice_receive_handler_t recv_handler,
+	                              void *st);
+
 errval_t nameservice_register_no_send(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st);
