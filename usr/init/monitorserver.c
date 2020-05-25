@@ -143,6 +143,7 @@ static void service_recv_cb(
     trace("monitorserver#service_recv_cb method: %d\n", msg->msg.method);
 
     errval_t err = SYS_ERR_OK;
+
     struct monitorserver_state *mss = server_state;
 	switch (msg->msg.method) {
     case Method_Get_Ram_Cap:
@@ -322,7 +323,7 @@ errval_t monitorserver_register_service(
         snprintf(service_name, sizeof(service_name), NAMESERVICE_MONITOR "%llu", cid);
 
         if (monitorserver_state.ns_state == NULL) {
-            err = nameservice_register(service_name, service_localtask_handler, &monitorserver_state);
+            err = nameservice_register_at_chan(&monitorserver_state.nameserver_rpc.ump_rpc, service_name, service_localtask_handler, &monitorserver_state);
             if (err_is_fail(err)) {
                 debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
                 return err;

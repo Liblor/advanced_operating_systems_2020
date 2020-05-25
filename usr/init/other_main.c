@@ -131,11 +131,6 @@ int other_main(int argc, char *argv[])
         abort();
     }
 
-    err = monitorserver_serve_lmp_in_thread();
-    if (err_is_fail(err)) {
-        debug_printf("monitorserver_serve_lmp_in_thread() failed: %s\n", err_getstring(err));
-    }
-
     register_service_channels(&rpc);
 
     // Grading
@@ -144,7 +139,7 @@ int other_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 1
+#if 0
     domainid_t pid;
     struct spawninfo si;
     err = spawn_load_by_name("hello", &si, &pid);

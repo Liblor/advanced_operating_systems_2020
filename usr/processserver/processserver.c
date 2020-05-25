@@ -138,7 +138,8 @@ static inline void init_server_state(struct processserver_state *server_state)
     server_state->new_pid = 100;
 
     add_to_proc_list(server_state, "init0", PID_INIT_CORE0);
-    add_to_proc_list(server_state, NAMESERVICE_PROCESS, PID_PROCESS_SERVER);
+    add_to_proc_list(server_state, "init1", PID_INIT_CORE1);
+    add_to_proc_list(server_state, "processserver", PID_PROCESS_SERVER);
 }
 
 /**
@@ -180,6 +181,9 @@ static errval_t get_name_by_pid(struct processserver_state *server_state, domain
     }
     const size_t name_size = strlen(found_name) + 1;
     *ret_name = malloc(name_size);
+    if (*ret_name == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
     strncpy(*ret_name, found_name, name_size);
 
     return SYS_ERR_OK;
