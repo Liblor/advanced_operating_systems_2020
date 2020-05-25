@@ -9,6 +9,9 @@
 // TODO: implement if filesystem is available
 
 errval_t builtin_cat(int argc, char **argv) {
+    printf("NYI\n");
+    return SYS_ERR_OK;
+
     if(argc < 2) {
         printf("usage: %s [file...]\n", argv[0]);
         return SYS_ERR_OK;
@@ -17,17 +20,22 @@ errval_t builtin_cat(int argc, char **argv) {
 }
 
 errval_t builtin_ls(int argc, char **argv) {
+    printf("NYI\n");
     return SYS_ERR_OK;
 }
 errval_t builtin_cd(int argc, char **argv) {
+    printf("NYI\n");
     return SYS_ERR_OK;
 }
 errval_t builtin_mkdir(int argc, char **argv) {
+    printf("NYI\n");
     return SYS_ERR_OK;
 }
-errval_t rmdir(int argc, char **argv) {
+errval_t builtin_rmdir(int argc, char **argv) {
+    printf("NYI\n");
     return SYS_ERR_OK;
 }
-errval_t touch(int argc, char **argv) {
+errval_t builtin_touch(int argc, char **argv) {
+    printf("NYI\n");
     return SYS_ERR_OK;
 }

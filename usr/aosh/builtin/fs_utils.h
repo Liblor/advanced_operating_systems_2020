@@ -9,7 +9,7 @@ errval_t builtin_ls(int argc, char **argv);
 errval_t builtin_cat(int argc, char **argv);
 errval_t builtin_cd(int argc, char **argv);
 errval_t builtin_mkdir(int argc, char **argv);
-errval_t rmdir(int argc, char **argv);
-errval_t touch(int argc, char **argv);
+errval_t builtin_rmdir(int argc, char **argv);
+errval_t builtin_touch(int argc, char **argv);
 
 #endif //BFOS_FS_UTILS_H

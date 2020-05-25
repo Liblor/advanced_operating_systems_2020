@@ -11,6 +11,7 @@
 #include "nslist.h"
 #include "echo.h"
 #include "ps.h"
+#include "fs_utils.h"
 
 // builtins within this file
 errval_t builtin_help(int, char **);
@@ -24,8 +25,16 @@ struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_oncore,   "oncore",   "spawn a dispatcher on a given core"},
         {builtin_time,     "time",     "time a command"},
         {builtin_ps,     "ps",     "report a snapshot of spawned processes"},
+
         {builtin_nslookup, "nslookup", "lookup a service at the nameserver"},
         {builtin_nslist,   "nslist",   "list services registered at the nameserver"},
+
+        {builtin_ls,   "ls",   "TODO: list directory contents"},
+        {builtin_cat,   "cat",   "TODO: concatenate files and print on the standard output"},
+        {builtin_cd,   "cd",   "TODO: change directory"},
+        {builtin_mkdir,   "mkdir",   "TODO: make directory"},
+        {builtin_rmdir,   "rmdir",   "TODO: remove directory"},
+        {builtin_touch,   "touch",   "TODO: create file"},
         {builtin_exit,     "exit",     "exit shell (ctrl-d)"},
 };
 

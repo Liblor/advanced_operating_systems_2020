@@ -8,6 +8,7 @@
   		               "builtin/nslist.c",
   		               "builtin/echo.c",
   		               "builtin/ps.c",
+  		               "builtin/fs_utils.c",
   		               "linenoise/linenoise.c"
   		                ],
                       architectures = allArchitectures,
