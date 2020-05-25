@@ -110,9 +110,19 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **na
     return aos_rpc_lmp_process_get_name(rpc, pid, name);
 }
 
+errval_t aos_rpc_process_get_info(struct aos_rpc *chan, domainid_t pid,
+                                  struct aos_rpc_process_info_reply **ret_info) {
+    return aos_rpc_lmp_process_get_info(chan,pid, ret_info);
+}
+
 errval_t aos_rpc_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids, size_t *pid_count)
 {
     return aos_rpc_lmp_process_get_all_pids(rpc, pids, pid_count);
+}
+
+errval_t aos_rpc_process_signalize_exit(struct aos_rpc *rpc)
+{
+    return aos_rpc_lmp_process_signalize_exit(rpc);
 }
 
 errval_t aos_rpc_block_driver_read_block(struct aos_rpc *rpc, uint32_t index, void *buf, size_t buf_size)

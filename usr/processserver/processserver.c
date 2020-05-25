@@ -2,10 +2,20 @@
 #include <aos/aos_rpc.h>
 #include <aos/nameserver.h>
 #include <grading.h>
+#include <aos/systime.h>
+
+//#define PROCESS_SERVER_DEBUG_ON
+
+#if defined(PROCESS_SERVER_DEBUG_ON)
+#define PS_DEBUG(x...) debug_printf("[ps]:" x)
+#else
+#define PS_DEBUG(x...) ((void)0)
+#endif
 
 struct process_info {
     char *name;
     domainid_t pid;
+    enum process_status status;
     struct process_info *next;
     struct process_info *prev;
 };
@@ -89,6 +99,7 @@ static void add_process_info(struct processserver_state *server_state, struct pr
     process_info->prev = server_state->process_tail.prev;
     process_info->next = &server_state->process_tail;
     process_info->pid = server_state->num_proc;
+    process_info->status = ProcessStatus_Active;
     server_state->process_tail.prev = process_info;
     server_state->num_proc++;
 }
@@ -277,6 +288,56 @@ static errval_t handle_process_get_name(struct processserver_state *server_state
 }
 
 inline
+static errval_t handle_process_info(
+        struct processserver_state *server_state,
+        struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
+    domainid_t pid = (domainid_t) rpc_msg_part->payload[0];
+
+    struct process_info *curr = server_state->process_head.next;
+    struct process_info *found = NULL;
+    while (curr != &(server_state->process_tail)) {
+        if (curr->pid == pid) {
+            found = curr;
+            break;
+        }
+        curr = curr->next;
+    }
+    if (found == NULL) {
+        PS_DEBUG("pid %d not found\n", pid);
+
+        *ret_msg = calloc(1, sizeof(struct rpc_message));
+        if (*ret_msg == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        (*ret_msg)->cap = NULL_CAP;
+        (*ret_msg)->msg.payload_length = 0;
+        (*ret_msg)->msg.method = Method_Process_Info;
+        (*ret_msg)->msg.status = Status_Error_Process_Pid_Unknown;
+
+    } else {
+        // We dont transmit name, use rpc call get_name for it
+        struct aos_rpc_process_info_reply reply;
+        const size_t payload_len = sizeof(struct aos_rpc_process_info_reply);
+        reply.pid = found->pid;
+        reply.status = found->status;
+
+        *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_len);
+        if (*ret_msg == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        (*ret_msg)->cap = NULL_CAP;
+        (*ret_msg)->msg.payload_length = payload_len;
+        (*ret_msg)->msg.method = Method_Process_Info;
+        (*ret_msg)->msg.status = Status_Ok;
+        memcpy(&(*ret_msg)->msg.payload, &reply, payload_len);
+
+    }
+    return SYS_ERR_OK;
+}
+
+inline
 static errval_t handle_process_get_all_pids(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t  err;
     size_t pid_count = 0;
@@ -306,7 +367,45 @@ static errval_t handle_process_get_all_pids(struct processserver_state *server_s
     return SYS_ERR_OK;
 }
 
-static errval_t handle_complete_msg(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+inline
+static errval_t handle_process_sign_exit(
+        struct processserver_state *server_state,
+        struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
+
+    if (rpc_msg_part->payload_length < sizeof(domainid_t)) {
+        debug_printf("err invalid method size for ping\n");
+        return LIB_ERR_LMP_BUFLEN_INVALID;
+    }
+    domainid_t pid = -1;
+    memcpy(&pid, rpc_msg_part->payload, sizeof(domainid_t));
+    *ret_msg = NULL;
+
+    struct process_info *found = NULL;
+    struct process_info *curr = server_state->process_head.next;
+    while (curr != &(server_state->process_tail)) {
+        if (curr->pid == pid) {
+            found = curr;
+            break;
+        }
+        curr = curr->next;
+    }
+    if (found == NULL) {
+        debug_printf("pid %d not registered\n", pid);
+    }
+    else {
+        // XXX: we keep pid in the list of processes
+        found->status = ProcessStatus_Exit;
+    }
+    return SYS_ERR_OK;
+}
+
+static errval_t handle_complete_msg(
+        struct processserver_state *server_state,
+        struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
     switch (rpc_msg_part->method) {
         case Method_Spawn_Process: {
             return handle_spawn_process(server_state, rpc_msg_part, ret_msg);
@@ -314,11 +413,19 @@ static errval_t handle_complete_msg(struct processserver_state *server_state, st
         case Method_Process_Get_Name: {
             return handle_process_get_name(server_state, rpc_msg_part, ret_msg);
         }
+        case Method_Process_Info: {
+            return handle_process_info(server_state, rpc_msg_part, ret_msg);
+        }
         case Method_Process_Get_All_Pids: {
             return handle_process_get_all_pids(server_state, rpc_msg_part, ret_msg);
         }
-        // TODO: error on unknown message, introduce new errcode
-        default: break;
+        case Method_Process_Signalize_Exit: {
+            return handle_process_sign_exit(server_state, rpc_msg_part, ret_msg);
+        }
+        default:
+            // TODO: error on unknown message, introduce new errcode
+            debug_printf("Unknown method: %d\n", rpc_msg_part->method);
+            break;
     }
     return SYS_ERR_OK;
 }
@@ -337,8 +444,13 @@ static void service_handler(void *st, void *message, size_t bytes, void **respon
         return;
     }
 
-    *response = resp_msg;
-    *response_bytes = sizeof(struct rpc_message) + resp_msg->msg.payload_length;
+    if (resp_msg != NULL){
+        *response = resp_msg;
+        *response_bytes = sizeof(struct rpc_message) + resp_msg->msg.payload_length;
+    } else {
+        *response = NULL;
+        *response_bytes = 0;
+    }
 }
 
 int main(int argc, char *argv[])
