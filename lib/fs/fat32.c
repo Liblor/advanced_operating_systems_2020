@@ -21,12 +21,26 @@ static inline void set_first_cluster_nr(struct dir_entry *d, uint32_t first_clus
     d->first_cluster_hi = (uint16_t)(first_cluster >> 16);
 }
 
-errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt)
-{
+errval_t mount_fat32(
+    const char *name,
+    struct fat32_mnt **fat_mnt,
+    struct aos_rpc *block_driver_channel
+) {
     errval_t err;
     uint8_t block[BLOCK_SIZE];
+    *fat_mnt = malloc(sizeof(struct fat32_mnt));
+    if (*fat_mnt == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    struct fat32_mnt *mnt = *fat_mnt;
+    if (block_driver_channel) {
+        mnt->block_driver_channel = block_driver_channel;
+    } else {
+        mnt->block_driver_channel = aos_rpc_get_block_driver_channel();
+    }
+
     err = aos_rpc_block_driver_read_block(
-        aos_rpc_get_block_driver_channel(),
+        mnt->block_driver_channel,
         0,
         block,
         BLOCK_SIZE
@@ -36,11 +50,6 @@ errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt)
     }
     assert(block[511] == 0xAA);
     assert(block[510] == 0x55);
-    *fat_mnt = malloc(sizeof(struct fat32_mnt));
-    if (*fat_mnt == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    struct fat32_mnt *mnt = *fat_mnt;
 
     if (*(uint16_t *)(block + BPB_BytsPerSec) != BLOCK_SIZE) {
         debug_printf("Only 512 bytes per sector supported (found %u)\n",
@@ -264,7 +273,7 @@ static inline errval_t next_cluster(
     uint8_t buf[BLOCK_SIZE];
     uint32_t index = mnt->fat_lba + cluster_nr / FAT32_FatEntriesPerSector;
     err = aos_rpc_block_driver_read_block(
-        aos_rpc_get_block_driver_channel(),
+        mnt->block_driver_channel,
         index,
         buf,
         BLOCK_SIZE
@@ -298,7 +307,7 @@ static errval_t find_dirent(
     do {
         uint32_t current_lba = cluster_to_lba(mnt, cluster_nr);
         err = aos_rpc_block_driver_read_block(
-            aos_rpc_get_block_driver_channel(),
+            mnt->block_driver_channel,
             current_lba,
             buf,
             BLOCK_SIZE
@@ -327,7 +336,7 @@ static errval_t find_dirent(
                 }
             }
             err = aos_rpc_block_driver_read_block(
-                    aos_rpc_get_block_driver_channel(),
+                    mnt->block_driver_channel,
                     current_lba + i,
                     buf,
                     BLOCK_SIZE
@@ -481,7 +490,7 @@ errval_t fat32_dir_read_next(
     }
     uint8_t buf[BLOCK_SIZE];
     err = aos_rpc_block_driver_read_block(
-        aos_rpc_get_block_driver_channel(),
+        mnt->block_driver_channel,
         cluster_to_lba(mnt, h->current_cluster) + h->sector_rel_cluster,
         buf,
         BLOCK_SIZE
@@ -499,7 +508,7 @@ errval_t fat32_dir_read_next(
         }
         if (h->dir_offset < old_offset) {   // new sector
             err = aos_rpc_block_driver_read_block(
-                aos_rpc_get_block_driver_channel(),
+                mnt->block_driver_channel,
                 cluster_to_lba(mnt, h->current_cluster) + h->sector_rel_cluster,
                 buf,
                 BLOCK_SIZE
@@ -617,7 +626,7 @@ errval_t fat32_read(
     uint8_t buf[BLOCK_SIZE];
     while (b_read < bytes) {
         err = aos_rpc_block_driver_read_block(
-            aos_rpc_get_block_driver_channel(),
+            mnt->block_driver_channel,
             cluster_to_lba(mnt, h->current_cluster) + h->sector_rel_cluster,
             buf,
             BLOCK_SIZE
@@ -753,7 +762,7 @@ static errval_t write_fatcutout(
     errval_t err;
     for (int i = 0; i < mnt->number_of_fats; i++) {
         err = aos_rpc_block_driver_write_block(
-            aos_rpc_get_block_driver_channel(),
+            mnt->block_driver_channel,
             index + i * mnt->sectors_per_fat,
             fat_cutout,
             BLOCK_SIZE
@@ -781,7 +790,7 @@ static errval_t clean_fat_chain(
         // Only read when new block is accessed
         if (prev_index != index) {
             err = aos_rpc_block_driver_read_block(
-                aos_rpc_get_block_driver_channel(),
+                mnt->block_driver_channel,
                 index,
                 (uint8_t *)fat_cutout,
                 BLOCK_SIZE
@@ -818,7 +827,7 @@ static errval_t update_dir_entry_on_disk(
     index += dirent->index / FAT32_DirEntriesPerBlock;     // get section
     uint32_t offset = dirent->index % FAT32_DirEntriesPerBlock;
     err = aos_rpc_block_driver_read_block(
-        aos_rpc_get_block_driver_channel(),
+        mnt->block_driver_channel,
         index,
         buf,
         BLOCK_SIZE
@@ -829,7 +838,7 @@ static errval_t update_dir_entry_on_disk(
     struct dir_entry *dir_entry = (struct dir_entry *)buf;
     dir_entry[offset] = dirent->dir_entry;
     return aos_rpc_block_driver_write_block(
-        aos_rpc_get_block_driver_channel(),
+        mnt->block_driver_channel,
         index,
         buf,
         BLOCK_SIZE
@@ -910,7 +919,7 @@ static errval_t zero_out_cluster(struct fat32_mnt *mnt, uint32_t cluster_nr) {
     memset(buf, 0, BLOCK_SIZE);
     for (uint32_t i = 0; i < mnt->sectors_per_cluster; i++) {
         err =  aos_rpc_block_driver_write_block(
-            aos_rpc_get_block_driver_channel(),
+            mnt->block_driver_channel,
             cluster_to_lba(mnt, cluster_nr) + i,
             buf,
             BLOCK_SIZE
@@ -947,7 +956,7 @@ static errval_t allocate_clusters(
 
     do {
         err = aos_rpc_block_driver_read_block(
-            aos_rpc_get_block_driver_channel(),
+            mnt->block_driver_channel,
             mnt->fat_lba + current_sector,
             fat_cutout,
             BLOCK_SIZE
@@ -1009,7 +1018,7 @@ static errval_t extend_cluster_chain(
     uint32_t sector_rel_to_fat = cluster_nr / FAT32_FatEntriesPerSector;
     uint32_t fat_cutout[FAT32_FatEntriesPerSector];
     err = aos_rpc_block_driver_read_block(
-        aos_rpc_get_block_driver_channel(),
+        mnt->block_driver_channel,
         mnt->fat_lba + sector_rel_to_fat,
         fat_cutout,
         BLOCK_SIZE
@@ -1055,7 +1064,7 @@ static errval_t get_free_dir_entry(
         uint32_t buf[BLOCK_SIZE];
         struct dir_entry *dir_entry = (struct dir_entry *)&buf;
         err = aos_rpc_block_driver_read_block(
-            aos_rpc_get_block_driver_channel(),
+            mnt->block_driver_channel,
             cluster_to_lba(mnt, dirent->cluster) + new_end_index / FAT32_DirEntriesPerBlock,
             buf,
             BLOCK_SIZE
@@ -1066,7 +1075,7 @@ static errval_t get_free_dir_entry(
         uint32_t offset = new_end_index % FAT32_DirEntriesPerBlock;
         memset(&dir_entry[offset], 0, sizeof(struct dir_entry));
         err = aos_rpc_block_driver_write_block(
-            aos_rpc_get_block_driver_channel(),
+            mnt->block_driver_channel,
             cluster_to_lba(mnt, dirent->cluster) + new_end_index / FAT32_DirEntriesPerBlock,
             buf,
             BLOCK_SIZE
@@ -1092,7 +1101,7 @@ static errval_t init_new_directory(
     struct dir_entry d[FAT32_DirEntriesPerBlock];
     const uint32_t cluster_nr_dir = get_first_cluster_nr(&dirent->dir_entry);
     err = aos_rpc_block_driver_read_block(
-        aos_rpc_get_block_driver_channel(),
+        mnt->block_driver_channel,
         cluster_to_lba(mnt, cluster_nr_dir),
         d,
         BLOCK_SIZE
@@ -1116,7 +1125,7 @@ static errval_t init_new_directory(
     set_first_cluster_nr(&d[1], cluster_nr_parent);
 
     err = aos_rpc_block_driver_write_block(
-        aos_rpc_get_block_driver_channel(),
+        mnt->block_driver_channel,
         cluster_to_lba(mnt, cluster_nr_dir),
         d,
         BLOCK_SIZE
@@ -1255,7 +1264,7 @@ static errval_t travers_fat(
         // Only read when new block is accessed
         if (prev_index != index) {
             err = aos_rpc_block_driver_read_block(
-                aos_rpc_get_block_driver_channel(),
+                mnt->block_driver_channel,
                 index,
                 (uint8_t *)fat_cutout,
                 BLOCK_SIZE
@@ -1356,7 +1365,7 @@ errval_t fat32_write(
         uint32_t index = cluster_to_lba(mnt, h->current_cluster) + h->sector_rel_cluster;
         if (to_write != BLOCK_SIZE) {
             err = aos_rpc_block_driver_read_block(
-                aos_rpc_get_block_driver_channel(),
+                mnt->block_driver_channel,
                 index,
                 block,
                 BLOCK_SIZE
@@ -1367,7 +1376,7 @@ errval_t fat32_write(
         }
         memcpy(block + offset, buffer + b_written, to_write);
         err = aos_rpc_block_driver_write_block(
-            aos_rpc_get_block_driver_channel(),
+            mnt->block_driver_channel,
             index,
             block,
             BLOCK_SIZE

@@ -28,7 +28,8 @@
  * @return SYS_ERR_OK on success
  *         errval on failure
  *
- * NOTE: This has to be called before any access to the files
+ * NOTE: This has to be called before any access to the files except in init
+ * (see filesystem_init_with_chan)
  */
 errval_t filesystem_init(void)
 {
@@ -44,7 +45,31 @@ errval_t filesystem_init(void)
 #endif
 
     void *fat32_mnt;
-    err = mount_fat32("/sdcard", (struct fat32_mnt **)&fat32_mnt);
+    err = mount_fat32("/sdcard", (struct fat32_mnt **)&fat32_mnt, NULL);
+    if (err_is_fail(err)) {
+        return err;
+    }
+
+    /* register libc fopen/fread and friends */
+    fs_libc_init(fat32_mnt);
+
+    return SYS_ERR_OK;
+}
+
+/**
+ * @brief initializes the filesystem library with specified block_driver channel
+ *
+ * @return SYS_ERR_OK on success
+ *         errval on failure
+ *
+ * NOTE: This has to be called before any access to the files in init
+ */
+errval_t filesystem_init_with_chan(struct aos_rpc_channel *blockdriver)
+{
+    errval_t err;
+
+    void *fat32_mnt;
+    err = mount_fat32("/sdcard", (struct fat32_mnt **)&fat32_mnt, blockdriver);
     if (err_is_fail(err)) {
         return err;
     }

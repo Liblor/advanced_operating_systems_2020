@@ -768,8 +768,6 @@ errval_t spawn_load_by_name(char *cmd, struct spawninfo * si, domainid_t *pid)
     } else {
         HERE;
         // TODO: Doesn't work because of nslookup
-        filesystem_init();
-        HERE;
         multiboot = false;
         FILE *f = fopen(binary_name, "r");
         if (f == NULL) { return SPAWN_ERR_FIND_MODULE; }

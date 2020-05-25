@@ -48,6 +48,16 @@ struct fs_fileinfo {
 errval_t filesystem_init(void);
 
 /**
+ * @brief initializes the filesystem library with specified block_driver channel
+ *
+ * @return SYS_ERR_OK on success
+ *         errval on failure
+ *
+ * NOTE: This has to be called before any access to the files in init (due to nameserver deadlock)
+ */
+errval_t filesystem_init_with_chan(struct aos_rpc_channel *blockdriver);
+
+/**
  * @brief mounts the URI at a give path
  *
  * @param path  path to mount the URI

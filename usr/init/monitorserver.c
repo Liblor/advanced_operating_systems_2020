@@ -6,10 +6,12 @@
 
 #include <rpc/server/lmp.h>
 #include <spawn/spawn.h>
+#include <fs/fs.h>
 
 #include "monitorserver.h"
 #include "nameserver.h"
 
+static bool fs_not_yet_init = true;
 static struct monitorserver_state monitorserver_state;
 
 #define MONITORSERVER_LOCK thread_mutex_lock(&monitorserver_state.mutex)
@@ -206,10 +208,21 @@ static errval_t serve_localtask_spawn(
 ){
 
     assert(recv_msg != NULL);
+    errval_t err;
+    if (fs_not_yet_init) {
+        fs_not_yet_init = false;
+        if (monitorserver_state.ns_state == NULL) {
+            // Shouldn't happen according to Christian
+            return SYS_ERR_NOT_IMPLEMENTED;
+        }
+        /*
+         * GET CHANNEL
+         */
+        filesystem_init_with_chan(channel);
+    }
 
     switch(recv_msg->msg.method) {
         case Method_Localtask_Spawn_Process: {
-            errval_t err;
             domainid_t pid = *((domainid_t *) recv_msg->msg.payload);
             char *name = recv_msg->msg.payload + sizeof(domainid_t);
 

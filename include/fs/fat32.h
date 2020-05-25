@@ -45,6 +45,8 @@ struct fat32_dirent {
 
 struct fat32_mnt {
     struct fat32_dirent root;
+    struct aos_rpc *block_driver_channel;
+    const char *mount_point;
     uint32_t fat_lba;
     uint32_t cluster_begin_lba;
     uint32_t root_dir_first_cluster;
@@ -53,7 +55,6 @@ struct fat32_mnt {
     uint16_t reserved_sector_count;
     uint8_t sectors_per_cluster;
     uint8_t number_of_fats;
-    const char *mount_point;
 };
 
 struct fat32_handle {
@@ -68,7 +69,11 @@ struct fat32_handle {
     bool isdir;
 };
 
-errval_t mount_fat32(const char *name, struct fat32_mnt **fat_mnt);
+errval_t mount_fat32(
+    const char *name,
+    struct fat32_mnt **fat_mnt,
+    struct aos_rpc *block_driver_channel
+);
 errval_t fat32_opendir(
     void *st,
     const char *path,
