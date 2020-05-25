@@ -219,7 +219,7 @@ static errval_t serve_localtask_spawn(
                 err = spawn_load_by_name(name, &si, &pid);
             }
             if (err_is_fail(err)) {
-                debug_printf("spawn_cb in local task failed: %s", err_getstring(err));
+                debug_printf("spawn_cb in local task failed: %s\n", err_getstring(err));
                 status = Spawn_Failed;
             }
             *answer = malloc(sizeof(struct rpc_message));

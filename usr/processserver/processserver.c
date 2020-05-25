@@ -82,13 +82,12 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
     // Send local task request to monitor on the core where the process should start.
     err = nameservice_rpc(monitor_chan, req, sizeof(send_buf), (void **) &resp, &resp_len, NULL_CAP, NULL_CAP);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "nameservice_rpc() failed");
+        debug_printf("nameservice_rpc():%s\n)", err_getstring(err));
         return err;
     }
 
     if (resp->msg.status != Status_Ok) {
-        DEBUG_ERR(err, "response status of local task request indicates an error");
-        return LIB_ERR_NOT_IMPLEMENTED;
+        return ERR_INVALID_ARGS;
     }
 
     return SYS_ERR_OK;
@@ -198,11 +197,6 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
 
     // TODO: Also store coreid
     domainid_t new_pid = get_new_pid(processserver_state);
-    err = add_to_proc_list(processserver_state, name, new_pid);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "add_to_proc_list()");
-        return err;
-    }
 
     // XXX: we currently use add_to_proc_list to get a ret_pid
     // and ignore the ret_pid set by urpc_send_spawn_request or spawn_load_by_name
@@ -211,8 +205,14 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
 
     err = processserver_send_spawn_local(processserver_state, name, coreid, new_pid);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "spawn_load_by_name()");
+        debug_printf("spawn_load_by_name(): %s\n", err_getstring(err));
         // TODO: If spawn failed, remove the process from the processserver state list.
+        return err;
+    }
+
+    err = add_to_proc_list(processserver_state, name, new_pid);
+    if (err_is_fail(err)) {
+        debug_printf("add_to_proc_list(): %s\n", err_getstring(err));
         return err;
     }
 
@@ -251,7 +251,7 @@ static errval_t handle_spawn_process(struct processserver_state *server_state, s
     // PAGEFAULT
     err = spawn_cb(server_state, name, core, &pid);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "spawn_cb()");
+        debug_printf("spawn_cb(): %s\n", err_getstring(err));
         status = Spawn_Failed;
     }
     const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
@@ -449,7 +449,7 @@ static void service_handler(void *st, void *message, size_t bytes, void **respon
 
     err = handle_complete_msg(ps, &msg->msg, &resp_msg);
     if (err_is_fail(err)) {
-        DEBUG_ERR(err, "handle_complete_msg() failed");
+        debug_printf("handle_complete_msg: %s\n", err_getstring(err));
         return;
     }
 
