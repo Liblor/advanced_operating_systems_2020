@@ -1,32 +1,86 @@
 #include <aos/aos.h>
 #include <aos/aos_rpc.h>
-#include <aos/aos_rpc_ump.h>
-#include <aos/aos_rpc_lmp.h>
+#include <aos/nameserver.h>
+#include <grading.h>
 
-#include <rpc/server/ump.h>
-
-#include "processserver.h"
-
-static struct rpc_ump_server server;
-
-static spawn_callback_t spawn_cb = NULL;
-static get_name_callback_t get_name_cb = NULL;
-static get_all_pids_callback_t get_all_pids_cb = NULL;
-
-
-static inline void init_server_state(struct processserver_state *server_state)
-{
-    server_state->process_head.next = &server_state->process_tail;
-    server_state->process_head.prev = NULL;
-    server_state->process_tail.prev = &server_state->process_head;
-    server_state->process_tail.next = NULL;
-    server_state->processlist = &server_state->process_head;
-    server_state->process_head.name = NULL;
-    server_state->process_tail.name = NULL;
-    server_state->num_proc = 0;
-
+struct process_info {
+    char *name;
     domainid_t pid;
-    add_to_proc_list(server_state, "init", &pid);
+    struct process_info *next;
+    struct process_info *prev;
+};
+
+struct processserver_state {
+    struct process_info process_head;
+    struct process_info process_tail;
+    struct process_info *processlist;
+    uint64_t num_proc;
+
+    nameservice_chan_t monitor_chan_list[AOS_CORE_COUNT];
+};
+
+static nameservice_chan_t get_monitor_chan(struct processserver_state *server_state, coreid_t cid)
+{
+    errval_t err;
+
+    assert(server_state != NULL);
+
+    nameservice_chan_t *entry_ptr = &server_state->monitor_chan_list[cid];
+
+    if (*entry_ptr == NULL) {
+        debug_printf("Looking up monitor service of core %llu.\n", cid);
+        char service_name[AOS_RPC_NAMESERVER_MAX_NAME_LENGTH + 1];
+        snprintf(service_name, sizeof(service_name), NAMESERVICE_MONITOR "%llu", cid);
+
+        err = nameservice_lookup(service_name, entry_ptr);
+        if (err_is_fail(err)) {
+            debug_printf("nameservice_lookup() failed: %s\n", err_getstring(err));
+            *entry_ptr = NULL;
+        }
+    }
+
+    return *entry_ptr;
+}
+
+static errval_t processserver_send_spawn_local(struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t pid)
+{
+    errval_t err;
+
+    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN - sizeof(domainid_t)); // no \0 in strlen
+
+    uint8_t send_buf[sizeof(struct rpc_message) + str_len + sizeof(domainid_t)];
+    struct rpc_message *req = (struct rpc_message *) &send_buf;
+
+    req->msg.method = Method_Localtask_Spawn_Process;
+    req->msg.status = Status_Ok;
+    req->cap = NULL_CAP;
+    req->msg.payload_length = str_len + sizeof(domainid_t);
+
+    memcpy(req->msg.payload, &pid, sizeof(domainid_t));
+    strlcpy(req->msg.payload + sizeof(domainid_t), name, str_len);
+
+    nameservice_chan_t monitor_chan = get_monitor_chan(server_state, coreid);
+    if (monitor_chan == NULL) {
+        debug_printf("Failed to get monitor service for core %llu.\n", coreid);
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    struct rpc_message *resp = NULL;
+    size_t resp_len;
+
+    // Send local task request to monitor on the core where the process should start.
+    err = nameservice_rpc(monitor_chan, req, sizeof(send_buf), (void **) &resp, &resp_len, NULL_CAP, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc() failed");
+        return err;
+    }
+
+    if (resp->msg.status != Status_Ok) {
+        DEBUG_ERR(err, "response status of local task request indicates an error");
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    return SYS_ERR_OK;
 }
 
 static void add_process_info(struct processserver_state *server_state, struct process_info *process_info)
@@ -39,7 +93,7 @@ static void add_process_info(struct processserver_state *server_state, struct pr
     server_state->num_proc++;
 }
 
-errval_t add_to_proc_list(struct processserver_state *server_state, char *name, domainid_t *pid)
+static errval_t add_to_proc_list(struct processserver_state *server_state, char *name, domainid_t *pid)
 {
     struct process_info *new_process = calloc(1, sizeof(struct process_info));
     if (new_process == NULL) {
@@ -60,13 +114,28 @@ errval_t add_to_proc_list(struct processserver_state *server_state, char *name, 
     return SYS_ERR_OK;
 }
 
+static inline void init_server_state(struct processserver_state *server_state)
+{
+    server_state->process_head.next = &server_state->process_tail;
+    server_state->process_head.prev = NULL;
+    server_state->process_tail.prev = &server_state->process_head;
+    server_state->process_tail.next = NULL;
+    server_state->processlist = &server_state->process_head;
+    server_state->process_head.name = NULL;
+    server_state->process_tail.name = NULL;
+    server_state->num_proc = 0;
+
+    domainid_t pid;
+    add_to_proc_list(server_state, "init", &pid);
+}
+
 /**
  * Packs the current running processes into a pid_array
  *
  * @param ret_pid_array contains all pids in this process server state, has to be delted by caller
  * @return errors
  */
-errval_t get_all_pids(struct processserver_state *server_state, size_t *ret_num_pids, domainid_t **ret_pids)
+static errval_t get_all_pids(struct processserver_state *server_state, size_t *ret_num_pids, domainid_t **ret_pids)
 {
     *ret_pids = calloc(1, server_state->num_proc * sizeof(domainid_t));
     if (*ret_pids == NULL) {
@@ -84,7 +153,7 @@ errval_t get_all_pids(struct processserver_state *server_state, size_t *ret_num_
     return SYS_ERR_OK;
 }
 
-errval_t get_name_by_pid(struct processserver_state *server_state, domainid_t pid, char **ret_name) {
+static errval_t get_name_by_pid(struct processserver_state *server_state, domainid_t pid, char **ret_name) {
     struct process_info *curr = server_state->process_head.next;
     char *found_name = NULL;
     while (curr != &(server_state->process_tail)) {
@@ -102,6 +171,54 @@ errval_t get_name_by_pid(struct processserver_state *server_state, domainid_t pi
     strncpy(*ret_name, found_name, name_size);
 
     return SYS_ERR_OK;
+}
+
+static errval_t spawn_cb(struct processserver_state *processserver_state, char *name, coreid_t coreid, domainid_t *ret_pid)
+{
+    errval_t err;
+
+    grading_rpc_handler_process_spawn(name, coreid);
+
+    // TODO: Also store coreid
+    err = add_to_proc_list(processserver_state, name, ret_pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "add_to_proc_list()");
+        return err;
+    }
+
+    // XXX: we currently use add_to_proc_list to get a ret_pid
+    // and ignore the ret_pid set by urpc_send_spawn_request or spawn_load_by_name
+    // reason: legacy, spawn_load_by_name does not set pid itself, so
+    // add_to_proc_list implemented the behavior
+
+    err = processserver_send_spawn_local(processserver_state, name, coreid, *ret_pid);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "spawn_load_by_name()");
+        // TODO: If spawn failed, remove the process from the processserver state list.
+        return err;
+    }
+
+    return SYS_ERR_OK;
+}
+
+static errval_t get_name_cb(struct processserver_state *processserver_state, domainid_t pid, char **ret_name) {
+    errval_t err;
+
+    grading_rpc_handler_process_get_name(pid);
+
+    err = get_name_by_pid(processserver_state, pid, ret_name);
+
+    return err;
+}
+
+static errval_t get_all_pids_cb(struct processserver_state *processserver_state, size_t *ret_count, domainid_t **ret_pids) {
+    errval_t err;
+
+    grading_rpc_handler_process_get_all_pids();
+
+    err = get_all_pids(processserver_state, ret_count, ret_pids);
+
+    return err;
 }
 
 inline
@@ -162,7 +279,7 @@ static errval_t handle_process_get_name(struct processserver_state *server_state
 inline
 static errval_t handle_process_get_all_pids(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
     errval_t  err;
-    size_t pid_count;
+    size_t pid_count = 0;
     domainid_t *pids = NULL;
     enum rpc_message_status status = Status_Ok;
 
@@ -206,104 +323,49 @@ static errval_t handle_complete_msg(struct processserver_state *server_state, st
     return SYS_ERR_OK;
 }
 
-static void service_recv_cb(struct rpc_message *msg, void *shared_state, struct aos_rpc *rpc, void *server_state)
+static void service_handler(void *st, void *message, size_t bytes, void **response, size_t *response_bytes, struct capref tx_cap, struct capref *rx_cap)
 {
-    errval_t err;
-    struct rpc_message *ret = NULL;
+    struct processserver_state *ps = st;
+    struct rpc_message *msg = message;
+    struct rpc_message *resp_msg = NULL;
 
-    err = handle_complete_msg((struct processserver_state *) server_state, &msg->msg, &ret);
+    errval_t err;
+
+    err = handle_complete_msg(ps, &msg->msg, &resp_msg);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "handle_complete_msg() failed");
-        goto cleanup;
+        return;
     }
 
-    err = aos_rpc_ump_send_message(rpc, ret);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_ump_send_message() failed");
-    }
-
-cleanup:
-    if (ret != NULL) {
-        free(ret);
-    }
+    *response = resp_msg;
+    *response_bytes = sizeof(struct rpc_message) + resp_msg->msg.payload_length;
 }
 
-errval_t processserver_send_spawn_local(struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t ret_pid)
+int main(int argc, char *argv[])
 {
     errval_t err;
 
-    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN); // no \0 in strlen
-
-    uint8_t send_buf[sizeof(struct rpc_message) + str_len];
-    struct rpc_message *req = (struct rpc_message *) &send_buf;
-
-    req->msg.method = Method_Localtask_Spawn_Process;
-    req->msg.status = Status_Ok;
-    req->cap = NULL_CAP;
-    req->msg.payload_length = str_len;
-
-    strlcpy(req->msg.payload, name, str_len);
-
-    struct aos_rpc *rpc = server_state->local_task_chan_list[coreid];
-    struct rpc_message resp;
-    struct rpc_message *resp_ptr = &resp;
-
-    // Send local task request to monitor on the core where the process should start.
-    err = aos_rpc_ump_send_and_wait_recv(rpc, req, &resp_ptr);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_ump_send_and_wait_recv() failed");
-        return err;
-    }
-
-    if (resp.msg.status != Status_Ok) {
-        DEBUG_ERR(err, "response status of local task request indicates an error");
-        return LIB_ERR_NOT_IMPLEMENTED;
-    }
-
-    return SYS_ERR_OK;
-}
-
-errval_t processserver_add_client(struct aos_rpc *rpc, coreid_t mpid)
-{
-    return rpc_ump_server_add_client(&server, rpc);
-}
-
-errval_t processserver_set_local_task_chan(struct aos_rpc *rpc, coreid_t mpid)
-{
-    struct processserver_state *server_state = server.shared;
-
-    assert(server_state->local_task_chan_list[mpid] == NULL);
-
-    server_state->local_task_chan_list[mpid] = rpc;
-
-    return SYS_ERR_OK;
-}
-
-errval_t processserver_serve_next(void)
-{
-    return rpc_ump_server_serve_next(&server);
-}
-
-errval_t processserver_init(
-    spawn_callback_t new_spawn_cb,
-    get_name_callback_t new_get_name_cb,
-    get_all_pids_callback_t new_get_all_pids_cb
-)
-{
-    errval_t err;
-
-    spawn_cb = new_spawn_cb;
-    get_name_cb = new_get_name_cb;
-    get_all_pids_cb = new_get_all_pids_cb;
+    debug_printf("Processserver spawned.\n");
 
     struct processserver_state *ps = calloc(1, sizeof(struct processserver_state));
     init_server_state(ps);
 
-    err = rpc_ump_server_init(&server, service_recv_cb, NULL, NULL, ps);
+    err = nameservice_register(NAMESERVICE_PROCESS, service_handler, ps);
     if (err_is_fail(err)) {
-        debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
-        return err_push(err, RPC_ERR_INITIALIZATION);
+        debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
+        abort();
     }
 
-    return SYS_ERR_OK;
+    debug_printf("Processserver registered at nameserver.\n");
+
+    debug_printf("Entering message handler loop...\n");
+    // Hang around
+    struct waitset *default_ws = get_default_waitset();
+    while (true) {
+        err = event_dispatch(default_ws);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "in event_dispatch");
+            abort();
+        }
+    }
 }

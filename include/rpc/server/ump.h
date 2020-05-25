@@ -22,12 +22,18 @@ struct rpc_ump_server {
     state_init_handler_t state_init_handler;
     state_free_handler_t state_free_handler;
 
+    bool processing_paused;
+
     void *shared; ///< The specific implementation can maintain a server state here.
 };
 
 errval_t rpc_ump_server_serve_next(struct rpc_ump_server *server);
 
 errval_t rpc_ump_server_add_client(struct rpc_ump_server *server, struct aos_rpc *rpc);
+
+void rpc_ump_server_pause_processing(struct rpc_ump_server *server);
+
+void rpc_ump_server_start_processing(struct rpc_ump_server *server);
 
 errval_t rpc_ump_server_init(
     struct rpc_ump_server *server,

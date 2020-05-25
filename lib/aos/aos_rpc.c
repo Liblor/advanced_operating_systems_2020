@@ -84,6 +84,12 @@ errval_t aos_rpc_get_remote_ram_cap(
     }
 }
 
+errval_t
+aos_rpc_serial_putstr(struct aos_rpc *rpc, char *str, size_t len)
+{
+    return aos_rpc_lmp_serial_putstr(rpc, str, len);
+}
+
 errval_t aos_rpc_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
     return aos_rpc_lmp_serial_getchar(rpc, retc);
@@ -125,6 +131,26 @@ errval_t aos_rpc_block_driver_write_block(struct aos_rpc *rpc, uint32_t index, v
 errval_t aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes, struct capref *ret_cap)
 {
     return aos_rpc_lmp_get_device_cap(rpc, paddr, bytes, ret_cap);
+}
+
+errval_t aos_rpc_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid)
+{
+    return aos_rpc_lmp_ns_register(rpc, name, chan_add_client, pid);
+}
+
+errval_t aos_rpc_ns_deregister(struct aos_rpc *rpc, const char *name)
+{
+    return aos_rpc_lmp_ns_deregister(rpc, name);
+}
+
+errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid)
+{
+    return aos_rpc_lmp_ns_lookup(rpc, name, rpc_service, pid);
+}
+
+errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result)
+{
+    return aos_rpc_lmp_ns_enumerate(rpc, query, num, result);
 }
 
 /**

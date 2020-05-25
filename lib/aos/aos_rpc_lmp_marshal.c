@@ -3,6 +3,7 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
 #include <aos/debug.h>
+#include <aos/deferred.h>
 
 static void
 client_response_cb(void *arg)
@@ -165,6 +166,7 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(send != NULL);
     assert(recv != NULL);
 
@@ -180,7 +182,9 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
+    if (!capref_is_null(ret_cap)) {
+        lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
+    }
 
     // TODO: Use custom callback.
     err = lmp_chan_register_recv(&rpc->lmp.chan, &state.ws, MKCLOSURE(client_response_cb_one_no_alloc, &state));
@@ -225,6 +229,7 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(send != NULL);
 
     if (recv != NULL) {
@@ -314,6 +319,7 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(msg != NULL);
 
     const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;
@@ -325,7 +331,6 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
 
     uint64_t retries = 0;
     err = SYS_ERR_OK;
-
     thread_mutex_lock_nested(&rpc->mutex);
 
     while (size_sent < msg_size && retries < TRANSIENT_ERR_RETRIES) {
@@ -337,7 +342,12 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
 
         if (lmp_err_is_transient(err)) {
             retries++;
+
+            // TODO: evaluate performance what is better
+            // yield_thread on transient error or wait blocking on a waitset
+            // barrelfish_usleep(TRANSIENT_ERR_SLEEP_US);
             thread_yield();
+
             continue;
         } else if (err_is_fail(err)) {
             break;

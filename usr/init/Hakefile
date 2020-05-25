@@ -20,18 +20,15 @@
                         "first_main.c",
                         "other_main.c",
                         "mem_alloc.c",
-                        "initserver.c",
                         "memoryserver.c",
-                        "serialserver.c",
-                        "processserver.c",
                         "monitorserver.c",
-                        "test.c",
+                        "nameserver.c",
                         "block_driver.c",
-                        "block_driver_bench.c"
+                        "block_driver_bench.c",
+                        "test.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init
-                      addLibraries = [ "mm", "getopt", "elf", "spawn", "rpc",
-                        "grading", "sdhc"],
+                      addLibraries = [ "mm", "getopt", "elf", "spawn", "rpc", "grading", "sdhc" ],
                       architectures = allArchitectures
                     }
 ]

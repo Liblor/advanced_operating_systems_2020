@@ -3,12 +3,20 @@
 
 #include <aos/aos_rpc.h>
 
-#define return_err(cond, msg) do { \
+#define return_err_trace(cond, msg) do { \
         if (cond) { \
             DEBUG_ERR(LIB_ERR_LMP_INVALID_RESPONSE, msg); \
             return LIB_ERR_LMP_INVALID_RESPONSE;  \
         } \
     } while(0);
+
+#define return_err_no_trace(cond, msg) do { \
+        if (cond) { \
+            return LIB_ERR_LMP_INVALID_RESPONSE;  \
+        } \
+    } while(0);
+
+#define return_err(cond, msg) return_err_no_trace(cond,msg)
 
 /// Callback to validate incoming server response
 typedef errval_t (*validate_recv_msg_t )(struct lmp_recv_msg *msg, enum pending_state state);

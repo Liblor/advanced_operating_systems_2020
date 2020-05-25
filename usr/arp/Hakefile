@@ -1,0 +1,7 @@
+[
+    build application {
+        target = "arp",
+        cFiles = [ "main.c" ],
+        architectures = allArchitectures
+    }
+]

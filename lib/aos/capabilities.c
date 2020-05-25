@@ -85,6 +85,12 @@ struct capref cap_irq = {
     .slot  = TASKCN_SLOT_IRQ
 };
 
+/// Capability for device memory
+struct capref cap_io_dev = {
+    .cnode = TASK_CNODE_INIT,
+    .slot = TASKCN_SLOT_DEV
+};
+
 /// Capability for endpoint to self
 struct capref cap_selfep = {
     .cnode = TASK_CNODE_INIT,
