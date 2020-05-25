@@ -14,6 +14,7 @@
 #include <rpc/server/ump.h>
 
 #include <hashtable/hashtable.h>
+#include <static_malloc.h>
 
 
 collections_listnode *service_list_head = NULL;
@@ -166,7 +167,9 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
         }
     }
 
-    free(message);
+    // TODO: Should be msg? but still doesn't work
+    //       Assumption: may be on stack in some cases?
+    //free(msg);
     free(response);
 }
 

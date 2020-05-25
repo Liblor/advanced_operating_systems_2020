@@ -114,7 +114,6 @@ void static_free(void *ap)
     }
     struct morecore_state *state = get_morecore_state();
     if (((Header *)ap)[-1].s.magic != MAGIC_STATIC) {
-        HERE;
         debug_printf("%s: Trying to free not malloced region %p by %p\n",
             __func__, ap, __builtin_return_address(0));
         return;
@@ -124,4 +123,12 @@ void static_free(void *ap)
     __static_free_locked(ap);
     lesscore();
     STATIC_MALLOC_UNLOCK;
+}
+
+int is_static_free(void *ap)
+{
+    if (ap == NULL) {
+        return 0;
+    }
+    return (((Header *)ap)[-1].s.magic == MAGIC_STATIC);
 }

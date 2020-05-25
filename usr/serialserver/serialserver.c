@@ -179,7 +179,7 @@ inline static void service_recv_handle_putstr(struct rpc_message *msg)
     putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
 }
 
-inline static void service_recv_handle_putchar( struct rpc_message *msg)
+inline static void service_recv_handle_putchar(struct rpc_message *msg)
 {
     char c;
     memcpy(&c, msg->msg.payload, sizeof(char));

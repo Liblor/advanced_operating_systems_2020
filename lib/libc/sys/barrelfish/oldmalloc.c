@@ -11,6 +11,7 @@
 
 #include <aos/aos.h>
 #include <aos/core_state.h> /* XXX */
+#include <static_malloc.h>
 
 typedef void *(*alt_malloc_t)(size_t bytes);
 alt_malloc_t alt_malloc = NULL;
@@ -155,6 +156,12 @@ void free(void *ap)
         return;
     }
 
+#if 0
+    if (is_static_free(ap)) {
+        static_free(ap);
+        return;
+    }
+#endif
 
     if (alt_free != NULL) {
         return alt_free(ap);

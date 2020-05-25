@@ -30,6 +30,7 @@ void __static_free_locked(void *ap);
 void *static_malloc(size_t nbytes);
 void *static_calloc(size_t nmemb, size_t size);
 void static_free(void *ap);
+int is_static_free(void *ap);
 
 __END_DECLS
 
