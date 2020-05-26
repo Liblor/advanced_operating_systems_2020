@@ -16,8 +16,8 @@ static struct serialserver_state serial_server;
 
 static void release_session(void)
 {
-    SERIAL_SERVER_DEBUG("releasing session %d\n", serial_server.curr_read_session);
-    serial_server.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
+    SERIAL_SERVER_DEBUG("releasing session %d\n", serial_server.active->session);
+    serial_server.active = NULL;
 }
 
 // TODO: replace this with random id to prevent hijacking
@@ -55,23 +55,6 @@ static errval_t reply_char(
     return SYS_ERR_OK;
 }
 
-static void send_getchar_reply(struct rpc_message **resp)
-{
-    errval_t err;
-    struct serial_buf_entry *entry = NULL;
-    err = cbuf_get(&serial_server.serial_buf, (void **) &entry);
-    assert(err_is_ok(err));
-    char res_char = entry->val;
-    serial_session_t session = serial_server.curr_read_session;
-    if (IS_CHAR_LINEBREAK(res_char)) {
-        release_session();
-    }
-    err = reply_char(resp, session, res_char, Status_Ok);
-    if (err_is_fail(err)) {
-        debug_printf("reply_char() failed: %s\n", err_getstring(err));
-    }
-}
-
 // --------- serial handling --------------
 static void do_getchar_usr(
         struct serial_getchar_req *req_getchar,
@@ -82,79 +65,81 @@ static void do_getchar_usr(
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
     }
-#if 1
-
-    // have we already requested?
-//    debug_printf("serial_server.session_buf.head: %d\n", serial_server.session_buf.head);
-//    debug_printf("serial_server.session_buf.tail: %d\n", serial_server.session_buf.tail);
-
-//    debug_printf("session: %d, curr session: %d\n", req_getchar->session, serial_server.curr_read_session);
-
-    for(int i = serial_server.session_buf.tail; i < serial_server.session_buf.head; i ++) {
-        struct session_entry *session_entry = &serial_server.session_data[i];
-
-//        debug_printf("i: %d, isvalid %d, session->session; %d, reqgetchar_session: %d\n", i, session->is_valid, session->session,req_getchar->session);
-        if (session_entry->is_valid
-            && session_entry->session == req_getchar->session) {
 
 
-            struct serial_buf_entry *read = &serial_server.serial_buf_data[session_entry->read_index];
-            debug_printf("readsession: %d, raechar: %c: \n", read->session, read->val);
-            debug_printf("empty: %d, req_getchar->session %d\n", cbuf_empty(&serial_server.serial_buf), req_getchar->session);
+    struct session_entry *curr = serial_server.head;
+    struct session_entry *prev = NULL;
 
-//            debug_printf("read->session: %d\n", read->session);
+//    SERIAL_SERVER_DEBUG("check buffer\n");
+    while(curr != NULL) {
+//        SERIAL_SERVER_DEBUG("check session: %d\n", curr->session);
+        if (curr->session == req_getchar->session) {
+            struct serial_buf_entry* data;
+            if (!cbuf_empty(&curr->buf)) {
+                err = cbuf_get(&curr->buf, (void **) &data);
 
-            if (!cbuf_empty(&serial_server.serial_buf) && read->session == req_getchar->session) {
+                if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
+                char ret_val = data->val;
 
-                char res_char = read->val;
-                read->session = SERIAL_GETCHAR_SESSION_UNDEF;
+                SERIAL_SERVER_DEBUG("reply: %d\n", ret_val);
+                err = reply_char(resp, req_getchar->session, ret_val, Status_Ok);
+                if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
 
-                if (IS_CHAR_LINEBREAK(res_char)) {
-                    session_entry->is_valid = false;
+                if (IS_CHAR_LINEBREAK(ret_val)) {
+                    assert(cbuf_empty(&curr->buf));
+
+                    if (prev == NULL) {
+                        serial_server.head = curr->next;
+                    } else {
+                        prev->next = curr->next;
+                    }
+                    free(curr);
+                    curr = NULL;
                 }
-                HERE;
-                err = reply_char(resp, req_getchar->session, res_char, Status_Ok);
-                if (err_is_fail(err)) {
-                    debug_printf("reply_char() failed: %s\n", err_getstring(err));
-                }
+
                 return;
             }
+            break;
         }
+        prev = curr;
+        curr = curr->next;
     }
 
-    if (serial_server.curr_read_session == SERIAL_GETCHAR_SESSION_UNDEF) {
-        serial_server.curr_read_session = req_getchar->session;
-        SERIAL_SERVER_DEBUG("session %d acquired serial port\n",
-                            req_getchar->session);
+    if (serial_server.active != NULL) {
+        if (serial_server.active->session == req_getchar->session) {
+//            SERIAL_SERVER_DEBUG("no data try later\n");
+            err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Nodata);
+            if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
+        } else {
+            SERIAL_SERVER_DEBUG("serial port busy by someone else\n");
+            err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Occupied);
+            if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
+        }
+    } else {
+        // acquire session
+        serial_server.active = calloc(1, sizeof(struct session_entry));
+        serial_server.active->session = req_getchar->session;
+        err = cbuf_init(&serial_server.active->buf,
+                        &serial_server.active->buf_data,
+                        sizeof(struct serial_buf_entry),
+                        SERIAL_BUF_SLOTS);
 
-        struct session_entry data = {
-                .session = serial_server.curr_read_session,
-                .is_valid = true,
-                .read_index = serial_server.serial_buf.tail
-        };
-        cbuf_put(&serial_server.session_buf, &data);
-        err = reply_char(resp,
-                         req_getchar->session,
-                         0,
-                         Serial_Getchar_Nodata);
+        if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err));}
+
+        if (serial_server.head == NULL) {
+            serial_server.head = serial_server.active;
+        } else {
+            struct session_entry *next = serial_server.head;
+            while(next->next != NULL) {
+                next = next->next;
+            }
+            next->next = serial_server.active;
+        }
+
+        err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Nodata);
+        if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
         return;
     }
-
-
-
-#endif
-
-
-//    SERIAL_SERVER_DEBUG("session is occupied by: %d"
-//                        "\n", serial_server.curr_read_session);
-    err = reply_char(resp,
-                     req_getchar->session,
-                     0,
-                     Serial_Getchar_Occupied);
-    if (err_is_fail(err)) {
-        debug_printf("reply_char() failed: %s\n", err_getstring(err));;
-    }
-
 }
 
 inline static void putchar_kernel(char c)
@@ -200,16 +185,13 @@ inline static void putstr_usr(const char *str, size_t len)
 
 static void getchar_iqr_handler(char c, void *args)
 {
-    if (serial_server.curr_read_session != SERIAL_GETCHAR_SESSION_UNDEF) {
+    if (serial_server.active != NULL) {
         struct serial_buf_entry data = {
-                .val = c,
-                .session = serial_server.curr_read_session
+                .val = c
         };
-//        debug_printf("s: %d\n", serial_server.curr_read_session);
-        cbuf_put(&serial_server.serial_buf, &data);
+        cbuf_put(&serial_server.active->buf, &data);
 
         if (IS_CHAR_LINEBREAK(c)) {
-            debug_printf("release\n");
             release_session();
         }
     }
@@ -231,7 +213,7 @@ inline static void service_recv_handle_putstr(struct rpc_message *msg)
     putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
 }
 
-inline static void service_recv_handle_putchar( struct rpc_message *msg)
+inline static void service_recv_handle_putchar(struct rpc_message *msg)
 {
     char c;
     memcpy(&c, msg->msg.payload, sizeof(char));
@@ -290,20 +272,9 @@ static errval_t serialserver_init(void)
 {
     errval_t err;
     memset(&serial_server, 0, sizeof(struct serialserver_state));
-    serial_server.curr_read_session = SERIAL_GETCHAR_SESSION_UNDEF;
     serial_server.read_session_ctr = 0;
-    err = cbuf_init(&serial_server.serial_buf,
-                    &serial_server.serial_buf_data,
-                    sizeof(struct serial_buf_entry),
-                    SERIAL_BUF_SLOTS);
-    if (err_is_fail(err)) { return err; }
-
-    err = cbuf_init(&serial_server.session_buf,
-                    &serial_server.session_data,
-                    sizeof(struct session_entry),
-                    SERIAL_BUF_SLOTS);
-
-    if (err_is_fail(err)) { return err; }
+    serial_server.head = NULL;
+    serial_server.active = NULL;
 
     err = serial_facade_init(&serial_server.serial_facade, SERIAL_FACADE_TARGET_CPU_0);
     if (err_is_fail(err)) {
@@ -339,7 +310,7 @@ int main(int argc, char *argv[])
     while (1) {
         // XXX: we need to call event_dispatch otherwise
         // iqr are not delivered
-        err = event_dispatch_non_block(get_default_waitset());
+        err = event_dispatch(get_default_waitset());
         if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
             debug_printf("error occured in serialserver: %s\n", err_getstring(err));
         }
