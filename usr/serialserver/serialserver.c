@@ -15,6 +15,9 @@
 
 static struct serialserver_state serial_server;
 
+// Optimization: in case monitor is not a serializer for rpc requests
+// reply only on new data such that client does not need to poll
+
 static void release_session(void)
 {
     SERIAL_SERVER_DEBUG("releasing session %d\n", serial_server.active->session);
@@ -56,8 +59,44 @@ static errval_t reply_char(
     return SYS_ERR_OK;
 }
 
+inline static errval_t acquire_session(
+        struct serial_getchar_req *req,
+        struct rpc_message **resp)
+{
+    errval_t err;
+
+    // acquire session
+    serial_server.active = calloc(1, sizeof(struct session_entry));
+    serial_server.active->session = req->session;
+    err = cbuf_init(&serial_server.active->buf,
+                    &serial_server.active->buf_data,
+                    sizeof(struct serial_buf_entry),
+                    SERIAL_BUF_SLOTS);
+
+    if (err_is_fail(err)) { return err; }
+
+    err = reply_char(resp, req->session, 0, Serial_Getchar_Nodata);
+    if (err_is_fail(err)) { goto err_clean_up; }
+
+    // enqueue
+    if (serial_server.head == NULL) {
+        serial_server.head = serial_server.active;
+    } else {
+        struct session_entry *next = serial_server.head;
+        while (next->next != NULL) {
+            next = next->next;
+        }
+        next->next = serial_server.active;
+    }
+    return SYS_ERR_OK;
+
+    err_clean_up:
+    free(serial_server.active);
+    return err;
+}
+
 // --------- serial handling --------------
-static void do_getchar_usr(
+static errval_t do_getchar_usr(
         struct serial_getchar_req *req_getchar,
         struct rpc_message **resp)
 {
@@ -70,22 +109,22 @@ static void do_getchar_usr(
     struct session_entry *curr = serial_server.head;
     struct session_entry *prev = NULL;
 
-    while(curr != NULL) {
+    // we serve already acquired sessions with pending characters
+    while (curr != NULL) {
         if (curr->session == req_getchar->session) {
-            struct serial_buf_entry* data;
+            struct serial_buf_entry *data;
             if (!cbuf_empty(&curr->buf)) {
                 err = cbuf_get(&curr->buf, (void **) &data);
-
-                if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
+                if (err_is_fail(err)) {
+                    return err;
+                }
                 char ret_val = data->val;
-
-//                SERIAL_SERVER_DEBUG("reply: %d\n", ret_val);
                 err = reply_char(resp, req_getchar->session, ret_val, Status_Ok);
-                if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
-
+                if (err_is_fail(err)) {
+                    return err;
+                }
                 if (IS_CHAR_LINEBREAK(ret_val)) {
                     assert(cbuf_empty(&curr->buf));
-
                     if (prev == NULL) {
                         serial_server.head = curr->next;
                     } else {
@@ -94,8 +133,7 @@ static void do_getchar_usr(
                     free(curr);
                     curr = NULL;
                 }
-
-                return;
+                return SYS_ERR_OK;
             }
             break;
         }
@@ -104,40 +142,22 @@ static void do_getchar_usr(
     }
 
     if (serial_server.active != NULL) {
+        // we own session but dont have characters yet
         if (serial_server.active->session == req_getchar->session) {
-            // SERIAL_SERVER_DEBUG("no data try later\n");
             err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Nodata);
-            if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
+            if (err_is_fail(err)) { return err; }
         } else {
-            // SERIAL_SERVER_DEBUG("serial port busy by someone else\n");
+            // someone else owns session
             err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Occupied);
-            if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
+            if (err_is_fail(err)) { return err; }
         }
     } else {
-        // acquire session
-        serial_server.active = calloc(1, sizeof(struct session_entry));
-        serial_server.active->session = req_getchar->session;
-        err = cbuf_init(&serial_server.active->buf,
-                        &serial_server.active->buf_data,
-                        sizeof(struct serial_buf_entry),
-                        SERIAL_BUF_SLOTS);
-
-        if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err));}
-
-        if (serial_server.head == NULL) {
-            serial_server.head = serial_server.active;
-        } else {
-            struct session_entry *next = serial_server.head;
-            while(next->next != NULL) {
-                next = next->next;
-            }
-            next->next = serial_server.active;
-        }
-
-        err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Nodata);
-        if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
-        return;
+        // we acquire session
+        err = acquire_session(req_getchar, resp);
+        if (err_is_fail(err)) { return err; }
     }
+
+    return SYS_ERR_OK;
 }
 
 inline static void putchar_kernel(char c)
@@ -199,8 +219,6 @@ static void getchar_iqr_handler(char c, void *args)
 #if 0
     serial_facade_write(&serial_server.serial_facade, c);
 #endif
-    // Optimization: in case monitor is not a serializer for rpc requests
-    // reply only on new data such that client does not need to poll
 }
 
 // --------- urpc server --------------
