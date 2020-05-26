@@ -322,7 +322,11 @@ static errval_t serialserver_init(void)
 {
     errval_t err;
     memset(&serial_server, 0, sizeof(struct serialserver_state));
-    serial_server.read_session_ctr = 0;
+    serial_server.read_session_ctr = 1;
+
+    // XXX: ensure we start with a read session which is not SERIAL_GETCHAR_SESSION_UNDEF
+    assert(serial_server.read_session_ctr > SERIAL_GETCHAR_SESSION_UNDEF);
+
     serial_server.head = NULL;
     serial_server.active = NULL;
 

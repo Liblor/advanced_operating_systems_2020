@@ -212,6 +212,7 @@ int main(int argc, char *argv[])
     errval_t err = SYS_ERR_OK;
     if (argc == 1) {
 
+        printf("spawning children...\n");
         struct aos_rpc *rpc = aos_rpc_get_process_channel();
         domainid_t pid;
         err = aos_rpc_process_spawn(rpc, "serial-test 1", 1, &pid);
@@ -231,6 +232,7 @@ int main(int argc, char *argv[])
         printf("Spawning child with pid %d\n", pid);
         return SYS_ERR_OK;
     } else {
+        printf("child...\n");
         read_loop();
     }
 #endif
