@@ -14,20 +14,26 @@
 #define SERIAL_SERVER_DEBUG(x...) ((void)0)
 #endif
 
-#define SERIAL_BUF_SLOTS 256
+#define SERIAL_BUF_SLOTS 128
 
 struct serial_buf_entry {
     char val;
-} __packed;
+}; __packed
+
+struct session_entry {
+    struct serial_buf_entry buf_data[SERIAL_BUF_SLOTS];
+    struct cbuf buf;
+    serial_session_t session;
+    struct session_entry *next;
+};
 
 struct serialserver_state {
     struct serial_facade serial_facade;   ///<facade to serial driver in userspace
 
-    serial_session_t curr_read_session;   ///< read session which got serial_driver
     size_t read_session_ctr;
 
-    struct cbuf serial_buf;              ///< Ring buffer for arriving serial chars
-    struct serial_buf_entry serial_buf_data[SERIAL_BUF_SLOTS]; ///< Ring buffer data
+    struct session_entry *head;
+    struct session_entry *active;
 };
 
 #endif
