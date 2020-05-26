@@ -471,8 +471,8 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
         }
 
         if (recv->msg.status != Status_Ok) {
-             err = AOS_ERR_RPC_INVALID_REPLY;
-             goto clean_up;
+            err = AOS_ERR_RPC_INVALID_REPLY;
+            goto clean_up;
         }
     }
 
@@ -528,7 +528,10 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
             return err;
         }
 
-        // TODO Response is not getting validated here
+        if (recv->msg.status != Status_Ok) {
+            err = AOS_ERR_RPC_INVALID_REPLY;
+            goto clean_up_recv;
+        }
     }
 
     *name = malloc(recv->msg.payload_length);
@@ -588,7 +591,10 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
             return err;
         }
 
-        // TODO Response is not getting validated here
+        if (recv->msg.status != Status_Ok) {
+            err = AOS_ERR_RPC_INVALID_REPLY;
+            goto clean_up;
+        }
     }
 
     struct process_pid_array *pid_array = (struct process_pid_array *) &recv->msg.payload;
@@ -645,6 +651,10 @@ errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *rpc, domainid_t pid,
         DEBUG_ERR(err, "nameservice_rpc()\n");
         return err;
     }
+    if (recv->msg.status != Status_Ok) {
+        err = AOS_ERR_RPC_INVALID_REPLY;
+        goto clean_up_recv;
+    }
     struct aos_rpc_process_info_reply *reply = malloc(recv->msg.payload_length);
     if (reply == NULL) {
         err = LIB_ERR_MALLOC_FAIL;
@@ -659,7 +669,7 @@ errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *rpc, domainid_t pid,
 
     goto clean_up_recv;
 
-    clean_up_recv:
+clean_up_recv:
     if (recv != NULL) {
         free(recv);
     }

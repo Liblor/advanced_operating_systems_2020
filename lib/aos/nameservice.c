@@ -220,8 +220,12 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
         free(recv);
     } else {
         err = aos_rpc_ump_send_message(rpc, send);
+        if (err_is_fail(err)) {
+            return err;
+        }
     }
-	return SYS_ERR_OK;
+
+    return SYS_ERR_OK;
 }
 
 
