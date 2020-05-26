@@ -236,9 +236,7 @@ inline static void service_recv_handle_putstr(struct rpc_message *msg)
     // we only get gibberish in payload
     // if we are too quick
     struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
-    if (disp->core_id != 0) {
-        barrelfish_usleep(100);
-    }
+    barrelfish_usleep(50);
     putstr_usr(msg->msg.payload, msg->msg.payload_length);
 }
 
