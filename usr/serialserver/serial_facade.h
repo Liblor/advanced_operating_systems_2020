@@ -8,7 +8,7 @@
 #include <drivers/lpuart.h>
 #include <drivers/gic_dist.h>
 
- #define SERIAL_FACADE_TRACE_IQR_ON
+// #define SERIAL_FACADE_TRACE_IQR_ON
 // enable SERIAL_FACADE_TRACE_IQR_ON
 // to write all read iqr directly out through serial port
 

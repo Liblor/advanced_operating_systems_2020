@@ -11,6 +11,7 @@
 #include <aos/string.h>
 #include <aos/nameserver.h>
 #include <aos/deferred.h>
+#include <arch/aarch64/aos/dispatcher_arch.h>
 
 static struct serialserver_state serial_server;
 
@@ -65,7 +66,6 @@ static void do_getchar_usr(
     if (req_getchar->session == SERIAL_GETCHAR_SESSION_UNDEF) {
         req_getchar->session = new_session();
     }
-
 
     struct session_entry *curr = serial_server.head;
     struct session_entry *prev = NULL;
@@ -162,6 +162,7 @@ inline static void putstr_usr(const char *str, size_t len)
 {
     errval_t err = SYS_ERR_OK;
     for (int i = 0; i < len && err_is_ok(err); i++) {
+#if 1
         // XXX: lpuart requires carriage return and line feed
         // In order to be compatible with linux line feed
         // we introduce a carriage return on line break
@@ -173,9 +174,11 @@ inline static void putstr_usr(const char *str, size_t len)
                 break;
             }
         }
+#endif
         err = serial_facade_write(&serial_server.serial_facade, *(str + i));
     }
     if (err_is_fail(err)) {
+        assert(false);
         debug_printf("serial_facade_write failed: %s\n", err_getstring(err));
     }
 }
@@ -208,7 +211,17 @@ inline static void service_recv_handle_putstr(struct rpc_message *msg)
     for (size_t i = 0; i < msg->msg.payload_length; i++) {
         grading_rpc_handler_serial_putchar(*(cptr + i));
     }
-    putstr_usr((char *) msg->msg.payload, msg->msg.payload_length);
+
+    // XXX: Hacky workaround
+    // the UMP library seems to cause troubles
+    // when transfering content across cores
+    // we only get gibberish in payload
+    // if we are too quick
+    struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
+    if (disp->core_id != 0) {
+        barrelfish_usleep(100);
+    }
+    putstr_usr(msg->msg.payload, msg->msg.payload_length);
 }
 
 inline static void service_recv_handle_putchar(struct rpc_message *msg)

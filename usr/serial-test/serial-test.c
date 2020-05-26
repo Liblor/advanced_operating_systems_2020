@@ -129,10 +129,10 @@ static void read_loop(void)
     errval_t err;
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
 
-    const size_t buf_size = 2048;
-    char buf[2048];
+    const size_t buf_size = 100;
+    char buf[100];
     memset(&buf, 0, buf_size);
-    printf("Write something and hit return\r\n");
+    printf("Write something and hit return\n");
 
     int i = 0;
     do {
@@ -140,15 +140,15 @@ static void read_loop(void)
         err = aos_rpc_lmp_serial_getchar(rpc, &c);
         if (IS_CHAR_LINEBREAK(c)) {
             buf[i] = 0;
-            printf("\r\n");
-            printf("You typed: '%s' \r\n", &buf);
-            fflush(stdout);
-            i = 0;
+//            aos_rpc_lmp_serial_putstr(rpc, "You typed: '1'\n", strlen("You typed: '1'\n"));
+            printf("You typed: '%s' \n", buf);
+//            fflush(stdout);
+            return;
         } else {
             buf[i] = c;
-            fflush(stdout);
             printf("%c", c);
-            fflush(stdout);
+//            aos_rpc_lmp_serial_putchar(rpc, c);
+             fflush(stdout);
             i++;
             if (i == buf_size) {
                 i = 0;
@@ -233,13 +233,14 @@ int main(int argc, char *argv[])
         printf("Spawning child with pid %d\n", pid);
         return SYS_ERR_OK;
     } else {
-//        printf("done\n");
-//        debug_printf("done\n");
-        struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-        char c;
-        err = aos_rpc_lmp_serial_getchar(rpc, &c);
-        assert(err_is_ok(err));
-        debug_printf("you typed: %c in pid:%d on core %d\n", c, my_pid, my_core);
+        read_loop();
+//
+//
+//        struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+//        char c;
+//        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+//        assert(err_is_ok(err));
+//        debug_printf("you typed: %c in pid:%d on core %d\n", c, my_pid, my_core);
     }
 #endif
     return EXIT_SUCCESS;
