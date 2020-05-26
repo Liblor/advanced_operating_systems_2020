@@ -15,8 +15,9 @@
 
 static struct serialserver_state serial_server;
 
-// Optimization: in case monitor is not a serializer for rpc requests
-// reply only on new data such that client does not need to poll
+// Optimization: remove that client need to poll by using nameservice api
+// - there are issues with the IQR handler and the driver
+// sometimes, iqrs get stuck. Try to poll in periodic event instead 
 
 static void release_session(void)
 {
@@ -198,7 +199,6 @@ inline static void putstr_usr(const char *str, size_t len)
         err = serial_facade_write(&serial_server.serial_facade, *(str + i));
     }
     if (err_is_fail(err)) {
-        assert(false);
         debug_printf("serial_facade_write failed: %s\n", err_getstring(err));
     }
 }
@@ -258,7 +258,10 @@ inline static void service_recv_handle_getchar(struct rpc_message *msg, struct r
     }
     struct serial_getchar_req req_getchar;
     memcpy(&req_getchar, msg->msg.payload, sizeof(struct serial_getchar_req));
-    do_getchar_usr(&req_getchar, resp);
+    errval_t err = do_getchar_usr(&req_getchar, resp);
+    if (err_is_fail(err)) {
+        debug_printf("failure in do_getchar_usr: %s\n", err_getstring(err));
+    }
 }
 
 static void ns_service_handler(
