@@ -55,10 +55,8 @@
 #include <aos/solution.h>
 
 #define PID_INIT_CORE0 0
-#define PID_SERIAL_SERVER 1
-#define PID_INIT_SERVER 2
-#define PID_BLOCKDRIVER_SERVER 3
-#define PID_PROCESS_SERVER 4
+#define PID_INIT_CORE1 1
+#define PID_PROCESS_SERVER 10
 
 /* XXX: utility macros. not sure where to put these */
 

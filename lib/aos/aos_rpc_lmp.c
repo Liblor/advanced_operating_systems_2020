@@ -841,7 +841,6 @@ aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *c
     errval_t err;
 
     assert(rpc != NULL);
-    assert(rpc->type == RpcTypeLmp);
     assert(name != NULL);
     assert(chan_add_client != NULL);
     assert(chan_add_client->type == RpcTypeUmp);
@@ -868,10 +867,20 @@ aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *c
     memcpy(ptr, &pid, sizeof(domainid_t));
 
     char message[sizeof(struct rpc_message)];
+    memset(message, 0, sizeof(message));
     struct rpc_message *recv = (struct rpc_message *) message;
-    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_register, NULL_CAP);
-    if (err_is_fail(err)) {
-        return err;
+
+    if (rpc->type == RpcTypeLmp) {
+        err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_register, NULL_CAP);
+        if (err_is_fail(err)) {
+            return err;
+        }
+    } else {
+        assert(rpc->type == RpcTypeUmp);
+        err = aos_rpc_ump_send_and_wait_recv(rpc, msg, &recv);
+        if (err_is_fail(err)) {
+            return err;
+        }
     }
 
     assert(capref_is_null(recv->cap));

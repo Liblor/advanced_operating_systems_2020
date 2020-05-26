@@ -166,9 +166,8 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
         }
     }
 
-    // TODO free message and response?
-    //free(message);
-    //free(response);
+    free(message);
+    free(response);
 }
 
 /**
@@ -206,16 +205,23 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
 
     if (response != NULL && response_bytes != NULL) {
         err = aos_rpc_ump_send_and_wait_recv(rpc, send, &recv);
-        *response = recv->msg.payload;
+        if (err_is_fail(err)) {
+            free(recv);
+            return err;
+        }
         *response_bytes = recv->msg.payload_length;
-
+        *response = calloc(1, recv->msg.payload_length);
+        if (*response == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        memcpy(*response, &recv->msg.payload, *response_bytes);
         if (!capref_is_null(rx_cap)) {
             cap_copy(rx_cap, recv->cap);
         }
+        free(recv);
     } else {
         err = aos_rpc_ump_send_message(rpc, send);
     }
-
 	return SYS_ERR_OK;
 }
 
@@ -233,9 +239,16 @@ errval_t nameservice_register(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st)
 {
-    errval_t err;
-
     struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
+
+    return nameservice_register_at_chan(monitor_chan, name, recv_handler, st);
+}
+
+errval_t nameservice_register_at_chan(struct aos_rpc *rpc_chan, const char *name,
+	                              nameservice_receive_handler_t recv_handler,
+	                              void *st)
+{
+    errval_t err;
 
     if (service_list_head == NULL) {
         collections_list_create(&service_list_head, NULL);
@@ -260,13 +273,15 @@ errval_t nameservice_register(const char *name,
         return err;
     }
 
-    domainid_t pid = disp_get_domain_id();
+    if (rpc_chan != NULL) {
+        domainid_t pid = disp_get_domain_id();
 
-    // Send message to nameserver to register new service
-    err = aos_rpc_ns_register(monitor_chan, name, &service->add_client_chan, pid);
-    if (err_is_fail(err)) {
-        debug_printf("aos_rpc_lmp_ns_register() failed: %s\n", err_getstring(err));
-        return err;
+        // Send message to nameserver to register new service
+        err = aos_rpc_ns_register(rpc_chan, name, &service->add_client_chan, pid);
+        if (err_is_fail(err)) {
+            debug_printf("aos_rpc_lmp_ns_register() failed: %s\n", err_getstring(err));
+            return err;
+        }
     }
 
     memset(service->name, 0, sizeof(service->name));
@@ -297,54 +312,7 @@ errval_t nameservice_register_no_send(const char *name,
 	                              nameservice_receive_handler_t recv_handler,
 	                              void *st)
 {
-    errval_t err;
-    debug_printf("nameservice_register_no_send(%s)\n", name);
-
-    if (service_list_head == NULL) {
-        collections_list_create(&service_list_head, NULL);
-    }
-
-    struct srv_entry *service = malloc(sizeof(struct srv_entry));
-    if (service == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-
-    struct capref frame;
-
-    err = frame_alloc(&frame, UMP_SHARED_FRAME_SIZE, NULL);
-    if (err_is_fail(err)) {
-        debug_printf("frame_alloc() failed: %s\n", err_getstring(err));
-        return err;
-    }
-
-    err = aos_rpc_ump_init(&service->add_client_chan, frame, true);
-    if (err_is_fail(err)) {
-        debug_printf("aos_rpc_ump_init() failed: %s\n", err_getstring(err));
-        return err;
-    }
-
-    memset(service->name, 0, sizeof(service->name));
-    strncpy(service->name, name, AOS_RPC_NAMESERVER_MAX_NAME_LENGTH);
-    service->recv_handler = recv_handler;
-    service->st = st;
-
-    err = rpc_ump_server_init(&service->ump_server, service_recv_cb, NULL, NULL, service);
-    if (err_is_fail(err)) {
-        debug_printf("rpc_ump_server_init() failed: %s\n", err_getstring(err));
-        return err_push(err, RPC_ERR_INITIALIZATION);
-    }
-
-    memset(&service->periodic_urpc_ev, 0, sizeof(struct periodic_event));
-
-    err = periodic_event_create(&service->periodic_urpc_ev,
-                                get_default_waitset(),
-                                NAMESERVICE_PERIODIC_SERVE_EVENT_US,
-                                MKCLOSURE(service_periodic_event_func, service));
-
-    int32_t ret = collections_list_insert(service_list_head, service);
-    assert(ret == 0);
-
-	return SYS_ERR_OK;
+    return nameservice_register_at_chan(NULL, name, recv_handler, st);
 }
 
 static int32_t service_has_name(void *data, void *arg)

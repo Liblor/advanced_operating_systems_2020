@@ -12,6 +12,9 @@
 #include "echo.h"
 #include "ps.h"
 #include "fs_utils.h"
+#include "domain_info.h"
+#include "rpctest.h"
+#include "run_memtest.h"
 
 // builtins within this file
 errval_t builtin_help(int, char **);
@@ -25,10 +28,12 @@ struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_oncore,   "oncore",   "spawn a dispatcher on a given core"},
         {builtin_time,     "time",     "time a command"},
         {builtin_ps,     "ps",     "report a snapshot of spawned processes"},
-
+        {builtin_pid,     "pid",     "show my pid"},
+        {builtin_coreid,     "coreid",     "show my coreid"},
+        {builtin_rpctest,     "rpctest",     "testsuite for rpc-tests"},
+        {builtin_run_memtest,     "run_memtest",     "runs memory write/read test"},
         {builtin_nslookup, "nslookup", "lookup a service at the nameserver"},
         {builtin_nslist,   "nslist",   "list services registered at the nameserver"},
-
         {builtin_ls,   "ls",   "list directory contents"},
         {builtin_cat,   "cat",   "concatenate files and print on the standard output"},
         {builtin_cd,   "cd",   "change directory"},

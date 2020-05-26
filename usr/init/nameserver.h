@@ -8,6 +8,7 @@
 
 struct nameserver_state {
     collections_hash_table *service_table;
+    struct periodic_event serve_periodic_ev;
 
     struct periodic_event add_client_response_periodic_ev;
     struct aos_rpc *rpc_add_client_request_pending;
