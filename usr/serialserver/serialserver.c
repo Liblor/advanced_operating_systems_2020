@@ -17,7 +17,7 @@ static struct serialserver_state serial_server;
 
 // Optimization: remove that client need to poll by using nameservice api
 // - there are issues with the IQR handler and the driver
-// sometimes, iqrs get stuck. Try to poll in periodic event instead 
+// sometimes, iqrs get stuck. Try to poll in periodic event instead
 
 static void release_session(void)
 {
@@ -236,7 +236,7 @@ inline static void service_recv_handle_putstr(struct rpc_message *msg)
     // we only get gibberish in payload
     // if we are too quick
     struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
-    barrelfish_usleep(50);
+    barrelfish_usleep(30);
     putstr_usr(msg->msg.payload, msg->msg.payload_length);
 }
 
@@ -306,7 +306,7 @@ static errval_t serialserver_init(void)
     serial_server.head = NULL;
     serial_server.active = NULL;
 
-    err = serial_facade_init(&serial_server.serial_facade, SERIAL_FACADE_TARGET_CPU_0);
+    err = serial_facade_init(&serial_server.serial_facade, SERIAL_FACADE_TARGET_CPU_0, false);
     if (err_is_fail(err)) {
         debug_printf("error in shell_init(): %s\n", err_getstring(err));
         return err;
@@ -319,6 +319,23 @@ static errval_t serialserver_init(void)
         return err;
     }
     return SYS_ERR_OK;
+}
+
+static void poll_read(void *args)
+{
+    char c;
+    errval_t err = serial_facade_poll_read(&serial_server.serial_facade, &c);
+    if (err_is_ok(err)) {
+        if (serial_server.active != NULL) {
+            struct serial_buf_entry data = {
+                    .val = c
+            };
+            cbuf_put(&serial_server.active->buf, &data);
+            if (IS_CHAR_LINEBREAK(c)) {
+                release_session();
+            }
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -336,6 +353,17 @@ int main(int argc, char *argv[])
         debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
         abort();
     }
+    struct periodic_event periodic_urpc_ev;
+    err = periodic_event_create(&periodic_urpc_ev,
+                                get_default_waitset(),
+                                100,
+                                MKCLOSURE(poll_read, NULL));
+
+    if (err_is_fail(err)){
+        debug_printf("%s\n", err_getstring(err));
+        abort();
+    }
+
     debug_printf("Serialserver registered at nameserver.\n");
     while (1) {
         // XXX: we need to call event_dispatch otherwise

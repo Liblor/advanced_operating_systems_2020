@@ -26,6 +26,7 @@
 typedef void (*serial_facade_read_cb)(char c, void *args);
 
 struct serial_facade {
+    bool enable_iqr;
     struct lpuart_s *lpuart3_state;
     struct gic_dist_s *gic_dist_state;
     struct capref irq_dest_cap;
@@ -43,7 +44,7 @@ struct serial_facade {
  */
 errval_t serial_facade_init(
         struct serial_facade *state,
-        uint8_t target_cpu);
+        uint8_t target_cpu, bool enable_iqr);
 
 errval_t serial_facade_write(
         struct serial_facade *state,
@@ -58,5 +59,8 @@ errval_t serial_facade_write_str(
         struct serial_facade *state,
         const char *str,
         size_t len);
+
+errval_t serial_facade_poll_read(
+        struct serial_facade *state, char *ret_c);
 
 #endif //BFOS_SERIAL_FACADE_H
