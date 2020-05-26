@@ -55,13 +55,13 @@ static void test_query(char *query)
     }
 }
 
-static void run_client(void)
-{
+static void test_lookup(char *name) {
     errval_t err;
 
-    /* look up service using name server */
+    debug_printf("Testing lookup for %s\n", name);
+
     nameservice_chan_t chan;
-    err = nameservice_lookup(SERVICE_NAME, &chan);
+    err = nameservice_lookup(name, &chan);
     PANIC_IF_FAIL(err, "failed to lookup service\n");
 
     debug_printf("Got the service %p. Sending request '%s'\n", chan, myrequest);
@@ -77,7 +77,10 @@ static void run_client(void)
     PANIC_IF_FAIL(err, "failed to do the nameservice rpc\n");
 
     debug_printf("got response: %s\n", (char *)response);
+}
 
+static void run_client(void)
+{
     test_query("");
     test_query("t");
     test_query(SERVICE_NAME);
@@ -86,6 +89,13 @@ static void run_client(void)
     test_query(SERVICE_NAME "/bla1");
     test_query(SERVICE_NAME "/bla3");
     test_query(SERVICE_NAME "/bla32");
+
+    test_lookup(SERVICE_NAME);
+    test_lookup(SERVICE_NAME"/bla");
+    test_lookup(SERVICE_NAME"/bla1");
+    test_lookup(SERVICE_NAME"/bla12");
+    test_lookup(SERVICE_NAME"/bla31");
+    test_lookup(SERVICE_NAME"/bla32");
 }
 
 /*
@@ -102,8 +112,10 @@ static void server_recv_handler(void *st, void *message,
                                 struct capref rx_cap, struct capref *tx_cap)
 {
     debug_printf("server: got a request: %s\n", (char *)message);
-    *response = myresponse;
-    *response_bytes = strlen(myresponse);
+    size_t len = strlen(myresponse) + 1;
+    *response = malloc(len);
+    strcpy(*response, myresponse);
+    *response_bytes = len;
 }
 
 static void run_server(void)
