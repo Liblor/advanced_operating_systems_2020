@@ -72,7 +72,7 @@ __unused static void test_process(void) {
 
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
 
-    const uint64_t process_number = 200;
+    const uint64_t process_number = 10;
 
     debug_printf("Testing aos_rpc_process_spawn() (spawning %u processes)...\n", process_number);
 
@@ -142,10 +142,10 @@ __unused static void test_serial(void) {
     }
     */
 
-    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
-    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
+//    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
+//    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
 
-    debug_printf("Press a button to test aos_rpc_lmp_serial_getchar(): ");
+//    debug_printf("Press a button to test aos_rpc_lmp_serial_getchar(): ");
     char c;
     err = aos_rpc_lmp_serial_getchar(rpc, &c);
     if (err_is_fail(err)) {
@@ -160,9 +160,9 @@ int main(int argc, char *argv[])
 {
     debug_printf("Running RPC tests...\n");
 
-    test_init();
-    test_memory();
-    test_process();
+//    test_init();
+//    test_memory();
+//    test_process();
     test_serial();
 
     debug_printf("done\n");

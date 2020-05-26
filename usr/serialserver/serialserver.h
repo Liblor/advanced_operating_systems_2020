@@ -18,7 +18,14 @@
 
 struct serial_buf_entry {
     char val;
-} __packed;
+    serial_session_t session;
+};
+
+struct session_entry {
+    bool is_valid;
+    serial_session_t session;
+    size_t read_index;
+};
 
 struct serialserver_state {
     struct serial_facade serial_facade;   ///<facade to serial driver in userspace
@@ -27,7 +34,9 @@ struct serialserver_state {
     size_t read_session_ctr;
 
     struct cbuf serial_buf;              ///< Ring buffer for arriving serial chars
-    struct serial_buf_entry serial_buf_data[SERIAL_BUF_SLOTS]; ///< Ring buffer data
+    struct cbuf session_buf;
+    struct serial_buf_entry serial_buf_data[SERIAL_BUF_SLOTS];
+    struct session_entry session_data [SERIAL_BUF_SLOTS];
 };
 
 #endif
