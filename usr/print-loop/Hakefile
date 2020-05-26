@@ -1,0 +1,5 @@
+[ build application { target = "print-loop",
+  		              cFiles = [ "print-loop.c" ],
+                      architectures = allArchitectures
+                    }
+]
