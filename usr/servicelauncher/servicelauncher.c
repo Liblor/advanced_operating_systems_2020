@@ -35,13 +35,11 @@ int main(int argc, char *argv[])
     spawn_service(proc_chan, "initserver");
     spawn_service(proc_chan, "serialserver");
     spawn_service(proc_chan, "enet");
-//    spawn_service(proc_chan, "blockdriverserver");
+    spawn_service(proc_chan, "blockdriverserver");
 
     debug_printf("Waiting for launched services...\n");
     nameservice_wait_for(NAMESERVICE_SERIAL);
     nameservice_wait_for(NAMESERVICE_INIT);
-    // Do not wait for the blockdriver, since it shouldn't
-    //nameservice_wait_for(NAMESERVICE_BLOCKDRIVER);
 
     // call grading here
 
