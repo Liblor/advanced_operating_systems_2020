@@ -15,6 +15,9 @@
 
 static struct serialserver_state serial_server;
 
+#define ENABLE_IQR false
+#define IQR_POLL_INTERVAL_US 10 * 1000
+
 // Optimization: remove that client need to poll by using nameservice api
 // - there are issues with the IQR handler and the driver
 // sometimes, iqrs get stuck. Try to poll in periodic event instead
@@ -236,7 +239,7 @@ inline static void service_recv_handle_putstr(struct rpc_message *msg)
     // we only get gibberish in payload
     // if we are too quick
     struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
-    barrelfish_usleep(30);
+    barrelfish_usleep(10);
     putstr_usr(msg->msg.payload, msg->msg.payload_length);
 }
 
@@ -298,29 +301,6 @@ static void ns_service_handler(
     }
 }
 
-static errval_t serialserver_init(void)
-{
-    errval_t err;
-    memset(&serial_server, 0, sizeof(struct serialserver_state));
-    serial_server.read_session_ctr = 0;
-    serial_server.head = NULL;
-    serial_server.active = NULL;
-
-    err = serial_facade_init(&serial_server.serial_facade, SERIAL_FACADE_TARGET_CPU_0, false);
-    if (err_is_fail(err)) {
-        debug_printf("error in shell_init(): %s\n", err_getstring(err));
-        return err;
-    }
-    err = serial_facade_set_read_cb(&serial_server.serial_facade,
-                                    getchar_iqr_handler,
-                                    NULL);
-    if (err_is_fail(err)) {
-        debug_printf("failed to call serial_facade_set_read_cb() %s\n", err_getstring(err));
-        return err;
-    }
-    return SYS_ERR_OK;
-}
-
 static void poll_read(void *args)
 {
     char c;
@@ -338,6 +318,42 @@ static void poll_read(void *args)
     }
 }
 
+static errval_t serialserver_init(void)
+{
+    errval_t err;
+    memset(&serial_server, 0, sizeof(struct serialserver_state));
+    serial_server.read_session_ctr = 0;
+    serial_server.head = NULL;
+    serial_server.active = NULL;
+
+    err = serial_facade_init(&serial_server.serial_facade, SERIAL_FACADE_TARGET_CPU_0, ENABLE_IQR);
+    if (err_is_fail(err)) {
+        debug_printf("error in shell_init(): %s\n", err_getstring(err));
+        return err;
+    }
+    err = serial_facade_set_read_cb(&serial_server.serial_facade,
+                                    getchar_iqr_handler,
+                                    NULL);
+    if (err_is_fail(err)) {
+        debug_printf("failed to call serial_facade_set_read_cb() %s\n", err_getstring(err));
+        return err;
+    }
+
+    if (!ENABLE_IQR) {
+        struct periodic_event periodic_urpc_ev;
+        err = periodic_event_create(&periodic_urpc_ev,
+                                    get_default_waitset(),
+                                    IQR_POLL_INTERVAL_US,
+                                    MKCLOSURE(poll_read, NULL));
+        if (err_is_fail(err)) {
+            return err;
+        }
+    }
+
+    return SYS_ERR_OK;
+}
+
+
 int main(int argc, char *argv[])
 {
     errval_t err = SYS_ERR_OK;
@@ -351,16 +367,6 @@ int main(int argc, char *argv[])
                                NULL);
     if (err_is_fail(err)) {
         debug_printf("nameservice_register() failed: %s\n", err_getstring(err));
-        abort();
-    }
-    struct periodic_event periodic_urpc_ev;
-    err = periodic_event_create(&periodic_urpc_ev,
-                                get_default_waitset(),
-                                100,
-                                MKCLOSURE(poll_read, NULL));
-
-    if (err_is_fail(err)){
-        debug_printf("%s\n", err_getstring(err));
         abort();
     }
 

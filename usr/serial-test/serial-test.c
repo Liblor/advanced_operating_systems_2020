@@ -208,18 +208,16 @@ int main(int argc, char *argv[])
     __unused domainid_t my_pid = disp->domain_id;
     __unused coreid_t my_core = disp->core_id;
 
-
-//    printf("argc: %d\n", argc);
 #if 1
     errval_t err = SYS_ERR_OK;
     if (argc == 1) {
-//        printf("Running serial-tests...\n");
+
         struct aos_rpc *rpc = aos_rpc_get_process_channel();
         domainid_t pid;
         err = aos_rpc_process_spawn(rpc, "serial-test 1", 1, &pid);
         assert(err_is_ok(err));
         printf("Spawning child with pid %d\n", pid);
-//
+
         err = aos_rpc_process_spawn(rpc, "serial-test 1", 0, &pid);
         assert(err_is_ok(err));
         printf("Spawning child with pid %d\n", pid);
@@ -234,13 +232,6 @@ int main(int argc, char *argv[])
         return SYS_ERR_OK;
     } else {
         read_loop();
-//
-//
-//        struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-//        char c;
-//        err = aos_rpc_lmp_serial_getchar(rpc, &c);
-//        assert(err_is_ok(err));
-//        debug_printf("you typed: %c in pid:%d on core %d\n", c, my_pid, my_core);
     }
 #endif
     return EXIT_SUCCESS;
