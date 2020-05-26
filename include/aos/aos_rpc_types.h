@@ -28,6 +28,20 @@ enum rpc_message_method {
     Method_Nameserver_Service_Response,
     Method_Block_Driver_Read_Block,
     Method_Block_Driver_Write_Block,
+    Method_File_System_Open,
+    Method_File_System_Open_Dir,
+    Method_File_System_Create,
+    Method_File_System_Rmdir,
+    Method_File_System_Rm,
+    Method_File_System_Mkdir,
+    Method_File_System_Dir_Read_Next,
+    Method_File_System_Close,
+    Method_File_System_Closedir,
+    Method_File_System_Tell,
+    Method_File_System_Stat,
+    Method_File_System_Read,
+    Method_File_System_Seek,
+    Method_File_System_Write,
 };
 
 #define AOS_RPC_NAMESERVER_MAX_NAME_LENGTH 32

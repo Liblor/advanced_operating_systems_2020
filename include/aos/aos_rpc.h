@@ -209,4 +209,9 @@ struct aos_rpc *aos_rpc_get_serial_channel(void);
  */
 struct aos_rpc *aos_rpc_get_block_driver_channel(void);
 
+/**
+ * \brief Returns the channel to the file system server
+ */
+struct aos_rpc *aos_rpc_get_filesystemserver_channel(void);
+
 #endif // _LIB_BARRELFISH_AOS_MESSAGES_H

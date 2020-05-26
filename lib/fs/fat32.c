@@ -428,8 +428,8 @@ static errval_t resolve_path(
 errval_t fat32_opendir(
     void *st,
     const char *path,
-    fat32_handle_t *rethandle)
-{
+    fat32_handle_t *rethandle
+) {
     errval_t err;
     struct fat32_mnt *mnt = st;
     struct fat32_handle *handle;
@@ -1217,8 +1217,8 @@ static errval_t create_data_entry(
 errval_t fat32_create(
     void *st,
     const char *path,
-    fat32_handle_t *rethandle)
-{
+    fat32_handle_t *rethandle
+) {
     return create_data_entry(
         (struct fat32_mnt *)st,
         path,

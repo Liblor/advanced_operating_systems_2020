@@ -14,6 +14,7 @@ __unused static nameservice_chan_t init_channel = NULL;
 __unused static nameservice_chan_t process_channel = NULL;
 __unused static nameservice_chan_t serial_channel = NULL;
 __unused static nameservice_chan_t blockdriver_channel = NULL;
+__unused static nameservice_chan_t filesystem_channel = NULL;
 
 // serial session to read from serial port
 __unused
@@ -1253,11 +1254,18 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void)
 }
 
 
-
 /**
  * \brief Returns the channel to the block driver
  */
 struct aos_rpc *aos_rpc_lmp_get_block_driver_channel(void)
 {
     return get_service_channel(&blockdriver_channel, NAMESERVICE_BLOCKDRIVER);
+}
+
+/**
+ * \brief Returns the channel to the file system server
+ */
+struct aos_rpc *aos_rpc_lmp_get_filesystemserver_channel(void)
+{
+    return get_service_channel(&filesystem_channel, NAMESERVICE_FILESYSTEM);
 }
