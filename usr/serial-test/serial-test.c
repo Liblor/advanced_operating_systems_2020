@@ -233,13 +233,13 @@ int main(int argc, char *argv[])
         printf("Spawning child with pid %d\n", pid);
         return SYS_ERR_OK;
     } else {
-        printf("done\n");
+//        printf("done\n");
 //        debug_printf("done\n");
-//        struct aos_rpc *rpc = aos_rpc_get_process_channel();
-//        char c;
-//        err = aos_rpc_lmp_serial_getchar(rpc, &c);
-//        assert(err_is_ok(err));
-//        printf("you typed: %c in pid:%d on core %d\n", c, my_pid, my_core);
+        struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+        char c;
+        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+        assert(err_is_ok(err));
+        debug_printf("you typed: %c in pid:%d on core %d\n", c, my_pid, my_core);
     }
 #endif
     return EXIT_SUCCESS;

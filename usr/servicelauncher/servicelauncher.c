@@ -43,9 +43,10 @@ int main(int argc, char *argv[])
     // Do not wait for the blockdriver, since it shouldn't
     //nameservice_wait_for(NAMESERVICE_BLOCKDRIVER);
 
+    // call grading here
+
     debug_printf("Spawning shell...\n");
     spawn_service(proc_chan, "aosh");
-
 
     return EXIT_SUCCESS;
 }

@@ -70,9 +70,7 @@ static void do_getchar_usr(
     struct session_entry *curr = serial_server.head;
     struct session_entry *prev = NULL;
 
-//    SERIAL_SERVER_DEBUG("check buffer\n");
     while(curr != NULL) {
-//        SERIAL_SERVER_DEBUG("check session: %d\n", curr->session);
         if (curr->session == req_getchar->session) {
             struct serial_buf_entry* data;
             if (!cbuf_empty(&curr->buf)) {
@@ -81,7 +79,7 @@ static void do_getchar_usr(
                 if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
                 char ret_val = data->val;
 
-                SERIAL_SERVER_DEBUG("reply: %d\n", ret_val);
+//                SERIAL_SERVER_DEBUG("reply: %d\n", ret_val);
                 err = reply_char(resp, req_getchar->session, ret_val, Status_Ok);
                 if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
 
@@ -107,11 +105,11 @@ static void do_getchar_usr(
 
     if (serial_server.active != NULL) {
         if (serial_server.active->session == req_getchar->session) {
-//            SERIAL_SERVER_DEBUG("no data try later\n");
+            // SERIAL_SERVER_DEBUG("no data try later\n");
             err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Nodata);
             if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
         } else {
-            SERIAL_SERVER_DEBUG("serial port busy by someone else\n");
+            // SERIAL_SERVER_DEBUG("serial port busy by someone else\n");
             err = reply_char(resp, req_getchar->session, 0, Serial_Getchar_Occupied);
             if (err_is_fail(err)) { debug_printf("%s\n", err_getstring(err)); return;}
         }

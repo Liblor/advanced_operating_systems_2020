@@ -146,6 +146,8 @@ __unused static void test_serial(void) {
 //    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
 
 //    debug_printf("Press a button to test aos_rpc_lmp_serial_getchar(): ");
+
+    printf("press a button\n");
     char c;
     err = aos_rpc_lmp_serial_getchar(rpc, &c);
     if (err_is_fail(err)) {
