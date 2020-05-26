@@ -161,9 +161,6 @@ errval_t rm(const char *path)
  *
  * @param handle    file handle
  * @param buf       returned data of the filehandle information
- *
- * @returns SYS_ERR_OK on successful removal
- *          FS_ERR_INVALID_FH if the directory is not emtpy
  */
 errval_t fstat(fs_dirhandle_t handle, struct fs_fileinfo *buf)
 {
@@ -175,9 +172,6 @@ errval_t fstat(fs_dirhandle_t handle, struct fs_fileinfo *buf)
  *
  * @param handle    file handle
  * @param buf       returned data of the filehandle information
- *
- * @returns SYS_ERR_OK on successful removal
- *          FS_ERR_NOTFOUND if there is no such path
  */
 errval_t stat(const char *path, struct fs_fileinfo *buf)
 {
