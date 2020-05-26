@@ -132,16 +132,6 @@ __unused static void test_serial(void) {
         return;
     }
 
-    /*
-    // Explicit test not necessary since printf is redirected to rpc during the
-    // execution of this entire program.
-    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
-        return;
-    }
-    */
-
     printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
     printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
 
