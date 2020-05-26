@@ -17,7 +17,7 @@
 #define NAMESERVICE_SERIAL "serverserial"
 #define NAMESERVICE_BLOCKDRIVER "serverblockdriver"
 
-#define NAMESERVICE_PERIODIC_SERVE_EVENT_US 10
+#define NAMESERVICE_PERIODIC_SERVE_EVENT_US 0
 
 typedef struct nameservice_chan* nameservice_chan_t;
 

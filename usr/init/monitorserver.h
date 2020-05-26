@@ -7,7 +7,7 @@
 #include <rpc/server/lmp.h>
 
 
-#define MONITORSERVER_PERIODIC_FORWARD_RESPONSE_EVENT_US 100
+#define MONITORSERVER_PERIODIC_FORWARD_RESPONSE_EVENT_US 0
 
 struct monitorserver_cb_state {
 };

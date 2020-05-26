@@ -81,6 +81,7 @@ static void service_recv_cb(struct rpc_message *msg, void *callback_state, struc
     case Method_Get_Ram_Cap:
         memcpy(&bytes, msg->msg.payload, sizeof(bytes));
         memcpy(&alignment, msg->msg.payload + sizeof(bytes), sizeof(alignment));
+        assert(bytes < MAX_MEM_ALLOC_SIZE);
 
         if (ram_cap_cb != NULL) {
             size_t retbytes;

@@ -23,6 +23,7 @@ void *aos_malloc(size_t nbytes)
 	unsigned nunits;
 	nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
 
+    assert(nbytes < MAX_MEM_ALLOC_SIZE);
 	MALLOC_LOCK;
 	if ((prevp = state->header_freep) == NULL) {	/* no free list yet */
 		state->header_base.s.ptr = state->header_freep = prevp = &state->header_base;

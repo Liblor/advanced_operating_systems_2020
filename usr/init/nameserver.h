@@ -4,7 +4,7 @@
 #include <aos/aos_rpc.h>
 #include <aos/deferred.h>
 
-#define NAMESERVER_PERIODIC_SERVE_EVENT_US 50
+#define NAMESERVER_PERIODIC_SERVE_EVENT_US 0
 
 struct nameserver_state {
     collections_hash_table *service_table;

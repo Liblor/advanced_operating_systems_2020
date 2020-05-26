@@ -94,11 +94,13 @@ __inline static domainid_t get_new_pid(struct processserver_state *server_state)
 
 static errval_t add_to_proc_list(struct processserver_state *server_state, char *name, domainid_t pid)
 {
+    HERE;
     struct process_info *new_process = calloc(1, sizeof(struct process_info));
     if (new_process == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
     size_t name_size = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1;    // strnlen doesn't include '\0'
+    HERE;
     new_process->name = malloc(name_size);
     if (new_process->name == NULL) {
         free(new_process);
@@ -136,6 +138,7 @@ static inline void init_server_state(struct processserver_state *server_state)
  */
 static errval_t get_all_pids(struct processserver_state *server_state, size_t *ret_num_pids, domainid_t **ret_pids)
 {
+    HERE;
     *ret_pids = calloc(1, server_state->num_proc * sizeof(domainid_t));
     if (*ret_pids == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -248,6 +251,7 @@ static errval_t handle_spawn_process(struct processserver_state *server_state, s
     }
 
     const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
+    HERE;
     *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
     if (*ret_msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
@@ -279,12 +283,14 @@ static errval_t handle_process_get_name(struct processserver_state *server_state
     if (err_is_fail(err)) {
         status = Process_Get_Name_Failed;
         payload_length = 0;
+        HERE;
         *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_length);
         if (*ret_msg == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
     } else {
         payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1; // strnlen no \0
+        HERE;
         *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_length);
         if (*ret_msg == NULL) {
             return LIB_ERR_MALLOC_FAIL;
@@ -315,6 +321,7 @@ static errval_t handle_process_info(
     if (found == NULL) {
         PS_DEBUG("pid %d not found\n", pid);
 
+        HERE;
         *ret_msg = calloc(1, sizeof(struct rpc_message));
         if (*ret_msg == NULL) {
             return LIB_ERR_MALLOC_FAIL;
@@ -331,6 +338,7 @@ static errval_t handle_process_info(
         reply.pid = found->pid;
         reply.status = found->status;
 
+        HERE;
         *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_len);
         if (*ret_msg == NULL) {
             return LIB_ERR_MALLOC_FAIL;
@@ -358,7 +366,11 @@ static errval_t handle_process_get_all_pids(struct processserver_state *server_s
     }
     // TODO: pid_count sanitation
     const size_t payload_length = sizeof(struct rpc_message) + sizeof(domainid_t) * pid_count + sizeof(size_t);
+    HERE;
+    debug_printf("pid_count=%llu, payload_length=%llu\n", pid_count, payload_length);
+    // Here payload_length is sometimes negative which leads to an MM_ERR_OUT_OF_MEMORY error
     *ret_msg = malloc(payload_length);
+    HERE;
     if (*ret_msg == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
@@ -372,6 +384,7 @@ static errval_t handle_process_get_all_pids(struct processserver_state *server_s
     (*ret_msg)->msg.method = Method_Process_Get_All_Pids;
     (*ret_msg)->msg.status = status;
 
+    HERE;
     return SYS_ERR_OK;
 }
 
@@ -390,6 +403,7 @@ static errval_t handle_process_sign_exit(
     memcpy(&pid, rpc_msg_part->payload, sizeof(domainid_t));
     *ret_msg = NULL;
 
+    debug_printf("sign_exit for pid %llu\n", pid);
     struct process_info *found = collections_list_find_if(server_state->process_list_head, proc_info_has_pid, &pid);
 
     if (found == NULL) {
@@ -460,6 +474,7 @@ int main(int argc, char *argv[])
 
     debug_printf("Processserver spawned.\n");
 
+    HERE;
     struct processserver_state *ps = calloc(1, sizeof(struct processserver_state));
     init_server_state(ps);
 

@@ -25,5 +25,9 @@ int main(int argc, char *argv[])
         debug_printf("argv[%d]='%s'\n", i, argv[i]);
     }
 
+    for (int i = 0; i < 100; i++) {
+        printf("test\n");
+    }
+
     return EXIT_SUCCESS;
 }

@@ -72,7 +72,7 @@ __unused static void test_process(void) {
 
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
 
-    const uint64_t process_number = 200;
+    const uint64_t process_number = 100;
 
     debug_printf("Testing aos_rpc_process_spawn() (spawning %u processes)...\n", process_number);
 
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
     test_init();
     test_memory();
     test_process();
-    test_serial();
+    //test_serial();
 
     debug_printf("done\n");
 

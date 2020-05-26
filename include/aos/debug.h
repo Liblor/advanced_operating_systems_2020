@@ -27,6 +27,8 @@
 
 __BEGIN_DECLS
 
+#define MAX_MEM_ALLOC_SIZE (10000000)
+
 struct capability;
 errval_t debug_cap_identify(struct capref cap, struct capability *ret);
 errval_t debug_dump_hw_ptables(void *);

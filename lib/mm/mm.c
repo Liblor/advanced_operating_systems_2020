@@ -67,6 +67,7 @@ errval_t mm_alloc_aligned(struct mm *mm, size_t size, size_t alignment, struct c
 
     errval_t err;
 
+    assert(size < MAX_MEM_ALLOC_SIZE);
     if (size == 0)
         return MM_ERR_INVALID_SIZE;
 

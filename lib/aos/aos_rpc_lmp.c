@@ -176,6 +176,8 @@ aos_rpc_lmp_get_ram_cap(struct aos_rpc *rpc, size_t bytes, size_t alignment,
 {
     errval_t err;
 
+    assert(bytes < MAX_MEM_ALLOC_SIZE);
+
     err = slot_alloc(ret_cap);
     if (err_is_fail(err)) {
         return err_push(err, LIB_ERR_SLOT_ALLOC);

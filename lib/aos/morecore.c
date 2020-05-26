@@ -233,6 +233,7 @@ static void *morecore_alloc_dynamic(struct morecore_state *state, size_t bytes, 
  */
 static void *morecore_alloc(size_t bytes, size_t *retbytes)
 {
+    assert(bytes < MAX_MEM_ALLOC_SIZE);
     struct morecore_state *state = get_morecore_state();
     bytes = MAX(bytes, MORECORE_ALLOC_GRANULARITY);
     if (state->heap_static) {
