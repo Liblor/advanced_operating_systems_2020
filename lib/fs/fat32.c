@@ -89,6 +89,12 @@ static inline bool shortname_marked_unused(
     return dir_entry->shortname[0] == 0xe5;
 }
 
+static inline bool is_shortname(
+    struct dir_entry *dir_entry
+) {
+    return 'A' <= dir_entry->shortname[0] && dir_entry->shortname[0] <= 'Z';
+}
+
 static inline size_t shortname8_len(const char *shortname)
 {
     size_t i;
@@ -165,7 +171,6 @@ static bool entry_is_used_not_dot(
         struct dir_entry *dir_entry,
         void *ign
 ) {
-    debug_printf("used? 0x%x\n", dir_entry->shortname[0]);
     return ((! shortname_marked_unused(dir_entry)) && dir_entry->shortname[0] != '.');
 }
 
@@ -491,7 +496,7 @@ errval_t fat32_dir_read_next(
     }
     struct dir_entry *dir_entry = ((struct dir_entry *)buf) + h->dir_offset;
 
-    while (shortname_marked_unused(dir_entry)) {
+    while (!is_shortname(dir_entry)) {
         uint32_t old_offset = h->dir_offset;
         err = next_dir_entry(mnt, h);
         if (err_is_fail(err)) {
@@ -509,6 +514,9 @@ errval_t fat32_dir_read_next(
             }
         }
         dir_entry = ((struct dir_entry *)buf) + h->dir_offset;
+        if (end_of_directory(dir_entry)) {
+            return FS_ERR_INDEX_BOUNDS;
+        }
     }
     if (end_of_directory(dir_entry)) {
         return FS_ERR_INDEX_BOUNDS;

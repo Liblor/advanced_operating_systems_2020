@@ -11,6 +11,7 @@
 #include "nslist.h"
 #include "echo.h"
 #include "ps.h"
+#include "fs_utils.h"
 #include "domain_info.h"
 #include "rpctest.h"
 #include "run_memtest.h"
@@ -33,10 +34,20 @@ struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_run_memtest,     "run_memtest",     "runs memory write/read test"},
         {builtin_nslookup, "nslookup", "lookup a service at the nameserver"},
         {builtin_nslist,   "nslist",   "list services registered at the nameserver"},
+        {builtin_ls,   "ls",   "list directory contents"},
+        {builtin_cat,   "cat",   "concatenate files and print on the standard output"},
+        {builtin_cd,   "cd",   "change directory"},
+        {builtin_pwd,   "pwd",   "print current working directory"},
+        {builtin_rm,   "rm",   "remove file"},
+        {builtin_mkdir,   "mkdir",   "make directory"},
+        {builtin_rmdir,   "rmdir",   "remove directory"},
+        {builtin_touch,   "touch",   "create file"},
         {builtin_exit,     "exit",     "exit shell (ctrl-d)"},
 };
 
 size_t aosh_builtins_len = ARRAY_LENGTH(aosh_builtins);
+
+char *aosh_pwd = MOUNTPOINT;
 
 errval_t builtin_exit(int argc, char **argv)
 {
