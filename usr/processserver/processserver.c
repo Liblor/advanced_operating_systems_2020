@@ -98,7 +98,7 @@ static errval_t add_to_proc_list(struct processserver_state *server_state, char 
     if (new_process == NULL) {
         return LIB_ERR_MALLOC_FAIL;
     }
-    size_t name_size = strlen(name) + 1;    // strlen doesn't include '\0'
+    size_t name_size = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1;    // strnlen doesn't include '\0'
     new_process->name = malloc(name_size);
     if (new_process->name == NULL) {
         free(new_process);
