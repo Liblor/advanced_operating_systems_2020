@@ -15,8 +15,8 @@
 
 static struct serialserver_state serial_server;
 
-#define ENABLE_IQR false
-#define IQR_POLL_INTERVAL_US 10 * 1000
+#define ENABLE_IQR true
+#define IQR_POLL_INTERVAL_US 1000
 
 // Optimization: remove that client need to poll by using nameservice api
 // - there are issues with the IQR handler and the driver
@@ -330,7 +330,7 @@ static errval_t serialserver_init(void)
     serial_server.head = NULL;
     serial_server.active = NULL;
 
-    err = serial_facade_init(&serial_server.serial_facade, SERIAL_FACADE_TARGET_CPU_0, ENABLE_IQR);
+    err = serial_facade_init(&serial_server.serial_facade, get_default_waitset(), SERIAL_FACADE_TARGET_CPU_0, ENABLE_IQR);
     if (err_is_fail(err)) {
         debug_printf("error in shell_init(): %s\n", err_getstring(err));
         return err;
@@ -343,7 +343,9 @@ static errval_t serialserver_init(void)
         return err;
     }
 
+
     if (!ENABLE_IQR) {
+        debug_printf("Enabling polling mode\n");
         struct periodic_event periodic_urpc_ev;
         err = periodic_event_create(&periodic_urpc_ev,
                                     get_default_waitset(),
@@ -352,6 +354,8 @@ static errval_t serialserver_init(void)
         if (err_is_fail(err)) {
             return err;
         }
+    } else {
+        debug_printf("Enabling IRQ mode\n");
     }
 
     return SYS_ERR_OK;
@@ -376,12 +380,11 @@ int main(int argc, char *argv[])
 
     debug_printf("Serialserver registered at nameserver.\n");
     while (1) {
-        // XXX: we need to call event_dispatch otherwise
-        // iqr are not delivered
         err = event_dispatch(get_default_waitset());
         if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
             debug_printf("error occured in serialserver: %s\n", err_getstring(err));
         }
+
         thread_yield();
     }
     return EXIT_SUCCESS;
