@@ -16,7 +16,8 @@
 
 #define AOSH_READLINE_MAX_LEN (512)
 
-#define AOSH_CLI_HEAD (COLOR_RED "aosh " COLOR_BLU ">>> " COLOR_RESET)
+#define AOSH_CLI_HEAD (COLOR_RED "AOSH " COLOR_BLU ">>> " COLOR_RESET)
+void aosh_greet(void);
 
 struct aosh_state {
 };

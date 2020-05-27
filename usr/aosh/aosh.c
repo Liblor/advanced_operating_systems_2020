@@ -326,24 +326,36 @@ static errval_t aosh_read_eval_execute(void)
     return err;
 }
 
+void aosh_greet(void) {
+    printf("................................\n");
+    printf("......._....___..____.._..._....\n");
+    printf("....../ \\  / _ \\/ ___|| |.| |...\n");
+    printf("...../ _ \\| |.| \\___ \\| |.| |...\n");
+    printf("..../ ___ \\ |.| |...) |  _  |...\n");
+    printf(".../_/...\\_\\___/|____/|_|.|_|...\n");
+    printf("................................\n");
+    printf("Welcome to AOSH.................\n");
+    printf("AOSH Operating System Shell.....\n");
+    printf("................................\n\n");
+}
+
 
 int main(
         int argc,
         char *argv[])
 {
     errval_t err;
-
     printf("spawning aosh..." ENDL);
-
     err = aosh_init();
     if (err_is_fail(err)) {
         debug_printf("failed to init aosh. %s", err_getstring(err));
         return EXIT_FAILURE;
     }
-
     assert(err_is_ok(err));
 
-    printf("Welcome to aosh! "ENDL);
+    aosh_greet();
+
+
     do {
         err = aosh_read_eval_execute();
         thread_yield();
