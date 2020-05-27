@@ -283,7 +283,7 @@ int first_main(int argc, char *argv[])
     grading_test_late();
 
 #if 1
-    domainid_t pid = 1337;
+    domainid_t pid = 50;
     struct spawninfo si;
     err = spawn_load_by_name("servicelauncher", &si, &pid);
     if (err_is_fail(err)) {
