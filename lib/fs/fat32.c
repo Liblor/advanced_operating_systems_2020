@@ -92,7 +92,7 @@ static inline bool shortname_marked_unused(
 static inline bool is_shortname(
     struct dir_entry *dir_entry
 ) {
-    return 'A' <= dir_entry->shortname[0] && dir_entry->shortname[0] <= 'Z';
+    return ('A' <= dir_entry->shortname[0] && dir_entry->shortname[0] <= 'Z') || dir_entry->shortname[0] == '.';
 }
 
 static inline size_t shortname8_len(const char *shortname)

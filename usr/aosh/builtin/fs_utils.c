@@ -226,9 +226,7 @@ errval_t builtin_cd(int argc, char **argv)
     }
     closedir(dh);
     free(cwd);
-    debug_printf("new path %s\n", new_path);
     cwd = new_path;
-    debug_printf("cwd %s\n", cwd);
     return SYS_ERR_OK;
 }
 
