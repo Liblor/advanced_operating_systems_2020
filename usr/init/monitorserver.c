@@ -233,6 +233,34 @@ static errval_t serve_localtask_spawn(
             (*answer)->msg.status = status;
             break;
         }
+        case Method_Localtask_Spawn_Buf_Process: {
+            errval_t err;
+            domainid_t pid = *((domainid_t *) recv_msg->msg.payload);
+            uint32_t args_size;
+            memcpy(args_size, recv_msg->msg.payload + sizeof(domainid_t), sizeof(args_size));
+            char args[args_size];
+            memcpy(args, recv_msg->msg.payload + sizeof(domainid_t) + sizeof(args_size), args_size);
+            args[args_size - 1] = '\0';
+            struct spawninfo si;
+            si.module_data = recv_msg->msg.payload + sizeof(domainid_t)
+                              + sizeof(args_size) + args_size;
+
+            enum rpc_message_status status = Status_Ok;
+            err = spawn_load_by_buf(args, &si, &pid);
+            if (err_is_fail(err)) {
+                debug_printf("spawn_cb in local task failed: %s\n", err_getstring(err));
+                status = Spawn_Failed;
+            }
+            *answer = malloc(sizeof(struct rpc_message));
+            if (*answer == NULL) {
+                return LIB_ERR_MALLOC_FAIL;
+            }
+            (*answer)->cap = NULL_CAP;
+            (*answer)->msg.payload_length = 0;
+            (*answer)->msg.method = Method_Localtask_Spawn_Process;
+            (*answer)->msg.status = status;
+            break;
+        }
         default:
             debug_printf("unknown localtask: %d\n", recv_msg->msg.method);
     }

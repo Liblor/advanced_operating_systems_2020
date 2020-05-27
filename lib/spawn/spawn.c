@@ -598,16 +598,6 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
     si->next = NULL;
     si->binary_name = argv[0];
 
-    void *module_data;
-    err = load_module(
-        si,
-        &module_data
-    );
-    if (err_is_fail(err)) {
-        debug_printf("load_module() failed: %s\n", err_getstring(err));
-        return err_push(err, SPAWN_ERR_LOAD);
-    }
-
     struct capref cap_cnode_l1;
     struct capref l0_table_child;
     struct cnoderef taskcn_child;
@@ -643,7 +633,7 @@ errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si, domainid_
 
     err = parse_elf(
         si->module,
-        module_data,
+        si->module_data,
         &as,
         &entry_point_addr,
         &got_section_addr
@@ -739,6 +729,14 @@ errval_t spawn_load_by_name(char *cmd, struct spawninfo * si, domainid_t *pid)
         debug_printf("multiboot_find_module() failed\n");
         return SPAWN_ERR_FIND_MODULE;
     }
+    err = load_module(
+        si,
+        si->module_data
+    );
+    if (err_is_fail(err)) {
+        debug_printf("load_module() failed: %s\n", err_getstring(err));
+        return err_push(err, SPAWN_ERR_LOAD);
+    }
 
     char *opts;
     if (get_static_opts) {
@@ -750,6 +748,48 @@ errval_t spawn_load_by_name(char *cmd, struct spawninfo * si, domainid_t *pid)
     } else {
         opts = cmd;
     }
+
+    int argc;
+    char *buf;
+    char **argv = make_argv(opts, &argc, &buf);
+    if (argv == NULL) {
+        debug_printf("make_argv() failed\n");
+        return SPAWN_ERR_GET_CMDLINE_ARGS;
+    }
+
+    err = spawn_load_argv(argc, argv, si, pid);
+    if (err_is_fail(err)) {
+        debug_printf("spawn_load_argv() failed: %s\n", err_getstring(err));
+        return err_push(err, SPAWN_ERR_LOAD);
+    }
+
+    return SYS_ERR_OK;
+}
+
+
+/**
+ * This is a workaround to spawn processes from the filesystem.
+ * This is introduced because the init process cannot use the nameservice as it runs in the
+ * same dispatcher. That means one can not lookup the filesystemservice which is needed to
+ * read the binary... Now we send the binary if it is from the fs. -Liblor
+ * Binary must be present at si->module_data
+ *
+ * This must be fixed in a productive system!
+ * @param opts
+ * @param si
+ * @param pid
+ * @return
+ */
+errval_t spawn_load_by_buf(
+    char *opts,
+    struct spawninfo * si,
+    domainid_t *pid
+) {
+    // TODO: Return an error instead.
+    assert(si != NULL);
+    assert(pid != NULL);
+
+    errval_t err;
 
     int argc;
     char *buf;
