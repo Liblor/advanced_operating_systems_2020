@@ -137,10 +137,6 @@ inline static void putchar_usr(char c)
 inline static void putstr_usr(const char *str, size_t len)
 {
     errval_t err = SYS_ERR_OK;
-    if (strcmp(str, "test\n") != 0) {
-        debug_printf("would now print not test, but '%s'\n", str);
-    }
-    return;
     for (int i = 0; i < len && err_is_ok(err); i++) {
         // XXX: lpuart requires carriage return and line feed
         // In order to be compatible with linux line feed
