@@ -455,6 +455,8 @@ errval_t nameservice_wait_for_timeout(char *name, int n, delayus_t delay)
         thread_yield();
         c++;
     } while(c < n && err_is_fail(err));
-    free(chan);
+    if (err_is_ok(err)) {
+        free(chan);
+    }
     return err;
 }
