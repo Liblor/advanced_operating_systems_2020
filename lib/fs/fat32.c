@@ -1192,7 +1192,7 @@ static errval_t create_data_entry(
         return FS_ERR_NOTFOUND;
     }
     const char *childname = lastsep + 1;
-    if (! is_valid_name_for_shortname) { return FS_ERR_INVALID_SHORTNAME; }
+    if (! is_valid_name_for_shortname(childname)) { return FS_ERR_INVALID_SHORTNAME; }
 
     size_t pathlen = lastsep - path;
     char pathbuf[pathlen + 1];
