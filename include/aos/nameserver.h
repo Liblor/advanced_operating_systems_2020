@@ -113,6 +113,7 @@ errval_t nameservice_enumerate(char *query, size_t *num, char **result);
 
 
 void nameservice_wait_for(char *name);
+errval_t nameservice_wait_for_timeout(char *name, int n, delayus_t delay);
 
 struct srv_entry *nameservice_get_entry(char *name);
 
