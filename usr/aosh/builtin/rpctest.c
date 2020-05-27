@@ -54,8 +54,8 @@ __unused static void test_process(void)
     for (int i = 0; i < process_number; i++) {
         char *binary_name1 = "dummy";
         domainid_t pid1;
-        // coreid_t core = i % 2;
-        coreid_t core = 0;
+         coreid_t core = i % 2;
+//        coreid_t core = 0;
 
         err = aos_rpc_process_spawn(rpc, binary_name1, core, &pid1);
         if (err_is_fail(err)) {
