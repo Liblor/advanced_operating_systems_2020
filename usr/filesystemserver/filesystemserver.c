@@ -155,7 +155,6 @@ static errval_t handle_path_to_handler(
     err = fs_str_to_handler(server_state->mnt, name, &handle);
     free(name);
     lvaddr_t ptr = (lvaddr_t)handle;
-    debug_printf("handle_to_path %p\n", ptr);
     return success_msg_pointer(msg->msg.method, err, ptr, ret_msg);
 }
 
