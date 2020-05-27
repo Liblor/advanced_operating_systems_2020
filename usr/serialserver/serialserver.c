@@ -19,8 +19,6 @@ static struct serialserver_state serial_server;
 #define IQR_POLL_INTERVAL_US 1000
 
 // Optimization: remove that client need to poll by using nameservice api
-// - there are issues with the IQR handler and the driver
-// sometimes, iqrs get stuck. Try to poll in periodic event instead
 
 static void release_session(void)
 {
