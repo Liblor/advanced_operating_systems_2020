@@ -38,7 +38,7 @@ static inline errval_t errval_msg(
     (*ret_msg)->msg.method = method;
     (*ret_msg)->msg.payload_length = sizeof(errval_t);
     (*ret_msg)->msg.status = Status_Ok;
-    memcpy(*ret_msg, &errno, sizeof(errval_t));
+    memcpy((*ret_msg)->msg.payload, &errno, sizeof(errval_t));
     return SYS_ERR_OK;
 }
 
@@ -54,8 +54,8 @@ static inline errval_t size_t_msg(
     (*ret_msg)->msg.method = method;
     (*ret_msg)->msg.payload_length = sizeof(errval_t) + sizeof(size_t);
     (*ret_msg)->msg.status = Status_Ok;
-    memcpy(*ret_msg, &errno, sizeof(errval_t));
-    memcpy(((char *)*ret_msg + sizeof(errno)), &num, sizeof(num));
+    memcpy((*ret_msg)->msg.payload, &errno, sizeof(errno));
+    memcpy(((char *)(*ret_msg)->msg.payload + sizeof(errno)), &num, sizeof(num));
     return SYS_ERR_OK;
 }
 
@@ -71,8 +71,8 @@ static inline errval_t fsinfo_msg(
     (*ret_msg)->msg.method = method;
     (*ret_msg)->msg.payload_length = sizeof(errval_t) + sizeof(struct fs_fileinfo);
     (*ret_msg)->msg.status = Status_Ok;
-    memcpy(*ret_msg, &errno, sizeof(errval_t));
-    memcpy(((char *)*ret_msg + sizeof(errno)), fsinfo, sizeof(struct fs_fileinfo));
+    memcpy((*ret_msg)->msg.payload, &errno, sizeof(errno));
+    memcpy(((char *)(*ret_msg)->msg.payload + sizeof(errno)), fsinfo, sizeof(struct fs_fileinfo));
     return SYS_ERR_OK;
 }
 
@@ -88,8 +88,8 @@ static inline errval_t success_msg_pointer(
     (*ret_msg)->msg.method = method;
     (*ret_msg)->msg.payload_length = sizeof(errno) + sizeof(pointer);
     (*ret_msg)->msg.status = Status_Ok;
-    memcpy(*ret_msg, &errno, sizeof(errno));
-    memcpy(((char *)*ret_msg + sizeof(errno)), &pointer, sizeof(pointer));
+    memcpy((*ret_msg)->msg.payload, &errno, sizeof(errno));
+    memcpy(((char *)(*ret_msg)->msg.payload + sizeof(errno)), &pointer, sizeof(pointer));
     return SYS_ERR_OK;
 }
 
@@ -106,8 +106,8 @@ static inline errval_t buf_msg(
     (*ret_msg)->msg.method = method;
     (*ret_msg)->msg.payload_length = sizeof(errno) + buf_size;
     (*ret_msg)->msg.status = Status_Ok;
-    memcpy(*ret_msg, &errno, sizeof(errno));
-    memcpy(((char *)*ret_msg + sizeof(errno)), buf, buf_size);
+    memcpy((*ret_msg)->msg.payload, &errno, sizeof(errno));
+    memcpy(((char *)(*ret_msg)->msg.payload + sizeof(errno)), buf, buf_size);
     return SYS_ERR_OK;
 }
 
@@ -153,9 +153,8 @@ static errval_t handle_path_to_handler(
 
     fat32_handle_t handle;
     err = fs_str_to_handler(server_state->mnt, name, &handle);
-    lvaddr_t ptr = (lvaddr_t)handle;
-
     free(name);
+    lvaddr_t ptr = (lvaddr_t)handle;
     return success_msg_pointer(msg->msg.method, err, ptr, ret_msg);
 }
 
@@ -208,9 +207,11 @@ static errval_t handle_dir_read_next(
     char *name;
     err = fat32_dir_read_next(server_state->mnt, handle, &name, NULL);
     size_t name_size = strlen(name) + 1;
-    err = buf_msg(msg->msg.method, err, name, name_size, ret_msg);
-    free(name);
-    return err;
+    errval_t ret_err = buf_msg(msg->msg.method, err, name, name_size, ret_msg);
+    if (err_is_ok(err)) {
+        free(name);
+    }
+    return ret_err;
 }
 
 static errval_t handle_tell(
@@ -319,6 +320,7 @@ static void ns_service_handler(
             err = handle_path_to_handler(st, msg, fat32_open, &resp_msg);
             break;
         case Method_File_System_Open_Dir:
+            HERE;
             err = handle_path_to_handler(st, msg, fat32_opendir, &resp_msg);
             break;
         case Method_File_System_Create:
