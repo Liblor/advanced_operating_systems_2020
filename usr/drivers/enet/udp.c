@@ -10,7 +10,10 @@ static void udp_release_binding(
     void *binding
 )
 {
+#if ENET_UDP_DEBUG_OPTION
     struct udp_binding *b = binding;
+#endif
+
     ENET_UDP_DEBUG("Freeing binding for port %d\n", b->port);
 
     free(binding);
