@@ -13,6 +13,8 @@
 #define PS_DEBUG(x...) ((void)0)
 #endif
 
+static bool fs_initialized = false;
+
 struct process_info {
     char *name;
     domainid_t pid;
@@ -92,25 +94,53 @@ static errval_t processserver_send_spawn_local(
     return SYS_ERR_OK;
 }
 
+static void set_payload_message(
+    struct rpc_message *msg,
+    const void *buf,
+    size_t size,
+    size_t offset
+) {
+    assert(size + offset <= msg->msg.payload_length);
+    memcpy((char *)msg->msg.payload + offset, buf, size);
+}
 
-static errval_t processserver_send_buf_spawn_local(
-    struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t pid)
-{
+static errval_t processserver_send_spawn_buf_local(
+    struct processserver_state *server_state,
+    char *cmd,
+    char *bin,
+    size_t bin_size,
+    coreid_t coreid,
+    domainid_t pid
+) {
     errval_t err;
+    /**
+     * Payload:
+     *
+     * 0          4          8          8 + cmd_size       payload_length
+     * +----------+----------+--------------+-------------------+
+     * |   pid    | cmd_size |     cmd      |       binary      |
+     * +----------+----------+--------------+-------------------+
+     */
 
-    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1,
-                                 RPC_LMP_MAX_STR_LEN - sizeof(domainid_t)); // no \0 in strlen
+    const uint32_t cmd_size = strnlen(cmd, RPC_LMP_MAX_STR_LEN) + 1;
 
-    uint8_t send_buf[sizeof(struct rpc_message) + str_len + sizeof(domainid_t)];
-    struct rpc_message *req = (struct rpc_message *) &send_buf;
+    size_t payload_length = sizeof(pid) + sizeof(cmd_size) + cmd_size + bin_size;
+    uint8_t *send_buf = calloc(payload_length, 1);
+    if (send_buf == NULL) { return LIB_ERR_MALLOC_FAIL; }
+    struct rpc_message *req = (struct rpc_message *) send_buf;
+    HERE;
 
     req->msg.method = Method_Localtask_Spawn_Buf_Process;
     req->msg.status = Status_Ok;
     req->cap = NULL_CAP;
-    req->msg.payload_length = str_len + sizeof(domainid_t);
+    req->msg.payload_length = payload_length;
 
-    memcpy(req->msg.payload, &pid, sizeof(domainid_t));
-    strlcpy(req->msg.payload + sizeof(domainid_t), name, str_len);
+    set_payload_message(req, &pid, sizeof(pid), 0);
+    set_payload_message(req, &cmd_size, sizeof(cmd_size), sizeof(pid));
+    set_payload_message(req, cmd, cmd_size,
+                        sizeof(pid) + sizeof(cmd_size));
+    set_payload_message(req, bin, bin_size,
+                        sizeof(pid) + sizeof(cmd_size) + cmd_size);
 
     nameservice_chan_t monitor_chan = get_monitor_chan(server_state, coreid);
     if (monitor_chan == NULL) {
@@ -121,6 +151,7 @@ static errval_t processserver_send_buf_spawn_local(
     struct rpc_message *resp = NULL;
     size_t resp_len;
 
+    HERE;
     // Send local task request to monitor on the core where the process should start.
     err = nameservice_rpc(monitor_chan, req, sizeof(send_buf), (void **) &resp, &resp_len, NULL_CAP,
                           NULL_CAP);
@@ -237,13 +268,14 @@ get_name_by_pid(struct processserver_state *server_state, domainid_t pid, char *
     return SYS_ERR_OK;
 }
 
+// XXX: turned out a bit hacky due to ns limitation
 static errval_t spawn_cb(
-        struct processserver_state *processserver_state, char *name, coreid_t coreid,
+        struct processserver_state *processserver_state, char *cmd, coreid_t coreid,
         domainid_t *ret_pid)
 {
     errval_t err;
 
-    grading_rpc_handler_process_spawn(name, coreid);
+    grading_rpc_handler_process_spawn(cmd, coreid);
 
     // TODO: Also store coreid
     domainid_t new_pid = get_new_pid(processserver_state);
@@ -253,46 +285,62 @@ static errval_t spawn_cb(
     // reason: legacy, spawn_load_by_name does not set pid itself, so
     // add_to_proc_list implemented the behavior
 
-    err = processserver_send_spawn_local(processserver_state, name, coreid, new_pid);
-    if (err_is_fail(err)) {
-        debug_printf("spawn_load_by_name(): %s\n", err_getstring(err));
-        return err;
+    err = processserver_send_spawn_local(processserver_state, cmd, coreid, new_pid);
+    if (err_is_fail(err)) {     // sorry for ugly code
+        if (! fs_initialized) {
+            fs_initialized = true;
+            err = filesystem_init();
+            if (err_is_fail(err)) {
+                return err;
+            }
+        }
+        HERE;
+        // Try querying file system
+        char *ptr = strchrnul(cmd, ' ');
+        uint64_t binary_name_len = ptr - cmd;
+        char binary_name[binary_name_len + 1];
+        memcpy(binary_name, cmd, binary_name_len);
+        binary_name[binary_name_len] = '\0';
+
+        HERE;
+        FILE *f = fopen(binary_name, "r");
+        if (f == NULL) {
+            debug_printf("spawn_load_by_name(): %s\n", err_getstring(err));
+            return ERR_INVALID_ARGS;
+        }
+        HERE;
+        fseek(f , 0, SEEK_END);
+        size_t filesize = ftell(f);
+        rewind(f);
+        HERE;
+        char *bin = calloc(filesize, 1);
+        if (bin == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        HERE;
+        size_t bytes_read = fread(bin, filesize, 1, f);
+        if (bytes_read < filesize) {
+            debug_printf("Couldn't read whole file\n");
+            return ERR_INVALID_ARGS;    // TODO: dedicated error code
+        }
+        fclose(f);
+        HERE;
+
+        err = processserver_send_spawn_buf_local(
+            processserver_state,
+            cmd,
+            bin,
+            filesize,
+            coreid,
+            new_pid
+        );
+        free(bin);
+        if (err_is_fail(err)) {
+            return err;
+        }
     }
 
-    err = add_to_proc_list(processserver_state, name, new_pid);
-    if (err_is_fail(err)) {
-        debug_printf("add_to_proc_list(): %s\n", err_getstring(err));
-        return err;
-    }
-
-    *ret_pid = new_pid;
-
-    return SYS_ERR_OK;
-}
-
-static errval_t spawn_buf_cb(
-    struct processserver_state *processserver_state, char *name, coreid_t coreid,
-    domainid_t *ret_pid)
-{
-    errval_t err;
-
-    grading_rpc_handler_process_spawn(name, coreid);
-
-    // TODO: Also store coreid
-    domainid_t new_pid = get_new_pid(processserver_state);
-
-    // XXX: we currently use add_to_proc_list to get a ret_pid
-    // and ignore the ret_pid set by urpc_send_spawn_request or spawn_load_by_name
-    // reason: legacy, spawn_load_by_name does not set pid itself, so
-    // add_to_proc_list implemented the behavior
-
-    err = processserver_send_spawn_local(processserver_state, name, coreid, new_pid);
-    if (err_is_fail(err)) {
-        debug_printf("spawn_load_by_name(): %s\n", err_getstring(err));
-        return err;
-    }
-
-    err = add_to_proc_list(processserver_state, name, new_pid);
+    err = add_to_proc_list(processserver_state, cmd, new_pid);
     if (err_is_fail(err)) {
         debug_printf("add_to_proc_list(): %s\n", err_getstring(err));
         return err;
@@ -354,42 +402,6 @@ static errval_t handle_spawn_process(
     (*ret_msg)->cap = NULL_CAP;
     (*ret_msg)->msg.payload_length = payload_length;
     (*ret_msg)->msg.method = Method_Spawn_Process;
-    (*ret_msg)->msg.status = status;
-    pid_array->pid_count = 1;
-    pid_array->pids[0] = pid;
-
-    return SYS_ERR_OK;
-}
-
-inline
-static errval_t handle_spawn_buf_process(
-    struct processserver_state *server_state,
-    struct rpc_message_part *rpc_msg_part,
-    struct rpc_message **ret_msg)
-{
-    errval_t err;
-    char *name = rpc_msg_part->payload + sizeof(coreid_t);
-    coreid_t core = *((coreid_t *) rpc_msg_part->payload);
-    domainid_t pid = 0;
-    enum rpc_message_status status = Status_Ok;
-
-
-    err = spawn_cb(server_state, name, core, &pid);
-    if (err_is_fail(err)) {
-        debug_printf("spawn_cb(): %s\n", err_getstring(err));
-        status = Spawn_Failed;
-    }
-
-    const size_t payload_length = sizeof(struct process_pid_array) + sizeof(domainid_t);
-    *ret_msg = malloc(sizeof(struct rpc_message) + payload_length);
-    if (*ret_msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-
-    struct process_pid_array *pid_array = (struct process_pid_array *) &(*ret_msg)->msg.payload;
-    (*ret_msg)->cap = NULL_CAP;
-    (*ret_msg)->msg.payload_length = payload_length;
-    (*ret_msg)->msg.method = Method_Spawn_Buf_Process;
     (*ret_msg)->msg.status = status;
     pid_array->pid_count = 1;
     pid_array->pids[0] = pid;
@@ -551,9 +563,6 @@ static errval_t handle_complete_msg(
     switch (rpc_msg_part->method) {
         case Method_Spawn_Process: {
             return handle_spawn_process(server_state, rpc_msg_part, ret_msg);
-        }
-        case Method_Spawn_Buf_Process: {
-            return handle_spawn_buf_process(server_state, rpc_msg_part, ret_msg);
         }
         case Method_Process_Get_Name: {
             return handle_process_get_name(server_state, rpc_msg_part, ret_msg);

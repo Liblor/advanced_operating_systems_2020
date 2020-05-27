@@ -237,7 +237,7 @@ static errval_t serve_localtask_spawn(
             errval_t err;
             domainid_t pid = *((domainid_t *) recv_msg->msg.payload);
             uint32_t args_size;
-            memcpy(args_size, recv_msg->msg.payload + sizeof(domainid_t), sizeof(args_size));
+            memcpy(&args_size, recv_msg->msg.payload + sizeof(domainid_t), sizeof(args_size));
             char args[args_size];
             memcpy(args, recv_msg->msg.payload + sizeof(domainid_t) + sizeof(args_size), args_size);
             args[args_size - 1] = '\0';
@@ -257,7 +257,7 @@ static errval_t serve_localtask_spawn(
             }
             (*answer)->cap = NULL_CAP;
             (*answer)->msg.payload_length = 0;
-            (*answer)->msg.method = Method_Localtask_Spawn_Process;
+            (*answer)->msg.method = recv_msg->msg.method;
             (*answer)->msg.status = status;
             break;
         }

@@ -731,7 +731,7 @@ errval_t spawn_load_by_name(char *cmd, struct spawninfo * si, domainid_t *pid)
     }
     err = load_module(
         si,
-        si->module_data
+        &si->module_data
     );
     if (err_is_fail(err)) {
         debug_printf("load_module() failed: %s\n", err_getstring(err));
