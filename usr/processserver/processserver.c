@@ -127,7 +127,7 @@ static inline void init_server_state(struct processserver_state *server_state)
     collections_list_create(&server_state->process_list_head, NULL);
 
     server_state->num_proc = 0;
-    server_state->new_pid = 100;
+    server_state->new_pid = PID_PROCESS_START_PID_ISSUE;
 
     add_to_proc_list(server_state, "init0", PID_INIT_CORE0);
     add_to_proc_list(server_state, "init1", PID_INIT_CORE1);
