@@ -9,7 +9,7 @@
 
 #include "udp.h"
 
-#define ENET_UDP_DEBUG_OPTION 1
+#define ENET_UDP_DEBUG_OPTION 0
 
 #if ENET_UDP_DEBUG_OPTION
 #define ENET_UDP_DEBUG(x...) debug_printf("[enet/udp] " x);

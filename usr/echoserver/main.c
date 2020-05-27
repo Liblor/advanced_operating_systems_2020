@@ -16,8 +16,6 @@ static void callback(
 {
     errval_t err;
 
-    debug_printf("echo: %s", (char *) payload);
-
     err = networking_udp_send(
         get_current_networking_state(),
         payload,
@@ -29,6 +27,8 @@ static void callback(
     if (err_is_fail(err)) {
         debug_printf("networking_udp_send() failed: %s\n", err_getstring(err));
     }
+
+    debug_printf("echo: %s", (char *) payload);
 }
 
 int main(int argc, char *argv[])

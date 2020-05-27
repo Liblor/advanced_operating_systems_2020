@@ -217,6 +217,7 @@ int main(int argc, char *argv[])
             DEBUG_ERR(err, "in event_dispatch");
             abort();
         }
+        thread_yield();
     }
     return SYS_ERR_OK;
 }
