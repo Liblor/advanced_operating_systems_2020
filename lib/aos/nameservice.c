@@ -436,13 +436,25 @@ errval_t nameservice_enumerate(char *query, size_t *num, char **result)
 void nameservice_wait_for(char *name)
 {
     errval_t err;
-
     nameservice_chan_t chan;
-
     do {
         err = nameservice_lookup(name, &chan);
         thread_yield();
     } while(err_is_fail(err));
-
     free(chan);
+}
+
+errval_t nameservice_wait_for_timeout(char *name, int n, delayus_t delay)
+{
+    errval_t err;
+    nameservice_chan_t chan;
+    int c = 0;
+    do {
+        err = nameservice_lookup(name, &chan);
+        barrelfish_usleep(delay);
+        thread_yield();
+        c++;
+    } while(c < n && err_is_fail(err));
+    free(chan);
+    return err;
 }

@@ -3,6 +3,7 @@
 
 #include <aos/aos.h>
 #include <aos/aos_rpc_types.h>
+#include <fs/fs.h>
 
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 
@@ -132,6 +133,40 @@ errval_t aos_rpc_lmp_block_driver_write_block(
         size_t block_size
 );
 
+
+
+errval_t aos_rpc_lmp_fs_opendir(struct aos_rpc *rpc, const char *path, lvaddr_t *handle);
+errval_t aos_rpc_lmp_fs_open(struct aos_rpc *rpc, const char *name, lvaddr_t *handle);
+errval_t aos_rpc_lmp_fs_create(struct aos_rpc *rpc, const char *name, lvaddr_t *handle);
+errval_t aos_rpc_lmp_fs_rm(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_lmp_fs_rmdir(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_lmp_fs_mkdir(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_lmp_fs_closedir(struct aos_rpc *rpc, lvaddr_t handle);
+errval_t aos_rpc_lmp_fs_close(struct aos_rpc *rpc, lvaddr_t handle);
+errval_t aos_rpc_lmp_fs_tell(struct aos_rpc *rpc, lvaddr_t handle, size_t *ret_pos);
+errval_t aos_rpc_lmp_fs_stat(struct aos_rpc *rpc, lvaddr_t handle, struct fs_fileinfo *fsinfo);
+errval_t aos_rpc_lmp_fs_read(
+    struct aos_rpc *rpc,
+    lvaddr_t handle,
+    void *buf,
+    size_t bytes,
+    size_t *ret_bytes
+);
+errval_t aos_rpc_lmp_fs_read_dir_next(struct aos_rpc *rpc, lvaddr_t handle, char **name);
+errval_t aos_rpc_lmp_fs_seek(
+    struct aos_rpc *rpc,
+    lvaddr_t handle,
+    enum fs_seekpos whence,
+    off_t offset
+);
+errval_t aos_rpc_lmp_fs_write(
+    struct aos_rpc *rpc,
+    lvaddr_t handle,
+    char *buf,
+    size_t size,
+    size_t *written
+);
+
 /**
  * \brief Request a device cap for the given region.
  * @param chan  the rpc channel
@@ -190,5 +225,10 @@ struct aos_rpc *aos_rpc_lmp_get_serial_channel(void);
  * \brief Returns the channel to the block driver
  */
 struct aos_rpc *aos_rpc_lmp_get_block_driver_channel(void);
+
+/**
+ * \brief Returns the channel to the file system server
+ */
+struct aos_rpc *aos_rpc_lmp_get_filesystemserver_channel(void);
 
 #endif // _LIB_BARRELFISH_AOS_LMP_H

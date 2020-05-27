@@ -92,7 +92,37 @@ static inline bool shortname_marked_unused(
 static inline bool is_shortname(
     struct dir_entry *dir_entry
 ) {
-    return 'A' <= dir_entry->shortname[0] && dir_entry->shortname[0] <= 'Z';
+    return ('A' <= dir_entry->shortname[0] && dir_entry->shortname[0] <= 'Z') || dir_entry->shortname[0] == '.';
+}
+
+static inline bool isalphanum_str(const char *str, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        if (! isalnum(str[i])) { return false; }
+    }
+    return true;
+}
+
+static bool is_valid_name_for_shortname(
+    const char *name
+) {
+    size_t name_len = strnlen(name, 13);
+    if (name_len > 12) { return false; }
+    if (name_len == 0) { return false; }
+    if (name[0] == '.') { return false; }
+    char *dot = strrchr(name, '.');
+    if (dot == NULL) {
+        if (name_len > 8) { return false; }
+        if (! isalphanum_str(name, name_len)) { return false; }
+    } else {
+        size_t len8 = dot - name;
+        dot++;
+        size_t len3 = strnlen(dot, 5);
+        if (len8 > 8) { return false; }
+        if (len3 > 3) { return false; }
+        if (! isalphanum_str(name, len8)) { return false; }
+        if (! isalphanum_str(dot, len3)) { return false; }
+    }
+    return true;
 }
 
 static inline size_t shortname8_len(const char *shortname)
@@ -433,8 +463,8 @@ static errval_t resolve_path(
 errval_t fat32_opendir(
     void *st,
     const char *path,
-    fat32_handle_t *rethandle)
-{
+    fat32_handle_t *rethandle
+) {
     errval_t err;
     struct fat32_mnt *mnt = st;
     struct fat32_handle *handle;
@@ -1162,6 +1192,8 @@ static errval_t create_data_entry(
         return FS_ERR_NOTFOUND;
     }
     const char *childname = lastsep + 1;
+    if (! is_valid_name_for_shortname(childname)) { return FS_ERR_INVALID_SHORTNAME; }
+
     size_t pathlen = lastsep - path;
     char pathbuf[pathlen + 1];
     memcpy(pathbuf, path, pathlen);
@@ -1176,8 +1208,6 @@ static errval_t create_data_entry(
         err = FS_ERR_NOTDIR; // parent is not a directory
         goto cleanup;
     }
-
-    // TODO Validate name
 
     struct fat32_dirent dirent;
     err = get_free_dir_entry(mnt, parent, &dirent);
@@ -1225,8 +1255,8 @@ static errval_t create_data_entry(
 errval_t fat32_create(
     void *st,
     const char *path,
-    fat32_handle_t *rethandle)
-{
+    fat32_handle_t *rethandle
+) {
     return create_data_entry(
         (struct fat32_mnt *)st,
         path,
@@ -1326,7 +1356,6 @@ errval_t fat32_write(
     struct fat32_mnt *mnt = st;
     struct fat32_handle *h = handle;
     errval_t err;
-
     if (h->isdir) {
         return FS_ERR_NOTFILE;
     }

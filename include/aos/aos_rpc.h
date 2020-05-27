@@ -19,9 +19,13 @@
 #include <aos/aos_rpc_types.h>
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_ump.h>
+#include <fs/fs.h>
 
 // How often a transient error can occur before it's regarded critical.
 #define TRANSIENT_ERR_RETRIES (1000)
+
+// FS type
+typedef void *file_handle_t;
 
 // how long to sleep thread and give away execution time until resume on transient error
 #define TRANSIENT_ERR_SLEEP_US (1000)
@@ -167,6 +171,33 @@ errval_t aos_rpc_block_driver_write_block(struct aos_rpc *rpc,
                                           void *buf,
                                           size_t block_size);
 
+errval_t aos_rpc_fs_opendir(struct aos_rpc *rpc, const char *path, file_handle_t *handle);
+errval_t aos_rpc_fs_open(struct aos_rpc *rpc, const char *name, file_handle_t *handle);
+errval_t aos_rpc_fs_create(struct aos_rpc *rpc, const char *name, file_handle_t *handle);
+errval_t aos_rpc_fs_rm(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_fs_rmdir(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_fs_mkdir(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_fs_closedir(struct aos_rpc *rpc, file_handle_t handle);
+errval_t aos_rpc_fs_close(struct aos_rpc *rpc, file_handle_t handle);
+errval_t aos_rpc_fs_tell(struct aos_rpc *rpc, file_handle_t handle, size_t *ret_pos);
+errval_t aos_rpc_fs_stat(struct aos_rpc *rpc, file_handle_t handle, struct fs_fileinfo *fsinfo);
+errval_t aos_rpc_fs_read(struct aos_rpc *rpc, file_handle_t handle, void *buf, size_t bytes, size_t *ret_bytes);
+errval_t aos_rpc_fs_read_dir_next(struct aos_rpc *rpc, file_handle_t handle, char **name);
+errval_t aos_rpc_fs_seek(
+    struct aos_rpc *rpc,
+    file_handle_t handler,
+    enum fs_seekpos whence,
+    off_t offset
+);
+errval_t aos_rpc_fs_write(
+    struct aos_rpc *rpc,
+    file_handle_t handler,
+    char *buf,
+    size_t size,
+    size_t *written
+);
+
+
 /**
  * \brief Request a device cap for the given region.
  * @param chan  the rpc channel
@@ -208,5 +239,10 @@ struct aos_rpc *aos_rpc_get_serial_channel(void);
  * \brief Returns the channel to the block driver
  */
 struct aos_rpc *aos_rpc_get_block_driver_channel(void);
+
+/**
+ * \brief Returns the channel to the file system server
+ */
+struct aos_rpc *aos_rpc_get_filesystemserver_channel(void);
 
 #endif // _LIB_BARRELFISH_AOS_MESSAGES_H

@@ -16,6 +16,7 @@
 #define NAMESERVICE_MONITOR "servermonitor"
 #define NAMESERVICE_SERIAL "serverserial"
 #define NAMESERVICE_BLOCKDRIVER "serverblockdriver"
+#define NAMESERVICE_FILESYSTEM "serverfilesystem"
 
 #define NAMESERVICE_PERIODIC_SERVE_EVENT_US 10
 
@@ -112,6 +113,7 @@ errval_t nameservice_enumerate(char *query, size_t *num, char **result);
 
 
 void nameservice_wait_for(char *name);
+errval_t nameservice_wait_for_timeout(char *name, int n, delayus_t delay);
 
 struct srv_entry *nameservice_get_entry(char *name);
 
