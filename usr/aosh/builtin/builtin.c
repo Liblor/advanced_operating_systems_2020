@@ -60,6 +60,7 @@ errval_t builtin_clear(int argc, char **argv)
 {
     printf("\e[1;1H\e[2J");
     fflush(stdout);
+    aosh_greet();
     return SYS_ERR_OK;
 }
 
@@ -67,10 +68,10 @@ errval_t builtin_help(int argc, char **argv)
 {
     printf("list of commands:" ENDL);
     for (int i = 0; i < ARRAY_LENGTH(aosh_builtins); i++) {
-        char buf[20];
+        char buf[15];
         memset(buf, '.', sizeof(buf));
-        strncpy(buf, aosh_builtins[i].name, strnlen(aosh_builtins[i].name, 100));
-        printf("> "COLOR_RED"%s" COLOR_RESET": %s" ENDL, buf, aosh_builtins[i].help);
+        strncpy(buf, aosh_builtins[i].name, strnlen(aosh_builtins[i].name, sizeof(buf)));
+        printf("> \033[0;37m%s" COLOR_RESET": %s" ENDL, buf, aosh_builtins[i].help);
     }
     return SYS_ERR_OK;
 }

@@ -1,0 +1,7 @@
+[
+    build application {
+        target = "udpsender",
+        cFiles = [ "main.c" ],
+        architectures = allArchitectures
+    }
+]

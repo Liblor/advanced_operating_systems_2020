@@ -12,7 +12,7 @@ errval_t serial_facade_poll_read(struct serial_facade *s, char *ret_c) {
     return lpuart_getchar(s->lpuart3_state, ret_c);
 }
 
-static void lpuart_iqr_handler(void *arg)
+static void lpuart_irq_handler(void *arg)
 {
     errval_t err;
     assert(arg != NULL);
@@ -24,7 +24,7 @@ static void lpuart_iqr_handler(void *arg)
         err = lpuart_getchar(state->lpuart3_state, &ret);
         if (err_is_ok(err)) {
 
-#ifdef SERIAL_FACADE_TRACE_IQR_ON
+#ifdef SERIAL_FACADE_TRACE_IRQ_ON
             lpuart_putchar(state->lpuart3_state, ret);
 #endif
             if (state->read_cb != NULL) {
@@ -36,7 +36,7 @@ static void lpuart_iqr_handler(void *arg)
     }
 }
 
-inline static errval_t register_iqr(struct serial_facade *serial_state) {
+inline static errval_t register_irq(struct serial_facade *serial_state) {
     errval_t err;
     void *gic_base;
     struct capref gic_cap;
@@ -63,7 +63,7 @@ inline static errval_t register_iqr(struct serial_facade *serial_state) {
 
     err = inthandler_setup(serial_state->irq_dest_cap,
                            serial_state->ws,
-                           MKCLOSURE(lpuart_iqr_handler, serial_state));
+                           MKCLOSURE(lpuart_irq_handler, serial_state));
     if (err_is_fail(err)) { return err; }
 
     err = gic_dist_enable_interrupt(serial_state->gic_dist_state,
@@ -80,7 +80,7 @@ inline static errval_t register_iqr(struct serial_facade *serial_state) {
         return err;
     }
 
-    SERIAL_FACADE_DEBUG("lpuart3 fully initialized and iqr handler registered\n");
+    SERIAL_FACADE_DEBUG("lpuart3 fully initialized and irq handler registered\n");
 
     return SYS_ERR_OK;
 }
@@ -111,8 +111,8 @@ inline static errval_t setup_lpuart_irq(struct serial_facade *serial_state)
     }
     SERIAL_FACADE_DEBUG("initialized lpuart3\n");
 
-    if (serial_state->enable_iqr) {
-        err = register_iqr(serial_state);
+    if (serial_state->enable_irq) {
+        err = register_irq(serial_state);
         if (err_is_fail(err)) {
             return err;
         }
@@ -154,16 +154,16 @@ errval_t serial_facade_write_str(
 errval_t serial_facade_init(
         struct serial_facade *state,
         struct waitset *ws,
-        uint8_t target_cpu, bool enable_iqr)
+        uint8_t target_cpu, bool enable_irq)
 {
     errval_t err;
     memset(state, 0, sizeof(struct serial_facade));
     state->target_cpu = target_cpu;
-    state->enable_iqr = enable_iqr;
+    state->enable_irq = enable_irq;
     state->ws = ws;
     err = setup_lpuart_irq(state);
     if (err_is_fail(err)) {
-        debug_printf("failed to setup lpuart for iqrs:  %s\n", err_getstring(err));
+        debug_printf("failed to setup lpuart for irqs:  %s\n", err_getstring(err));
         return err;
     }
     return SYS_ERR_OK;

@@ -4,7 +4,7 @@
 #include <aos/aos.h>
 #include <netutil/ip.h>
 
-#define ENET_ARP_DEBUG_OPTION 1
+#define ENET_ARP_DEBUG_OPTION 0
 
 #if ENET_ARP_DEBUG_OPTION
 #define ENET_ARP_DEBUG(x...) debug_printf("[enet/arp] " x);

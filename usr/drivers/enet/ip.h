@@ -7,7 +7,7 @@
 #include "icmp.h"
 #include "udp.h"
 
-#define ENET_IP_DEBUG_OPTION 1
+#define ENET_IP_DEBUG_OPTION 0
 
 #if ENET_IP_DEBUG_OPTION
 #define ENET_IP_DEBUG(x...) debug_printf("[enet/ip] " x);

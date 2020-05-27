@@ -158,7 +158,6 @@ static int fs_libc_read(int fd, void *buf, size_t len)
         assert(e->handle);
         err = aos_rpc_fs_read(mount, fh, buf, len, &retlen);
         if (err_is_fail(err)) {
-            HERE;
             return -1;
         }
     }
@@ -172,8 +171,6 @@ static int fs_libc_read(int fd, void *buf, size_t len)
 
 static int fs_libc_write(int fd, void *buf, size_t len)
 {
-    HERE;
-    debug_printf("len%u\n", len);
     struct fdtab_entry *e = fdtab_get(fd);
     if (e->type == FDTAB_TYPE_AVAILABLE) {
         return -1;
