@@ -946,7 +946,6 @@ static errval_t allocate_clusters(
     uint32_t *ret_nr_allocated,
     uint32_t *ret_first_cluster_nr
 ) {
-    debug_printf("num of clus%u\n", number_of_clusters);
     errval_t err;
     uint32_t last_allocated_cluster_nr = FAT32_EndCluster;
     uint32_t counter = 0;
@@ -955,18 +954,15 @@ static errval_t allocate_clusters(
     uint32_t fat_cutout[FAT32_FatEntriesPerSector];
 
     do {
-        HERE;
         err = aos_rpc_block_driver_read_block(
             aos_rpc_get_block_driver_channel(),
             mnt->fat_lba + current_sector,
             fat_cutout,
             BLOCK_SIZE
         );
-        HERE;
         if (err_is_fail(err)) {
             return err;
         }
-        HERE;
         for (
             int i = (current_sector != 0 ? 0 : 2);      // first two entries are reserved!
             i < FAT32_FatEntriesPerSector && counter < number_of_clusters;
@@ -981,25 +977,20 @@ static errval_t allocate_clusters(
                     return err;
                 }
             }
-            HERE;
             counter++;
         }
-        HERE;
         err = write_fatcutout(mnt, fat_cutout, mnt->fat_lba + current_sector);
         if (err_is_fail(err)) {
             return err;
         }
-        HERE;
         current_sector++;
         if (current_sector >= mnt->sectors_per_fat) {
             current_sector = 0;
         }
     } while(current_sector != start_sector && counter < number_of_clusters);
-    HERE;
     if (err_is_fail(err)) {
         return err;
     }
-    HERE;
     if (ret_nr_allocated) {
         *ret_nr_allocated = counter;
     }
@@ -1017,14 +1008,12 @@ static errval_t extend_cluster_chain(
     bool zero_out,
     uint32_t *ret_n
 ) {
-    HERE;
     errval_t err;
     uint32_t free_cluster_start_nr;
     err = allocate_clusters(mnt, n, zero_out, ret_n, &free_cluster_start_nr);
     if (err_is_fail(err)) {
         return err;
     }
-    HERE;
     uint32_t sector_rel_to_fat = cluster_nr / FAT32_FatEntriesPerSector;
     uint32_t fat_cutout[FAT32_FatEntriesPerSector];
     err = aos_rpc_block_driver_read_block(
@@ -1043,7 +1032,6 @@ static errval_t extend_cluster_chain(
     if (err_is_fail(err)) {
         return err;
     }
-    HERE;
     return SYS_ERR_OK;
 }
 
@@ -1306,20 +1294,16 @@ static errval_t calculate_additional_cluster_required(
     uint32_t *ret_n_clusters_required,
     uint32_t *ret_last_cluster
 ) {
-    HERE;
     errval_t err;
-    debug_printf("new end %u\n", new_end);
     const uint32_t bytes_per_cluster = BLOCK_SIZE * mnt->sectors_per_cluster;
     uint32_t n_clusters_required;
     uint32_t n_clusters;
     uint32_t last_cluster;
 
-    HERE;
     err = travers_fat(mnt, get_first_cluster_nr(&h->dirent.dir_entry), &n_clusters, &last_cluster);
     if (err_is_fail(err)) {
         return err;
     }
-    HERE;
     n_clusters_required = ROUND_UP(new_end, bytes_per_cluster) / bytes_per_cluster;
     n_clusters_required -= n_clusters;
 
@@ -1342,11 +1326,6 @@ errval_t fat32_write(
     struct fat32_mnt *mnt = st;
     struct fat32_handle *h = handle;
     errval_t err;
-    HERE;
-    debug_printf("handle %p\n", h);
-    debug_printf("file_pos %u\n", h->file_pos);
-    debug_printf("bytes %u\n", bytes);
-
     if (h->isdir) {
         return FS_ERR_NOTFILE;
     }
@@ -1354,7 +1333,6 @@ errval_t fat32_write(
         // TODO: Better error code
         return FS_ERR_OUT_OF_MEM;
     }
-    HERE;
     if (h->dirent.dir_entry.size < h->file_pos + bytes) {
         uint32_t n_new_clusters;
         uint32_t last_cluster;
@@ -1377,7 +1355,6 @@ errval_t fat32_write(
         // TODO: Zero from size to end of last_cluster
     }
 
-    HERE;
     uint8_t block[BLOCK_SIZE];
     uint32_t b_written = 0;
     while (b_written < bytes && h->current_cluster < FAT32_EndCluster) {
@@ -1408,7 +1385,6 @@ errval_t fat32_write(
         b_written += to_write;
         h->file_pos += to_write;
         h->sector_rel_cluster++;
-        HERE;
         if (h->sector_rel_cluster >= mnt->sectors_per_cluster) {
             h->sector_rel_cluster = 0;
             // TODO: optimize -> next_cluster rereads the fat several time even when same

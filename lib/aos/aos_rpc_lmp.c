@@ -1638,7 +1638,6 @@ errval_t aos_rpc_lmp_fs_write(
     set_ok_message(msg, Method_File_System_Write, sizeof(handle) + size);
     set_payload_message(msg, &handle, sizeof(handle), 0);
     set_payload_message(msg, buf, size, sizeof(handle));
-    debug_printf("payload len ! %u\n", msg->msg.payload_length);
 
     struct rpc_message *recv = NULL;
     size_t recv_bytes;
@@ -1653,7 +1652,6 @@ errval_t aos_rpc_lmp_fs_write(
     // TODO Response is not getting validated here
 
     memcpy(written, (char *)recv->msg.payload + sizeof(errval_t), sizeof(size_t));
-    HERE;
     get_errno_of_fs_msg(recv, &err);
 clean_up:
     free(send_buf);
