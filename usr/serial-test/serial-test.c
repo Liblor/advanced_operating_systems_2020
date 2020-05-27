@@ -128,8 +128,8 @@ static void read_loop(void)
     errval_t err;
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
 
-    const size_t buf_size = 2048;
-    char buf[2048];
+    const size_t buf_size = 100;
+    char buf[100];
     memset(&buf, 0, buf_size);
     printf("Write something and hit return\r\n");
 
@@ -202,31 +202,28 @@ static void spawn_serial_tests(void) {
 __unused
 int main(int argc, char *argv[])
 {
-    errval_t err;
+
     debug_printf("Running RPC tests...\n");
-    char c;
-    printf("type any key continue\r\n");
 
-    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-
-    err = aos_rpc_lmp_serial_getchar(rpc, &c);
-    if(err_is_fail(err)) {
-        DEBUG_ERR(err, "");
+    for(int i = 0; i < 100; i ++) {
+        printf("hi there\n");
     }
 
-    do {
-        printf("type the single digit number of dispatchers to spawn" ENDL);
-        err = aos_rpc_lmp_serial_getchar(rpc, &c);
-        if(err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-        }
-    } while (atoi(&c) < 1 || atoi(&c) > 9);
+    read_loop();
 
-    for(int i = 0; i < atoi(&c); i ++) {
-        domainid_t pid;
-        printf("spawning %d\r\n", i);
-        aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
-    }
+//    do {
+//        printf("type the single digit number of dispatchers to spawn" ENDL);
+//        err = aos_rpc_lmp_serial_getchar(rpc, &c);
+//        if(err_is_fail(err)) {
+//            DEBUG_ERR(err, "");
+//        }
+//    } while (atoi(&c) < 1 || atoi(&c) > 9);
+//
+//    for(int i = 0; i < atoi(&c); i ++) {
+//        domainid_t pid;
+//        printf("spawning %d\r\n", i);
+//        aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+//    }
 
 //     test_serial();
 //    write_simple();
