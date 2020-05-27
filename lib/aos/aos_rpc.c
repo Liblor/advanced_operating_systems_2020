@@ -17,6 +17,7 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/urpc.h>
 #include <aos/slot_alloc.h>
+#include <fs/fs.h>
 
 void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
@@ -161,6 +162,85 @@ errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc
 errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result)
 {
     return aos_rpc_lmp_ns_enumerate(rpc, query, num, result);
+}
+
+errval_t aos_rpc_fs_opendir(struct aos_rpc *rpc, const char *path, lvaddr_t *handler)
+{
+    return aos_rpc_lmp_fs_opendir(rpc, path, handler);
+}
+
+errval_t aos_rpc_fs_open(struct aos_rpc *rpc, const char *name, lvaddr_t *handler)
+{
+    return aos_rpc_lmp_fs_open(rpc, name, handler);
+}
+
+errval_t aos_rpc_fs_create(struct aos_rpc *rpc, const char *name, lvaddr_t *handler)
+{
+    return aos_rpc_lmp_fs_create(rpc, name, handler);
+}
+
+errval_t aos_rpc_fs_rm(struct aos_rpc *rpc, const char *path)
+{
+    return aos_rpc_lmp_fs_rm(rpc, path);
+}
+
+errval_t aos_rpc_fs_rmdir(struct aos_rpc *rpc, const char *path)
+{
+    return aos_rpc_lmp_fs_rmdir(rpc, path);
+}
+
+errval_t aos_rpc_fs_mkdir(struct aos_rpc *rpc, const char *path)
+{
+    return aos_rpc_lmp_fs_mkdir(rpc, path);
+}
+
+errval_t aos_rpc_fs_closedir(struct aos_rpc *rpc, lvaddr_t handler)
+{
+    return aos_rpc_lmp_fs_closedir(rpc, handler);
+}
+
+errval_t aos_rpc_fs_close(struct aos_rpc *rpc, lvaddr_t handler)
+{
+    return aos_rpc_lmp_fs_close(rpc, handler);
+}
+
+errval_t aos_rpc_fs_tell(struct aos_rpc *rpc, lvaddr_t handler, size_t *ret_pos)
+{
+    return aos_rpc_lmp_fs_tell(rpc, handler, ret_pos);
+}
+
+errval_t aos_rpc_fs_stat(struct aos_rpc *rpc, lvaddr_t handler, struct fs_fileinfo *fsinfo)
+{
+    return aos_rpc_lmp_fs_stat(rpc, handler, fsinfo);
+}
+
+errval_t aos_rpc_fs_read(struct aos_rpc *rpc, lvaddr_t handler, size_t bytes, char **ret_buf, size_t *ret_bytes)
+{
+    return aos_rpc_lmp_fs_read(rpc, handler, bytes, ret_buf, ret_bytes);
+}
+
+errval_t aos_rpc_fs_read_dir_next(struct aos_rpc *rpc, lvaddr_t handler, char **name)
+{
+    return aos_rpc_lmp_fs_read_dir_next(rpc, handler, name);
+}
+
+errval_t aos_rpc_fs_seek(
+    struct aos_rpc *rpc,
+    lvaddr_t handler,
+    off_t offset,
+    enum fs_seekpos whence
+) {
+    return aos_rpc_lmp_fs_seek(rpc, handler, offset, whence);
+}
+
+errval_t aos_rpc_fs_write(
+    struct aos_rpc *rpc,
+    lvaddr_t handler,
+    char *buf,
+    size_t size,
+    size_t *written
+) {
+    return aos_rpc_lmp_fs_write(rpc, handler, buf, size, written);
 }
 
 /**

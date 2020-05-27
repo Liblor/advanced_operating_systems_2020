@@ -20,6 +20,7 @@
 #include <fs/fs.h>
 #include <fs/dirent.h>
 #include <fs/fat32.h>
+#include <aos/aos_rpc.h>
 #include "fs_internal.h"
 
 
@@ -265,13 +266,13 @@ static off_t fs_libc_lseek(int fd, off_t offset, int whence)
     }
 }
 
-static errval_t fs_mkdir(const char *path){ return fat32_mkdir(mount, path);}
-static errval_t fs_rmdir(const char *path){ return fat32_rmdir(mount, path); }
-static errval_t fs_rm(const char *path){ return fat32_remove(mount, path); }
-static errval_t fs_opendir(const char *path, fs_dirhandle_t *h){ return fat32_opendir(mount, path, h); }
-static errval_t fs_readdir(fs_dirhandle_t h, char **name) { return fat32_dir_read_next(mount, h, name, NULL); }
-static errval_t fs_closedir(fs_dirhandle_t h) { return fat32_closedir(mount, h); }
-static errval_t fs_fstat(fs_dirhandle_t h, struct fs_fileinfo *b) { return fat32_stat(mount, h, b); }
+static errval_t fs_mkdir(const char *path){ return aos_rpc_fs_mkdir(aos_rpc_get_filesystemserver_channel(), path);}
+static errval_t fs_rmdir(const char *path){ return aos_rpc_fs_rmdir(aos_rpc_get_filesystemserver_channel(), path); }
+static errval_t fs_rm(const char *path){ return aos_rpc_fs_rm(aos_rpc_get_filesystemserver_channel(), path); }
+static errval_t fs_opendir(const char *path, fs_dirhandle_t *h){ return aos_rpc_fs_opendir(aos_rpc_get_filesystemserver_channel(), path, (lvaddr_t *)h); }
+static errval_t fs_readdir(fs_dirhandle_t h, char **name) { return aos_rpc_fs_read_dir_next(aos_rpc_get_filesystemserver_channel(), (lvaddr_t)h, name); }
+static errval_t fs_closedir(fs_dirhandle_t h) { return aos_rpc_fs_closedir(aos_rpc_get_filesystemserver_channel(), (lvaddr_t)h); }
+static errval_t fs_fstat(fs_dirhandle_t h, struct fs_fileinfo *b) { return aos_rpc_fs_stat(aos_rpc_get_filesystemserver_channel(), (lvaddr_t)h, b); }
 
 typedef int   fsopen_fn_t(char *, int);
 typedef int   fsread_fn_t(int, void *buf, size_t);

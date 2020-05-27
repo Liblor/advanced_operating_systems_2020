@@ -40,6 +40,8 @@ int main(int argc, char *argv[])
     debug_printf("Waiting for launched services...\n");
     nameservice_wait_for(NAMESERVICE_SERIAL);
     nameservice_wait_for(NAMESERVICE_INIT);
+    nameservice_wait_for(NAMESERVICE_BLOCKDRIVER);
+    spawn_service(proc_chan, "filesystemserver");
 
     debug_printf("Spawning shell...\n");
     spawn_service(proc_chan, "aosh");

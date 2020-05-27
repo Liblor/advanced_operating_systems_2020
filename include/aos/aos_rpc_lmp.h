@@ -3,6 +3,7 @@
 
 #include <aos/aos.h>
 #include <aos/aos_rpc_types.h>
+#include <fs/fs.h>
 
 #define RPC_LMP_MAX_STR_LEN 4096 ///< Max Size of a string to send
 
@@ -130,6 +131,40 @@ errval_t aos_rpc_lmp_block_driver_write_block(
         uint32_t index,
         void *buf,
         size_t block_size
+);
+
+
+
+errval_t aos_rpc_lmp_fs_opendir(struct aos_rpc *rpc, const char *path, lvaddr_t *handler);
+errval_t aos_rpc_lmp_fs_open(struct aos_rpc *rpc, const char *name, lvaddr_t *handler);
+errval_t aos_rpc_lmp_fs_create(struct aos_rpc *rpc, const char *name, lvaddr_t *handler);
+errval_t aos_rpc_lmp_fs_rm(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_lmp_fs_rmdir(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_lmp_fs_mkdir(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_lmp_fs_closedir(struct aos_rpc *rpc, lvaddr_t handler);
+errval_t aos_rpc_lmp_fs_close(struct aos_rpc *rpc, lvaddr_t handler);
+errval_t aos_rpc_lmp_fs_tell(struct aos_rpc *rpc, lvaddr_t handler, size_t *ret_pos);
+errval_t aos_rpc_lmp_fs_stat(struct aos_rpc *rpc, lvaddr_t handler, struct fs_fileinfo *fsinfo);
+errval_t aos_rpc_lmp_fs_read(
+    struct aos_rpc *rpc,
+    lvaddr_t handler,
+    size_t bytes,
+    char **buf,
+    size_t *ret_bytes
+);
+errval_t aos_rpc_lmp_fs_read_dir_next(struct aos_rpc *rpc, lvaddr_t handler, char **name);
+errval_t aos_rpc_lmp_fs_seek(
+    struct aos_rpc *rpc,
+    lvaddr_t handler,
+    off_t offset,
+    enum fs_seekpos whence
+);
+errval_t aos_rpc_lmp_fs_write(
+    struct aos_rpc *rpc,
+    lvaddr_t handler,
+    char *buf,
+    size_t size,
+    size_t *written
 );
 
 /**

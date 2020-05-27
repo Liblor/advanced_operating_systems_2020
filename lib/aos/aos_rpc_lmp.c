@@ -5,6 +5,7 @@
 #include <aos/aos_rpc_lmp_marshal.h>
 #include <aos/nameserver.h>
 #include <aos/deferred.h>
+#include <fs/fs.h>
 #include <arch/aarch64/aos/dispatcher_arch.h>
 
 __unused static struct aos_rpc *memory_channel = NULL;
@@ -1161,6 +1162,501 @@ error:
     debug_printf("Error while setting up channel for %s\n", service_name);
     return NULL;
 }
+
+
+static void set_ok_message(
+    struct rpc_message *msg,
+    enum rpc_message_method method,
+    size_t payload_size
+) {
+    msg->cap = NULL_CAP;
+    msg->msg.method = method;
+    msg->msg.payload_length = payload_size;
+    msg->msg.status = Status_Ok;
+}
+
+static void set_payload_message(
+    struct rpc_message *msg,
+    const void *buf,
+    size_t size,
+    size_t offset
+) {
+    assert(size + offset <= msg->msg.payload_length);
+    memcpy((char *)msg->msg.payload + offset, buf, size);
+}
+
+static void get_errno_of_fs_msg(
+    struct rpc_message *msg,
+    errval_t *err
+) {
+    memcpy(err, msg->msg.payload, sizeof(errval_t));
+}
+
+errval_t aos_rpc_lmp_fs_opendir(struct aos_rpc *rpc, const char *path, lvaddr_t *handler)
+{
+    errval_t err;
+    size_t path_size = strlen(path) + 1;
+    uint8_t send_buf[sizeof(struct rpc_message) + path_size];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Open_Dir, path_size);
+    set_payload_message(msg, path, path_size, 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    if (handler) {
+        memcpy(handler, (char *)recv->msg.payload + sizeof(errval_t), sizeof(lvaddr_t));
+    }
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+
+errval_t aos_rpc_lmp_fs_open(struct aos_rpc *rpc, const char *name, lvaddr_t *handler)
+{
+    errval_t err;
+    size_t name_size = strlen(name) + 1;
+    uint8_t send_buf[sizeof(struct rpc_message) + name_size];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Open, name_size);
+    set_payload_message(msg, name, name_size, 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    if (handler) {
+        memcpy(handler, (char *)recv->msg.payload + sizeof(errval_t), sizeof(lvaddr_t));
+    }
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_create(struct aos_rpc *rpc, const char *name, lvaddr_t *handler)
+{
+    errval_t err;
+    size_t name_size = strlen(name) + 1;
+    uint8_t send_buf[sizeof(struct rpc_message) + name_size];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Create, name_size);
+    set_payload_message(msg, name, name_size, 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    if (handler) {
+        memcpy(handler, (char *)recv->msg.payload + sizeof(errval_t), sizeof(lvaddr_t));
+    }
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_rm(struct aos_rpc *rpc, const char *path)
+{
+    errval_t err;
+    size_t path_size = strlen(path) + 1;
+    uint8_t send_buf[sizeof(struct rpc_message) + path_size];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Rm, path_size);
+    set_payload_message(msg, path, path_size, 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_rmdir(struct aos_rpc *rpc, const char *path)
+{
+    errval_t err;
+    size_t path_size = strlen(path) + 1;
+    uint8_t send_buf[sizeof(struct rpc_message) + path_size];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Rmdir, path_size);
+    set_payload_message(msg, path, path_size, 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_mkdir(struct aos_rpc *rpc, const char *path)
+{
+    errval_t err;
+    size_t path_size = strlen(path) + 1;
+    uint8_t send_buf[sizeof(struct rpc_message) + path_size];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Mkdir, path_size);
+    set_payload_message(msg, path, path_size, 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_closedir(struct aos_rpc *rpc, lvaddr_t handler)
+{
+    errval_t err;
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(handler)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Closedir, sizeof(handler));
+    set_payload_message(msg, &handler, sizeof(handler), 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_close(struct aos_rpc *rpc, lvaddr_t handler)
+{
+    errval_t err;
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(handler)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Close, sizeof(handler));
+    set_payload_message(msg, &handler, sizeof(handler), 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_tell(struct aos_rpc *rpc, lvaddr_t handler, size_t *ret_pos)
+{
+    errval_t err;
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(handler)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Tell, sizeof(handler));
+    set_payload_message(msg, &handler, sizeof(handler), 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    memcpy(ret_pos, (char *)recv->msg.payload + sizeof(errval_t), sizeof(size_t));
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_stat(struct aos_rpc *rpc, lvaddr_t handler, struct fs_fileinfo *fsinfo)
+{
+    errval_t err;
+    uint8_t send_buf[sizeof(struct rpc_message) + sizeof(handler)];
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Stat, sizeof(handler));
+    set_payload_message(msg, &handler, sizeof(handler), 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    memcpy(fsinfo, (char *)recv->msg.payload + sizeof(errval_t), sizeof(struct fs_fileinfo));
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_read(struct aos_rpc *rpc, lvaddr_t handler, size_t bytes, char **buf, size_t *ret_bytes)
+{
+    errval_t err;
+    uint8_t *send_buf = calloc(sizeof(struct rpc_message) + sizeof(handler) + sizeof(bytes), 1);
+    if (send_buf == NULL) { return LIB_ERR_MALLOC_FAIL; }
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg,
+        Method_File_System_Read,
+        sizeof(handler) + sizeof(bytes)
+    );
+    set_payload_message(msg, &handler, sizeof(handler), 0);
+    set_payload_message(msg, &bytes, sizeof(bytes), sizeof(handler));
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    assert(recv->msg.payload_length >= sizeof(errval_t));
+    *ret_bytes = recv->msg.payload_length - sizeof(errval_t);
+    memcpy(*buf, (char *)recv->msg.payload + sizeof(errval_t), *ret_bytes);
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    free(send_buf);
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_read_dir_next(struct aos_rpc *rpc, lvaddr_t handler, char **name)
+{
+    errval_t err;
+    uint8_t *send_buf = calloc(sizeof(struct rpc_message) + sizeof(handler), 1);
+    if (send_buf == NULL) { return LIB_ERR_MALLOC_FAIL; }
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Dir_Read_Next, sizeof(handler));
+    set_payload_message(msg, &handler, sizeof(handler), 0);
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    assert(recv->msg.payload_length >= sizeof(errval_t));
+    size_t name_size = recv->msg.payload_length - sizeof(errval_t);
+    *name = calloc(sizeof(struct rpc_message) + sizeof(handler), 1);
+    if (*name == NULL) { err = LIB_ERR_MALLOC_FAIL; goto clean_up; }
+    memcpy(*name, (char *)recv->msg.payload + sizeof(errval_t), name_size);
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    free(send_buf);
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_seek(
+    struct aos_rpc *rpc,
+    lvaddr_t handler,
+    off_t offset,
+    enum fs_seekpos whence
+) {
+    errval_t err;
+    uint8_t *send_buf = calloc(sizeof(struct rpc_message) + sizeof(handler) + sizeof(offset) +
+                                   sizeof(whence), 1);
+    if (send_buf == NULL) { return LIB_ERR_MALLOC_FAIL; }
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg,
+        Method_File_System_Seek,
+        sizeof(handler) + sizeof(offset) + sizeof(whence)
+    );
+    set_payload_message(msg, &handler, sizeof(handler), 0);
+    set_payload_message(msg, &offset, sizeof(offset), sizeof(handler));
+    set_payload_message(msg, &whence, sizeof(whence), sizeof(handler)+sizeof(offset));
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    free(send_buf);
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
+errval_t aos_rpc_lmp_fs_write(
+    struct aos_rpc *rpc,
+    lvaddr_t handler,
+    char *buf,
+    size_t size,
+    size_t *written
+) {
+    errval_t err;
+    uint8_t *send_buf = calloc(sizeof(struct rpc_message) + sizeof(handler) + size, 1);
+    if (send_buf == NULL) { return LIB_ERR_MALLOC_FAIL; }
+    struct rpc_message *msg = (struct rpc_message *) &send_buf;
+
+    set_ok_message(msg, Method_File_System_Write, sizeof(handler) + size);
+    set_payload_message(msg, &handler, sizeof(handler), 0);
+    set_payload_message(msg, buf, size, sizeof(handler));
+
+    struct rpc_message *recv = NULL;
+    size_t recv_bytes;
+    assert(rpc->type == RpcTypeUmp);
+    struct nameservice_chan chan = {.name = "", .rpc = rpc, .pid = 0};
+    err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "nameservice_rpc()\n");
+        goto clean_up;
+    }
+
+    // TODO Response is not getting validated here
+
+    memcpy(written, (char *)recv->msg.payload + sizeof(errval_t), sizeof(size_t));
+    get_errno_of_fs_msg(recv, &err);
+clean_up:
+    free(send_buf);
+    if (recv != NULL) {
+        free(recv);
+    }
+    return err;
+}
+
 
 static struct aos_rpc *aos_rpc_lmp_get_channel(
     struct aos_rpc **rpc,
