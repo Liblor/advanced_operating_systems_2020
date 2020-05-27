@@ -18,6 +18,7 @@ static struct serialserver_state serial_server;
 // set this to false to poll for interrupts instead
 #define ENABLE_IRQ true
 #define IRQ_POLL_INTERVAL_US 1000
+#define USE_SEPARATE_WS true
 
 // Optimization: remove that client need to poll by using nameservice api
 
@@ -317,6 +318,10 @@ static errval_t serialserver_init(void)
     errval_t err;
     memset(&serial_server, 0, sizeof(struct serialserver_state));
     serial_server.read_session_ctr = 1;
+    waitset_init(&serial_server.ws);
+
+    serial_server.use_ws = USE_SEPARATE_WS;
+    struct waitset *ws = serial_server.use_ws ? &serial_server.ws : get_default_waitset();
 
     // XXX: ensure we start with a read session which is not SERIAL_GETCHAR_SESSION_UNDEF
     assert(serial_server.read_session_ctr > SERIAL_GETCHAR_SESSION_UNDEF);
@@ -324,7 +329,7 @@ static errval_t serialserver_init(void)
     serial_server.head = NULL;
     serial_server.active = NULL;
 
-    err = serial_facade_init(&serial_server.serial_facade, get_default_waitset(), SERIAL_FACADE_TARGET_CPU_0, ENABLE_IRQ);
+    err = serial_facade_init(&serial_server.serial_facade, ws, SERIAL_FACADE_TARGET_CPU_0, ENABLE_IRQ);
     if (err_is_fail(err)) {
         debug_printf("error in shell_init(): %s\n", err_getstring(err));
         return err;
@@ -342,7 +347,7 @@ static errval_t serialserver_init(void)
         debug_printf("Enabling polling mode\n");
         struct periodic_event periodic_urpc_ev;
         err = periodic_event_create(&periodic_urpc_ev,
-                                    get_default_waitset(),
+                                    ws,
                                     IRQ_POLL_INTERVAL_US,
                                     MKCLOSURE(poll_read, NULL));
         if (err_is_fail(err)) {
@@ -374,9 +379,15 @@ int main(int argc, char *argv[])
 
     debug_printf("Serialserver registered at nameserver.\n");
     while (1) {
+        if (serial_server.use_ws) {
+            err = event_dispatch_non_block(&serial_server.ws);
+            if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
+                debug_printf("error in serialserver: %s\n", err_getstring(err));
+            }
+        }
         err = event_dispatch(get_default_waitset());
         if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
-            debug_printf("error occured in serialserver: %s\n", err_getstring(err));
+            debug_printf("error in serialserver: %s\n", err_getstring(err));
         }
 
         thread_yield();

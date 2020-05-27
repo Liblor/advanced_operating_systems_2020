@@ -30,6 +30,7 @@ struct session_entry {
 struct serialserver_state {
     struct serial_facade serial_facade;   ///<facade to serial driver in userspace
     struct waitset ws;
+    bool use_ws;
     size_t read_session_ctr;
 
     struct session_entry *head;
