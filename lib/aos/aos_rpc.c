@@ -164,19 +164,19 @@ errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *nu
     return aos_rpc_lmp_ns_enumerate(rpc, query, num, result);
 }
 
-errval_t aos_rpc_fs_opendir(struct aos_rpc *rpc, const char *path, lvaddr_t *handler)
+errval_t aos_rpc_fs_opendir(struct aos_rpc *rpc, const char *path, file_handle_t *handle)
 {
-    return aos_rpc_lmp_fs_opendir(rpc, path, handler);
+    return aos_rpc_lmp_fs_opendir(rpc, path, (lvaddr_t *)handle);
 }
 
-errval_t aos_rpc_fs_open(struct aos_rpc *rpc, const char *name, lvaddr_t *handler)
+errval_t aos_rpc_fs_open(struct aos_rpc *rpc, const char *name, file_handle_t *handle)
 {
-    return aos_rpc_lmp_fs_open(rpc, name, handler);
+    return aos_rpc_lmp_fs_open(rpc, name, (lvaddr_t *)handle);
 }
 
-errval_t aos_rpc_fs_create(struct aos_rpc *rpc, const char *name, lvaddr_t *handler)
+errval_t aos_rpc_fs_create(struct aos_rpc *rpc, const char *name, file_handle_t *handle)
 {
-    return aos_rpc_lmp_fs_create(rpc, name, handler);
+    return aos_rpc_lmp_fs_create(rpc, name, (lvaddr_t *)handle);
 }
 
 errval_t aos_rpc_fs_rm(struct aos_rpc *rpc, const char *path)
@@ -194,53 +194,53 @@ errval_t aos_rpc_fs_mkdir(struct aos_rpc *rpc, const char *path)
     return aos_rpc_lmp_fs_mkdir(rpc, path);
 }
 
-errval_t aos_rpc_fs_closedir(struct aos_rpc *rpc, lvaddr_t handler)
+errval_t aos_rpc_fs_closedir(struct aos_rpc *rpc, file_handle_t handle)
 {
-    return aos_rpc_lmp_fs_closedir(rpc, handler);
+    return aos_rpc_lmp_fs_closedir(rpc, (lvaddr_t)handle);
 }
 
-errval_t aos_rpc_fs_close(struct aos_rpc *rpc, lvaddr_t handler)
+errval_t aos_rpc_fs_close(struct aos_rpc *rpc, file_handle_t handle)
 {
-    return aos_rpc_lmp_fs_close(rpc, handler);
+    return aos_rpc_lmp_fs_close(rpc, (lvaddr_t)handle);
 }
 
-errval_t aos_rpc_fs_tell(struct aos_rpc *rpc, lvaddr_t handler, size_t *ret_pos)
+errval_t aos_rpc_fs_tell(struct aos_rpc *rpc, file_handle_t handle, size_t *ret_pos)
 {
-    return aos_rpc_lmp_fs_tell(rpc, handler, ret_pos);
+    return aos_rpc_lmp_fs_tell(rpc, (lvaddr_t)handle, ret_pos);
 }
 
-errval_t aos_rpc_fs_stat(struct aos_rpc *rpc, lvaddr_t handler, struct fs_fileinfo *fsinfo)
+errval_t aos_rpc_fs_stat(struct aos_rpc *rpc, file_handle_t handle, struct fs_fileinfo *fsinfo)
 {
-    return aos_rpc_lmp_fs_stat(rpc, handler, fsinfo);
+    return aos_rpc_lmp_fs_stat(rpc, (lvaddr_t)handle, fsinfo);
 }
 
-errval_t aos_rpc_fs_read(struct aos_rpc *rpc, lvaddr_t handler, size_t bytes, char **ret_buf, size_t *ret_bytes)
+errval_t aos_rpc_fs_read(struct aos_rpc *rpc, file_handle_t handle, void *buf, size_t bytes, size_t *ret_bytes)
 {
-    return aos_rpc_lmp_fs_read(rpc, handler, bytes, ret_buf, ret_bytes);
+    return aos_rpc_lmp_fs_read(rpc, (lvaddr_t)handle, buf, bytes, ret_bytes);
 }
 
-errval_t aos_rpc_fs_read_dir_next(struct aos_rpc *rpc, lvaddr_t handler, char **name)
+errval_t aos_rpc_fs_read_dir_next(struct aos_rpc *rpc, file_handle_t handle, char **name)
 {
-    return aos_rpc_lmp_fs_read_dir_next(rpc, handler, name);
+    return aos_rpc_lmp_fs_read_dir_next(rpc, (lvaddr_t)handle, name);
 }
 
 errval_t aos_rpc_fs_seek(
     struct aos_rpc *rpc,
-    lvaddr_t handler,
-    off_t offset,
-    enum fs_seekpos whence
+    file_handle_t handler,
+    enum fs_seekpos whence,
+    off_t offset
 ) {
-    return aos_rpc_lmp_fs_seek(rpc, handler, offset, whence);
+    return aos_rpc_lmp_fs_seek(rpc, (lvaddr_t)handler, whence, offset);
 }
 
 errval_t aos_rpc_fs_write(
     struct aos_rpc *rpc,
-    lvaddr_t handler,
+    file_handle_t handler,
     char *buf,
     size_t size,
     size_t *written
 ) {
-    return aos_rpc_lmp_fs_write(rpc, handler, buf, size, written);
+    return aos_rpc_lmp_fs_write(rpc, (lvaddr_t)handler, buf, size, written);
 }
 
 /**

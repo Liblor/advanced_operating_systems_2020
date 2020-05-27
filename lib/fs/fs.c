@@ -10,6 +10,7 @@
 #include <fs/fat32.h>
 #include <fs/dirent.h>
 #include <fs/ramfs.h>
+#include <aos/aos_rpc.h>
 
 #include "fs_internal.h"
 
@@ -32,10 +33,8 @@
  */
 errval_t filesystem_init(void)
 {
-    errval_t err;
-
-
 #if 0
+    errval_t err;
     ramfs_mount_t st = NULL;
     err = ramfs_mount("/", &st);
     if (err_is_fail(err)) {
@@ -43,14 +42,8 @@ errval_t filesystem_init(void)
     }
 #endif
 
-    void *fat32_mnt;
-    err = mount_fat32("/sdcard", (struct fat32_mnt **)&fat32_mnt);
-    if (err_is_fail(err)) {
-        return err;
-    }
-
     /* register libc fopen/fread and friends */
-    fs_libc_init(fat32_mnt);
+    fs_libc_init(aos_rpc_get_filesystemserver_channel());
 
     return SYS_ERR_OK;
 }

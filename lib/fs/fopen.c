@@ -96,26 +96,26 @@ static int fs_libc_open(char *path, int flags)
     fat32_handle_t vh;
     errval_t err;
 
-    // If O_CREAT was given, we use fat32_create()
+    // If O_CREAT was given, we use aos_rpc_fs_create()
     if(flags & O_CREAT) {
         // If O_EXCL was also given, we check whether we can open() first
         if(flags & O_EXCL) {
-            err = fat32_open(mount, path, &vh);
+            err = aos_rpc_fs_open(mount, path, &vh);
             if(err_is_ok(err)) {
-                fat32_close(mount, vh);
+                aos_rpc_fs_close(mount, vh);
                 errno = EEXIST;
                 return -1;
             }
             assert(err_no(err) == FS_ERR_NOTFOUND);
         }
 
-        err = fat32_create(mount, path, &vh);
+        err = aos_rpc_fs_create(mount, path, &vh);
         if (err_is_fail(err) && err == FS_ERR_EXISTS) {
-            err = fat32_open(mount, path, &vh);
+            err = aos_rpc_fs_open(mount, path, &vh);
         }
     } else {
         // Regular open()
-        err = fat32_open(mount, path, &vh);
+        err = aos_rpc_fs_open(mount, path, &vh);
     }
 
     if (err_is_fail(err)) {
@@ -138,7 +138,7 @@ static int fs_libc_open(char *path, int flags)
     };
     int fd = fdtab_alloc(&e);
     if (fd < 0) {
-        fat32_close(mount, vh);
+        aos_rpc_fs_close(mount, vh);
         return -1;
     } else {
         return fd;
@@ -156,8 +156,9 @@ static int fs_libc_read(int fd, void *buf, size_t len)
     {
         fat32_handle_t fh = e->handle;
         assert(e->handle);
-        err = fat32_read(mount, fh, buf, len, &retlen);
+        err = aos_rpc_fs_read(mount, fh, buf, len, &retlen);
         if (err_is_fail(err)) {
+            HERE;
             return -1;
         }
     }
@@ -171,6 +172,8 @@ static int fs_libc_read(int fd, void *buf, size_t len)
 
 static int fs_libc_write(int fd, void *buf, size_t len)
 {
+    HERE;
+    debug_printf("len%u\n", len);
     struct fdtab_entry *e = fdtab_get(fd);
     if (e->type == FDTAB_TYPE_AVAILABLE) {
         return -1;
@@ -182,7 +185,7 @@ static int fs_libc_write(int fd, void *buf, size_t len)
     case FDTAB_TYPE_FILE:
     {
         fat32_handle_t fh = e->handle;
-        errval_t err = fat32_write(mount, fh, buf, len, &retlen);
+        errval_t err = aos_rpc_fs_write(mount, fh, buf, len, &retlen);
         if (err_is_fail(err)) {
             return -1;
         }
@@ -206,7 +209,7 @@ static int fs_libc_close(int fd)
     fat32_handle_t fh = e->handle;
     switch(e->type) {
     case FDTAB_TYPE_FILE:
-        err = fat32_close(mount, fh);
+        err = aos_rpc_fs_close(mount, fh);
         if (err_is_fail(err)) {
             return -1;
         }
@@ -247,13 +250,13 @@ static off_t fs_libc_lseek(int fd, off_t offset, int whence)
             return -1;
         }
 
-        err = fat32_seek(mount, fh, fs_whence, offset);
+        err = aos_rpc_fs_seek(mount, fh, fs_whence, offset);
         if(err_is_fail(err)) {
             DEBUG_ERR(err, "vfs_seek");
             return -1;
         }
 
-        err = fat32_tell(mount, fh, &retpos);
+        err = aos_rpc_fs_tell(mount, fh, &retpos);
         if(err_is_fail(err)) {
             return -1;
         }
@@ -266,13 +269,13 @@ static off_t fs_libc_lseek(int fd, off_t offset, int whence)
     }
 }
 
-static errval_t fs_mkdir(const char *path){ return aos_rpc_fs_mkdir(aos_rpc_get_filesystemserver_channel(), path);}
-static errval_t fs_rmdir(const char *path){ return aos_rpc_fs_rmdir(aos_rpc_get_filesystemserver_channel(), path); }
-static errval_t fs_rm(const char *path){ return aos_rpc_fs_rm(aos_rpc_get_filesystemserver_channel(), path); }
-static errval_t fs_opendir(const char *path, fs_dirhandle_t *h){ return aos_rpc_fs_opendir(aos_rpc_get_filesystemserver_channel(), path, (lvaddr_t *)h); }
-static errval_t fs_readdir(fs_dirhandle_t h, char **name) { return aos_rpc_fs_read_dir_next(aos_rpc_get_filesystemserver_channel(), (lvaddr_t)h, name); }
-static errval_t fs_closedir(fs_dirhandle_t h) { return aos_rpc_fs_closedir(aos_rpc_get_filesystemserver_channel(), (lvaddr_t)h); }
-static errval_t fs_fstat(fs_dirhandle_t h, struct fs_fileinfo *b) { return aos_rpc_fs_stat(aos_rpc_get_filesystemserver_channel(), (lvaddr_t)h, b); }
+static errval_t fs_mkdir(const char *path){ return aos_rpc_fs_mkdir(mount, path);}
+static errval_t fs_rmdir(const char *path){ return aos_rpc_fs_rmdir(mount, path); }
+static errval_t fs_rm(const char *path){ return aos_rpc_fs_rm(mount, path); }
+static errval_t fs_opendir(const char *path, fs_dirhandle_t *h){ return aos_rpc_fs_opendir(mount, path, h); }
+static errval_t fs_readdir(fs_dirhandle_t h, char **name) { return aos_rpc_fs_read_dir_next(mount, h, name); }
+static errval_t fs_closedir(fs_dirhandle_t h) { return aos_rpc_fs_closedir(mount, h); }
+static errval_t fs_fstat(fs_dirhandle_t h, struct fs_fileinfo *b) { return aos_rpc_fs_stat(mount, h, b); }
 
 typedef int   fsopen_fn_t(char *, int);
 typedef int   fsread_fn_t(int, void *buf, size_t);
