@@ -11,6 +11,7 @@
   		               "builtin/domain_info.c",
   		               "builtin/run_memtest.c",
   		               "builtin/ps.c",
+  		               "builtin/color.c",
   		               "builtin/fs_utils.c",
   		               "linenoise/linenoise.c"
   		                ],

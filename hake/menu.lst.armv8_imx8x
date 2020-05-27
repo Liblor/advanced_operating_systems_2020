@@ -32,3 +32,4 @@ module /armv8/sbin/blockdriverserver
 module /armv8/sbin/filesystemserver
 module /armv8/sbin/filereader
 module /armv8/sbin/servicelauncher
+module /armv8/sbin/print-loop

@@ -1,4 +1,5 @@
 #include <aos/aos_rpc.h>
+#include <aos/deferred.h>
 #include "rpctest.h"
 #include "builtin.h"
 
@@ -108,7 +109,7 @@ __unused static void test_serial(void)
         return;
     }
 
-
+    debug_printf("Press a button to test aos_rpc_lmp_serial_getchar(): \n");
     // Explicit test not necessary since printf is redirected to rpc during the
     // execution of this entire program.
     err = aos_rpc_lmp_serial_putchar(rpc, 'a');
@@ -116,11 +117,6 @@ __unused static void test_serial(void)
         DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
         return;
     }
-
-    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
-    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
-
-    debug_printf("Press a button to test aos_rpc_lmp_serial_getchar(): ");
     char c;
     err = aos_rpc_lmp_serial_getchar(rpc, &c);
     if (err_is_fail(err)) {
@@ -129,6 +125,14 @@ __unused static void test_serial(void)
     }
     debug_printf("\n");
     debug_printf("Received %c\n", c);
+
+    barrelfish_usleep(1000);
+
+    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
+    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
+
+    barrelfish_usleep(1000);
+
 }
 
 errval_t builtin_rpctest(int argc, char **argv)

@@ -569,7 +569,11 @@ static void refreshSingleLine(struct linenoiseState *l) {
     /* Move cursor to original position. */
     snprintf(seq,64,"\r\x1b[%dC", (int)(pos+plen));
     abAppend(&ab,seq,strlen(seq));
-    if (aos_write(fd,ab.b,ab.len) == -1) {} /* Can't recover from write error. */
+    
+    char *out = calloc(1, ab.len + 1);
+    strlcpy(out, ab.b, ab.len + 1);
+    if (aos_write(fd,out,ab.len + 1) == -1) {} /* Can't recover from write error. */
+    free(out);
     abFree(&ab);
 }
 

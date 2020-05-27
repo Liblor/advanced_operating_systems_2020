@@ -1,7 +1,3 @@
-
-// Created by b on 5/9/20.
-//
-
 #ifndef BFOS_SERIAL_FACADE_H
 #define BFOS_SERIAL_FACADE_H
 
@@ -10,22 +6,20 @@
 
 // #define SERIAL_FACADE_TRACE_IQR_ON
 // enable SERIAL_FACADE_TRACE_IQR_ON
-// to write all read iqr directly out through serial port
+// to write all read irq directly out through serial port
 
-//#define SERIAL_FACADE_DEBUG_ON
+#define SERIAL_FACADE_DEBUG_ON
 #if defined(SERIAL_FACADE_DEBUG_ON)
 #define SERIAL_FACADE_DEBUG(x...) debug_printf("serial-facade: " x)
 #else
 #define SERIAL_FACADE_DEBUG(x...) ((void)0)
 #endif
 
-// disable userspace iqr handler for read events
-// useful for debugging
-// #define SERIAL_FACADE_DISABLE_IQR
-
 typedef void (*serial_facade_read_cb)(char c, void *args);
 
 struct serial_facade {
+    bool enable_iqr;
+    struct waitset *ws;
     struct lpuart_s *lpuart3_state;
     struct gic_dist_s *gic_dist_state;
     struct capref irq_dest_cap;
@@ -43,7 +37,8 @@ struct serial_facade {
  */
 errval_t serial_facade_init(
         struct serial_facade *state,
-        uint8_t target_cpu);
+        struct waitset *ws,
+        uint8_t target_cpu, bool enable_iqr);
 
 errval_t serial_facade_write(
         struct serial_facade *state,
@@ -58,5 +53,8 @@ errval_t serial_facade_write_str(
         struct serial_facade *state,
         const char *str,
         size_t len);
+
+errval_t serial_facade_poll_read(
+        struct serial_facade *state, char *ret_c);
 
 #endif //BFOS_SERIAL_FACADE_H

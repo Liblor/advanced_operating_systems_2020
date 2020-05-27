@@ -21,6 +21,7 @@
 #include <aos/aos_rpc.h>
 #include <spawn/spawn.h>
 #include <aos/string.h>
+#include <arch/aarch64/aos/dispatcher_arch.h>
 
 const char long_string[] = "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
@@ -128,10 +129,10 @@ static void read_loop(void)
     errval_t err;
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
 
-    const size_t buf_size = 2048;
-    char buf[2048];
+    const size_t buf_size = 100;
+    char buf[100];
     memset(&buf, 0, buf_size);
-    printf("Write something and hit return\r\n");
+    printf("Write something and hit return\n");
 
     int i = 0;
     do {
@@ -139,15 +140,15 @@ static void read_loop(void)
         err = aos_rpc_lmp_serial_getchar(rpc, &c);
         if (IS_CHAR_LINEBREAK(c)) {
             buf[i] = 0;
-            printf("\r\n");
-            printf("You typed: '%s' \r\n", &buf);
-            fflush(stdout);
-            i = 0;
+//            aos_rpc_lmp_serial_putstr(rpc, "You typed: '1'\n", strlen("You typed: '1'\n"));
+            printf("You typed: '%s' \n", buf);
+//            fflush(stdout);
+            return;
         } else {
             buf[i] = c;
-            fflush(stdout);
             printf("%c", c);
-            fflush(stdout);
+//            aos_rpc_lmp_serial_putchar(rpc, c);
+             fflush(stdout);
             i++;
             if (i == buf_size) {
                 i = 0;
@@ -202,42 +203,38 @@ static void spawn_serial_tests(void) {
 __unused
 int main(int argc, char *argv[])
 {
-    errval_t err;
-    debug_printf("Running RPC tests...\n");
-    char c;
-    printf("type any key continue\r\n");
 
-    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
+    struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
+    __unused domainid_t my_pid = disp->domain_id;
+    __unused coreid_t my_core = disp->core_id;
 
-    err = aos_rpc_lmp_serial_getchar(rpc, &c);
-    if(err_is_fail(err)) {
-        DEBUG_ERR(err, "");
-    }
+#if 1
+    errval_t err = SYS_ERR_OK;
+    if (argc == 1) {
 
-    do {
-        printf("type the single digit number of dispatchers to spawn" ENDL);
-        err = aos_rpc_lmp_serial_getchar(rpc, &c);
-        if(err_is_fail(err)) {
-            DEBUG_ERR(err, "");
-        }
-    } while (atoi(&c) < 1 || atoi(&c) > 9);
-
-    for(int i = 0; i < atoi(&c); i ++) {
+        printf("spawning children...\n");
+        struct aos_rpc *rpc = aos_rpc_get_process_channel();
         domainid_t pid;
-        printf("spawning %d\r\n", i);
-        aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+        err = aos_rpc_process_spawn(rpc, "serial-test 1", 1, &pid);
+        assert(err_is_ok(err));
+        printf("Spawning child with pid %d\n", pid);
+
+        err = aos_rpc_process_spawn(rpc, "serial-test 1", 0, &pid);
+        assert(err_is_ok(err));
+        printf("Spawning child with pid %d\n", pid);
+
+        err = aos_rpc_process_spawn(rpc, "serial-test 1", 1, &pid);
+        assert(err_is_ok(err));
+        printf("Spawning child with pid %d\n", pid);
+
+        err = aos_rpc_process_spawn(rpc, "serial-test 1", 1, &pid);
+        assert(err_is_ok(err));
+        printf("Spawning child with pid %d\n", pid);
+        return SYS_ERR_OK;
+    } else {
+        printf("child...\n");
+        read_loop();
     }
-
-//     test_serial();
-//    write_simple();
-//    debug_printf("write_simple: ok\n");
-//    read_loop();
-
-//    printf_test();
-
-    // write_simple_threads();
-
-    debug_printf("done\n");
-
+#endif
     return EXIT_SUCCESS;
 }

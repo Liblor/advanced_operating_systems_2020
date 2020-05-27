@@ -77,6 +77,54 @@ static errval_t parse_args(
     return SYS_ERR_OK;
 }
 
+
+static errval_t wait_until_exit(domainid_t pid)
+{
+    errval_t err = SYS_ERR_OK;
+    bool dead = false;
+    struct aos_rpc *rpc = aos_rpc_get_process_channel();
+    do {
+        struct aos_rpc_process_info_reply *reply = NULL;
+        err = aos_rpc_lmp_process_get_info(rpc, pid, &reply);
+        if (err_is_fail(err)) {
+            free(reply);
+            return err;
+        }
+        if (reply->status == ProcessStatus_Exit) {
+            dead = true;
+        }
+        free(reply);
+        barrelfish_usleep(500);
+        event_dispatch_non_block(get_default_waitset());
+    } while (!dead);
+
+    return err;
+}
+
+static errval_t join_args(int start_ind, int argc, char **argv, char **ret_cmd_args)
+{
+    char *cmd_args = malloc(AOSH_READLINE_MAX_LEN + 1);
+    if (cmd_args == NULL) {
+        return LIB_ERR_MALLOC_FAIL;
+    }
+    int b = 0;
+    for (int i = start_ind; i < argc; i++) {
+        int a = 0;
+        while (*(argv[i] + a) != '\0' && a < AOSH_READLINE_MAX_LEN) {
+            cmd_args[b] = *(argv[i] + a);
+            b++;
+            a++;
+        }
+        if (a > 0 && i + 1 < argc) {
+            cmd_args[b] = ' ';
+            b++;
+        }
+    }
+    cmd_args[b] = '\0';
+    *ret_cmd_args = cmd_args;
+    return SYS_ERR_OK;
+}
+
 errval_t builtin_oncore(
         int argc,
         char **argv)
@@ -101,26 +149,12 @@ errval_t builtin_oncore(
     if (!err_is_ok(err)) {
         return SYS_ERR_OK;
     }
-
-    char *cmd_args = malloc(AOSH_READLINE_MAX_LEN + 1);
-    if (cmd_args == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    int b = 0;
-    for (int i = name_ind; i < argc; i++) {
-        int a = 0;
-        while (*(argv[i] + a) != '\0' && a < AOSH_READLINE_MAX_LEN) {
-            cmd_args[b] = *(argv[i] + a);
-            b++;
-            a++;
-        }
-        if (a > 0 && i + 1 < argc) {
-            cmd_args[b] = ' ';
-            b++;
-        }
+    char *cmd_args = NULL;
+    err = join_args(name_ind, argc, argv, &cmd_args);
+    if (err_is_fail(err)) {
+        goto free_cmd_args;
     }
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
-    cmd_args[b] = '\0';
     if (forderground) {
         printf("spawning '%s' on core '%d'" ENDL, cmd_args, core_id);
         domainid_t pid;
@@ -133,23 +167,11 @@ errval_t builtin_oncore(
         if (err_is_fail(err)) {
             goto free_cmd_args;
         }
-
-        bool dead = false;
         printf("Shell is waiting until pid %d has exit\n", pid);
-        do {
-            struct aos_rpc_process_info_reply *reply = NULL;
-            err = aos_rpc_lmp_process_get_info(rpc, pid, &reply);
-            if (err_is_fail(err)) {
-                free(reply);
-                goto free_cmd_args;
-            }
-            if (reply->status == ProcessStatus_Exit) {
-                dead = true;
-            }
-            free(reply);
-            barrelfish_usleep(500);
-            event_dispatch_non_block(get_default_waitset());
-        } while(!dead);
+        err = wait_until_exit(pid);
+        if (err_is_fail(err)) {
+            goto free_cmd_args;
+        }
         printf("Resuming shell, pid %d has exited\n", pid);
 
     } else {
@@ -164,14 +186,15 @@ errval_t builtin_oncore(
                     &pid);
 
             if (!err_is_ok(err)) {
-                printf("Failed to spawn %s on core %d: %s" ENDL, cmd_args, core_id, err_getstring(err));
+                printf("Failed to spawn %s on core %d: %s" ENDL, cmd_args, core_id,
+                       err_getstring(err));
                 goto free_cmd_args;
             }
         }
     }
     err = SYS_ERR_OK;
 
-free_cmd_args:
+    free_cmd_args:
     free(cmd_args);
     return err;
 }
