@@ -15,9 +15,9 @@
 static struct serialserver_state serial_server;
 
 
-// set this to false to poll for iqr instead
-#define ENABLE_IQR true
-#define IQR_POLL_INTERVAL_US 1000
+// set this to false to poll for interrupts instead
+#define ENABLE_IRQ true
+#define IRQ_POLL_INTERVAL_US 1000
 
 // Optimization: remove that client need to poll by using nameservice api
 
@@ -206,7 +206,7 @@ inline static void putstr_usr(const char *str, size_t len)
 }
 
 
-static void getchar_iqr_handler(char c, void *args)
+static void getchar_irq_handler(char c, void *args)
 {
     if (serial_server.active != NULL) {
         struct serial_buf_entry data = {
@@ -324,13 +324,13 @@ static errval_t serialserver_init(void)
     serial_server.head = NULL;
     serial_server.active = NULL;
 
-    err = serial_facade_init(&serial_server.serial_facade, get_default_waitset(), SERIAL_FACADE_TARGET_CPU_0, ENABLE_IQR);
+    err = serial_facade_init(&serial_server.serial_facade, get_default_waitset(), SERIAL_FACADE_TARGET_CPU_0, ENABLE_IRQ);
     if (err_is_fail(err)) {
         debug_printf("error in shell_init(): %s\n", err_getstring(err));
         return err;
     }
     err = serial_facade_set_read_cb(&serial_server.serial_facade,
-                                    getchar_iqr_handler,
+                                    getchar_irq_handler,
                                     NULL);
     if (err_is_fail(err)) {
         debug_printf("failed to call serial_facade_set_read_cb() %s\n", err_getstring(err));
@@ -338,12 +338,12 @@ static errval_t serialserver_init(void)
     }
 
 
-    if (!ENABLE_IQR) {
+    if (!ENABLE_IRQ) {
         debug_printf("Enabling polling mode\n");
         struct periodic_event periodic_urpc_ev;
         err = periodic_event_create(&periodic_urpc_ev,
                                     get_default_waitset(),
-                                    IQR_POLL_INTERVAL_US,
+                                    IRQ_POLL_INTERVAL_US,
                                     MKCLOSURE(poll_read, NULL));
         if (err_is_fail(err)) {
             return err;
