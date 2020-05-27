@@ -5,6 +5,7 @@
 #include <aos/systime.h>
 
 //#define PROCESS_SERVER_DEBUG_ON
+#define PROCESS_SERVER_PID_COUNT_WARNING 1000
 
 #if defined(PROCESS_SERVER_DEBUG_ON)
 #define PS_DEBUG(x...) debug_printf("[ps]:" x)
@@ -48,11 +49,13 @@ static nameservice_chan_t get_monitor_chan(struct processserver_state *server_st
     return *entry_ptr;
 }
 
-static errval_t processserver_send_spawn_local(struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t pid)
+static errval_t processserver_send_spawn_local(
+        struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t pid)
 {
     errval_t err;
 
-    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1, RPC_LMP_MAX_STR_LEN - sizeof(domainid_t)); // no \0 in strlen
+    const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1,
+                                 RPC_LMP_MAX_STR_LEN - sizeof(domainid_t)); // no \0 in strlen
 
     uint8_t send_buf[sizeof(struct rpc_message) + str_len + sizeof(domainid_t)];
     struct rpc_message *req = (struct rpc_message *) &send_buf;
@@ -75,7 +78,8 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
     size_t resp_len;
 
     // Send local task request to monitor on the core where the process should start.
-    err = nameservice_rpc(monitor_chan, req, sizeof(send_buf), (void **) &resp, &resp_len, NULL_CAP, NULL_CAP);
+    err = nameservice_rpc(monitor_chan, req, sizeof(send_buf), (void **) &resp, &resp_len, NULL_CAP,
+                          NULL_CAP);
     if (err_is_fail(err)) {
         debug_printf("nameservice_rpc():%s\n)", err_getstring(err));
         return err;
@@ -88,11 +92,13 @@ static errval_t processserver_send_spawn_local(struct processserver_state *serve
     return SYS_ERR_OK;
 }
 
-__inline static domainid_t get_new_pid(struct processserver_state *server_state) {
+__inline static domainid_t get_new_pid(struct processserver_state *server_state)
+{
     return server_state->new_pid++;
 }
 
-static errval_t add_to_proc_list(struct processserver_state *server_state, char *name, domainid_t pid)
+static errval_t
+add_to_proc_list(struct processserver_state *server_state, char *name, domainid_t pid)
 {
     struct process_info *new_process = calloc(1, sizeof(struct process_info));
     if (new_process == NULL) {
@@ -134,7 +140,8 @@ static inline void init_server_state(struct processserver_state *server_state)
  * @param ret_pid_array contains all pids in this process server state, has to be delted by caller
  * @return errors
  */
-static errval_t get_all_pids(struct processserver_state *server_state, size_t *ret_num_pids, domainid_t **ret_pids)
+static errval_t
+get_all_pids(struct processserver_state *server_state, size_t *ret_num_pids, domainid_t **ret_pids)
 {
     *ret_pids = calloc(1, server_state->num_proc * sizeof(domainid_t));
     if (*ret_pids == NULL) {
@@ -169,8 +176,11 @@ static int32_t proc_info_has_pid(void *data, void *arg)
     return proc_info->pid == pid;
 }
 
-static errval_t get_name_by_pid(struct processserver_state *server_state, domainid_t pid, char **ret_name) {
-    struct process_info *proc_info = collections_list_find_if(server_state->process_list_head, proc_info_has_pid, &pid);
+static errval_t
+get_name_by_pid(struct processserver_state *server_state, domainid_t pid, char **ret_name)
+{
+    struct process_info *proc_info = collections_list_find_if(server_state->process_list_head,
+                                                              proc_info_has_pid, &pid);
     if (proc_info == NULL) {
         return SYS_ERR_NOT_IMPLEMENTED;
     }
@@ -181,7 +191,9 @@ static errval_t get_name_by_pid(struct processserver_state *server_state, domain
     return SYS_ERR_OK;
 }
 
-static errval_t spawn_cb(struct processserver_state *processserver_state, char *name, coreid_t coreid, domainid_t *ret_pid)
+static errval_t spawn_cb(
+        struct processserver_state *processserver_state, char *name, coreid_t coreid,
+        domainid_t *ret_pid)
 {
     errval_t err;
 
@@ -198,7 +210,6 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
     err = processserver_send_spawn_local(processserver_state, name, coreid, new_pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name(): %s\n", err_getstring(err));
-        // TODO: If spawn failed, remove the process from the processserver state list.
         return err;
     }
 
@@ -213,7 +224,9 @@ static errval_t spawn_cb(struct processserver_state *processserver_state, char *
     return SYS_ERR_OK;
 }
 
-static errval_t get_name_cb(struct processserver_state *processserver_state, domainid_t pid, char **ret_name) {
+static errval_t
+get_name_cb(struct processserver_state *processserver_state, domainid_t pid, char **ret_name)
+{
     errval_t err;
 
     grading_rpc_handler_process_get_name(pid);
@@ -223,7 +236,9 @@ static errval_t get_name_cb(struct processserver_state *processserver_state, dom
     return err;
 }
 
-static errval_t get_all_pids_cb(struct processserver_state *processserver_state, size_t *ret_count, domainid_t **ret_pids) {
+static errval_t get_all_pids_cb(
+        struct processserver_state *processserver_state, size_t *ret_count, domainid_t **ret_pids)
+{
     errval_t err;
 
     grading_rpc_handler_process_get_all_pids();
@@ -234,10 +249,13 @@ static errval_t get_all_pids_cb(struct processserver_state *processserver_state,
 }
 
 inline
-static errval_t handle_spawn_process(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
+static errval_t handle_spawn_process(
+        struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
     errval_t err;
     char *name = rpc_msg_part->payload + sizeof(coreid_t);
-    coreid_t core = *((coreid_t *)rpc_msg_part->payload);
+    coreid_t core = *((coreid_t *) rpc_msg_part->payload);
     domainid_t pid = 0;
     enum rpc_message_status status = Status_Ok;
 
@@ -265,21 +283,24 @@ static errval_t handle_spawn_process(struct processserver_state *server_state, s
 }
 
 inline
-static errval_t handle_process_get_name(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
-    errval_t  err;
+static errval_t handle_process_get_name(
+        struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
+    errval_t err;
 
     domainid_t pid;
     memcpy(&pid, rpc_msg_part->payload, sizeof(domainid_t));
 
     enum rpc_message_status status = Status_Ok;
     char *name = NULL;
-    size_t payload_length = strnlen(name, RPC_LMP_MAX_STR_LEN) + 1; // strnlen no \0
+    size_t payload_length = 0;
 
     err = get_name_cb(server_state, pid, &name);
     if (err_is_fail(err)) {
         status = Process_Get_Name_Failed;
         payload_length = 0;
-        *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_length);
+        *ret_msg = calloc(1, sizeof(struct rpc_message));
         if (*ret_msg == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
@@ -310,7 +331,8 @@ static errval_t handle_process_info(
     domainid_t pid;
     memcpy(&pid, rpc_msg_part->payload, sizeof(domainid_t));
 
-    struct process_info *found = collections_list_find_if(server_state->process_list_head, proc_info_has_pid, &pid);
+    struct process_info *found = collections_list_find_if(server_state->process_list_head,
+                                                          proc_info_has_pid, &pid);
 
     if (found == NULL) {
         PS_DEBUG("pid %d not found\n", pid);
@@ -340,38 +362,43 @@ static errval_t handle_process_info(
         (*ret_msg)->msg.method = Method_Process_Info;
         (*ret_msg)->msg.status = Status_Ok;
         memcpy(&(*ret_msg)->msg.payload, &reply, payload_len);
-
     }
     return SYS_ERR_OK;
 }
 
 inline
-static errval_t handle_process_get_all_pids(struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part, struct rpc_message **ret_msg) {
-    errval_t  err;
+static errval_t handle_process_get_all_pids(
+        struct processserver_state *server_state, struct rpc_message_part *rpc_msg_part,
+        struct rpc_message **ret_msg)
+{
+    errval_t err;
     size_t pid_count = 0;
     domainid_t *pids = NULL;
     enum rpc_message_status status = Status_Ok;
 
     err = get_all_pids_cb(server_state, &pid_count, &pids);
+    uint32_t payload_size = 0;
     if (err_is_fail(err)) {
+        debug_printf("error in get_all_pids_cb: %s\n", err_getstring(err));
         status = Process_Get_All_Pids_Failed;
+    } else {
+        if (pid_count > PROCESS_SERVER_PID_COUNT_WARNING){
+            debug_printf("pid_count is large: %d\n", pid_count);
+        }
+        payload_size = sizeof(struct rpc_message) + sizeof(domainid_t) * pid_count + sizeof(size_t);
+        *ret_msg = calloc(1, payload_size);
+        if (*ret_msg == NULL) {
+            return LIB_ERR_MALLOC_FAIL;
+        }
+        struct process_pid_array *pid_array = (struct process_pid_array *) &(*ret_msg)->msg.payload;
+        pid_array->pid_count = pid_count;
+        memcpy(pid_array->pids, pids, sizeof(domainid_t) * pid_count);
+        free(pids);
     }
-    // TODO: pid_count sanitation
-    const size_t payload_length = sizeof(struct rpc_message) + sizeof(domainid_t) * pid_count + sizeof(size_t);
-    *ret_msg = malloc(payload_length);
-    if (*ret_msg == NULL) {
-        return LIB_ERR_MALLOC_FAIL;
-    }
-    struct process_pid_array *pid_array = (struct process_pid_array *) &(*ret_msg)->msg.payload;
-    pid_array->pid_count = pid_count;
-    memcpy(pid_array->pids, pids, sizeof(domainid_t) * pid_count);
-    free(pids);
-
     (*ret_msg)->cap = NULL_CAP;
-    (*ret_msg)->msg.payload_length = payload_length;
+    (*ret_msg)->msg.payload_length = payload_size;
     (*ret_msg)->msg.method = Method_Process_Get_All_Pids;
     (*ret_msg)->msg.status = status;
-
     return SYS_ERR_OK;
 }
 
@@ -390,12 +417,11 @@ static errval_t handle_process_sign_exit(
     memcpy(&pid, rpc_msg_part->payload, sizeof(domainid_t));
     *ret_msg = NULL;
 
-    struct process_info *found = collections_list_find_if(server_state->process_list_head, proc_info_has_pid, &pid);
-
+    struct process_info *found = collections_list_find_if(server_state->process_list_head,
+                                                          proc_info_has_pid, &pid);
     if (found == NULL) {
         debug_printf("pid %d not registered\n", pid);
-    }
-    else {
+    } else {
         // XXX: we keep pid in the list of processes
         found->status = ProcessStatus_Exit;
     }
@@ -431,7 +457,9 @@ static errval_t handle_complete_msg(
     return SYS_ERR_OK;
 }
 
-static void service_handler(void *st, void *message, size_t bytes, void **response, size_t *response_bytes, struct capref tx_cap, struct capref *rx_cap)
+static void service_handler(
+        void *st, void *message, size_t bytes, void **response, size_t *response_bytes,
+        struct capref tx_cap, struct capref *rx_cap)
 {
     struct processserver_state *ps = st;
     struct rpc_message *msg = message;
@@ -445,7 +473,7 @@ static void service_handler(void *st, void *message, size_t bytes, void **respon
         return;
     }
 
-    if (resp_msg != NULL){
+    if (resp_msg != NULL) {
         *response = resp_msg;
         *response_bytes = sizeof(struct rpc_message) + resp_msg->msg.payload_length;
     } else {
