@@ -11,10 +11,11 @@
 #include <aos/string.h>
 #include <aos/nameserver.h>
 #include <aos/deferred.h>
-#include <arch/aarch64/aos/dispatcher_arch.h>
 
 static struct serialserver_state serial_server;
 
+
+// set this to false to poll for iqr instead
 #define ENABLE_IQR true
 #define IQR_POLL_INTERVAL_US 1000
 
@@ -231,13 +232,8 @@ inline static void service_recv_handle_putstr(struct rpc_message *msg)
         grading_rpc_handler_serial_putchar(*(cptr + i));
     }
 
-    // XXX: Hacky workaround
-    // the UMP library seems to cause troubles
-    // when transfering content across cores
-    // we only get gibberish in payload
-    // if we are too quick
-    struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
-    barrelfish_usleep(10);
+    // XXX: if the other core writes to stdout using sysprint call in cpu driver
+    // we may get interleavings in output and see trash
     putstr_usr(msg->msg.payload, msg->msg.payload_length);
 }
 

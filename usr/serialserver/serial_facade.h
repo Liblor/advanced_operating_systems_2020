@@ -1,7 +1,3 @@
-
-// Created by b on 5/9/20.
-//
-
 #ifndef BFOS_SERIAL_FACADE_H
 #define BFOS_SERIAL_FACADE_H
 
@@ -10,7 +6,7 @@
 
 // #define SERIAL_FACADE_TRACE_IQR_ON
 // enable SERIAL_FACADE_TRACE_IQR_ON
-// to write all read iqr directly out through serial port
+// to write all read irq directly out through serial port
 
 #define SERIAL_FACADE_DEBUG_ON
 #if defined(SERIAL_FACADE_DEBUG_ON)
@@ -18,10 +14,6 @@
 #else
 #define SERIAL_FACADE_DEBUG(x...) ((void)0)
 #endif
-
-// disable userspace iqr handler for read events
-// useful for debugging
-// #define SERIAL_FACADE_DISABLE_IQR
 
 typedef void (*serial_facade_read_cb)(char c, void *args);
 
