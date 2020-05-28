@@ -316,7 +316,7 @@ aos_rpc_lmp_send_and_wait_recv_wait_handler(
         }
 
         thread_yield();
-    } while (err_is_ok(err) && state.pending_state == DataInTransmit);
+    } while (err == LIB_ERR_NO_EVENT || (err_is_ok(err) && state.pending_state == DataInTransmit));
 
     if (err_is_fail(err)) {
         goto clean_up;

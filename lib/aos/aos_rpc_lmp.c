@@ -1026,7 +1026,7 @@ errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t
     memcpy(msg->msg.payload, query, query_len);
 
     struct rpc_message *recv = NULL;
-    err = aos_rpc_lmp_send_and_wait_recv(rpc, msg, &recv, validate_ns_enumerate);
+    err = aos_rpc_lmp_send_and_wait_recv_wait_handler(rpc, msg, &recv, validate_ns_enumerate, response_wait_handler, handler_args);
     if (err_is_fail(err)) {
         return err;
     }
