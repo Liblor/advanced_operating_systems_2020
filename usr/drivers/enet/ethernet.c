@@ -35,14 +35,14 @@ errval_t ethernet_initialize(
     }
 
     ENET_ETHERNET_DEBUG("Initializing ARP state...\n");
-    err = arp_initialize(&state->arp_state, state, mac, OWN_IP_ADDRESS);
+    err = arp_initialize(&state->arp_state, state, mac, NETWORKING_IP_ADDRESS);
     if (err_is_fail(err)) {
         debug_printf("ARP initialization failed.\n");
         return err;
     }
 
     ENET_ETHERNET_DEBUG("Initializing IP state...\n");
-    err = ip_initialize(&state->ip_state, state, OWN_IP_ADDRESS, udp_receive_cb);
+    err = ip_initialize(&state->ip_state, state, NETWORKING_IP_ADDRESS, udp_receive_cb);
     if (err_is_fail(err)) {
         debug_printf("IP initialization failed.\n");
         return err;

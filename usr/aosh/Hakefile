@@ -10,6 +10,7 @@
   		               "builtin/rpctest.c",
   		               "builtin/domain_info.c",
   		               "builtin/run_memtest.c",
+  		               "builtin/net.c",
   		               "builtin/ps.c",
   		               "builtin/color.c",
   		               "builtin/fs_utils.c",

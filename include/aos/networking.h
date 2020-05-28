@@ -7,6 +7,7 @@
 #include <aos/nameserver.h>
 
 #define NETWORKING_SERVICE_NAME "networking"
+#define NETWORKING_IP_ADDRESS (MK_IP(2, 0, 0, 10))
 
 typedef uint16_t udp_port_t;
 
