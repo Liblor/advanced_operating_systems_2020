@@ -297,6 +297,7 @@ static errval_t spawn_cb(
             fs_initialized = true;
             err = filesystem_init();
             if (err_is_fail(err)) {
+                fs_initialized = false;
                 return err;
             }
         }
