@@ -840,7 +840,7 @@ validate_ns_register(struct lmp_recv_msg *msg, enum pending_state state)
 }
 
 errval_t
-aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid)
+aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid, response_wait_handler_t response_wait_handler, void *handler_args)
 {
     errval_t err;
 
@@ -875,7 +875,7 @@ aos_rpc_lmp_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *c
     struct rpc_message *recv = (struct rpc_message *) message;
 
     if (rpc->type == RpcTypeLmp) {
-        err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_register, NULL_CAP);
+        err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc_wait_handler(rpc, msg, recv, validate_ns_register, NULL_CAP, response_wait_handler, handler_args);
         if (err_is_fail(err)) {
             return err;
         }
@@ -899,7 +899,7 @@ validate_ns_deregister(struct lmp_recv_msg *msg, enum pending_state state)
 }
 
 errval_t
-aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name)
+aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name, response_wait_handler_t response_wait_handler, void *handler_args)
 {
     errval_t err;
 
@@ -926,7 +926,7 @@ aos_rpc_lmp_ns_deregister(struct aos_rpc *rpc, const char *name)
 
     char message[sizeof(struct rpc_message)];
     struct rpc_message *recv = (struct rpc_message *) message;
-    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_deregister, NULL_CAP);
+    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc_wait_handler(rpc, msg, recv, validate_ns_deregister, NULL_CAP, response_wait_handler, handler_args);
     if (err_is_fail(err)) {
         return err;
     }
@@ -1000,7 +1000,7 @@ validate_ns_enumerate(struct lmp_recv_msg *msg, enum pending_state state)
     return validate_recv_header(msg, state, Method_Nameserver_Enumerate);
 }
 
-errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result)
+errval_t aos_rpc_lmp_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result, response_wait_handler_t response_wait_handler, void *handler_args)
 {
     errval_t err;
 

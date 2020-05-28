@@ -56,8 +56,22 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc_wait_handler(
  * \brief Marshall rpc_message and wait for a response
  */
 errval_t
-aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
-                               struct rpc_message **recv, validate_recv_msg_t validate_cb);
+aos_rpc_lmp_send_and_wait_recv(
+    struct aos_rpc *rpc,
+    struct rpc_message *send,
+    struct rpc_message **recv,
+    validate_recv_msg_t validate_cb
+);
+
+errval_t
+aos_rpc_lmp_send_and_wait_recv_wait_handler(
+    struct aos_rpc *rpc,
+    struct rpc_message *send,
+    struct rpc_message **recv,
+    validate_recv_msg_t validate_cb,
+    response_wait_handler_t response_wait_handler,
+    void *handler_args
+);
 
 /**
  * \brief Marshall rpc_message and send with LMP
