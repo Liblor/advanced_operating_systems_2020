@@ -109,6 +109,7 @@ static bool is_valid_name_for_shortname(
     if (name_len > 12) { return false; }
     if (name_len == 0) { return false; }
     if (name[0] == '.') { return false; }
+    if (isdigit(name[0])) { return false; }
     char *dot = strrchr(name, '.');
     if (dot == NULL) {
         if (name_len > 8) { return false; }
