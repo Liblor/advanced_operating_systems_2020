@@ -230,8 +230,9 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
 
     struct aos_rpc *rpc = chan->rpc;
 
-    uint8_t send_buf[sizeof(struct rpc_message) + bytes];
-    struct rpc_message *send = (struct rpc_message *) &send_buf;
+    uint8_t *send_buf = calloc(sizeof(struct rpc_message) + bytes, 1);
+    if (send_buf == NULL) { return LIB_ERR_MALLOC_FAIL; }
+    struct rpc_message *send = (struct rpc_message *) send_buf;
     send->msg.method = Method_Nameserver_Service_Request;
     send->msg.payload_length = bytes;
     send->msg.status = Status_Ok;
@@ -245,6 +246,7 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
         err = aos_rpc_ump_send_message(rpc, send);
         if (err_is_fail(err)) {
             free(recv);
+            free(send_buf);
             return err;
         }
 
@@ -252,6 +254,7 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
             err = aos_rpc_ump_receive_non_block(rpc, &recv);
             if (err_is_fail(err)) {
                 free(recv);
+                free(send_buf);
                 return err;
             }
 
@@ -259,6 +262,7 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
             if (err_is_fail(err)) {
                 debug_printf("serve_all_add_client() failed: %s\n", err_getstring(err));
                 free(recv);
+                free(send_buf);
                 return err;
             }
             thread_yield();
@@ -267,6 +271,7 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
         *response_bytes = recv->msg.payload_length;
         *response = calloc(1, recv->msg.payload_length);
         if (*response == NULL) {
+            free(send_buf);
             return LIB_ERR_MALLOC_FAIL;
         }
 
@@ -279,9 +284,11 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
     } else {
         err = aos_rpc_ump_send_message(rpc, send);
         if (err_is_fail(err)) {
+            free(send_buf);
             return err;
         }
     }
+    free(send_buf);
 
     return SYS_ERR_OK;
 }

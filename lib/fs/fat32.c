@@ -292,9 +292,9 @@ static inline void handle_close(struct fat32_handle *h)
 }
 
 static inline errval_t next_cluster(
-        struct fat32_mnt *mnt,
-        uint32_t cluster_nr,
-        uint32_t *ret_cluster_nr
+    struct fat32_mnt *mnt,
+    uint32_t cluster_nr,
+    uint32_t *ret_cluster_nr
 ) {
     errval_t err;
     uint8_t buf[BLOCK_SIZE];
@@ -498,7 +498,7 @@ static errval_t next_dir_entry(
     // new cluster
     h->sector_rel_cluster = 0;
     errval_t err = next_cluster(mnt, h->current_cluster, &h->current_cluster);
-    assert(h->current_cluster < FAT32_EndCluster);    // a end of directory entry should come first
+    //assert(h->current_cluster < FAT32_EndCluster);    // a end of directory entry should come first
     return err;
 }
 
@@ -673,13 +673,13 @@ errval_t fat32_read(
         h->file_pos += size;
         h->sector_rel_cluster += new_sector;
         if (h->sector_rel_cluster >= mnt->sectors_per_cluster) {
+            assert(h->current_cluster < FAT32_EndCluster);
             // new cluster
             h->sector_rel_cluster = 0;
             err = next_cluster(mnt, h->current_cluster, &h->current_cluster);
             if (err_is_fail(err)) {
                 return err;
             }
-            assert(h->current_cluster < FAT32_EndCluster);    // a end of directory entry should come first
         }
     }
 
@@ -706,12 +706,12 @@ static errval_t file_seek_pos(
     }
 
     while (curr_cluster_count < number_of_cluster_to_pos) {
+        assert(curr_cluster < FAT32_EndCluster);
         // Could be optimized by not rereading if cluster is in same FAT block
         errval_t err = next_cluster(mnt, curr_cluster, &curr_cluster);
         if (err_is_fail(err)) {
             return err;
         }
-        assert(curr_cluster < FAT32_EndCluster);
         curr_cluster_count++;
     }
 

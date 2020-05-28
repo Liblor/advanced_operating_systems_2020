@@ -52,8 +52,12 @@ static nameservice_chan_t get_monitor_chan(struct processserver_state *server_st
 }
 
 static errval_t processserver_send_spawn_local(
-        struct processserver_state *server_state, char *name, coreid_t coreid, domainid_t pid)
-{
+    struct processserver_state *server_state,
+    nameservice_chan_t monitor_chan,
+    char *name,
+    coreid_t coreid,
+    domainid_t pid
+) {
     errval_t err;
 
     const uint32_t str_len = MIN(strnlen(name, RPC_LMP_MAX_STR_LEN) + 1,
@@ -69,12 +73,6 @@ static errval_t processserver_send_spawn_local(
 
     memcpy(req->msg.payload, &pid, sizeof(domainid_t));
     strlcpy(req->msg.payload + sizeof(domainid_t), name, str_len);
-
-    nameservice_chan_t monitor_chan = get_monitor_chan(server_state, coreid);
-    if (monitor_chan == NULL) {
-        debug_printf("Failed to get monitor service for core %llu.\n", coreid);
-        return LIB_ERR_NOT_IMPLEMENTED;
-    }
 
     struct rpc_message *resp = NULL;
     size_t resp_len;
@@ -106,6 +104,7 @@ static void set_payload_message(
 
 static errval_t processserver_send_spawn_buf_local(
     struct processserver_state *server_state,
+    nameservice_chan_t monitor_chan,
     char *cmd,
     char *bin,
     size_t bin_size,
@@ -125,7 +124,7 @@ static errval_t processserver_send_spawn_buf_local(
     const uint32_t cmd_size = strnlen(cmd, RPC_LMP_MAX_STR_LEN) + 1;
 
     size_t payload_length = sizeof(pid) + sizeof(cmd_size) + cmd_size + bin_size;
-    uint8_t *send_buf = calloc(payload_length, 1);
+    uint8_t *send_buf = calloc(sizeof(struct rpc_message) + payload_length, 1);
     if (send_buf == NULL) { return LIB_ERR_MALLOC_FAIL; }
     struct rpc_message *req = (struct rpc_message *) send_buf;
     HERE;
@@ -142,23 +141,24 @@ static errval_t processserver_send_spawn_buf_local(
     set_payload_message(req, bin, bin_size,
                         sizeof(pid) + sizeof(cmd_size) + cmd_size);
 
-    nameservice_chan_t monitor_chan = get_monitor_chan(server_state, coreid);
-    if (monitor_chan == NULL) {
-        debug_printf("Failed to get monitor service for core %llu.\n", coreid);
-        return LIB_ERR_NOT_IMPLEMENTED;
-    }
-
     struct rpc_message *resp = NULL;
     size_t resp_len;
 
-    HERE;
     // Send local task request to monitor on the core where the process should start.
-    err = nameservice_rpc(monitor_chan, req, sizeof(send_buf), (void **) &resp, &resp_len, NULL_CAP,
-                          NULL_CAP);
+    err = nameservice_rpc(
+        monitor_chan,
+        req,
+        sizeof(struct rpc_message) + payload_length,
+        (void **) &resp,
+        &resp_len,
+        NULL_CAP,
+        NULL_CAP
+    );
     if (err_is_fail(err)) {
         debug_printf("nameservice_rpc():%s\n)", err_getstring(err));
         return err;
     }
+    free(send_buf);
 
     if (resp->msg.status != Status_Ok) {
         return ERR_INVALID_ARGS;
@@ -285,7 +285,13 @@ static errval_t spawn_cb(
     // reason: legacy, spawn_load_by_name does not set pid itself, so
     // add_to_proc_list implemented the behavior
 
-    err = processserver_send_spawn_local(processserver_state, cmd, coreid, new_pid);
+    nameservice_chan_t monitor_chan = get_monitor_chan(processserver_state, coreid);
+    if (monitor_chan == NULL) {
+        debug_printf("Failed to get monitor service for core %llu.\n", coreid);
+        return LIB_ERR_NOT_IMPLEMENTED;
+    }
+
+    err = processserver_send_spawn_local(processserver_state, monitor_chan, cmd, coreid, new_pid);
     if (err_is_fail(err)) {     // sorry for ugly code
         if (! fs_initialized) {
             fs_initialized = true;
@@ -294,7 +300,6 @@ static errval_t spawn_cb(
                 return err;
             }
         }
-        HERE;
         // Try querying file system
         char *ptr = strchrnul(cmd, ' ');
         uint64_t binary_name_len = ptr - cmd;
@@ -302,32 +307,30 @@ static errval_t spawn_cb(
         memcpy(binary_name, cmd, binary_name_len);
         binary_name[binary_name_len] = '\0';
 
-        HERE;
         FILE *f = fopen(binary_name, "r");
         if (f == NULL) {
             debug_printf("spawn_load_by_name(): %s\n", err_getstring(err));
             return ERR_INVALID_ARGS;
         }
-        HERE;
         fseek(f , 0, SEEK_END);
         size_t filesize = ftell(f);
         rewind(f);
-        HERE;
         char *bin = calloc(filesize, 1);
         if (bin == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
-        HERE;
-        size_t bytes_read = fread(bin, filesize, 1, f);
+        printf("TAKE A NAP THIS MIGHT TAKE A WHILE!\n");
+        size_t bytes_read = fread(bin, 1, filesize, f);
         if (bytes_read < filesize) {
             debug_printf("Couldn't read whole file\n");
             return ERR_INVALID_ARGS;    // TODO: dedicated error code
         }
         fclose(f);
-        HERE;
+        printf("FILE READ\n");
 
         err = processserver_send_spawn_buf_local(
             processserver_state,
+            monitor_chan,
             cmd,
             bin,
             filesize,
