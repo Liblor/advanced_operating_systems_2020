@@ -334,7 +334,6 @@ void arp_print_cache(
     genoffset_t position = 0;
 
     position += arp_print_cache_addline(m + position, state->ip, state->mac);
-    debug_printf("position=%d,mac:%d\n", position, state->mac);
 
     ret = collections_hash_traverse_start(state->entries);
     assert(ret == 1);
@@ -344,7 +343,6 @@ void arp_print_cache(
 
     while ((entry = collections_hash_traverse_next(state->entries, &key)) != NULL) {
         position += arp_print_cache_addline(m + position, key, entry->mac);
-        debug_printf("position=%d,mac:%d\n", position, entry->mac);
     }
 
     ret = collections_hash_traverse_end(state->entries);
