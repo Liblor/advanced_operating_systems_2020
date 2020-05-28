@@ -429,6 +429,10 @@ static inline errval_t back_vaddr(
         goto cleanup;
     }
 
+    // Mapping node should span at most one L3 table, otherwise it cannot be
+    // mapped with only one vnode_map() call.
+    assert(mapping_node->size <= PTABLE_ENTRIES * BASE_PAGE_SIZE);
+
     /*
      * Next, we need to create a frame and map it.
      */
