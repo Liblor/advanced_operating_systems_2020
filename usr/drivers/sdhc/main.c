@@ -605,8 +605,8 @@ errval_t sdhc_init(struct sdhc_s** sd_ret, void *base)
 
     err = card_init(sd);
     if (err_is_fail(err)) {
-       DEBUG_ERR(err, "card init failed (No card present?)");
-       return err;
+        debug_printf("card init failed (No card present?): %s\n", err_getstring(err));
+        return err;
     }
 
     return SYS_ERR_OK;
