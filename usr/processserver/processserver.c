@@ -312,6 +312,7 @@ static errval_t spawn_cb(
             debug_printf("spawn_load_by_name(): %s\n", err_getstring(err));
             return ERR_INVALID_ARGS;
         }
+        printf("TAKE A NAP THIS MIGHT TAKE A WHILE!\n");
         fseek(f , 0, SEEK_END);
         size_t filesize = ftell(f);
         rewind(f);
@@ -319,7 +320,6 @@ static errval_t spawn_cb(
         if (bin == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
-        printf("TAKE A NAP THIS MIGHT TAKE A WHILE!\n");
         size_t bytes_read = fread(bin, 1, filesize, f);
         if (bytes_read < filesize) {
             debug_printf("Couldn't read whole file\n");
