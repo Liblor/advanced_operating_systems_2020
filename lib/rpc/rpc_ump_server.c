@@ -35,6 +35,11 @@ errval_t rpc_ump_server_serve_next(struct rpc_ump_server *server)
             server->client_next++;
             server->client_next %= server->client_count;
             free(msg);
+
+            if (server->processing_paused) {
+                break;
+            }
+            thread_yield();
         }
 
         ret = collections_list_traverse_end(server->client_list);

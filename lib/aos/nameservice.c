@@ -345,7 +345,7 @@ errval_t nameservice_register_at_chan(struct aos_rpc *rpc_chan, const char *name
         domainid_t pid = disp_get_domain_id();
 
         // Send message to nameserver to register new service
-        err = aos_rpc_ns_register(rpc_chan, name, &service->add_client_chan, pid);
+        err = aos_rpc_ns_register(rpc_chan, name, &service->add_client_chan, pid, serve_all_add_client_wait_cb, service_list_head);
         if (err_is_fail(err)) {
             debug_printf("aos_rpc_lmp_ns_register() failed: %s\n", err_getstring(err));
             return err;
@@ -426,7 +426,7 @@ errval_t nameservice_deregister(const char *name)
     // TODO free ump_server
     // TODO What happens to processes that got the now non-existant server in a lookup?
 
-    err = aos_rpc_ns_deregister(monitor_chan, name);
+    err = aos_rpc_ns_deregister(monitor_chan, name, serve_all_add_client_wait_cb, service_list_head);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ns_deregister() failed: %s\n", err_getstring(err));
         return err;
@@ -488,7 +488,7 @@ errval_t nameservice_enumerate(char *query, size_t *num, char **result)
 
     struct aos_rpc *monitor_chan = aos_rpc_lmp_get_monitor_channel();
 
-    err = aos_rpc_ns_enumerate(monitor_chan, query, num, result);
+    err = aos_rpc_ns_enumerate(monitor_chan, query, num, result, serve_all_add_client_wait_cb, service_list_head);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ns_enumerate() failed: %s\n", err_getstring(err));
         return err;
