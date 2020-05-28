@@ -362,7 +362,16 @@ int main(
     } while (err_is_ok(err));
 
     if (err == AOSH_ERR_EXIT_SHELL) {
+        printf("\n");
         printf("Goodbye. It was a pleasure to have fought along your side." ENDL);
+
+        // XXX: wait a bit such that
+        // other output of debug_printf on cpu-driver/1 does not interleave.
+        // in a production system, debug_printf is disabled
+        // debug_printf access luart driver from cpu-driver
+        // and bypasses serialserver in userspace
+        // hence, sometimes output interleaves.
+        barrelfish_usleep(1000 * 1000);
         return EXIT_SUCCESS;
 
     } else if (err_is_fail(err)) {
