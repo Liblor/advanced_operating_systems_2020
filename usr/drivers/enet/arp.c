@@ -351,6 +351,4 @@ void arp_print_cache(
     assert(ret == 1);
 
     m[string_size - 1] = '\0';
-
-    debug_dump_mem((lvaddr_t) m, (lvaddr_t) m + string_size, 0);
 }
