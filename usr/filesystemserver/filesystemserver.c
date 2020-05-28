@@ -384,7 +384,7 @@ static inline errval_t init_fileserver_state(struct fileserver_state *st)
 int main(int argc, char *argv[])
 {
     errval_t err;
-    err = nameservice_wait_for_timeout(NAMESERVICE_BLOCKDRIVER, 20, 100000);
+    err = nameservice_wait_for_timeout(NAMESERVICE_BLOCKDRIVER, 60, 100000);
     if (err_is_fail(err)) { return 0; }
     debug_printf("Fileserver spawned.\n");
     struct fileserver_state *st = malloc(sizeof(struct fileserver_state));
