@@ -16,6 +16,7 @@
 #include "rpctest.h"
 #include "run_memtest.h"
 #include "color.h"
+#include "net.h"
 
 // builtins within this file
 errval_t builtin_help(int, char **);
@@ -44,6 +45,7 @@ struct aosh_builtin_descr aosh_builtins[] = {
         {builtin_mkdir,   "mkdir",   "make directory"},
         {builtin_rmdir,   "rmdir",   "remove directory"},
         {builtin_touch,   "touch",   "create file"},
+        {builtin_ip,   "ip",   "show IP address"},
         {builtin_exit,     "exit",     "exit shell (ctrl-d)"},
 };
 
