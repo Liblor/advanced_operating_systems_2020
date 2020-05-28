@@ -154,9 +154,9 @@ errval_t aos_rpc_ns_deregister(struct aos_rpc *rpc, const char *name)
     return aos_rpc_lmp_ns_deregister(rpc, name);
 }
 
-errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid)
+errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid, response_wait_handler_t response_wait_handler, void *handler_args)
 {
-    return aos_rpc_lmp_ns_lookup(rpc, name, rpc_service, pid);
+    return aos_rpc_lmp_ns_lookup(rpc, name, rpc_service, pid, response_wait_handler, handler_args);
 }
 
 errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result)
