@@ -10,8 +10,8 @@
 --
 --------------------------------------------------------------------------
 
-[ build application { target = "serial-read-test",
-  		              cFiles = [ "serial-read-test.c" ],
+[ build application { target = "serial-write",
+  		              cFiles = [ "serial-write.c" ],
                       architectures = allArchitectures
                     }
 ]
