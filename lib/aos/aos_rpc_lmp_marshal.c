@@ -163,6 +163,19 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     struct capref ret_cap
 )
 {
+    return aos_rpc_lmp_send_and_wait_recv_one_no_alloc_wait_handler(rpc, send, recv, validate_cb, ret_cap, NULL, NULL);
+}
+
+errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc_wait_handler(
+    struct aos_rpc *rpc,
+    struct rpc_message *send,
+    struct rpc_message *recv,
+    validate_recv_msg_t validate_cb,
+    struct capref ret_cap,
+    response_wait_handler_t response_wait_handler,
+    void *handler_args
+)
+{
     errval_t err;
 
     assert(rpc != NULL);
@@ -199,7 +212,18 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
         goto clean_up;
     }
 
-    err = event_dispatch(&state.ws);
+    do {
+        err = event_dispatch_non_block(&state.ws);
+        if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
+            debug_printf("error occured in serialserver: %s\n", err_getstring(err));
+        }
+
+        if (response_wait_handler != NULL) {
+            response_wait_handler(handler_args);
+        }
+
+        thread_yield();
+    } while(err == LIB_ERR_NO_EVENT);
 
     if (err_is_fail(state.err)) {
         err = state.err;

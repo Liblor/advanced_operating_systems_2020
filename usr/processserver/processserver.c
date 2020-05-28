@@ -385,8 +385,8 @@ static errval_t handle_process_get_all_pids(
         if (pid_count > PROCESS_SERVER_PID_COUNT_WARNING){
             debug_printf("pid_count is large: %d\n", pid_count);
         }
-        payload_size = sizeof(struct rpc_message) + sizeof(domainid_t) * pid_count + sizeof(size_t);
-        *ret_msg = calloc(1, payload_size);
+        payload_size = sizeof(struct process_pid_array) + sizeof(domainid_t) * pid_count; // TODO Why sizeof(size_t)?!
+        *ret_msg = calloc(1, sizeof(struct rpc_message) + payload_size);
         if (*ret_msg == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }

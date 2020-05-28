@@ -85,6 +85,44 @@ static errval_t serve_add_client(struct srv_entry *service) {
     return SYS_ERR_OK;
 }
 
+static errval_t serve_all_add_client(collections_listnode *service_list) {
+    errval_t err;
+
+    if (service_list == NULL) {
+        return SYS_ERR_OK;
+    }
+
+    struct srv_entry *curr;
+
+    int32_t ret = collections_list_traverse_start(service_list);
+    assert(ret == 1);
+
+    while ((curr = collections_list_traverse_next(service_list)) != NULL) {
+        err = serve_add_client(curr);
+        if (err_is_fail(err)) {
+            debug_printf("serve_add_client() failed: %s\n", err_getstring(err));
+            return err;
+        }
+
+    }
+
+    ret = collections_list_traverse_end(service_list);
+    assert(ret == 1);
+
+    return SYS_ERR_OK;
+}
+
+static void serve_all_add_client_wait_cb(void *args) {
+    errval_t err;
+
+    collections_listnode *service_list = args;
+
+    err = serve_all_add_client(service_list);
+    if (err_is_fail(err)) {
+        debug_printf("serve_all_add_client() failed: %s\n", err_getstring(err));
+    }
+}
+
 static int nameservice_serve(void *arg)
 {
     errval_t err;
@@ -203,20 +241,40 @@ errval_t nameservice_rpc(nameservice_chan_t chan, void *message, size_t bytes,
     struct rpc_message *recv = NULL;
 
     if (response != NULL && response_bytes != NULL) {
-        err = aos_rpc_ump_send_and_wait_recv(rpc, send, &recv);
+
+        err = aos_rpc_ump_send_message(rpc, send);
         if (err_is_fail(err)) {
             free(recv);
             return err;
         }
+
+        do {
+            err = aos_rpc_ump_receive_non_block(rpc, &recv);
+            if (err_is_fail(err)) {
+                free(recv);
+                return err;
+            }
+
+            err = serve_all_add_client(service_list_head);
+            if (err_is_fail(err)) {
+                debug_printf("serve_all_add_client() failed: %s\n", err_getstring(err));
+                free(recv);
+                return err;
+            }
+            thread_yield();
+        } while (recv == NULL);
+
         *response_bytes = recv->msg.payload_length;
         *response = calloc(1, recv->msg.payload_length);
         if (*response == NULL) {
             return LIB_ERR_MALLOC_FAIL;
         }
+
         memcpy(*response, &recv->msg.payload, *response_bytes);
         if (!capref_is_null(rx_cap)) {
             cap_copy(rx_cap, recv->cap);
         }
+
         free(recv);
     } else {
         err = aos_rpc_ump_send_message(rpc, send);
@@ -392,7 +450,7 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
     }
 
     domainid_t pid;
-    err = aos_rpc_ns_lookup(monitor_chan, name, rpc, &pid);
+    err = aos_rpc_ns_lookup(monitor_chan, name, rpc, &pid, serve_all_add_client_wait_cb, service_list_head);
     if (err_is_fail(err)) {
         debug_printf("aos_rpc_ns_lookup() failed: %s\n", err_getstring(err));
         return err;
