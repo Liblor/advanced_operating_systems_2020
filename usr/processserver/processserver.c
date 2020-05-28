@@ -127,7 +127,6 @@ static errval_t processserver_send_spawn_buf_local(
     uint8_t *send_buf = calloc(sizeof(struct rpc_message) + payload_length, 1);
     if (send_buf == NULL) { return LIB_ERR_MALLOC_FAIL; }
     struct rpc_message *req = (struct rpc_message *) send_buf;
-    HERE;
 
     req->msg.method = Method_Localtask_Spawn_Buf_Process;
     req->msg.status = Status_Ok;
