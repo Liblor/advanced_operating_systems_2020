@@ -15,6 +15,7 @@
 #include <aos/kernel_cap_invocations.h>
 #include <aos/aos_rpc_ump.h>
 #include <aos/nameserver.h>
+#include <aos/dispatcher_arch.h>
 
 #include "other_main.h"
 
@@ -89,6 +90,10 @@ static void register_service_channels(
 
 int other_main(int argc, char *argv[])
 {
+    dispatcher_handle_t handle_child = curdispatcher();
+    struct dispatcher_generic *disp_gen = get_dispatcher_generic(handle_child);
+    disp_gen->domain_id = 1;
+
     errval_t err;
     struct aos_rpc rpc;
 
