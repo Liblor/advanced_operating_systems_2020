@@ -26,8 +26,8 @@ struct spawninfo {
 
     // Information about the binary
     char * binary_name;     // Name of the binary
-
     struct mem_region *module;
+    void *module_data;
 };
 
 struct elf_allocator_state {
@@ -42,7 +42,11 @@ errval_t spawn_load_by_name(char *binary_name, struct spawninfo * si,
 errval_t spawn_load_argv(int argc, char *argv[], struct spawninfo *si,
                          domainid_t *pid);
 
-
+errval_t spawn_load_by_buf(
+    char *opts,
+    struct spawninfo * si,
+    domainid_t *pid
+);
 
 
 #endif /* _INIT_SPAWN_H_ */

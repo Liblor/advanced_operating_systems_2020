@@ -1699,6 +1699,7 @@ static struct aos_rpc *get_service_channel(nameservice_chan_t *chan, const char 
 
     if (was_unset && *chan == NULL) {
         debug_printf("aos_rpc_lmp_setup_channel() failed\n");
+        return NULL;
     }
 
     return (*chan)->rpc;

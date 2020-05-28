@@ -43,7 +43,11 @@ errval_t filesystem_init(void)
 #endif
 
     /* register libc fopen/fread and friends */
-    fs_libc_init(aos_rpc_get_filesystemserver_channel());
+    struct aos_rpc *rpc = aos_rpc_get_filesystemserver_channel();
+    if (rpc == NULL) {
+        return AOS_ERR_FS_NOT_STARTED;
+    }
+    fs_libc_init(rpc);
 
     return SYS_ERR_OK;
 }
