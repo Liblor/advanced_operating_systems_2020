@@ -1219,7 +1219,9 @@ static errval_t create_data_entry(
     name_to_shortname(childname, dirent.dir_entry.shortname);
     uint32_t n;
     uint32_t cluster_nr;
-    err = allocate_clusters(mnt, 1, !directory, &n, &cluster_nr);
+    // as far as I understood the doc it shouldn't have to be zeroed for dirs
+    // but leads to problems on linux otw.
+    err = allocate_clusters(mnt, 1, true, &n, &cluster_nr);
     if (err_is_fail(err)) {
         goto cleanup;
     }
