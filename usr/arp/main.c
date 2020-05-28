@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     err = networking_arp_list(&entries);
     assert(err_is_ok(err));
 
-    printf("%s\n", entries);
+    printf("%s", entries);
 
     return EXIT_SUCCESS;
 }
