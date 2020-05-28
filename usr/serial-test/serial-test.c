@@ -22,105 +22,49 @@
 #include <spawn/spawn.h>
 #include <aos/string.h>
 #include <arch/aarch64/aos/dispatcher_arch.h>
+#include <aos/deferred.h>
+
+
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
 
 const char long_string[] = "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
                            "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string"
-                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string";
+                           "this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string this is a very long string\n";
 
-__unused static void test_serial(void)
-{
-    errval_t err;
+static char *colors[100];
+static int colors_len;
 
-    debug_printf("Testing serial RPC...\n");
 
-    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-    if (rpc == NULL) {
-        debug_printf("Could not create serial channel\n");
-        return;
-    }
-    /*
-    // Explicit test not necessary since printf is redirected to rpc during thex
-    // execution of this entire program.
-    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
-        return;
-    }
-    */
+static int my_pid = 0;
+static int my_core = 0;
+static int my_color;
 
-    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
-    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
-
-    debug_printf("Press a button to test aos_rpc_lmp_serial_getchar(): ");
-    char c;
-    err = aos_rpc_lmp_serial_getchar(rpc, &c);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
-        return;
-    }
-    debug_printf("\n");
-    debug_printf("Received %c\n", c);
-}
+#define PRINTF_COLORS(format, ...) printf("%s[pid: %d] " format COLOR_RESET, colors[my_color], my_pid, ## __VA_ARGS__)
 
 __unused
 static void write_simple(void)
 {
-    debug_printf("Testing write_simple ...\n");
     struct aos_rpc *rpc = aos_rpc_get_serial_channel();
     if (rpc == NULL) {
-        debug_printf("Could not create serial channel\n");
+        PRINTF_COLORS("Could not create serial channel\n");
         return;
     }
 
-    printf("%s\n", long_string);
-    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
-    printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
+    PRINTF_COLORS("%s\n", long_string);
+    PRINTF_COLORS(
+            "If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
+    PRINTF_COLORS("1234567890abcdefghejklmnopqrstuvwxyz\n");
 
-}
-
-__unused
-static int write_simple_th_func(void *args)
-{
-    debug_printf("starting thread\n");
-    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-    if (rpc == NULL) {
-        debug_printf("Could not create serial channel\n");
-        return 1;
+    for (int i = 0; i < 3; i++) {
+        PRINTF_COLORS("i: %d, '%s'\n", i, long_string);
     }
-
-    printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
-
-    return 0;
-}
-
-__unused
-static void run_threads(size_t num_th, thread_func_t start_func, void *data)
-{
-    errval_t err;
-
-    struct thread *threads[num_th];
-
-    for (int i = 0; i < num_th; i++) {
-        threads[i] = thread_create(start_func, data);
-        assert(threads[i] != NULL);
-    }
-
-    for (int i = 0; i < num_th; i++) {
-        int retval;
-        err = thread_join(threads[i], &retval);
-        assert(err_is_ok(err));
-    }
-}
-
-// Threads dont work :(
-__unused
-static void write_simple_threads(void)
-{
-    debug_printf("running threads\n");
-    run_threads(2, write_simple_th_func, NULL);
 }
 
 __unused
@@ -132,7 +76,9 @@ static void read_loop(void)
     const size_t buf_size = 100;
     char buf[100];
     memset(&buf, 0, buf_size);
-    printf("Write something and hit return\n");
+
+    PRINTF_COLORS("Write something and hit return\n");
+    // write_simple();
 
     int i = 0;
     do {
@@ -140,15 +86,12 @@ static void read_loop(void)
         err = aos_rpc_lmp_serial_getchar(rpc, &c);
         if (IS_CHAR_LINEBREAK(c)) {
             buf[i] = 0;
-//            aos_rpc_lmp_serial_putstr(rpc, "You typed: '1'\n", strlen("You typed: '1'\n"));
-            printf("You typed: '%s' \n", buf);
-//            fflush(stdout);
+            PRINTF_COLORS("typed: '%s'. exiting now... \n", buf);
             return;
         } else {
             buf[i] = c;
-            printf("%c", c);
-//            aos_rpc_lmp_serial_putchar(rpc, c);
-             fflush(stdout);
+            PRINTF_COLORS(" %c\n", c);
+            fflush(stdout);
             i++;
             if (i == buf_size) {
                 i = 0;
@@ -160,79 +103,105 @@ static void read_loop(void)
         DEBUG_ERR(err, "aos_rpc_lmp_serial_getchar()");
         return;
     }
-    debug_printf("\n");
 }
 
-__unused
-static void printf_test(void)
+static errval_t wait_until_exit(const domainid_t pids[], size_t len)
 {
-    errval_t err;
-    char c;
-    struct aos_rpc *rpc = aos_rpc_get_serial_channel();
-    err = aos_rpc_lmp_serial_getchar(rpc, &c);
-    printf("test 2\n");
+    if (len == 0) return SYS_ERR_OK;
 
-    err = aos_rpc_lmp_serial_getchar(rpc, &c);
-
-
-    char buf2[1024];
-    memset(&buf2, 0, sizeof(buf2));
-
-
-    char buf[] = "hello there";
-    printf("%s", buf);
-
-
-    for (int i = 0; i < 10; i++) {
-        err = aos_rpc_lmp_serial_getchar(rpc, &c);
-        printf("%c", c);
-        fflush(stdout); // must be flushed explicitly, took a while to debug
-    }
-}
-
-__unused
-static void spawn_serial_tests(void) {
+    errval_t err = SYS_ERR_OK;
+    bool dead;
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
-    domainid_t pid;
+    do {
+        dead = true;
+        for (size_t i = 0; i < len;  i++) {
+            domainid_t pid = pids[i];
+            struct aos_rpc_process_info_reply *reply = NULL;
+            err = aos_rpc_lmp_process_get_info(rpc, pid, &reply);
+            if (err_is_fail(err)) {
+                free(reply);
+                return err;
+            }
+            if (reply->status != ProcessStatus_Exit) {
+                dead = false;
+            }
+            free(reply);
+            barrelfish_usleep(500);
+            event_dispatch_non_block(get_default_waitset());
+        }
+    } while (!dead);
 
-    aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
-    // aos_rpc_process_spawn(rpc, "serial-read-test", 0, &pid);
+    return err;
 }
-
 
 __unused
 int main(int argc, char *argv[])
 {
 
+    colors[0] = COLOR_RED;
+    colors[1] = COLOR_GRN;
+    colors[2] = COLOR_YEL;
+    colors[3] = COLOR_BLU;
+    colors[4] = COLOR_MAG;
+    colors[5] = COLOR_CYN;
+    colors_len = 6;
+
     struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
-    __unused domainid_t my_pid = disp->domain_id;
-    __unused coreid_t my_core = disp->core_id;
+    my_pid = disp->domain_id;
+    my_core = disp->core_id;
+    my_color = my_pid % colors_len;
+
 
 #if 1
     errval_t err = SYS_ERR_OK;
     if (argc == 1) {
 
-        printf("spawning children...\n");
+        PRINTF_COLORS(
+                "You may want to run this with oncore -f flag such that shell is suspended\n");
+
+        PRINTF_COLORS("This test demonstrates how serial getchar is demultiplexed among domains\n");
+        PRINTF_COLORS("spawning children...\n");
+
+        domainid_t pids[100];
+        int i = 0;
         struct aos_rpc *rpc = aos_rpc_get_process_channel();
         domainid_t pid;
-        err = aos_rpc_process_spawn(rpc, "serial-test 1", 1, &pid);
-        assert(err_is_ok(err));
-        printf("Spawning child with pid %d\n", pid);
 
         err = aos_rpc_process_spawn(rpc, "serial-test 1", 0, &pid);
         assert(err_is_ok(err));
-        printf("Spawning child with pid %d\n", pid);
+        PRINTF_COLORS("Spawning child with pid %d\n", pid);
+        pids[i] = pid;
+        i ++;
 
-        err = aos_rpc_process_spawn(rpc, "serial-test 1", 1, &pid);
-        assert(err_is_ok(err));
-        printf("Spawning child with pid %d\n", pid);
 
-        err = aos_rpc_process_spawn(rpc, "serial-test 1", 1, &pid);
+        err = aos_rpc_process_spawn(rpc, "serial-test 1", 0, &pid);
         assert(err_is_ok(err));
-        printf("Spawning child with pid %d\n", pid);
+        PRINTF_COLORS("Spawning child with pid %d\n", pid);
+        pids[i] = pid;
+        i ++;
+
+
+        err = aos_rpc_process_spawn(rpc, "serial-test 1", 0, &pid);
+        assert(err_is_ok(err));
+        PRINTF_COLORS("Spawning child with pid %d\n", pid);
+        pids[i] = pid;
+        i ++;
+
+
+        err = aos_rpc_process_spawn(rpc, "serial-test 1", 0, &pid);
+        assert(err_is_ok(err));
+        PRINTF_COLORS("Spawning child with pid %d\n", pid);
+        pids[i] = pid;
+        i ++;
+
+
+        PRINTF_COLORS("Waiting until children have exited\n");
+
+        wait_until_exit(pids, i);
+        PRINTF_COLORS("All pids exited\n");
+
         return SYS_ERR_OK;
     } else {
-        printf("child...\n");
         read_loop();
     }
 #endif
