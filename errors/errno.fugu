@@ -1406,6 +1406,7 @@ errors aos AOS_ERR_ {
     failure SERIAL_BUSY "Serial device currently not available. try again",
 
     failure RPC_INVALID_REPLY "Invalid RPC Reply",
+    failure FS_NOT_STARTED "The filesystem server is not running",
 };
 
 errors aos AOSH_ERR_ {

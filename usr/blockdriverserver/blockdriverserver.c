@@ -6,6 +6,7 @@
 #include <drivers/sdhc.h>
 #include <maps/imx8x_map.h>
 #include <aos/nameserver.h>
+#include <aos/systime.h>
 
 struct block_driver_state {
     struct capref sdhc;     ///< ObjType_DevFrame capability to SDHC
@@ -50,9 +51,12 @@ static inline errval_t read_block(
     struct block_driver_state *server_state
 ) {
     errval_t err;
+    //uint64_t ticks_before = systime_now();
     arm64_dcache_wbinv_range(server_state->read_vaddr, SDHC_BLOCK_SIZE);
     err = sdhc_read_block(sdhc_s, index, server_state->read_paddr);
     if (err_is_fail(err)) { return err; }
+    //uint64_t ticks_after = systime_now();
+    //debug_printf("Timing blockdriver (read): %lu\n", systime_to_us(ticks_after - ticks_before));
     return SYS_ERR_OK;
 }
 
