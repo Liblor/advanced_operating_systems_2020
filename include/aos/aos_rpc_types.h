@@ -94,4 +94,6 @@ struct aos_rpc_process_info_reply {
     domainid_t pid;
 };
 
+typedef void (*response_wait_handler_t)(void *arg);
+
 #endif

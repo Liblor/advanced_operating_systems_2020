@@ -943,7 +943,7 @@ validate_ns_lookup(struct lmp_recv_msg *msg, enum pending_state state)
 }
 
 errval_t
-aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid)
+aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid, response_wait_handler_t response_wait_handler, void *handler_args)
 {
     errval_t err;
 
@@ -976,7 +976,7 @@ aos_rpc_lmp_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc
 
     char message[sizeof(struct rpc_message)];
     struct rpc_message *recv = (struct rpc_message *) message;
-    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc(rpc, msg, recv, validate_ns_lookup, ret_cap);
+    err = aos_rpc_lmp_send_and_wait_recv_one_no_alloc_wait_handler(rpc, msg, recv, validate_ns_lookup, ret_cap, response_wait_handler, handler_args);
     if (err_is_fail(err)) {
         return err;
     }

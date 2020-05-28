@@ -212,7 +212,7 @@ errval_t aos_rpc_get_device_cap(struct aos_rpc *chan,
 // Nameserver calls
 errval_t aos_rpc_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid);
 errval_t aos_rpc_ns_deregister(struct aos_rpc *rpc, const char *name);
-errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid);
+errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid, response_wait_handler_t response_wait_handler, void *handler_args);
 errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result);
 
 /**

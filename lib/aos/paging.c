@@ -423,6 +423,12 @@ static inline errval_t back_vaddr(
 
     assert(mapping_node != NULL);
 
+    if (!range_tracker_is_used(mapping_node)) {
+        debug_printf("Page fault handler: Node %p is not being used.\n", mapping_node);
+        err = LIB_ERR_NOT_IMPLEMENTED;
+        goto cleanup;
+    }
+
     /*
      * Next, we need to create a frame and map it.
      */
