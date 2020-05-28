@@ -1,0 +1,22 @@
+[ build application { target = "aosh",
+  		              cFiles = [
+  		               "aosh.c",
+  		               "builtin/builtin.c",
+  		               "builtin/oncore.c",
+  		               "builtin/time.c",
+  		               "builtin/nslookup.c",
+  		               "builtin/nslist.c",
+  		               "builtin/echo.c",
+  		               "builtin/rpctest.c",
+  		               "builtin/domain_info.c",
+  		               "builtin/run_memtest.c",
+  		               "builtin/ps.c",
+  		               "builtin/color.c",
+  		               "builtin/fs_utils.c",
+  		               "linenoise/linenoise.c"
+  		                ],
+                      architectures = allArchitectures,
+                      addCFlags = ["-Wno-redundant-decls", "-Wno-missing-declarations", "-Wno-missing-prototypes", "-Wno-error=type-limits", "-Wno-unused-function", "-Wno-unused-label"],
+                      addLibraries = [ "fs" ]
+                    }
+]

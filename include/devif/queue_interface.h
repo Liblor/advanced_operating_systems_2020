@@ -10,7 +10,7 @@
 #define QUEUE_INTERFACE_H_ 1
 
 
-#include <barrelfish/barrelfish.h>
+#include <aos/aos.h>
 
 
 #define DEVQ_FLAG_LAST (1UL << 30)
@@ -23,7 +23,7 @@ typedef uint64_t genoffset_t;
 struct devq;
 struct region_pool;
 
-// For convinience reason buffer descritpion in one struct
+// For convinience reason buffer description in one struct
 struct devq_buf{
     genoffset_t offset; // 8
     genoffset_t length; // 16
@@ -46,7 +46,7 @@ struct devq_buf{
  * @param region_id     Id of the memory region the buffer belongs to
  * @param offset        Offset into the region i.e. where the buffer starts
  *                      that is enqueued
- * @param lenght        Lenght of the enqueued buffer
+ * @param length        Length of the enqueued buffer
  * @param valid_data    Offset into the buffer where the valid data of this buffer
  *                      starts
  * @param valid_length  Length of the valid data of this buffer
@@ -58,9 +58,9 @@ struct devq_buf{
 errval_t devq_enqueue(struct devq *q,
                       regionid_t region_id,
                       genoffset_t offset,
-                      genoffset_t lenght,
+                      genoffset_t length,
                       genoffset_t valid_data,
-                      genoffset_t valid_lenght,
+                      genoffset_t valid_length,
                       uint64_t misc_flags);
 
 /**
@@ -71,7 +71,7 @@ errval_t devq_enqueue(struct devq *q,
  *                      region the buffer belongs to
  * @param region_offset Return pointer to the offset into the region where
  *                      this buffer starts.
- * @param lenght        Return pointer to the lenght of the dequeue buffer
+ * @param length        Return pointer to the length of the dequeue buffer
  * @param valid_data    Return pointer to an offset into the buffer where the
  *                      valid data of this buffer starts
  * @param valid_length  Return pointer to the length of the valid data of
@@ -84,7 +84,7 @@ errval_t devq_enqueue(struct devq *q,
 errval_t devq_dequeue(struct devq *q,
                       regionid_t* region_id,
                       genoffset_t* offset,
-                      genoffset_t* langht,
+                      genoffset_t* length,
                       genoffset_t* valid_data,
                       genoffset_t* valid_length,
                       uint64_t* misc_flags);

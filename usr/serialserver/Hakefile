@@ -1,0 +1,11 @@
+[ build application { target = "serialserver",
+  		              cFiles = [ "serialserver.c",
+  		               "circular_buf.c",
+  		               "serial_facade.c"],
+  		               addLibraries = [ "grading",
+  		                                "lpuart",
+                                        "gic_dist"
+                                               ],
+                      architectures = allArchitectures
+                    }
+]

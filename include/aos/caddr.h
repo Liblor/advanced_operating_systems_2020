@@ -106,7 +106,8 @@ extern struct capref cap_root, cap_monitorep, cap_irq, cap_io, cap_dispatcher,
                      cap_selfep, cap_kernel, cap_initep, cap_perfmon, cap_dispframe,
                      cap_sessionid, cap_ipi, cap_vroot, cap_argcn, cap_procmng,
                      cap_domainid, cap_bootinfo, cap_mmstrings, cap_chan_init,
-                     cap_chan_memory, cap_chan_serial, cap_chan_process, cap_chan_monitor, cap_urpc;
+                     cap_chan_memory, cap_chan_serial, cap_chan_process, cap_chan_monitor, cap_urpc,
+                     cap_io_dev;
 
 /**
  * \brief Returns the depth in the CSpace address of a cap

@@ -4,18 +4,19 @@
 #include <aos/aos_rpc.h>
 #include <aos/threads.h>
 #include <aos/deferred.h>
+#include <rpc/server/lmp.h>
 
 
-#define PERIODIC_LOCALTASKS_US 1000
+#define MONITORSERVER_PERIODIC_FORWARD_RESPONSE_EVENT_US 100
+
 struct monitorserver_cb_state {
 };
 
 enum monitorserver_binding_type {
-    InitserverUrpc = 0,
-    ProcessserverUrpc = 5,
-    ProcessLocaltasksUrpc = 10,
     SerialserverUrpc = 15,
     MemoryserverUrpc = 20,
+    NameserverUrpc = 25,
+    BlockDriverServerUrpc = 30,
 };
 
 struct monitorserver_rpc {
@@ -25,17 +26,24 @@ struct monitorserver_rpc {
 
 struct monitorserver_state {
     struct thread_mutex mutex;
-    struct monitorserver_rpc initserver_rpc;
+
+    struct rpc_lmp_server lmp_server;
+
     struct monitorserver_rpc memoryserver_rpc;
-    struct monitorserver_rpc processserver_rpc;
-    struct monitorserver_rpc processserver_localtasks_rpc;
     struct monitorserver_rpc serialserver_rpc;
+    struct monitorserver_rpc nameserver_rpc;
+    struct monitorserver_rpc blockdriverserver_rpc;
     struct waitset ws;
     struct periodic_event periodic_localtask;
+
+    struct periodic_event forward_response_periodic_ev;
+    struct aos_rpc *rpc_forward_request_pending;
+    struct aos_rpc *rpc_forward_response_pending;
+    uint8_t method_forward_request_pending;
+    struct nameserver_state *ns_state;
 };
 
-errval_t monitorserver_init(void
-);
+errval_t monitorserver_init(struct nameserver_state *ns_state);
 
 errval_t monitorserver_register_service(enum monitorserver_binding_type type, struct capref urpc_frame);
 

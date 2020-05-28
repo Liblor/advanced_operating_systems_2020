@@ -3,6 +3,7 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
 #include <aos/debug.h>
+#include <aos/deferred.h>
 
 static void
 client_response_cb(void *arg)
@@ -162,9 +163,23 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
     struct capref ret_cap
 )
 {
+    return aos_rpc_lmp_send_and_wait_recv_one_no_alloc_wait_handler(rpc, send, recv, validate_cb, ret_cap, NULL, NULL);
+}
+
+errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc_wait_handler(
+    struct aos_rpc *rpc,
+    struct rpc_message *send,
+    struct rpc_message *recv,
+    validate_recv_msg_t validate_cb,
+    struct capref ret_cap,
+    response_wait_handler_t response_wait_handler,
+    void *handler_args
+)
+{
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(send != NULL);
     assert(recv != NULL);
 
@@ -180,7 +195,9 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
 
     thread_mutex_lock_nested(&rpc->mutex);
 
-    lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
+    if (!capref_is_null(ret_cap)) {
+        lmp_chan_set_recv_slot(&rpc->lmp.chan, ret_cap);
+    }
 
     // TODO: Use custom callback.
     err = lmp_chan_register_recv(&rpc->lmp.chan, &state.ws, MKCLOSURE(client_response_cb_one_no_alloc, &state));
@@ -195,7 +212,18 @@ errval_t aos_rpc_lmp_send_and_wait_recv_one_no_alloc(
         goto clean_up;
     }
 
-    err = event_dispatch(&state.ws);
+    do {
+        err = event_dispatch_non_block(&state.ws);
+        if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
+            debug_printf("error occured in event_dispatch_non_block(): %s\n", err_getstring(err));
+        }
+
+        if (response_wait_handler != NULL) {
+            response_wait_handler(handler_args);
+        }
+
+        thread_yield();
+    } while(err == LIB_ERR_NO_EVENT);
 
     if (err_is_fail(state.err)) {
         err = state.err;
@@ -222,9 +250,23 @@ errval_t
 aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
                                struct rpc_message **recv, validate_recv_msg_t validate_cb)
 {
+    return aos_rpc_lmp_send_and_wait_recv_wait_handler(rpc, send, recv, validate_cb, NULL, NULL);
+}
+
+errval_t
+aos_rpc_lmp_send_and_wait_recv_wait_handler(
+    struct aos_rpc *rpc,
+    struct rpc_message *send,
+    struct rpc_message **recv,
+    validate_recv_msg_t validate_cb,
+    response_wait_handler_t response_wait_handler,
+    void *handler_args
+)
+{
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(send != NULL);
 
     if (recv != NULL) {
@@ -264,8 +306,17 @@ aos_rpc_lmp_send_and_wait_recv(struct aos_rpc *rpc, struct rpc_message *send,
     }
 
     do {
-        err = event_dispatch(&state.ws);
-    } while (err_is_ok(err) && state.pending_state == DataInTransmit);
+        err = event_dispatch_non_block(&state.ws);
+        if (err != LIB_ERR_NO_EVENT && err_is_fail(err)) {
+            debug_printf("error occured in event_dispatch_non_block(): %s\n", err_getstring(err));
+        }
+
+        if (response_wait_handler != NULL) {
+            response_wait_handler(handler_args);
+        }
+
+        thread_yield();
+    } while (err == LIB_ERR_NO_EVENT || (err_is_ok(err) && state.pending_state == DataInTransmit));
 
     if (err_is_fail(err)) {
         goto clean_up;
@@ -314,6 +365,7 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
     errval_t err;
 
     assert(rpc != NULL);
+    assert(rpc->type == RpcTypeLmp);
     assert(msg != NULL);
 
     const uint64_t msg_size = sizeof(struct rpc_message_part) + msg->msg.payload_length;
@@ -325,7 +377,6 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
 
     uint64_t retries = 0;
     err = SYS_ERR_OK;
-
     thread_mutex_lock_nested(&rpc->mutex);
 
     while (size_sent < msg_size && retries < TRANSIENT_ERR_RETRIES) {
@@ -337,7 +388,12 @@ aos_rpc_lmp_send_message(struct aos_rpc *rpc, struct rpc_message *msg, lmp_send_
 
         if (lmp_err_is_transient(err)) {
             retries++;
+
+            // TODO: evaluate performance what is better
+            // yield_thread on transient error or wait blocking on a waitset
+            // barrelfish_usleep(TRANSIENT_ERR_SLEEP_US);
             thread_yield();
+
             continue;
         } else if (err_is_fail(err)) {
             break;

@@ -10,8 +10,6 @@
 #define NULL_H_ 1
 
 
-#include <barrelfish/barrelfish.h>
-
 /*
  * Simple queue that does nothing but forward to another queue
  */

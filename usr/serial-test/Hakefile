@@ -1,0 +1,5 @@
+[ build application { target = "serial-test",
+  		              cFiles = [ "serial-test.c" ],
+                      architectures = allArchitectures
+                    }
+]

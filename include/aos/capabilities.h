@@ -23,7 +23,7 @@
 #include <barrelfish_kpi/dispatcher_shared.h>
 #include <barrelfish_kpi/distcaps.h>
 #include <aos/slot_alloc.h>
-//#include <barrelfish/capabilities_arch.h> // vnode_inherit_attr()
+//#include <aos/capabilities_arch.h> // vnode_inherit_attr()
 #include <aos/cap_predicates.h> // get_address(), get_size()
 #include <aos/invocations.h>
 __BEGIN_DECLS

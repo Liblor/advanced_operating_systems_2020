@@ -17,6 +17,7 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/urpc.h>
 #include <aos/slot_alloc.h>
+#include <fs/fs.h>
 
 void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
@@ -84,6 +85,12 @@ errval_t aos_rpc_get_remote_ram_cap(
     }
 }
 
+errval_t
+aos_rpc_serial_putstr(struct aos_rpc *rpc, char *str, size_t len)
+{
+    return aos_rpc_lmp_serial_putstr(rpc, str, len);
+}
+
 errval_t aos_rpc_serial_getchar(struct aos_rpc *rpc, char *retc)
 {
     return aos_rpc_lmp_serial_getchar(rpc, retc);
@@ -104,14 +111,136 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **na
     return aos_rpc_lmp_process_get_name(rpc, pid, name);
 }
 
+errval_t aos_rpc_process_get_info(struct aos_rpc *chan, domainid_t pid,
+                                  struct aos_rpc_process_info_reply **ret_info) {
+    return aos_rpc_lmp_process_get_info(chan,pid, ret_info);
+}
+
 errval_t aos_rpc_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids, size_t *pid_count)
 {
     return aos_rpc_lmp_process_get_all_pids(rpc, pids, pid_count);
 }
 
+errval_t aos_rpc_process_signalize_exit(struct aos_rpc *rpc)
+{
+    return aos_rpc_lmp_process_signalize_exit(rpc);
+}
+
+errval_t aos_rpc_block_driver_read_block(struct aos_rpc *rpc, uint32_t index, void *buf, size_t buf_size)
+{
+    return aos_rpc_lmp_block_driver_read_block(rpc, index, buf, buf_size);
+}
+
+errval_t aos_rpc_block_driver_write_block(struct aos_rpc *rpc, uint32_t index, void *buf, size_t block_size)
+{
+    if (block_size != 512) {
+        return BLOCK_DRIVER_ERR_UNSUPPORTED_BLOCK_SIZE;
+    }
+    return aos_rpc_lmp_block_driver_write_block(rpc, index, buf, block_size);
+}
+
 errval_t aos_rpc_get_device_cap(struct aos_rpc *rpc, lpaddr_t paddr, size_t bytes, struct capref *ret_cap)
 {
     return aos_rpc_lmp_get_device_cap(rpc, paddr, bytes, ret_cap);
+}
+
+errval_t aos_rpc_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid, response_wait_handler_t response_wait_handler, void *handler_args)
+{
+    return aos_rpc_lmp_ns_register(rpc, name, chan_add_client, pid, response_wait_handler, handler_args);
+}
+
+errval_t aos_rpc_ns_deregister(struct aos_rpc *rpc, const char *name, response_wait_handler_t response_wait_handler, void *handler_args)
+{
+    return aos_rpc_lmp_ns_deregister(rpc, name, response_wait_handler, handler_args);
+}
+
+errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid, response_wait_handler_t response_wait_handler, void *handler_args)
+{
+    return aos_rpc_lmp_ns_lookup(rpc, name, rpc_service, pid, response_wait_handler, handler_args);
+}
+
+errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result, response_wait_handler_t response_wait_handler, void *handler_args)
+{
+    return aos_rpc_lmp_ns_enumerate(rpc, query, num, result, response_wait_handler, handler_args);
+}
+
+errval_t aos_rpc_fs_opendir(struct aos_rpc *rpc, const char *path, file_handle_t *handle)
+{
+    return aos_rpc_lmp_fs_opendir(rpc, path, (lvaddr_t *)handle);
+}
+
+errval_t aos_rpc_fs_open(struct aos_rpc *rpc, const char *name, file_handle_t *handle)
+{
+    return aos_rpc_lmp_fs_open(rpc, name, (lvaddr_t *)handle);
+}
+
+errval_t aos_rpc_fs_create(struct aos_rpc *rpc, const char *name, file_handle_t *handle)
+{
+    return aos_rpc_lmp_fs_create(rpc, name, (lvaddr_t *)handle);
+}
+
+errval_t aos_rpc_fs_rm(struct aos_rpc *rpc, const char *path)
+{
+    return aos_rpc_lmp_fs_rm(rpc, path);
+}
+
+errval_t aos_rpc_fs_rmdir(struct aos_rpc *rpc, const char *path)
+{
+    return aos_rpc_lmp_fs_rmdir(rpc, path);
+}
+
+errval_t aos_rpc_fs_mkdir(struct aos_rpc *rpc, const char *path)
+{
+    return aos_rpc_lmp_fs_mkdir(rpc, path);
+}
+
+errval_t aos_rpc_fs_closedir(struct aos_rpc *rpc, file_handle_t handle)
+{
+    return aos_rpc_lmp_fs_closedir(rpc, (lvaddr_t)handle);
+}
+
+errval_t aos_rpc_fs_close(struct aos_rpc *rpc, file_handle_t handle)
+{
+    return aos_rpc_lmp_fs_close(rpc, (lvaddr_t)handle);
+}
+
+errval_t aos_rpc_fs_tell(struct aos_rpc *rpc, file_handle_t handle, size_t *ret_pos)
+{
+    return aos_rpc_lmp_fs_tell(rpc, (lvaddr_t)handle, ret_pos);
+}
+
+errval_t aos_rpc_fs_stat(struct aos_rpc *rpc, file_handle_t handle, struct fs_fileinfo *fsinfo)
+{
+    return aos_rpc_lmp_fs_stat(rpc, (lvaddr_t)handle, fsinfo);
+}
+
+errval_t aos_rpc_fs_read(struct aos_rpc *rpc, file_handle_t handle, void *buf, size_t bytes, size_t *ret_bytes)
+{
+    return aos_rpc_lmp_fs_read(rpc, (lvaddr_t)handle, buf, bytes, ret_bytes);
+}
+
+errval_t aos_rpc_fs_read_dir_next(struct aos_rpc *rpc, file_handle_t handle, char **name)
+{
+    return aos_rpc_lmp_fs_read_dir_next(rpc, (lvaddr_t)handle, name);
+}
+
+errval_t aos_rpc_fs_seek(
+    struct aos_rpc *rpc,
+    file_handle_t handler,
+    enum fs_seekpos whence,
+    off_t offset
+) {
+    return aos_rpc_lmp_fs_seek(rpc, (lvaddr_t)handler, whence, offset);
+}
+
+errval_t aos_rpc_fs_write(
+    struct aos_rpc *rpc,
+    file_handle_t handler,
+    char *buf,
+    size_t size,
+    size_t *written
+) {
+    return aos_rpc_lmp_fs_write(rpc, (lvaddr_t)handler, buf, size, written);
 }
 
 /**
@@ -144,4 +273,20 @@ struct aos_rpc *aos_rpc_get_process_channel(void)
 struct aos_rpc *aos_rpc_get_serial_channel(void)
 {
     return aos_rpc_lmp_get_serial_channel();
+}
+
+/**
+ * \brief Returns the channel to the block driver
+ */
+struct aos_rpc *aos_rpc_get_block_driver_channel(void)
+{
+    return aos_rpc_lmp_get_block_driver_channel();
+}
+
+/**
+ * \brief Returns the channel to the file system server
+ */
+struct aos_rpc *aos_rpc_get_filesystemserver_channel(void)
+{
+    return aos_rpc_lmp_get_filesystemserver_channel();
 }

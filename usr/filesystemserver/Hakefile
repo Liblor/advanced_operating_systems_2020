@@ -1,0 +1,6 @@
+[ build application { target = "filesystemserver",
+  		              cFiles = [ "filesystemserver.c" ],
+                      architectures = allArchitectures,
+                      addLibraries = [ "sdhc", "fs" ]
+                    }
+]

@@ -12,7 +12,7 @@
 
 let
     -- Default list of modules to build/install
-    modules_common = [ "/sbin/" ++ f | f <- [ "init", "hello", "memeater", "dummy", "rpc-test", "rpc-test-2", "faulter", "morecore-test", "paging_tester", "multithreading", "multicore_test", "memory-other-core", "remote-dummy", "process-server-demo"
+    modules_common = [ "/sbin/" ++ f | f <- [ "init", "hello", "enet", "echoserver", "udpsender", "arp", "memeater", "dummy", "rpc-test", "rpc-test-2", "faulter", "morecore-test", "paging_tester", "multithreading", "multicore_test", "memory-other-core", "remote-dummy", "process-server-demo", "nameservicetest", "initserver", "processserver", "serial-test", "serial-write", "aosh", "serialserver", "blockdriverserver", "filesystemserver", "filereader", "servicelauncher", "print-loop"
       ] ]
   in
   [

@@ -1,0 +1,6 @@
+[ build application { target = "initserver",
+  		              cFiles = [ "initserver.c" ],
+                      addLibraries = [ "grading" ],
+                      architectures = allArchitectures
+                    }
+]

@@ -19,9 +19,16 @@
 #include <aos/aos_rpc_types.h>
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_ump.h>
+#include <fs/fs.h>
 
 // How often a transient error can occur before it's regarded critical.
 #define TRANSIENT_ERR_RETRIES (1000)
+
+// FS type
+typedef void *file_handle_t;
+
+// how long to sleep thread and give away execution time until resume on transient error
+#define TRANSIENT_ERR_SLEEP_US (1000)
 
 enum aos_rpc_type {
     RpcTypeLmp,
@@ -36,6 +43,8 @@ struct aos_rpc {
         struct aos_rpc_lmp lmp;
         struct aos_rpc_ump ump;
     };
+
+    void *priv_data;
 };
 
 /**
@@ -80,6 +89,8 @@ errval_t aos_rpc_get_remote_ram_cap(
 
 /**
  * \brief Get one character from the serial port
+ *
+ * returns AOS_ERR_SERIAL_BUSY if device is blocked for too long by someone else
  */
 errval_t aos_rpc_serial_getchar(struct aos_rpc *chan, char *retc);
 
@@ -87,6 +98,11 @@ errval_t aos_rpc_serial_getchar(struct aos_rpc *chan, char *retc);
  * \brief Send one character to the serial port
  */
 errval_t aos_rpc_serial_putchar(struct aos_rpc *chan, char c);
+
+/**
+ * \brief Send multiple character to the serial port
+ */
+errval_t aos_rpc_serial_putstr(struct aos_rpc *rpc, char *str, size_t len);
 
 /**
  * \brief Request that the process manager start a new process
@@ -108,6 +124,14 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
                                   char **name);
 
 /**
+ * \brief Get detailed info about a running processes.
+ * \arg pid query process with given pid
+ */
+errval_t aos_rpc_process_get_info(struct aos_rpc *chan, domainid_t pid,
+                                  struct aos_rpc_process_info_reply **ret_info);
+
+
+/**
  * \brief Get PIDs of all running processes.
  * \arg pids An array containing the process ids of all currently active
  * processes. Will be allocated by the rpc implementation. Freeing is the
@@ -116,6 +140,63 @@ errval_t aos_rpc_process_get_name(struct aos_rpc *chan, domainid_t pid,
  */
 errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
                                       domainid_t **pids, size_t *pid_count);
+
+
+/**
+ * \brief Signalize end of live for domain
+ */
+errval_t
+aos_rpc_process_signalize_exit(struct aos_rpc *rpc);
+
+
+/**
+ * \brief Read block of SDHC at index
+ * \arg index Read block at this index
+ * \arg buf Where to store data received
+ * \arg buf_size Size of buf
+ */
+errval_t aos_rpc_block_driver_read_block(struct aos_rpc *rpc,
+                                         uint32_t index,
+                                         void *buf,
+                                         size_t buf_size);
+
+/**
+ * \brief Write block of SDHC at index
+ * \arg index Write block at this index
+ * \arg buf Data to be written
+ * \arg block_size Size of block to be written, buf must be at least of this size
+ */
+errval_t aos_rpc_block_driver_write_block(struct aos_rpc *rpc,
+                                          uint32_t index,
+                                          void *buf,
+                                          size_t block_size);
+
+errval_t aos_rpc_fs_opendir(struct aos_rpc *rpc, const char *path, file_handle_t *handle);
+errval_t aos_rpc_fs_open(struct aos_rpc *rpc, const char *name, file_handle_t *handle);
+errval_t aos_rpc_fs_create(struct aos_rpc *rpc, const char *name, file_handle_t *handle);
+errval_t aos_rpc_fs_rm(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_fs_rmdir(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_fs_mkdir(struct aos_rpc *rpc, const char *path);
+errval_t aos_rpc_fs_closedir(struct aos_rpc *rpc, file_handle_t handle);
+errval_t aos_rpc_fs_close(struct aos_rpc *rpc, file_handle_t handle);
+errval_t aos_rpc_fs_tell(struct aos_rpc *rpc, file_handle_t handle, size_t *ret_pos);
+errval_t aos_rpc_fs_stat(struct aos_rpc *rpc, file_handle_t handle, struct fs_fileinfo *fsinfo);
+errval_t aos_rpc_fs_read(struct aos_rpc *rpc, file_handle_t handle, void *buf, size_t bytes, size_t *ret_bytes);
+errval_t aos_rpc_fs_read_dir_next(struct aos_rpc *rpc, file_handle_t handle, char **name);
+errval_t aos_rpc_fs_seek(
+    struct aos_rpc *rpc,
+    file_handle_t handler,
+    enum fs_seekpos whence,
+    off_t offset
+);
+errval_t aos_rpc_fs_write(
+    struct aos_rpc *rpc,
+    file_handle_t handler,
+    char *buf,
+    size_t size,
+    size_t *written
+);
+
 
 /**
  * \brief Request a device cap for the given region.
@@ -127,6 +208,12 @@ errval_t aos_rpc_process_get_all_pids(struct aos_rpc *chan,
 errval_t aos_rpc_get_device_cap(struct aos_rpc *chan,
                                 lpaddr_t paddr, size_t bytes,
                                 struct capref *frame);
+
+// Nameserver calls
+errval_t aos_rpc_ns_register(struct aos_rpc *rpc, const char *name, struct aos_rpc *chan_add_client, domainid_t pid, response_wait_handler_t response_wait_handler, void *handler_args);
+errval_t aos_rpc_ns_deregister(struct aos_rpc *rpc, const char *name, response_wait_handler_t response_wait_handler, void *handler_args);
+errval_t aos_rpc_ns_lookup(struct aos_rpc *rpc, const char *name, struct aos_rpc *rpc_service, domainid_t *pid, response_wait_handler_t response_wait_handler, void *handler_args);
+errval_t aos_rpc_ns_enumerate(struct aos_rpc *rpc, const char *query, size_t *num, char **result, response_wait_handler_t response_wait_handler, void *handler_args);
 
 /**
  * \brief Returns the RPC channel to init.
@@ -147,5 +234,15 @@ struct aos_rpc *aos_rpc_get_process_channel(void);
  * \brief Returns the channel to the serial console
  */
 struct aos_rpc *aos_rpc_get_serial_channel(void);
+
+/**
+ * \brief Returns the channel to the block driver
+ */
+struct aos_rpc *aos_rpc_get_block_driver_channel(void);
+
+/**
+ * \brief Returns the channel to the file system server
+ */
+struct aos_rpc *aos_rpc_get_filesystemserver_channel(void);
 
 #endif // _LIB_BARRELFISH_AOS_MESSAGES_H

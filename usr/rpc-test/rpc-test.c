@@ -67,12 +67,12 @@ __unused static void test_memory(void) {
     // TODO
 }
 
-__unused static void test_process(void) {
+__unused static void test_process(int num_process) {
     errval_t err;
 
     struct aos_rpc *rpc = aos_rpc_get_process_channel();
 
-    const uint64_t process_number = 200;
+    const uint64_t process_number = num_process;
 
     debug_printf("Testing aos_rpc_process_spawn() (spawning %u processes)...\n", process_number);
 
@@ -90,20 +90,6 @@ __unused static void test_process(void) {
         debug_printf("spawned child: pid %d\n", pid1);
     }
 
-    debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
-
-    for(int i = 0; i < process_number; i ++) {
-        char *name = NULL;
-
-        err = aos_rpc_lmp_process_get_name(rpc, i, &name);
-        if (err_is_fail(err)) {
-            DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
-            return;
-        }
-
-        debug_printf("aos_rpc_lmp_process_get_name: %s\n", name);
-    }
-
     debug_printf("Testing aos_rpc_lmp_process_get_all_pids()...\n");
 
     domainid_t *pids = NULL;
@@ -116,8 +102,22 @@ __unused static void test_process(void) {
 
     debug_printf("aos_rpc_lmp_process_get_all_pids:\n");
 
-    for(int j = 0; j < pid_count; j ++){
-        debug_printf("pid: %d:\n", pids[j]);
+    for(int i = 0; i < pid_count; i ++){
+        debug_printf("pid: %d\n", pids[i]);
+    }
+
+    debug_printf("Testing aos_rpc_lmp_process_get_name()...\n");
+
+    for(int i = 0; i < pid_count; i ++) {
+        char *name = NULL;
+
+        err = aos_rpc_lmp_process_get_name(rpc, pids[i], &name);
+        if (err_is_fail(err)) {
+            DEBUG_ERR(err, "aos_rpc_lmp_process_get_name()\n");
+            return;
+        }
+
+        debug_printf("aos_rpc_lmp_process_get_name: %s (%llu)\n", name, pids[i]);
     }
 }
 
@@ -131,16 +131,6 @@ __unused static void test_serial(void) {
         debug_printf("Could not create serial channel\n");
         return;
     }
-
-    /*
-    // Explicit test not necessary since printf is redirected to rpc during the
-    // execution of this entire program.
-    err = aos_rpc_lmp_serial_putchar(rpc_serial, 'a');
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "aos_rpc_lmp_serial_putchar()");
-        return;
-    }
-    */
 
     printf("If you see this message and the libc terminal write function is set in lib/aos/init.c it means aos_rpc_lmp_serial_putchar() is working\n");
     printf("1234567890abcdefghejklmnopqrstuvwxyz\n");
@@ -160,9 +150,14 @@ int main(int argc, char *argv[])
 {
     debug_printf("Running RPC tests...\n");
 
+    int num_domain = 10;
+    if (argc > 1) {
+        int p = atoi(argv[1]);
+        num_domain = p <= 0 ? num_domain : p;
+    }
     test_init();
     test_memory();
-    test_process();
+    test_process(num_domain);
     test_serial();
 
     debug_printf("done\n");

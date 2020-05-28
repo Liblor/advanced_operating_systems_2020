@@ -12,20 +12,21 @@
 
 [ build application { target = "init",
                       cFiles = [
+                        "distops/caplock.c",
+                        "distops/capqueue.c",
+                        "distops/deletestep.c",
+                        "distops/invocations.c",
                         "main.c",
                         "first_main.c",
                         "other_main.c",
                         "mem_alloc.c",
-                        "initserver.c",
                         "memoryserver.c",
-                        "serialserver.c",
-                        "processserver.c",
                         "monitorserver.c",
+                        "nameserver.c",
                         "test.c"
                       ],
                       addLinkFlags = [ "-e _start_init"], -- this is only needed for init
-                      addLibraries = [ "mm", "getopt", "elf", "spawn", "rpc",
-                        "grading"],
+                      addLibraries = [ "mm", "getopt", "elf", "spawn", "rpc", "grading", "sdhc" ],
                       architectures = allArchitectures
                     }
 ]

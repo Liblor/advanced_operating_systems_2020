@@ -1,0 +1,39 @@
+--------------------------------------------------------------------------
+-- Copyright (c) 2019, ETH Zurich.
+-- All rights reserved.
+--
+-- This file is distributed under the terms in the attached LICENSE file.
+-- If you do not find this file, copies can be found by writing to:
+-- ETH Zurich D-INFK, Universitaetstrasse 6, CH-8092 Zurich. Attn: Systems Group.
+--
+-- Hakefile for /usr/drivers/enet imx8 network driver
+--
+--------------------------------------------------------------------------
+
+[
+  build library {
+    target = "devif_backend_enet",
+    cFiles = ["enet_devq.c"],
+    mackerelDevices = ["imx8x/enet"],
+    addLibraries = libDeps ["driverkit", "devif_internal", "devif"],
+    architectures = ["armv8"]
+  },
+
+  build application {
+    target = "enet",
+    cFiles = [
+                "enet_module.c",
+                "device.c",
+                "router.c",
+                "ethernet.c",
+                "queues.c",
+                "arp.c",
+                "ip.c",
+                "icmp.c",
+                "udp.c"
+            ],
+    mackerelDevices = ["imx8x/enet"],
+    addLibraries = libDeps ["driverkit", "devif_backend_enet", "netutil"],
+    architectures = ["armv8"]
+  }
+]

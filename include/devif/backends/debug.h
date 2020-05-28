@@ -10,7 +10,7 @@
 #define DEVIF_DEBUG_H_ 1
 
 
-#include <barrelfish/barrelfish.h>
+#include <aos/aos.h>
 
 
 struct debug_q;

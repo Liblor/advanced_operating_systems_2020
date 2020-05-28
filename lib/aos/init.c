@@ -43,8 +43,11 @@ void libc_exit(int);
 __weak_reference(libc_exit, _exit);
 void libc_exit(int status)
 {
-    debug_printf("libc exit NYI!\n");
+    struct dispatcher_generic *disp = get_dispatcher_generic(curdispatcher());
+    domainid_t pid = disp->domain_id;
+    debug_printf("libc_exit pid %d\n", pid);
     thread_exit(status);
+
     // If we're not dead by now, we wait
     while (1) {}
 }
@@ -90,6 +93,7 @@ static size_t aos_terminal_read(char *buf, size_t len)
     for (i = 0; i < len; i++) {
         err = aos_rpc_serial_getchar(serial_rpc, &buf[i]);
         if (err_is_fail(err)) {
+            debug_printf("error while calling aos_rpc_serial_getchar: %s\n", err_getstring(err));
             break;
         }
     }
@@ -97,7 +101,7 @@ static size_t aos_terminal_read(char *buf, size_t len)
 }
 
 __attribute__((__used__))
-static size_t aos_terminal_write(const char *buf, size_t len)
+static size_t aos_terminal_write_char(const char *buf, size_t len)
 {
     errval_t err;
 
@@ -107,11 +111,26 @@ static size_t aos_terminal_write(const char *buf, size_t len)
     for (i = 0; i < len; i++) {
         err = aos_rpc_serial_putchar(serial_rpc, buf[i]);
         if (err_is_fail(err)) {
+            debug_printf("error while calling aos_rpc_serial_putchar: %s\n", err_getstring(err));
             break;
         }
     }
 
     return i;
+}
+
+__attribute__((__used__))
+static size_t aos_terminal_write_str(const char *buf, size_t len)
+{
+    errval_t err;
+
+    struct aos_rpc *serial_rpc = aos_rpc_get_serial_channel();
+    err = aos_rpc_serial_putstr(serial_rpc, (char *) buf, len);
+    if (err_is_fail(err)) {
+        debug_printf("error while calling aos_rpc_serial_putstr: %s\n", err_getstring(err));
+        return 0;
+    }
+    return len;
 }
 
 /* Set libc function pointers */
@@ -192,7 +211,7 @@ errval_t barrelfish_init_onthread(struct spawn_domain_params *params)
         */
 
         _libc_terminal_read_func = aos_terminal_read;
-        _libc_terminal_write_func = aos_terminal_write;
+        _libc_terminal_write_func = aos_terminal_write_str;
 
         // This call is to setup the channel to the memory server before
         // ram_alloc() is set to use the RPC call for memory allocation. This
