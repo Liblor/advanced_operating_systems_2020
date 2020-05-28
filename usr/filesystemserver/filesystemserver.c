@@ -386,7 +386,7 @@ int main(int argc, char *argv[])
     errval_t err;
     err = nameservice_wait_for_timeout(NAMESERVICE_BLOCKDRIVER, 60, 100000);
     if (err_is_fail(err)) { return 0; }
-    debug_printf("Fileserver spawned.\n");
+    printf("Fileserver spawned.\n");
     struct fileserver_state *st = malloc(sizeof(struct fileserver_state));
     if (st == NULL) {
         return 1;

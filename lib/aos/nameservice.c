@@ -459,7 +459,7 @@ errval_t nameservice_lookup(const char *name, nameservice_chan_t *nschan)
     domainid_t pid;
     err = aos_rpc_ns_lookup(monitor_chan, name, rpc, &pid, serve_all_add_client_wait_cb, service_list_head);
     if (err_is_fail(err)) {
-        debug_printf("aos_rpc_ns_lookup() failed: %s\n", err_getstring(err));
+        //debug_printf("aos_rpc_ns_lookup() failed: %s\n", err_getstring(err));
         return err;
     }
 

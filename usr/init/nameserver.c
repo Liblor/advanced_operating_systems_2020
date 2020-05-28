@@ -191,7 +191,7 @@ static errval_t handle_lookup(struct rpc_message *msg, struct nameserver_state *
     struct nameserver_entry *entry = collections_hash_find(service_table, hash);
 
     if (entry == NULL) {
-        debug_printf("Service '%s' not registered.\n", name);
+        //debug_printf("Service '%s' not registered.\n", name);
         return LIB_ERR_NOT_IMPLEMENTED;
     }
 
