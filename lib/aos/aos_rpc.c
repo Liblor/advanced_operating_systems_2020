@@ -17,6 +17,7 @@
 #include <aos/aos_rpc_lmp.h>
 #include <aos/slot_alloc.h>
 
+
 void aos_rpc_handler_print(char* string, uintptr_t* val, struct capref* cap)
 {
     aos_rpc_lmp_handler_print(string, val, cap);

@@ -40,14 +40,14 @@ static void number_cb(uintptr_t num)
 {
     grading_rpc_handle_number(num);
 
-    debug_printf("Received number %"PRIuPTR"\n", num);
+    // debug_printf("Received number %"PRIuPTR"\n", num);
 }
 
 static void string_cb(char *c)
 {
     grading_rpc_handler_string(c);
 
-    debug_printf("Received string %s\n", c);
+    // debug_printf("Received string %s\n", c);
 }
 
 // We do not allocate RAM here. This should be done in the server itself.
@@ -186,7 +186,7 @@ static int bsp_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-    char *binary_name = "morecore-test";
+    char *binary_name = "rpc-bench";
     struct spawninfo si;
     domainid_t pid;
 
