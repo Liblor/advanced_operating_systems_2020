@@ -73,8 +73,6 @@ void grading_test_early(void);
  * after all system processes have been created (nameserver and similar).
  */
 void grading_test_late(void);
-
-
 /**
  * Stubs for grading RPC implementation
  * These calls should be called on the receiver side of the RPC defined in

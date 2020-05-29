@@ -30,7 +30,7 @@ extern coreid_t my_core_id;
 static void number_cb(uintptr_t num)
 {
     grading_rpc_handle_number(num);
-#if 1
+#if 0
     debug_printf("number_cb(%llu)\n", num);
 #endif
 }
@@ -336,10 +336,10 @@ int first_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-#if 0
+#if 1
     domainid_t pid;
     struct spawninfo si;
-    err = spawn_load_by_name("process-server-demo", &si, &pid);
+    err = spawn_load_by_name("rpc-bench", &si, &pid);
     if (err_is_fail(err)) {
         debug_printf("spawn_load_by_name() failed: %s\n", err_getstring(err));
         abort();
