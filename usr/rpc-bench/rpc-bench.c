@@ -85,8 +85,8 @@ static void bench_spawn(void)
 int main(int argc, char *argv[])
 {
     debug_printf("starting benchmarks\n");
-    bench_send_number();
-//    bench_spawn();
+//    bench_send_number();
+    bench_spawn();
 
     return EXIT_SUCCESS;
 }

@@ -223,17 +223,17 @@ static int bsp_main(int argc, char *argv[])
     // Grading
     grading_test_late();
 
-    /*
+
     {
         domainid_t pid;
         struct spawninfo si;
-        err = spawn_load_by_name("multicore_test", &si, &pid);
+        err = spawn_load_by_name("rpc-bench", &si, &pid);
         if (err_is_fail(err)) {
             DEBUG_ERR(err, "spawn_load_by_name failed");
             abort();
         }
     }
-     */
+
 
     debug_printf("Message handler loop\n");
 
@@ -333,9 +333,6 @@ static int app_main(int argc, char *argv[])
 
     grading_test_late();
 
-    struct spawninfo si;
-    domainid_t pid;
-    spawn_load_by_name("rpc-bench", &si, &pid);
 
     // Hang around
     struct waitset *default_ws = get_default_waitset();
