@@ -31,6 +31,7 @@
 #include <drivers/sdhc.h>
 #include <aos/deferred.h>
 #include <dev/imx8x/sdhc_dev.h>
+#include <aos/systime.h>
 
 //#define DEBUG_ON
 
@@ -116,6 +117,21 @@ struct sdhc_s {
     uint64_t write_bl_len ;
     uint64_t capacity_user;
 };
+
+
+#if MEASURE
+static uint64_t start_time;
+static uint64_t stop_time;
+static uint64_t accumulator;
+
+uint64_t get_measured_time(void) {
+    return accumulator;
+}
+
+void reset_measured_time(void) {
+    accumulator = 0;
+}
+#endif
 
 
 struct cmd {
@@ -221,12 +237,19 @@ static errval_t sdhc_send_cmd(struct sdhc_s * sd, struct cmd * cmd) {
     } else {
        mask = 3;
     }
+
+#if MEASURE == 1
+    start_time = systime_now();
+#endif
     while(sdhc_pres_state_rawrd(&sd->dev) & mask){
         DEBUG("Card busy!\n");
     }
     DEBUG("Card ready (data & cmd inhibit are clear)!\n");
     barrelfish_usleep(10000);
-
+#if MEASURE == 1
+    stop_time = systime_now();
+    accumulator += (stop_time - start_time);
+#endif
     // Clear interrupts
     sdhc_int_status_rawwr(&sd->dev, ~0x0);
 
@@ -258,6 +281,9 @@ static errval_t sdhc_send_cmd(struct sdhc_s * sd, struct cmd * cmd) {
     sdhc_cmd_xfr_typ_wr(&sd->dev, c);
 
     //DEBUG("%s:%d: Wait until irq_stat.tc || irq_stat.cc \n", __FUNCTION__, __LINE__);
+#if MEASURE == 2
+    start_time = systime_now();
+#endif
     uint32_t tc = 0;
     uint32_t cc = 0;
     size_t i = 0;
@@ -287,6 +313,10 @@ static errval_t sdhc_send_cmd(struct sdhc_s * sd, struct cmd * cmd) {
         if(tc || cc) break;
     } while (true);
     DEBUG("Command complete!\n");
+#if MEASURE == 2
+    stop_time = systime_now();
+    accumulator += (stop_time - start_time);
+#endif
 
     if(cmd->resp_type & MMC_RSP_136){
         uint32_t r0 = sdhc_cmd_rsp0_rd(&sd->dev);

@@ -13,6 +13,21 @@
 #include <stdint.h>
 #include <aos/aos.h>
 
+
+/**
+ * Measure:
+ * 0 : Deactivated
+ * 1 : Measure the waiting for device
+ * 2 : Waiting for (irq_stat.tc || irq_stat.cc)
+ */
+#define MEASURE 0
+
+#if MEASURE
+uint64_t get_measured_time(void);
+void reset_measured_time(void);
+#endif
+
+
 #define IMX8X_SDHC0_INT 264
 #define IMX8X_SDHC1_INT 265
 #define IMX8X_SDHC2_INT 266
