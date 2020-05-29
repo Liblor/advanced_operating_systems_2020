@@ -3,6 +3,7 @@
 #include <aos/aos_rpc.h>
 #include <aos/aos_rpc_lmp.h>
 #include <aos/aos_rpc_lmp_marshal.h>
+#include <aos/systime.h>
 
 static struct aos_rpc *init_channel = NULL;
 static struct aos_rpc *memory_channel = NULL;

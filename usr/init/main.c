@@ -257,7 +257,7 @@ static errval_t app_urpc_slave_spawn(char *cmdline, domainid_t *ret_pid)
     err = spawn_load_by_name(cmdline, &si, ret_pid);
     if (err_is_fail(err)) {
         debug_printf("error in app_urpc_slave_spawn, cannot spawn %s: %s\n",
-                cmdline, err_getstring(err));
+                     cmdline, err_getstring(err));
         return err;
     }
     return SYS_ERR_OK;
@@ -333,6 +333,10 @@ static int app_main(int argc, char *argv[])
 
     grading_test_late();
 
+    struct spawninfo si;
+    domainid_t pid;
+    spawn_load_by_name("rpc-bench", &si, &pid);
+
     // Hang around
     struct waitset *default_ws = get_default_waitset();
     while (true) {
@@ -363,7 +367,7 @@ int main(int argc, char *argv[])
 
     debug_printf("init: on core %" PRIuCOREID ", invoked as:", my_core_id);
     for (int i = 0; i < argc; i++) {
-       printf(" %s", argv[i]);
+        printf(" %s", argv[i]);
     }
     printf("\n");
     fflush(stdout);
