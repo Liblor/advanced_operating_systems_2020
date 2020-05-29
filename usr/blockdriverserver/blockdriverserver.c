@@ -8,6 +8,14 @@
 #include <aos/nameserver.h>
 #include <aos/systime.h>
 
+/**
+ * 0 : Deactivated
+ * 1 : Total time for read/write
+ * 2 : Measurements subparts of sdhc (see sdhc.h)
+ */
+#define MEASUREREADBLOCK 0
+#define MEASUREWRITEBLOCK 0
+
 struct block_driver_state {
     struct capref sdhc;     ///< ObjType_DevFrame capability to SDHC
     struct capref frame;    ///< Mapped frame used for read/write_vaddr
@@ -51,12 +59,20 @@ static inline errval_t read_block(
     struct block_driver_state *server_state
 ) {
     errval_t err;
-    //uint64_t ticks_before = systime_now();
+#if MEASUREREADBLOCK == 1
+    uint64_t ticks_before = systime_now();
+#elif MEASUREREADBLOCK == 2
+    reset_measured_time();
+#endif
     arm64_dcache_wbinv_range(server_state->read_vaddr, SDHC_BLOCK_SIZE);
     err = sdhc_read_block(sdhc_s, index, server_state->read_paddr);
     if (err_is_fail(err)) { return err; }
-    //uint64_t ticks_after = systime_now();
-    //debug_printf("Timing blockdriver (read): %lu\n", systime_to_us(ticks_after - ticks_before));
+#if MEASUREREADBLOCK == 1
+    uint64_t ticks_after = systime_now();
+    debug_printf("Timing blockdriver (read): %lu\n", systime_to_us(ticks_after - ticks_before));
+#elif MEASUREREADBLOCK == 2
+    debug_printf("Timing blockdriver (read-sdhc): %lu\n", systime_to_us(get_measured_time()));
+#endif
     return SYS_ERR_OK;
 }
 
@@ -65,8 +81,19 @@ static inline errval_t write_block(
     struct block_driver_state *server_state
 ) {
     errval_t err;
+#if MEASUREWRITEBLOCK == 1
+    uint64_t ticks_before = systime_now();
+#elif MEASUREWRITEBLOCK == 2
+    reset_measured_time();
+#endif
     arm64_dcache_wb_range(server_state->write_vaddr, SDHC_BLOCK_SIZE);
     err = sdhc_write_block(sdhc_s, index, server_state->write_paddr);
+#if MEASUREWRITEBLOCK == 1
+    uint64_t ticks_after = systime_now();
+    debug_printf("Timing blockdriver (write): %lu\n", systime_to_us(ticks_after - ticks_before));
+#elif MEASUREWRITEBLOCK == 2
+    debug_printf("Timing blockdriver (write-sdhc): %lu\n", systime_to_us(get_measured_time()));
+#endif
     if (err_is_fail(err)) { return err; }
     return SYS_ERR_OK;
 }
