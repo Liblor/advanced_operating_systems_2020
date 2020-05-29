@@ -102,6 +102,8 @@ errval_t initialize_ram_alloc(size_t num_cores)
         return err;
     }
 
+    grading_test_mm(&aos_mm);
+
     // Walk bootinfo and add all RAM caps to allocator handed to us by the kernel
     uint64_t mem_avail = 0;
     struct capref mem_cap = {

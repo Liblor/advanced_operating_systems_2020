@@ -12,6 +12,7 @@
 
 [ build application { target = "hello",
   		              cFiles = [ "hello.c" ],
+  		              addLibraries = [ "grading" ],
                       architectures = allArchitectures
                     }
 ]

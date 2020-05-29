@@ -16,9 +16,12 @@
 #include <stdio.h>
 
 #include <aos/debug.h>
+#include <grading.h>
 
 int main(int argc, char *argv[])
 {
+    grading_setup_noninit(&argc, &argv);
+
     debug_printf("Hello, world! from userspace\n");
 
     for (int i = 0; i < argc; i++) {
