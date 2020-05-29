@@ -101,9 +101,9 @@ aos_rpc_lmp_send_number(struct aos_rpc *rpc, uintptr_t num)
     } else {
         assert(rpc->type == RpcTypeUmp);
         struct nameservice_chan chan = {
-            .name = "",
-            .rpc = rpc,
-            .pid = 0,
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
         };
         err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
@@ -143,9 +143,9 @@ aos_rpc_lmp_send_string(struct aos_rpc *rpc, const char *string)
     } else {
         assert(rpc->type == RpcTypeUmp);
         struct nameservice_chan chan = {
-            .name = "",
-            .rpc = rpc,
-            .pid = 0,
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
         };
         err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), NULL, NULL, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
@@ -237,8 +237,8 @@ validate_serial_getchar(struct lmp_recv_msg *msg, enum pending_state state)
                    "invalid buflen");
         const struct rpc_message_part *msg_part = (struct rpc_message_part *) msg->words;
         return_err(((msg_part->status != Status_Ok)
-                         && msg_part->status != Serial_Getchar_Occupied)
-                         && (msg_part->status != Serial_Getchar_Nodata), "status not ok");
+                    && msg_part->status != Serial_Getchar_Occupied)
+                   && (msg_part->status != Serial_Getchar_Nodata), "status not ok");
         return_err(msg_part->method != Method_Serial_Getchar, "wrong method in response");
     }
     return SYS_ERR_OK;
@@ -455,9 +455,9 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     } else {
         assert(rpc->type == RpcTypeUmp);
         struct nameservice_chan chan = {
-            .name = "",
-            .rpc = rpc,
-            .pid = 0,
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
         };
         err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, send->cap, NULL_CAP);
         if (err_is_fail(err)) {
@@ -478,7 +478,7 @@ aos_rpc_lmp_process_spawn(struct aos_rpc *rpc, char *cmdline,
     err = SYS_ERR_OK;
     goto clean_up;
 
-clean_up:
+    clean_up:
     free(recv);
     return err;
 }
@@ -513,9 +513,9 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     } else {
         assert(rpc->type == RpcTypeUmp);
         struct nameservice_chan chan = {
-            .name = "",
-            .rpc = rpc,
-            .pid = 0,
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
         };
         err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
@@ -539,7 +539,7 @@ aos_rpc_lmp_process_get_name(struct aos_rpc *rpc, domainid_t pid, char **name) {
     err = SYS_ERR_OK;
     goto clean_up_recv;
 
-clean_up_recv:
+    clean_up_recv:
     if (recv != NULL) {
         free(recv);
     }
@@ -576,9 +576,9 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     } else {
         assert(rpc->type == RpcTypeUmp);
         struct nameservice_chan chan = {
-            .name = "",
-            .rpc = rpc,
-            .pid = 0,
+                .name = "",
+                .rpc = rpc,
+                .pid = 0,
         };
         err = nameservice_rpc(&chan, send_buf, sizeof(send_buf), (void **) &recv, &recv_bytes, msg->cap, NULL_CAP);
         if (err_is_fail(err)) {
@@ -607,7 +607,7 @@ aos_rpc_lmp_process_get_all_pids(struct aos_rpc *rpc, domainid_t **pids,
     err = SYS_ERR_OK;
     goto clean_up;
 
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -664,7 +664,7 @@ errval_t aos_rpc_lmp_process_get_info(struct aos_rpc *rpc, domainid_t pid,
 
     goto clean_up_recv;
 
-clean_up_recv:
+    clean_up_recv:
     if (recv != NULL) {
         free(recv);
     }
@@ -1070,8 +1070,8 @@ client_recv_open_cb(void *args)
 }
 
 static struct aos_rpc *aos_rpc_lmp_setup_channel(
-    struct capref remote_cap,
-    const char *service_name
+        struct capref remote_cap,
+        const char *service_name
 )
 {
     errval_t err;
@@ -1150,16 +1150,16 @@ static struct aos_rpc *aos_rpc_lmp_setup_channel(
 
     return rpc;
 
-error:
+    error:
     debug_printf("Error while setting up channel for %s\n", service_name);
     return NULL;
 }
 
 
 static void set_ok_message(
-    struct rpc_message *msg,
-    enum rpc_message_method method,
-    size_t payload_size
+        struct rpc_message *msg,
+        enum rpc_message_method method,
+        size_t payload_size
 ) {
     msg->cap = NULL_CAP;
     msg->msg.method = method;
@@ -1168,18 +1168,18 @@ static void set_ok_message(
 }
 
 static void set_payload_message(
-    struct rpc_message *msg,
-    const void *buf,
-    size_t size,
-    size_t offset
+        struct rpc_message *msg,
+        const void *buf,
+        size_t size,
+        size_t offset
 ) {
     assert(size + offset <= msg->msg.payload_length);
     memcpy((char *)msg->msg.payload + offset, buf, size);
 }
 
 static void get_errno_of_fs_msg(
-    struct rpc_message *msg,
-    errval_t *err
+        struct rpc_message *msg,
+        errval_t *err
 ) {
     memcpy(err, msg->msg.payload, sizeof(errval_t));
 }
@@ -1212,7 +1212,7 @@ errval_t aos_rpc_lmp_fs_opendir(struct aos_rpc *rpc, const char *path, lvaddr_t 
     }
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1247,7 +1247,7 @@ errval_t aos_rpc_lmp_fs_open(struct aos_rpc *rpc, const char *name, lvaddr_t *ha
     }
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1281,7 +1281,7 @@ errval_t aos_rpc_lmp_fs_create(struct aos_rpc *rpc, const char *name, lvaddr_t *
     }
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1311,7 +1311,7 @@ errval_t aos_rpc_lmp_fs_rm(struct aos_rpc *rpc, const char *path)
     // TODO Response is not getting validated here
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1341,7 +1341,7 @@ errval_t aos_rpc_lmp_fs_rmdir(struct aos_rpc *rpc, const char *path)
     // TODO Response is not getting validated here
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1371,7 +1371,7 @@ errval_t aos_rpc_lmp_fs_mkdir(struct aos_rpc *rpc, const char *path)
     // TODO Response is not getting validated here
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1400,7 +1400,7 @@ errval_t aos_rpc_lmp_fs_closedir(struct aos_rpc *rpc, lvaddr_t handle)
     // TODO Response is not getting validated here
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1429,7 +1429,7 @@ errval_t aos_rpc_lmp_fs_close(struct aos_rpc *rpc, lvaddr_t handle)
     // TODO Response is not getting validated here
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1459,7 +1459,7 @@ errval_t aos_rpc_lmp_fs_tell(struct aos_rpc *rpc, lvaddr_t handle, size_t *ret_p
 
     memcpy(ret_pos, (char *)recv->msg.payload + sizeof(errval_t), sizeof(size_t));
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1489,7 +1489,7 @@ errval_t aos_rpc_lmp_fs_stat(struct aos_rpc *rpc, lvaddr_t handle, struct fs_fil
 
     memcpy(fsinfo, (char *)recv->msg.payload + sizeof(errval_t), sizeof(struct fs_fileinfo));
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     if (recv != NULL) {
         free(recv);
     }
@@ -1505,8 +1505,8 @@ errval_t aos_rpc_lmp_fs_read(struct aos_rpc *rpc, lvaddr_t handle, void *buf, si
     struct rpc_message *msg = (struct rpc_message *) send_buf;
 
     set_ok_message(msg,
-        Method_File_System_Read,
-        sizeof(handle) + sizeof(bytes)
+                   Method_File_System_Read,
+                   sizeof(handle) + sizeof(bytes)
     );
     set_payload_message(msg, &handle, sizeof(handle), 0);
     set_payload_message(msg, &bytes, sizeof(bytes), sizeof(handle));
@@ -1527,7 +1527,7 @@ errval_t aos_rpc_lmp_fs_read(struct aos_rpc *rpc, lvaddr_t handle, void *buf, si
     *ret_bytes = recv->msg.payload_length - sizeof(errval_t);
     memcpy(buf, (char *)recv->msg.payload + sizeof(errval_t), *ret_bytes);
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     free(send_buf);
     if (recv != NULL) {
         free(recv);
@@ -1564,7 +1564,7 @@ errval_t aos_rpc_lmp_fs_read_dir_next(struct aos_rpc *rpc, lvaddr_t handle, char
     if (*name == NULL) { err = LIB_ERR_MALLOC_FAIL; goto clean_up; }
     memcpy(*name, (char *)recv->msg.payload + sizeof(errval_t), name_size);
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     free(send_buf);
     if (recv != NULL) {
         free(recv);
@@ -1573,10 +1573,10 @@ clean_up:
 }
 
 errval_t aos_rpc_lmp_fs_seek(
-    struct aos_rpc *rpc,
-    lvaddr_t handle,
-    enum fs_seekpos whence,
-    off_t offset
+        struct aos_rpc *rpc,
+        lvaddr_t handle,
+        enum fs_seekpos whence,
+        off_t offset
 ) {
     errval_t err;
     size_t send_buf_size = sizeof(struct rpc_message) + sizeof(handle) + sizeof(offset)
@@ -1586,7 +1586,7 @@ errval_t aos_rpc_lmp_fs_seek(
     struct rpc_message *msg = (struct rpc_message *) send_buf;
 
     set_ok_message(msg,
-        Method_File_System_Seek,
+                   Method_File_System_Seek,
                    sizeof(handle) + sizeof(offset) + sizeof(whence)
     );
     set_payload_message(msg, &handle, sizeof(handle), 0);
@@ -1606,7 +1606,7 @@ errval_t aos_rpc_lmp_fs_seek(
     // TODO Response is not getting validated here
 
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     free(send_buf);
     if (recv != NULL) {
         free(recv);
@@ -1615,11 +1615,11 @@ clean_up:
 }
 
 errval_t aos_rpc_lmp_fs_write(
-    struct aos_rpc *rpc,
-    lvaddr_t handle,
-    char *buf,
-    size_t size,
-    size_t *written
+        struct aos_rpc *rpc,
+        lvaddr_t handle,
+        char *buf,
+        size_t size,
+        size_t *written
 ) {
     errval_t err;
     size_t send_buf_size = sizeof(struct rpc_message) + sizeof(handle) + size;
@@ -1645,7 +1645,7 @@ errval_t aos_rpc_lmp_fs_write(
 
     memcpy(written, (char *)recv->msg.payload + sizeof(errval_t), sizeof(size_t));
     get_errno_of_fs_msg(recv, &err);
-clean_up:
+    clean_up:
     free(send_buf);
     if (recv != NULL) {
         free(recv);
@@ -1655,9 +1655,9 @@ clean_up:
 
 
 static struct aos_rpc *aos_rpc_lmp_get_channel(
-    struct aos_rpc **rpc,
-    struct capref cap,
-    const char *service_name
+        struct aos_rpc **rpc,
+        struct capref cap,
+        const char *service_name
 )
 {
     bool was_unset = false;

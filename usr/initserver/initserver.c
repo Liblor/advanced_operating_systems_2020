@@ -8,7 +8,7 @@
 static void handle_number(uintptr_t num)
 {
     grading_rpc_handle_number(num);
-#if 1
+#if 0
     debug_printf("handle_number(%llu)\n", num);
 #endif
 }

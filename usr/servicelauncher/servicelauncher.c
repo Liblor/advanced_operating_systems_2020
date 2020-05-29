@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     // call grading here
 
     debug_printf("Spawning shell...\n");
-    spawn_service(proc_chan, "aosh");
+    spawn_service(proc_chan, "rpc-bench");
 
     return EXIT_SUCCESS;
 }
