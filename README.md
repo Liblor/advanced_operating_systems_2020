@@ -1,6 +1,6 @@
-[![Build Status](https://travis-ci.com/Liblor/advanced_operating_systems_2020.svg?token=Zrce2EeAvy4vhtiTbyaH&branch=master)](https://travis-ci.com/github/Liblor/advanced_operating_systems_2020)
-
 > :warning: **If you are enrolled in this course do not proceed further**: Coming up with your own design decisions is an integral part of the project and therefore the course. Having a look at our implementation might violate the ETHZ guidelines.
+
+[![Build Status](https://travis-ci.com/Liblor/advanced_operating_systems_2020.svg?token=Zrce2EeAvy4vhtiTbyaH&branch=master)](https://travis-ci.com/github/Liblor/advanced_operating_systems_2020)
 
 # Advanced Operating Systems - FS20
 > This course is intended to give students a thorough understanding of design and implementation issues for modern multicore operating systems.
