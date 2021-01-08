@@ -9,7 +9,7 @@
 > 
 > The course is structured around a significant project which builds up, over the course of the semester, a fairly complete, full-featured multicore operating system for the ARM-based Toradex board. The OS is based on the [Barrelfish](http://www.barrelfish.org/) open-source multikernel developed at ETHZ in collaboration with Microsoft Research. 
 
-[ETHZ - Advanced Operating Systems](https://www.systems.ethz.ch/courses/spring2020/aos)
+[ETHZ - Advanced Operating Systems](https://archive-systems.ethz.ch/courses/spring2020/aos)
 
 Our report of the project can be found [here](https://github.com/Liblor/advanced_operating_systems_2020/raw/master/report/report.pdf).
 
